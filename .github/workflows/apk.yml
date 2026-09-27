@@ -21,6 +21,7 @@ jobs:
         run: |
           unzip -oq KING-Plus-v1.2-Firebase-source.zip -d /tmp/kingplus-v12
           cp -a /tmp/kingplus-v12/KING-Plus/. .
+          printf "%s\n" "plugins { id 'com.android.application' version '8.7.3' apply false; id 'com.google.gms.google-services' version '4.5.0' apply false }" > build.gradle
       - name: Build debug APK
         run: gradle :app:assembleDebug --no-daemon
       - name: Show APK signing certificate
