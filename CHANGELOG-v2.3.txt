@@ -1,0 +1,6 @@
+KING Plus v2.3 UI pass
+- Reworked Party/Home screen to match supplied reference structure more closely.
+- Added 5 category tabs, party banner and 2-column room card grid.
+- Reworked Voice Room with compact header, announcement, 8-seat layout, room chat and bottom controls.
+- Preserved Firebase phone OTP and Google sign-in logic from v2.2.
+- Existing Gift, Game, Messages, Profile and settings flows remain available.

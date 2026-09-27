@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "813197149307",
+    "project_id": "king-plus-2f365",
+    "storage_bucket": "king-plus-2f365.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:813197149307:android:b7712265ecd0bd7bd94ede",
+        "android_client_info": {
+          "package_name": "com.kingplus.social"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAfwS6yDNrdO3rISeFv6BEsESAA4x1f-GY"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

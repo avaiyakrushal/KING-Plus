@@ -1,0 +1,50 @@
+KING Plus v2.5 – Full feature pass
+
+UI / navigation
+- Reference-style Party/Home categories: Hot, Event, Date, Music, Game
+- Custom-created rooms shown on Home
+- 12-seat voice room layout with room IDs and dynamic member counts
+- Game, Messages, Discover, Profile/Me and side-menu flows retained and expanded
+
+Voice room
+- Persistent per-room announcement and lock state
+- Persistent local room chat history
+- Seat change/leave, member profile, admin assignment and seat mute state
+- Host controls: open/mute all seats, clear chat, manage admins, room permissions
+- Gift target selection, gift effects toggle and wallet transaction history
+- Room information sharing through Android share sheet
+
+Social / profile
+- Follow + friend state
+- Profile photo picker, bio, hometown, birthday and tags
+- Messages list, new message flow, direct-message history and room sharing
+- Moments: text/photo posts plus quick text moments
+- Community search for rooms and people
+- Block/report and privacy controls
+
+Economy / progression
+- Daily check-in streak with increasing rewards
+- Daily missions with progress and claimable local rewards
+- XP and dynamic level calculation
+- Mini-game local rewards
+- Wallet transaction history
+- Backpack frame/effect selection
+
+Family / agency
+- Create family with 6-digit code
+- Join family by code
+- Share family name + code using Android share sheet
+- Host application state and local agency dashboard
+
+Settings / safety
+- Notification, entrance-effect and room-sound toggles
+- Friends-only DMs, online-status and room-gift privacy toggles
+- Help/feedback center
+- Firebase/Google logout handling
+
+Authentication
+- Existing Firebase real SMS OTP and Firebase Google sign-in wiring retained
+- Facebook remains provider-setup dependent (no fake login)
+
+Important
+- Live multi-user voice transport, real-time server chat, cloud rankings, payments/payouts, production moderation and production Facebook login still require backend/provider integration. Local prototype behavior is clearly kept local rather than faked as online.
