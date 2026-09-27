@@ -1,0 +1,15 @@
+KING Plus v2.4 – Reference UI completion
+
+- Party/Home reference-style room grid and category tabs
+- Voice room with 8 seats, mic meter, chat, gifts, games and leave controls
+- Gift store and local coin balance
+- Channel list and room settings
+- Messages, conversations, notifications, followers/friends
+- Discover, Moments, people profiles and safety actions
+- Game Center and mini-game dialogs
+- Me/Profile, Wallet, Backpack, Level, Rankings, VIP, Family & Agency
+- Daily check-in, Missions, Settings and Privacy/Safety
+- Existing Firebase SMS OTP and Google sign-in retained
+- Fixed Moments delimiter regex for Java compilation
+
+Notes: several social/game/economy features are local prototype behavior. Live multi-user voice, real-time chat, payments, server rankings and production Facebook auth still require backend/provider integration.

@@ -1,34 +1,38 @@
-name: Build KING Plus v1.4 Google Login APK
+name: Build KING Plus APK
+
 on:
   push:
     branches: [main]
   workflow_dispatch:
+
 permissions:
   contents: read
+
 jobs:
   build:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
+
       - uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: '17'
+
       - uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '8.9'
-      - name: Use v1.4 Google login source
-        run: |
-          unzip -oq KING-Plus-v1.4-google-login-source.zip -d /tmp/kingplus-v14
-          cp -a /tmp/kingplus-v14/KING-Plus/. .
+
       - name: Build debug APK
         run: gradle :app:assembleDebug --no-daemon
+
       - name: Show APK signing certificate
         run: |
           APK_SIGNER=$(find "$ANDROID_HOME/build-tools" -name apksigner -type f | sort -V | tail -n 1)
           "$APK_SIGNER" verify --print-certs app/build/outputs/apk/debug/app-debug.apk
+
       - uses: actions/upload-artifact@v4
         with:
-          name: KING-Plus-v1.4-google-login-debug-APK
+          name: KING-Plus-v2.5-debug-APK
           path: app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error

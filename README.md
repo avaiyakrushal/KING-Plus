@@ -1,7 +1,30 @@
-# KING Plus — Android starter
+# KING Plus v2.5
 
-Open this folder in Android Studio and let Gradle sync, then run the `app` configuration.
+This version advances the v2.1 Family & Agency prototype and replaces the fake mobile test PIN flow with Firebase-ready authentication.
 
-Implemented: branded home screen, room list, local room creation, room screen, and profile placeholder. Room changes last only until the app closes. Live voice chat, accounts, messaging, gifts, and real users require a backend and an audio service; the app does not claim these are connected.
+## Changes
+- Real Firebase Phone Authentication flow (SMS OTP)
+- Google sign-in wired to Firebase Authentication
+- Test PIN `123456` removed
+- Firebase setup checks with clear in-app messages when config is missing
+- Family & Agency screens from v2.1 retained
+- Existing Party, room, profile, wallet, missions and local demo features retained
 
-Requirements: Android Studio with JDK 17, Android SDK 35, internet for Android Gradle Plugin 8.7.3. A Gradle wrapper is not included; Android Studio can use its installed Gradle distribution.
+## Firebase status / remaining setup
+- The previously supplied `google-services.json` is included in `app/google-services.json`.
+- Its Android package matches `com.kingplus.social`.
+- Enable **Phone** in Firebase Authentication and allow the required SMS region(s) for real OTP.
+- Add SHA-1 and SHA-256 fingerprints for Android app verification.
+- The supplied config currently has no OAuth client entry, so Google sign-in still needs Google provider/SHA configuration and then a refreshed `google-services.json`.
+
+The Gradle project uses Firebase Android BoM 34.19.0, Firebase Auth, Google Play services Auth 22.0.0 and Google services Gradle plugin 4.5.0.
+
+## Facebook
+The Facebook button no longer performs a fake local login. It displays a setup notice until Meta App credentials and Firebase Facebook provider configuration are added.
+
+## Note
+Family/agency and most social data are still local prototype data. A production backend, moderation, account storage, live rooms and server-side permissions are still required for a production social app.
+
+
+## v2.5 full feature pass
+See `CHANGELOG-v2.5.txt` and `FEATURE_STATUS.md` for the expanded UI, local feature behavior, and the production backend work that still requires external services.
