@@ -193,6 +193,11 @@ public class MainActivity extends Activity {
         return n;
     }
     private void sendRealOtp(String number) {
+        if (firebaseAuth == null || isFinishing() || isDestroyed()) {
+            showPhoneError("Firebase is unavailable. Check the app configuration and reopen the app.");
+            return;
+        }
+        try {
         PhoneAuthOptions options = PhoneAuthOptions.newBuilder(firebaseAuth)
             .setPhoneNumber(number)
             .setTimeout(60L, TimeUnit.SECONDS)
@@ -200,15 +205,24 @@ public class MainActivity extends Activity {
             .setCallbacks(new PhoneAuthProvider.OnVerificationStateChangedCallbacks() {
                 @Override public void onVerificationCompleted(PhoneAuthCredential credential) { signInWithPhoneCredential(credential, number); }
                 @Override public void onVerificationFailed(com.google.firebase.FirebaseException e) {
-                    Toast.makeText(MainActivity.this, "OTP failed: " + e.getMessage(), Toast.LENGTH_LONG).show();
+                    showPhoneError(e.getLocalizedMessage());
                 }
                 @Override public void onCodeSent(String verificationId, PhoneAuthProvider.ForceResendingToken token) {
                     phoneVerificationId = verificationId;
                     Toast.makeText(MainActivity.this, "OTP sent", Toast.LENGTH_SHORT).show();
-                    showOtpDialog(number);
+                    if (!isFinishing() && !isDestroyed()) showOtpDialog(number);
                 }
             }).build();
         PhoneAuthProvider.verifyPhoneNumber(options);
+        } catch (RuntimeException e) {
+            showPhoneError(e.getLocalizedMessage());
+        }
+    }
+    private void showPhoneError(String reason) {
+        if (isFinishing() || isDestroyed()) return;
+        new AlertDialog.Builder(this).setTitle("Mobile OTP could not start")
+            .setMessage(reason == null || reason.trim().isEmpty() ? "Check Firebase Phone Authentication setup and try again." : reason)
+            .setPositiveButton("OK", null).show();
     }
     private void showOtpDialog(String number) {
         final EditText otp = new EditText(this); otp.setHint("6-digit OTP"); otp.setSingleLine(true);
