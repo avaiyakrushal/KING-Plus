@@ -80,6 +80,7 @@ public class MainActivity extends Activity {
 
     @Override public void onCreate(Bundle state) {
         super.onCreate(state);
+        installCrashReport();
         rooms.add("Music & Friends"); rooms.add("KING Lounge"); rooms.add("Game Talk");
         Set<String> saved = getPreferences(0).getStringSet("rooms", new HashSet<>());
         for (String name : saved) if (!rooms.contains(name)) rooms.add(0, name);
@@ -94,6 +95,24 @@ public class MainActivity extends Activity {
             if (app != null) firebaseAuth = FirebaseAuth.getInstance();
         } catch (Exception ignored) { firebaseAuth = null; }
         if (displayName.isEmpty()) login(); else home();
+        String crash = getPreferences(0).getString("last_crash", "");
+        if (!crash.isEmpty()) {
+            getPreferences(0).edit().remove("last_crash").apply();
+            new AlertDialog.Builder(this).setTitle("KING Plus crash details")
+                .setMessage(crash).setPositiveButton("OK", null).show();
+        }
+    }
+    private void installCrashReport() {
+        final Thread.UncaughtExceptionHandler previous = Thread.getDefaultUncaughtExceptionHandler();
+        Thread.setDefaultUncaughtExceptionHandler((thread, error) -> {
+            try {
+                String trace = android.util.Log.getStackTraceString(error);
+                if (trace.length() > 3500) trace = trace.substring(0, 3500);
+                getPreferences(0).edit().putString("last_crash", trace).commit();
+            } catch (Throwable ignored) { }
+            if (previous != null) previous.uncaughtException(thread, error);
+            else android.os.Process.killProcess(android.os.Process.myPid());
+        });
     }
     private int dp(int n) { return (int)(n * getResources().getDisplayMetrics().density + .5f); }
     private GradientDrawable background(int color, int radius) {
