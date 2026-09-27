@@ -1,4 +1,4 @@
-name: Build KING Plus Firebase APK
+name: Build KING Plus Phone Login APK
 on:
   push:
     branches: [main]
@@ -17,11 +17,10 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '8.9'
-      - name: Use Firebase v1.2 source
+      - name: Use v1.3 phone login source
         run: |
-          unzip -oq KING-Plus-v1.2-Firebase-source.zip -d /tmp/kingplus-v12
-          cp -a /tmp/kingplus-v12/KING-Plus/. .
-          printf "%s\n" "plugins { id 'com.android.application' version '8.7.3' apply false; id 'com.google.gms.google-services' version '4.5.0' apply false }" > build.gradle
+          unzip -oq KING-Plus-v1.3-phone-login-source.zip -d /tmp/kingplus-v13
+          cp -a /tmp/kingplus-v13/KING-Plus/. .
       - name: Build debug APK
         run: gradle :app:assembleDebug --no-daemon
       - name: Show APK signing certificate
@@ -30,6 +29,6 @@ jobs:
           "$APK_SIGNER" verify --print-certs app/build/outputs/apk/debug/app-debug.apk
       - uses: actions/upload-artifact@v4
         with:
-          name: KING-Plus-Firebase-v1.2-debug-APK
+          name: KING-Plus-v1.3-phone-login-debug-APK
           path: app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
