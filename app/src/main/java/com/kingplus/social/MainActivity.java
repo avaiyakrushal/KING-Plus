@@ -145,7 +145,37 @@ public class MainActivity extends Activity {
         page.addView(e, p); return e;
     }
     private void login() {
-        screen = "login"; base("👑 KING Plus", "Login or create your account");
+        screen = "login";
+        stopMic();
+        android.widget.FrameLayout root = new android.widget.FrameLayout(this);
+        root.setBackgroundResource(R.drawable.login_background);
+        ImageView diamonds = new ImageView(this);
+        diamonds.setImageResource(R.drawable.diamond_art);
+        diamonds.setAlpha(0.42f);
+        android.widget.FrameLayout.LayoutParams art = new android.widget.FrameLayout.LayoutParams(dp(320), dp(320), Gravity.TOP | Gravity.CENTER_HORIZONTAL);
+        art.topMargin = dp(78);
+        root.addView(diamonds, art);
+        View shade = new View(this);
+        shade.setBackgroundColor(0x55000015);
+        root.addView(shade, new android.widget.FrameLayout.LayoutParams(-1, -1));
+        ScrollView scroll = new ScrollView(this);
+        scroll.setFillViewport(true);
+        page = new LinearLayout(this);
+        page.setOrientation(LinearLayout.VERTICAL);
+        page.setPadding(dp(26), dp(55), dp(26), dp(32));
+        scroll.addView(page);
+        root.addView(scroll, new android.widget.FrameLayout.LayoutParams(-1, -1));
+        setContentView(root);
+        ImageView logo = new ImageView(this);
+        logo.setImageResource(R.drawable.king_logo);
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(dp(110), dp(110));
+        lp.gravity = Gravity.CENTER_HORIZONTAL;
+        lp.bottomMargin = dp(12);
+        page.addView(logo, lp);
+        TextView heading = text("KING Plus", 31, Color.WHITE, true);
+        heading.setGravity(Gravity.CENTER);
+        TextView subtitle = text("Login or create your account", 15, MUTED, false);
+        subtitle.setGravity(Gravity.CENTER);
         text("Welcome", 23, Color.WHITE, true);
         text("Choose a sign-in method", 14, MUTED, false);
         button("G  Continue with Google", 0xff4285f4, this::googleLogin);
