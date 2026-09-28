@@ -6,7 +6,7 @@ This checklist separates work that is already implemented in the repository from
 - Project: `king-plus-2f365`.
 - Deploy `firestore.rules` and `functions/` only after production authentication providers are configured.
 - Use the manual `Firebase production deploy` GitHub Actions workflow after the repository secret `FIREBASE_SERVICE_ACCOUNT_JSON` is configured with a least-privilege service account that can deploy Functions and Firestore rules.
-- After deployment, test `sendGift`, `sendRoomInvite`, `verifyPlayPurchase`, moderation callables, and notification triggers with test accounts.
+- After deployment, test `sendGift`, `sendRoomInvite`, `verifyPlayPurchase`, `requestAccountDeletion`, moderation callables, and notification triggers with test accounts.
 
 ## 2. Authentication
 - Android application ID: `com.kingplus.social`.
@@ -50,7 +50,8 @@ Use at least two physical Android devices and two separate Firebase accounts.
 - Play purchase credits only after backend verification.
 - Pending/cancelled/refunded purchase never credits incorrectly.
 - Report submission appears for admin; non-admin cannot read moderation queue.
-- Ban/restriction behavior is enforced.
+- Ban/restriction behavior is enforced on room, message, follow and gift paths.
+- In-app account deletion request creates only the signed-in user's deletion request and signs the user out after success.
 - App survives reinstall, logout/login, network loss, rotation/background/foreground, and notification permission denial.
 
 ## 7. Play Store launch
@@ -58,6 +59,7 @@ Before production submission complete:
 - Store listing, icon, screenshots, short/full description.
 - Privacy Policy and Terms URLs.
 - Data Safety form based on actual Firebase, FCM, Billing, moderation, analytics, and RTC data flows.
+- Public account-deletion web URL/process that matches the in-app deletion request path and Play policy requirements.
 - Content rating, ads declaration, target audience, app access instructions, and support contact.
 - Internal test -> closed test if required -> production rollout.
 - Upload a production-signed AAB built from the production workflow, not the CI test-signed RC.
