@@ -3,6 +3,8 @@ import re
 
 BACKEND = Path('functions/v3.js')
 BUILD = Path('app/build.gradle')
+CLOUD = Path('app/src/main/java/com/kingplus/social/CloudBackend.java')
+MAIN = Path('app/src/main/java/com/kingplus/social/MainActivity.java')
 
 src = BACKEND.read_text(encoding='utf-8')
 
@@ -13,7 +15,8 @@ if 'async function isBanned(uid)' not in src:
 
 # Server-authoritative gift: deny banned senders and banned recipients.
 gift_needle = "  if (!targetUid || targetUid === senderUid) throw new HttpsError('invalid-argument', 'Choose another user.');\n  if (!Number.isInteger(cost) || cost < 1 || cost > 100000) throw new HttpsError('invalid-argument', 'Invalid gift cost.');\n"
-if 'await assertActiveUser(senderUid);' not in src.split('const secureSendGift', 1)[1].split('const verifyPlayPurchase', 1)[0]:
+segment = src.split('const secureSendGift', 1)[1].split('const verifyPlayPurchase', 1)[0]
+if 'await assertActiveUser(senderUid);' not in segment:
     src = src.replace(gift_needle, gift_needle + "  await assertActiveUser(senderUid);\n  await assertReceivableUser(targetUid);\n", 1)
 
 # Add a hardened room invite callable and override the legacy base export.
@@ -31,21 +34,75 @@ follow_needle = "  if (!targetUid || targetUid === followerUid) throw new HttpsE
 if "await assertActiveUser(followerUid);\n  await assertReceivableUser(targetUid);" not in src:
     src = src.replace(follow_needle, "  if (!targetUid || targetUid === followerUid) throw new HttpsError('invalid-argument', 'Target user required.');\n  await assertActiveUser(followerUid);\n  await assertReceivableUser(targetUid);\n  const result = await sendUserNotification(targetUid, 'New follower', `${followerName} followed you`, { type: 'follow', followerUid });\n")
 
-# Harden notification triggers too. Firestore rules already block banned client writes,
-# but this prevents server-created records from notifying on behalf of a restricted sender.
-if "if (await isBanned(senderUid)) return;" not in src:
+# Harden notification triggers too.
+if "if (await isBanned(senderUid) || await isBanned(targetUid)) return;" not in src:
     src = src.replace("  if (!senderUid || !targetUid || senderUid === targetUid) return;\n  const senderName = cleanText(message.senderName, 60) || 'KING user';", "  if (!senderUid || !targetUid || senderUid === targetUid) return;\n  if (await isBanned(senderUid) || await isBanned(targetUid)) return;\n  const senderName = cleanText(message.senderName, 60) || 'KING user';")
 if "if (await isBanned(followerUid) || await isBanned(targetUid)) return;" not in src:
     src = src.replace("  if (!followerUid || !targetUid || followerUid === targetUid) return;\n  const followerName = cleanText(follow.followerName, 60) || 'KING user';", "  if (!followerUid || !targetUid || followerUid === targetUid) return;\n  if (await isBanned(followerUid) || await isBanned(targetUid)) return;\n  const followerName = cleanText(follow.followerName, 60) || 'KING user';")
 
-# Override base room invite export with the hardened callable.
+# Account deletion initiation: the signed-in user can create a server-side deletion request.
+if 'const requestAccountDeletion = onCall' not in src:
+    marker = "const onDirectMessageCreated = onDocumentCreated('direct_threads/{threadId}/messages/{messageId}', async event => {"
+    deletion_fn = "const requestAccountDeletion = onCall(async request => {\n  const uid = requireAuth(request);\n  await db.collection('account_deletion_requests').doc(uid).set({\n    uid, status: 'requested', requestedAt: FieldValue.serverTimestamp()\n  }, { merge: true });\n  return { ok: true, message: 'Account deletion request recorded. Sign out after saving anything you need.' };\n});\n\n"
+    src = src.replace(marker, deletion_fn + marker)
+
 if 'sendRoomInvite: secureSendRoomInvite' not in src:
     src = src.replace("  sendGift: secureSendGift,\n", "  sendGift: secureSendGift,\n  sendRoomInvite: secureSendRoomInvite,\n")
+if 'requestAccountDeletion,' not in src:
+    src = src.replace("  sendFollowNotification,\n", "  sendFollowNotification,\n  requestAccountDeletion,\n")
 
 BACKEND.write_text(src, encoding='utf-8')
+
+# Android CloudBackend bridge for deletion request.
+cloud = CLOUD.read_text(encoding='utf-8')
+if 'requestAccountDeletion(Callback callback)' not in cloud:
+    marker = '    public static void moderateReport(String reportId, String status, Callback callback) {'
+    method = '''    public static void requestAccountDeletion(Callback callback) {
+        call("requestAccountDeletion", new HashMap<>(), callback);
+    }
+
+'''
+    cloud = cloud.replace(marker, method + marker)
+CLOUD.write_text(cloud, encoding='utf-8')
+
+# Add a clear in-app entry point under Settings.
+main = MAIN.read_text(encoding='utf-8')
+if 'private void requestAccountDeletionFlow()' not in main:
+    marker = '    private void privacySafetyPage(){\n'
+    helper = '''    private void requestAccountDeletionFlow(){
+        if (!CloudSync.isSignedIn()) {
+            new AlertDialog.Builder(this).setTitle("Sign-in required")
+                .setMessage("Account deletion can only be requested for a real Firebase account.")
+                .setPositiveButton("OK",null).show();
+            return;
+        }
+        new AlertDialog.Builder(this).setTitle("Request account deletion?")
+            .setMessage("This sends a server-side deletion request for your KING Plus account. Purchase and moderation records may need limited retention where required for security, fraud prevention or legal obligations.")
+            .setNegativeButton("Cancel",null)
+            .setPositiveButton("Request deletion",(d,w)->CloudBackend.requestAccountDeletion((ok,message)->runOnUiThread(()->{
+                Toast.makeText(this,message,Toast.LENGTH_LONG).show();
+                if(ok){
+                    if(firebaseAuth!=null) firebaseAuth.signOut();
+                    if(googleSignInClient!=null) googleSignInClient.signOut();
+                    getPreferences(0).edit().remove("name").apply();
+                    displayName="";
+                    login();
+                }
+            }))).show();
+    }
+
+'''
+    main = main.replace(marker, helper + marker)
+
+logout_needle = '        button("Log out",0xffb23a48,'
+if 'Request account deletion' not in main and logout_needle in main:
+    idx = main.index(logout_needle)
+    line_start = main.rfind('\n', 0, idx) + 1
+    main = main[:line_start] + '        button("🗑 Request account deletion",0xff8f3140,this::requestAccountDeletionFlow);\n' + main[line_start:]
+MAIN.write_text(main, encoding='utf-8')
 
 gradle = BUILD.read_text(encoding='utf-8')
 gradle = re.sub(r"versionCode\s+\d+;\s+versionName\s+'[^']+'", "versionCode 41; versionName '3.0.1'", gradle)
 BUILD.write_text(gradle, encoding='utf-8')
 
-print('Prepared KING Plus v3.0.1 ban enforcement + backend abuse hardening')
+print('Prepared KING Plus v3.0.1 ban enforcement + account deletion + backend abuse hardening')
