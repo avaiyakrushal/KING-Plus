@@ -1,7 +1,11 @@
-# KING Plus v2.5 Feature Status
+# KING Plus v2.7.1 Feature Status
 
-## Works locally in this source
-- Firebase phone OTP flow wiring and Firebase Google sign-in wiring
+## Works in the current test APK
+- Free mobile login test mode: no SMS, no Firebase billing, fixed test OTP `123456`
+- Mobile number validation and local login session
+- Clickable Terms & Privacy and Trouble logging in help pages in the generated APK
+- Friendlier Google error-10 explanation in the generated APK
+- Firebase Google sign-in wiring remains present for later production setup
 - Party/Home category UI and custom room creation
 - 12-seat voice-room UI, microphone level meter, local seat/admin/mute controls
 - Local room chat history, gifts, wallet/coins, transactions
@@ -13,13 +17,15 @@
 - Family create/join/share code and agency prototype
 
 ## Requires external setup or backend for production
+- Production SMS OTP (Firebase Phone Auth billing/provider setup)
+- Google login: register the GitHub-built APK signing SHA-1 in Firebase/Google OAuth
+- Facebook/Meta sign-in credentials and Firebase provider configuration
 - Real multi-user low-latency voice (Agora/Zego/WebRTC or equivalent)
 - Real-time multi-device rooms/chat/presence
 - Server-authoritative coins, gifts, rankings, missions and anti-cheat
 - Push notifications
 - Real-money recharge/payouts and store compliance
 - Production moderation/report review tools
-- Facebook/Meta sign-in credentials and Firebase provider configuration
 - Cloud data storage, security rules, backups and admin APIs
 
-This split is intentional: v2.5 improves the full app prototype without pretending local-only features are already online services.
+The current APK is a test/prototype build. Local-only features are intentionally not presented as live cloud services.
