@@ -23,8 +23,11 @@ jobs:
         with:
           gradle-version: '8.9'
 
-      - name: Prepare v2.7.2 free test build
+      - name: Prepare free test login
         run: python3 tools/prepare_test_build.py
+
+      - name: Prepare v2.8 cloud, push, safety and recharge foundation
+        run: python3 tools/prepare_v28_build.py
 
       - name: Build debug APK
         run: gradle :app:assembleDebug --no-daemon
@@ -37,18 +40,18 @@ jobs:
       - name: Prepare release files
         run: |
           mkdir -p release
-          cp app/build/outputs/apk/debug/app-debug.apk release/KING-Plus-v2.7.2.apk
-          zip -r KING-Plus-v2.7.2-source.zip . \
-            -x '.git/*' '.gradle/*' 'app/build/*' 'release/*' 'KING-Plus-v2.7.2-source.zip'
+          cp app/build/outputs/apk/debug/app-debug.apk release/KING-Plus-v2.8.0.apk
+          zip -r KING-Plus-v2.8.0-source.zip . \
+            -x '.git/*' '.gradle/*' 'app/build/*' 'release/*' 'KING-Plus-v2.8.0-source.zip'
 
       - uses: actions/upload-artifact@v4
         with:
-          name: KING-Plus-v2.7.2-APK
-          path: release/KING-Plus-v2.7.2.apk
+          name: KING-Plus-v2.8.0-APK
+          path: release/KING-Plus-v2.8.0.apk
           if-no-files-found: error
 
       - uses: actions/upload-artifact@v4
         with:
-          name: KING-Plus-v2.7.2-source-ZIP
-          path: KING-Plus-v2.7.2-source.zip
+          name: KING-Plus-v2.8.0-source-ZIP
+          path: KING-Plus-v2.8.0-source.zip
           if-no-files-found: error
