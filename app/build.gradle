@@ -3,17 +3,19 @@ plugins { id 'com.android.application' }
 android {
     namespace 'com.kingplus.social'
     compileSdk 35
-    defaultConfig { applicationId 'com.kingplus.social'; minSdk 24; targetSdk 35; versionCode 27; versionName '2.5.2' }
+    defaultConfig { applicationId 'com.kingplus.social'; minSdk 24; targetSdk 35; versionCode 28; versionName '2.5.3' }
     compileOptions { sourceCompatibility JavaVersion.VERSION_17; targetCompatibility JavaVersion.VERSION_17 }
 }
 
 dependencies {
+    // Firebase Phone Auth calls the four-argument ContextCompat.registerReceiver.
+    // Declare Core explicitly so an old transitive version cannot cause NoSuchMethodError.
+    implementation 'androidx.core:core:1.15.0'
     implementation platform('com.google.firebase:firebase-bom:34.19.0')
     implementation 'com.google.firebase:firebase-auth'
     implementation 'com.google.android.gms:play-services-auth:21.2.0'
 }
 
-// Apply only when the Firebase config file is present. This keeps the source project buildable before credentials are added.
 if (file('google-services.json').exists()) {
     apply plugin: 'com.google.gms.google-services'
 }
