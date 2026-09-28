@@ -23,61 +23,8 @@ jobs:
         with:
           gradle-version: '8.9'
 
-      - name: Enable free mobile OTP test mode
-        run: |
-          python3 - <<'PY'
-          from pathlib import Path
-          path = Path('app/src/main/java/com/kingplus/social/MainActivity.java')
-          src = path.read_text(encoding='utf-8')
-          src = src.replace(
-              'text("Mobile login now uses Firebase SMS OTP. Google login is Firebase-ready. Facebook still needs Meta App credentials.", 12, MUTED, false);',
-              'text("Mobile login is in FREE TEST MODE • no SMS is sent • test OTP: 123456. Google/Facebook still need provider setup.", 12, MUTED, false);'
-          )
-          start = src.index('    private void mobileLogin() {')
-          end = src.index('    private String normalizePhone', start)
-          replacement = '''    private void mobileLogin() {
-              final EditText phone = new EditText(this);
-              phone.setHint("Mobile number, e.g. +919876543210");
-              phone.setSingleLine(true);
-              phone.setInputType(InputType.TYPE_CLASS_PHONE);
-              new AlertDialog.Builder(this)
-                  .setTitle("Mobile login • FREE TEST MODE")
-                  .setMessage("No SMS will be sent. Use test OTP 123456.")
-                  .setView(phone)
-                  .setNegativeButton("Cancel", null)
-                  .setPositiveButton("Continue", (d,w) -> {
-                      String number = normalizePhone(phone.getText().toString());
-                      if (number == null) {
-                          Toast.makeText(this, "Enter a valid mobile number", Toast.LENGTH_SHORT).show();
-                          return;
-                      }
-                      showTestOtpDialog(number);
-                  }).show();
-          }
-          private void showTestOtpDialog(String number) {
-              final EditText otp = new EditText(this);
-              otp.setHint("Test OTP: 123456");
-              otp.setSingleLine(true);
-              otp.setInputType(InputType.TYPE_CLASS_NUMBER | InputType.TYPE_NUMBER_VARIATION_PASSWORD);
-              new AlertDialog.Builder(this)
-                  .setTitle("Verify " + number + " • TEST MODE")
-                  .setMessage("Enter 123456. This test mode does not send a real SMS and does not use Firebase billing.")
-                  .setView(otp)
-                  .setNegativeButton("Cancel", null)
-                  .setPositiveButton("Verify", (d,w) -> {
-                      String code = otp.getText().toString().trim();
-                      if (!"123456".equals(code)) {
-                          Toast.makeText(this, "Wrong test OTP. Use 123456", Toast.LENGTH_LONG).show();
-                          return;
-                      }
-                      String shortNumber = number.length() > 4 ? "KING " + number.substring(number.length() - 4) : "KING User";
-                      saveLocalSession(shortNumber, "Mobile Test");
-                  }).show();
-          }
-          '''
-          src = src[:start] + replacement + src[end:]
-          path.write_text(src, encoding='utf-8')
-          PY
+      - name: Prepare v2.7.1 free test build
+        run: python3 tools/prepare_test_build.py
 
       - name: Build debug APK
         run: gradle :app:assembleDebug --no-daemon
@@ -89,6 +36,6 @@ jobs:
 
       - uses: actions/upload-artifact@v4
         with:
-          name: KING-Plus-v2.7-free-test-mode-APK
+          name: KING-Plus-v2.7.1-login-help-test-APK
           path: app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
