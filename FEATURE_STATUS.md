@@ -1,6 +1,6 @@
-# KING Plus v3.0.0 Feature Status
+# KING Plus v3.0.1 Feature Status
 
-## v3.0 work completed in source / release candidate
+## v3 production work completed in source / release candidate
 - Server wallet and gift hardening:
   - normal app clients cannot write production wallet or ledger collections;
   - gift writes go through Cloud Functions;
@@ -17,12 +17,19 @@
   - completed purchases send the purchase token to `verifyPlayPurchase`;
   - the Cloud Function verifies the purchase with Android Publisher API, checks the obfuscated KING Plus account ID when available, credits the server wallet exactly once, records a receipt/ledger row, and then attempts server-side consumption.
 - Production-readiness UI explains server wallet, FCM, Play Billing and release-signing state.
-- v3.0 release-candidate workflow builds a minified release APK and release AAB plus source ZIP.
 
-## Production launch preparation added
+## v3.0.1 hardening added
+- Firestore `activeUser()` rule now blocks restricted accounts from creating/updating live rooms, posting room/direct messages and creating follow records.
+- Production backend preparation adds ban checks for gift senders/recipients, room invites, direct-message notification sends and follow notifications.
+- Notification triggers skip restricted senders/targets.
+- CI smoke checks fail if the ban-enforcement helpers or hardened room-invite override are missing.
+- RC artifacts are now named/versioned v3.0.1.
+- Added Play Store listing draft and privacy/data-flow mapping documents to reduce launch-preparation gaps.
+
+## Production launch automation already added
 - Manual `Firebase production deploy` workflow for Firestore rules and Cloud Functions using a repository service-account secret.
 - Manual `Production signed release` workflow that refuses to build without private upload-key secrets and produces a production-signed APK/AAB.
-- Production smoke checks validate Firebase package configuration, Billing product IDs, backend exports, Firestore wallet lock and required Android permissions before CI builds.
+- Production smoke checks validate Firebase package configuration, Billing product IDs, backend exports, ban enforcement, Firestore wallet lock and required Android permissions before CI builds.
 - `docs/PRODUCTION_LAUNCH_CHECKLIST.md` contains the two-device test matrix, Play Console setup, production signing, RTC and store launch gates.
 - Firebase project mapping is already present for `king-plus-2f365` and deployment configuration points at `firestore.rules` plus `functions/`.
 
@@ -35,4 +42,4 @@
 - Choose/configure a production RTC provider and server-issued voice token flow; the current public Jitsi bridge remains test-only.
 - Run the physical two-device end-to-end test matrix before rollout.
 
-The current CI APK/AAB remains a release candidate until the account-side Firebase, Play Console, signing and RTC steps above are completed and validated.
+The CI APK/AAB remains a release candidate until the account-side Firebase, Play Console, signing and RTC steps above are completed and validated.
