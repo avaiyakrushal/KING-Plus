@@ -3,6 +3,7 @@ package com.kingplus.social;
 import com.google.firebase.functions.FirebaseFunctions;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.UUID;
 
 public final class CloudBackend {
     public interface Callback { void onResult(boolean ok, String message); }
@@ -16,7 +17,10 @@ public final class CloudBackend {
 
     public static void sendGift(String targetUid, String giftName, int cost, Callback callback) {
         Map<String,Object> data = new HashMap<>();
-        data.put("targetUid", targetUid); data.put("giftName", giftName); data.put("cost", cost);
+        data.put("targetUid", targetUid);
+        data.put("giftName", giftName);
+        data.put("cost", cost);
+        data.put("requestId", UUID.randomUUID().toString());
         call("sendGift", data, callback);
     }
 
@@ -24,6 +28,21 @@ public final class CloudBackend {
         Map<String,Object> data = new HashMap<>();
         data.put("targetUid", targetUid); data.put("roomId", roomId); data.put("roomName", roomName);
         call("sendRoomInvite", data, callback);
+    }
+
+    public static void sendDirectMessageNotification(String targetUid, String senderName, String preview, Callback callback) {
+        Map<String,Object> data = new HashMap<>();
+        data.put("targetUid", targetUid);
+        data.put("senderName", senderName);
+        data.put("preview", preview);
+        call("sendDirectMessageNotification", data, callback);
+    }
+
+    public static void sendFollowNotification(String targetUid, String followerName, Callback callback) {
+        Map<String,Object> data = new HashMap<>();
+        data.put("targetUid", targetUid);
+        data.put("followerName", followerName);
+        call("sendFollowNotification", data, callback);
     }
 
     public static void moderateReport(String reportId, String status, Callback callback) {
