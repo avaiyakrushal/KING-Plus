@@ -7,6 +7,7 @@ required_files = [
     Path('firebase.json'),
     Path('functions/package.json'),
     Path('functions/index.js'),
+    Path('functions/v3.js'),
     Path('app/src/main/java/com/kingplus/social/BillingManager.java'),
     Path('app/src/main/java/com/kingplus/social/CloudBackend.java'),
     Path('app/src/main/java/com/kingplus/social/LiveCloudActivity.java'),
@@ -41,6 +42,11 @@ for callable_name in ('sendGift', 'sendRoomInvite', 'verifyPlayPurchase', 'moder
     if callable_name not in backend:
         raise SystemExit(f'Missing backend export/implementation: {callable_name}')
 
+# v3.0.1 production hardening must be applied before deploy/build.
+for marker in ('async function isBanned(uid)', 'assertActiveUser', 'assertReceivableUser', 'sendRoomInvite: secureSendRoomInvite'):
+    if marker not in backend:
+        raise SystemExit(f'Missing production abuse hardening: {marker}')
+
 rules = Path('firestore.rules').read_text(encoding='utf-8')
 if 'match /wallets/{uid}' not in rules or 'allow write: if false' not in rules:
     raise SystemExit('Production wallet client-write lock is missing from Firestore rules')
@@ -48,10 +54,12 @@ if 'match /reports/{reportId}' not in rules:
     raise SystemExit('Moderation report rules are missing')
 if 'match /play_purchase_receipts/{receiptId}' not in rules:
     raise SystemExit('Play purchase receipt rules are missing')
+if 'function activeUser()' not in rules or 'match /bans/{uid}' not in rules:
+    raise SystemExit('Ban enforcement is missing from Firestore rules')
 
 manifest = Path('app/src/main/AndroidManifest.xml').read_text(encoding='utf-8')
 for permission in ('android.permission.INTERNET', 'android.permission.RECORD_AUDIO', 'android.permission.POST_NOTIFICATIONS'):
     if permission not in manifest:
         raise SystemExit(f'Missing manifest permission: {permission}')
 
-print(f'KING Plus production smoke checks passed (functions main: {main_name})')
+print(f'KING Plus production smoke checks passed (functions main: {main_name}; ban enforcement: enabled)')
