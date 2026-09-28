@@ -1,0 +1,8 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // All app operations use authenticated, validated callable functions.
+    // No Android client can mint coins, edit rankings or make itself an admin.
+    match /{document=**} { allow read, write: if false; }
+  }
+}

@@ -1,0 +1,1 @@
+{"indexes":[{"collectionGroup":"kpAccounts","queryScope":"COLLECTION","fields":[{"fieldPath":"suspended","order":"ASCENDING"},{"fieldPath":"sentCoins","order":"DESCENDING"}]},{"collectionGroup":"kpAccounts","queryScope":"COLLECTION","fields":[{"fieldPath":"suspended","order":"ASCENDING"},{"fieldPath":"receivedCoins","order":"DESCENDING"}]}],"fieldOverrides":[]}

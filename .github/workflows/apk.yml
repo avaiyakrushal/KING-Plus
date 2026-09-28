@@ -1,41 +1,41 @@
 name: Build KING Plus APK
-
 on:
   push:
-    branches: [main]
+    branches: [main, 'codex/online-2.7.2']
   workflow_dispatch:
-
 permissions:
   contents: read
-
 jobs:
   build:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
-
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Check backend handlers
+        run: node --test backend/functions/test/*.test.js
       - uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: '17'
-
       - uses: gradle/actions/setup-gradle@v4
         with:
-          gradle-version: '8.9'
-
-      - name: Prepare v2.7.1 free test build
-        run: python3 tools/prepare_test_build.py
-
-      - name: Build debug APK
+          gradle-version: '8.10.2'
+      - name: Build exact source
         run: gradle :app:assembleDebug --no-daemon
-
-      - name: Show APK signing certificate
+      - name: Verify APK and record metadata
         run: |
           APK_SIGNER=$(find "$ANDROID_HOME/build-tools" -name apksigner -type f | sort -V | tail -n 1)
-          "$APK_SIGNER" verify --print-certs app/build/outputs/apk/debug/app-debug.apk
-
+          "$APK_SIGNER" verify --print-certs app/build/outputs/apk/debug/app-debug.apk > signing-certificate.txt
+          sha256sum app/build/outputs/apk/debug/app-debug.apk > apk-sha256.txt
+          git rev-parse HEAD > source-commit.txt
       - uses: actions/upload-artifact@v4
         with:
-          name: KING-Plus-v2.7.1-login-help-test-APK
-          path: app/build/outputs/apk/debug/app-debug.apk
+          name: KING-Plus-v2.7.2-debug
+          path: |
+            app/build/outputs/apk/debug/app-debug.apk
+            signing-certificate.txt
+            apk-sha256.txt
+            source-commit.txt
           if-no-files-found: error

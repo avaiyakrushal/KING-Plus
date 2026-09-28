@@ -1,0 +1,16 @@
+KING Plus v2.7 — free test mode added to supplied v2.6 source
+
+Reimplemented the test login behavior identified in the provided v2.7 APK.
+The original v2.7 Java source was unavailable; this is not a byte-identical source recovery.
+- Debug mobile login uses local test OTP 123456, with no SMS or Phone Auth call.
+- Invalid number/code remains editable; cancel creates no session.
+- Local session persists with a visible FREE TEST MODE label and clears on logout.
+- Release builds keep the v2.6 real Firebase phone flow; test mode is disabled.
+- Google/Facebook setup remains required, with no simulated social authentication.
+- Version code/name: 27 / 2.7. Existing v2.6 features retained.
+- Gift-preview changes are not part of this merge.
+
+Validation: source and archive checked. Android build/device testing not performed
+because this environment has no Android SDK or Gradle installation.
+Use the included GitHub Actions workflow to produce a debug APK.
+Signing key must match the installed APK for an in-place Android update.

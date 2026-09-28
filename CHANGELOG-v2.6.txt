@@ -1,0 +1,7 @@
+KING Plus v2.6
+- Kept Firebase Phone OTP crash-safe handling.
+- Restores an already authenticated Firebase session after app restart when possible.
+- Improved Facebook setup message so the app does not pretend to authenticate without Meta credentials.
+- Added GitHub Actions APK build workflow that works even though this source does not include a Gradle wrapper.
+- Added Firebase/Google/Facebook setup checklist.
+- Version bumped to 2.6 (26).

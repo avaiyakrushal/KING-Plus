@@ -1,0 +1,14 @@
+KING Plus v2.5 login crash-safety patch
+
+Changed:
+- Mobile PhoneAuth verifyPhoneNumber() is now wrapped in exception handling so Firebase setup errors do not close the app.
+- Firebase onVerificationFailed now shows the underlying error and setup hints instead of silently failing/crashing.
+- Google sign-in result handling now tolerates cancelled/null results and missing FirebaseAuth.
+- Google ApiException now explains common status 10 / signing SHA fingerprint configuration issue.
+
+Important backend configuration still required:
+1. Firebase Authentication > Sign-in method > Phone must be enabled.
+2. Firebase Android app package must be com.kingplus.social.
+3. Add the signing certificate SHA-1 and SHA-256 used for the APK.
+4. For Google sign-in, enable Google provider and ensure a Web OAuth client exists; then download a fresh google-services.json.
+5. Facebook login cannot be activated from source alone. A Meta App ID/App Secret and Firebase Facebook provider setup are required.

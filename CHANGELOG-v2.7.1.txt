@@ -1,0 +1,12 @@
+KING Plus 2.7.1 — online economy and moderation implementation
+Version code 28. Retains the 2.6 + 2.7 test-login merge.
+
+Added authenticated online wallet, daily virtual coin reward, gift sending,
+transaction history, all-time sender/receiver rankings, notification inbox,
+opt-in FCM push, UID-based blocking/reporting and admin report review.
+Added server-controlled gift catalog, atomic balance updates, persisted retry
+IDs, report quota, admin claims, audit records and deny-direct-write rules.
+Removed fabricated default notifications; local demo screens remain labelled.
+
+No backend deployed; no APK built or device-tested in this environment.
+See backend/SETUP.md for deployment, limitations and verification details.

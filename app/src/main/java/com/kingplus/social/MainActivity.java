@@ -84,6 +84,8 @@ public class MainActivity extends Activity {
         rooms.add("Music & Friends"); rooms.add("KING Lounge"); rooms.add("Game Talk");
         Set<String> saved = getPreferences(0).getStringSet("rooms", new HashSet<>());
         for (String name : saved) if (!rooms.contains(name)) rooms.add(0, name);
+        if (!BuildConfig.FREE_TEST_MODE && "Mobile test".equalsIgnoreCase(getPreferences(0).getString("login_provider", "")))
+            getPreferences(0).edit().remove("name").remove("login_provider").apply();
         displayName = getPreferences(0).getString("name", "");
         coinBalance = getPreferences(0).getInt("coins", 2500);
         giftCount = getPreferences(0).getInt("gift_count", 0);
@@ -94,13 +96,24 @@ public class MainActivity extends Activity {
             FirebaseApp app = FirebaseApp.initializeApp(this);
             if (app != null) firebaseAuth = FirebaseAuth.getInstance();
         } catch (Exception ignored) { firebaseAuth = null; }
+        restoreFirebaseSessionIfAvailable();
         if (displayName.isEmpty()) login(); else home();
-        String crash = getPreferences(0).getString("last_crash", "");
-        if (!crash.isEmpty()) {
-            getPreferences(0).edit().remove("last_crash").apply();
-            new AlertDialog.Builder(this).setTitle("KING Plus crash details")
-                .setMessage(crash).setPositiveButton("OK", null).show();
+    }
+
+    private void restoreFirebaseSessionIfAvailable() {
+        if (firebaseAuth == null || !displayName.isEmpty()) return;
+        FirebaseUser user = firebaseAuth.getCurrentUser();
+        if (user == null) return;
+        String name = user.getDisplayName();
+        if (name == null || name.trim().isEmpty()) {
+            String phone = user.getPhoneNumber();
+            String email = user.getEmail();
+            if (phone != null && phone.length() >= 4) name = "KING " + phone.substring(phone.length() - 4);
+            else if (email != null && !email.trim().isEmpty()) name = email.split("@")[0];
+            else name = "KING User";
         }
+        displayName = name;
+        getPreferences(0).edit().putString("name", name).apply();
     }
     private void installCrashReport() {
         final Thread.UncaughtExceptionHandler previous = Thread.getDefaultUncaughtExceptionHandler();
@@ -124,6 +137,8 @@ public class MainActivity extends Activity {
         page = new LinearLayout(this); page.setOrientation(LinearLayout.VERTICAL);
         page.setPadding(dp(22), dp(30), dp(22), dp(36)); scroll.addView(page); setContentView(scroll);
         text(title, 29, Color.WHITE, true);
+        if ("Mobile test".equalsIgnoreCase(getPreferences(0).getString("login_provider", "")))
+            text("FREE TEST MODE • Local demo account", 12, MUTED, false);
         if (subtitle != null) text(subtitle, 15, MUTED, false);
     }
     private TextView text(String value, int size, int color, boolean bold) {
@@ -181,14 +196,36 @@ public class MainActivity extends Activity {
         button("G  Continue with Google", 0xff4285f4, this::googleLogin);
         button("f  Continue with Facebook", 0xff1877f2, () -> socialProviderSetupRequired("Facebook"));
         button("📱  Continue with Mobile Number", PURPLE, this::mobileLogin);
-        text("Terms & Privacy  •  Trouble logging in?", 13, MUTED, false);
-        text("Mobile login now uses Firebase SMS OTP. Google login is Firebase-ready. Facebook still needs Meta App credentials.", 12, MUTED, false);
+        button("Terms & Privacy", CARD, this::termsPrivacyPage);
+        button("Trouble logging in?", CARD, this::troubleLoginPage);
+        text(BuildConfig.FREE_TEST_MODE ? "Mobile login is in FREE TEST MODE — test OTP: 123456. No SMS is sent. Google/Facebook still need provider setup." : "Mobile login uses Firebase SMS OTP. Google/Facebook require provider setup.", 12, MUTED, false);
     }
     private void socialProviderSetupRequired(String provider) {
-        new AlertDialog.Builder(this).setTitle(provider + " sign-in")
-            .setMessage(provider + " login needs the provider App ID/secret and Firebase provider setup. No fake local login is used here.")
+        new AlertDialog.Builder(this).setTitle(provider + " sign-in setup required")
+            .setMessage(provider + " login cannot be activated securely without the provider credentials. For Facebook, add the Meta App ID/App Secret in Firebase Authentication > Facebook and add the Facebook SDK configuration to this Android app. The app will not use a fake login.")
             .setPositiveButton("OK", null).show();
     }
+    private void termsPrivacyPage() {
+        screen = "terms";
+        base("Terms & Privacy", "KING Plus test build");
+        text("Terms", 20, Color.WHITE, true);
+        text("Use KING Plus respectfully. Do not post illegal, abusive, deceptive or harmful content. Test coins, gifts, ranks and rewards have no cash value.", 15, MUTED, false);
+        text("Privacy", 20, Color.WHITE, true);
+        text("Demo profile, rooms and messages stay on this device. Verified online accounts use Firebase for authentication and, when deployed, gift balances, notifications and report moderation. Test coins have no cash value.", 15, MUTED, false);
+        button("Back to Login", PURPLE, this::login);
+    }
+    private void troubleLoginPage() {
+        screen = "login_help";
+        base("Trouble logging in?", "KING Plus sign-in help");
+        text("Mobile • FREE TEST MODE", 18, Color.WHITE, true);
+        text("Enter a valid mobile number and use OTP 123456. No SMS is sent and no billing is required.", 15, MUTED, false);
+        text("Google", 18, Color.WHITE, true);
+        text("Google error 10 means the installed APK signing SHA-1 is not registered for the Firebase/Google OAuth Android client.", 15, MUTED, false);
+        text("Facebook", 18, Color.WHITE, true);
+        text("Facebook sign-in stays disabled until Meta App credentials and the Firebase Facebook provider are configured.", 15, MUTED, false);
+        button("Back to Login", PURPLE, this::login);
+    }
+
     private boolean ensureFirebaseReady() {
         if (firebaseAuth != null) return true;
         new AlertDialog.Builder(this).setTitle("Firebase setup required")
@@ -224,6 +261,7 @@ public class MainActivity extends Activity {
         });
     }
     private void mobileLogin() {
+        if (BuildConfig.FREE_TEST_MODE) { testMobileLogin(); return; }
         if (!ensureFirebaseReady()) return;
         final EditText phone = new EditText(this);
         phone.setHint("Mobile number, e.g. +919876543210"); phone.setSingleLine(true); phone.setInputType(InputType.TYPE_CLASS_PHONE);
@@ -234,6 +272,45 @@ public class MainActivity extends Activity {
                 sendRealOtp(number);
             }).show();
     }
+    // Local demo only: never creates a Firebase credential or verifies phone ownership.
+    private void testMobileLogin() {
+        final EditText phone = new EditText(this);
+        phone.setHint("Mobile number, e.g. +919876543210");
+        phone.setSingleLine(true);
+        phone.setInputType(InputType.TYPE_CLASS_PHONE);
+        final AlertDialog dialog = new AlertDialog.Builder(this)
+            .setTitle("Mobile login — FREE TEST MODE")
+            .setMessage("No SMS will be sent. Use test OTP 123456.")
+            .setView(phone).setNegativeButton("Cancel", null)
+            .setPositiveButton("Continue", null).create();
+        dialog.setOnShowListener(ignored -> dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener(v -> {
+            String number = normalizePhone(phone.getText().toString());
+            if (number == null) { phone.setError("Enter a valid mobile number"); return; }
+            dialog.dismiss();
+            showTestOtpDialog(number);
+        }));
+        dialog.show();
+    }
+    private void showTestOtpDialog(String number) {
+        final EditText otp = new EditText(this);
+        otp.setHint("Test OTP: 123456");
+        otp.setSingleLine(true);
+        otp.setInputType(InputType.TYPE_CLASS_NUMBER);
+        final AlertDialog dialog = new AlertDialog.Builder(this)
+            .setTitle("Test OTP — " + number)
+            .setMessage("Enter 123456. This test mode does not send a real SMS and does not use Firebase billing.")
+            .setView(otp).setNegativeButton("Cancel", null)
+            .setPositiveButton("Verify test OTP", null).create();
+        dialog.setOnShowListener(ignored -> dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener(v -> {
+            if (!"123456".equals(otp.getText().toString().trim())) {
+                otp.setError("Wrong test OTP. Use 123456"); return;
+            }
+            if (firebaseAuth != null) firebaseAuth.signOut();
+            saveLocalSession("KING " + number.substring(number.length() - 4), "Mobile test");
+            dialog.dismiss();
+        }));
+        dialog.show();
+    }
     private String normalizePhone(String raw) {
         if (raw == null) return null;
         String n = raw.replaceAll("[\\s()-]", "");
@@ -242,36 +319,37 @@ public class MainActivity extends Activity {
         return n;
     }
     private void sendRealOtp(String number) {
-        if (firebaseAuth == null || isFinishing() || isDestroyed()) {
-            showPhoneError("Firebase is unavailable. Check the app configuration and reopen the app.");
-            return;
-        }
+        if (!ensureFirebaseReady()) return;
         try {
-        PhoneAuthOptions options = PhoneAuthOptions.newBuilder(firebaseAuth)
-            .setPhoneNumber(number)
-            .setTimeout(60L, TimeUnit.SECONDS)
-            .setActivity(this)
-            .setCallbacks(new PhoneAuthProvider.OnVerificationStateChangedCallbacks() {
-                @Override public void onVerificationCompleted(PhoneAuthCredential credential) { signInWithPhoneCredential(credential, number); }
-                @Override public void onVerificationFailed(com.google.firebase.FirebaseException e) {
-                    showPhoneError(e.getLocalizedMessage());
-                }
-                @Override public void onCodeSent(String verificationId, PhoneAuthProvider.ForceResendingToken token) {
-                    phoneVerificationId = verificationId;
-                    Toast.makeText(MainActivity.this, "OTP sent", Toast.LENGTH_SHORT).show();
-                    if (!isFinishing() && !isDestroyed()) showOtpDialog(number);
-                }
-            }).build();
-        PhoneAuthProvider.verifyPhoneNumber(options);
-        } catch (RuntimeException e) {
-            showPhoneError(e.getLocalizedMessage());
+            PhoneAuthOptions options = PhoneAuthOptions.newBuilder(firebaseAuth)
+                .setPhoneNumber(number)
+                .setTimeout(60L, TimeUnit.SECONDS)
+                .setActivity(this)
+                .setCallbacks(new PhoneAuthProvider.OnVerificationStateChangedCallbacks() {
+                    @Override public void onVerificationCompleted(PhoneAuthCredential credential) {
+                        signInWithPhoneCredential(credential, number);
+                    }
+                    @Override public void onVerificationFailed(com.google.firebase.FirebaseException e) {
+                        String message = e.getMessage() == null ? e.getClass().getSimpleName() : e.getMessage();
+                        new AlertDialog.Builder(MainActivity.this)
+                            .setTitle("OTP could not be sent")
+                            .setMessage(message + "\n\nCheck Firebase Phone Authentication, SHA-1/SHA-256 fingerprints, and that this installed APK uses the same package name: " + getPackageName())
+                            .setPositiveButton("OK", null).show();
+                    }
+                    @Override public void onCodeSent(String verificationId, PhoneAuthProvider.ForceResendingToken token) {
+                        phoneVerificationId = verificationId;
+                        Toast.makeText(MainActivity.this, "OTP sent", Toast.LENGTH_SHORT).show();
+                        showOtpDialog(number);
+                    }
+                }).build();
+            PhoneAuthProvider.verifyPhoneNumber(options);
+        } catch (Exception e) {
+            String message = e.getMessage() == null ? e.getClass().getSimpleName() : e.getMessage();
+            new AlertDialog.Builder(this)
+                .setTitle("Mobile login setup error")
+                .setMessage(message + "\n\nThe app stayed open. Check Firebase Phone Authentication and SHA fingerprints.")
+                .setPositiveButton("OK", null).show();
         }
-    }
-    private void showPhoneError(String reason) {
-        if (isFinishing() || isDestroyed()) return;
-        new AlertDialog.Builder(this).setTitle("Mobile OTP could not start")
-            .setMessage(reason == null || reason.trim().isEmpty() ? "Check Firebase Phone Authentication setup and try again." : reason)
-            .setPositiveButton("OK", null).show();
     }
     private void showOtpDialog(String number) {
         final EditText otp = new EditText(this); otp.setHint("6-digit OTP"); otp.setSingleLine(true);
@@ -296,6 +374,8 @@ public class MainActivity extends Activity {
     private void saveLocalSession(String name, String provider) {
         displayName=name; getPreferences(0).edit().putString("name",name).putString("login_provider",provider).apply(); home();
     }
+    private boolean hasOnlineAccount(){ return firebaseAuth != null && firebaseAuth.getCurrentUser() != null; }
+    private void openOnline(String section){ startActivity(new Intent(this, OnlineActivity.class).putExtra("section",section)); }
     private void home() {
         renderHome("Hot");
     }
@@ -337,11 +417,27 @@ public class MainActivity extends Activity {
     @Override protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
         if (requestCode == GOOGLE_SIGN_IN_REQUEST) {
-            Task<GoogleSignInAccount> task = GoogleSignIn.getSignedInAccountFromIntent(data);
+            if (data == null) {
+                Toast.makeText(this, "Google sign-in cancelled", Toast.LENGTH_LONG).show();
+                return;
+            }
             try {
+                Task<GoogleSignInAccount> task = GoogleSignIn.getSignedInAccountFromIntent(data);
                 GoogleSignInAccount account = task.getResult(ApiException.class);
-                if (account != null && account.getIdToken() != null) firebaseAuthWithGoogle(account.getIdToken(), account.getDisplayName() == null ? "Google User" : account.getDisplayName());
-            } catch (ApiException e) { Toast.makeText(this, "Google sign-in cancelled/failed: " + e.getStatusCode(), Toast.LENGTH_LONG).show(); }
+                if (account == null || account.getIdToken() == null || firebaseAuth == null) {
+                    new AlertDialog.Builder(this).setTitle("Google login setup")
+                        .setMessage("Google sign-in is not fully configured. Enable Google in Firebase Authentication and add a Web OAuth client to the Firebase project, then download a fresh google-services.json.")
+                        .setPositiveButton("OK", null).show();
+                    return;
+                }
+                firebaseAuthWithGoogle(account.getIdToken(), account.getDisplayName() == null ? "Google User" : account.getDisplayName());
+            } catch (ApiException e) {
+                new AlertDialog.Builder(this).setTitle("Google sign-in failed")
+                    .setMessage("Status code: " + e.getStatusCode() + "\n\nIf this is DEVELOPER_ERROR (10), add the APK signing SHA-1/SHA-256 to Firebase and download a fresh google-services.json.")
+                    .setPositiveButton("OK", null).show();
+            } catch (Exception e) {
+                Toast.makeText(this, "Google sign-in error: " + (e.getMessage() == null ? e.getClass().getSimpleName() : e.getMessage()), Toast.LENGTH_LONG).show();
+            }
             return;
         }
         if (requestCode == PHOTO_REQUEST && resultCode == RESULT_OK && data != null && data.getData() != null) {
@@ -440,6 +536,7 @@ public class MainActivity extends Activity {
     }
 
     private void giftDialog(LinearLayout chat){
+        if (hasOnlineAccount()) { openOnline("wallet"); return; }
         String[] gifts={"🌹 Rose  1","❤️ Heart  5","🍭 Candy  10","🎂 Cake  50","💎 Diamond  100","🚗 Sports Car  500","👑 Crown  999","🎆 Fireworks  1999"};
         int[] prices={1,5,10,50,100,500,999,1999};
         new AlertDialog.Builder(this).setTitle("🎁 Gift Store • Balance "+coinBalance).setItems(gifts,(d,w)->{
@@ -638,6 +735,7 @@ public class MainActivity extends Activity {
         root.addView(sv,new LinearLayout.LayoutParams(-1,0,1)); addBottomNav(root,2); setContentView(root);
     }
     private void conversation(String who){
+        if(getPreferences(0).getStringSet("blocked",new HashSet<>()).contains(who)){Toast.makeText(this,"Unblock this user before opening messages",Toast.LENGTH_SHORT).show();return;}
         screen="conversation"; base(who,getPreferences(0).getBoolean("privacy_online",true)?"Online":"KING Plus member"); text("Today",13,MUTED,false);
         text(who+":  Hello 👋",16,Color.WHITE,false);
         String key="chat_"+safeKey(who); String saved=getPreferences(0).getString(key,"");
@@ -684,12 +782,14 @@ public class MainActivity extends Activity {
     }
 
     private void safetyOptions(String who){
+        if (hasOnlineAccount()) { openOnline("safety"); return; }
         String[] a={"🚫 Block / Unblock","⚑ Report user"};
         new AlertDialog.Builder(this).setTitle(who).setItems(a,(d,w)->{if(w==0){Set<String>b=new HashSet<>(getPreferences(0).getStringSet("blocked",new HashSet<>()));boolean blocked;if(b.contains(who)){b.remove(who);blocked=false;}else{b.add(who);blocked=true;}getPreferences(0).edit().putStringSet("blocked",b).apply();Toast.makeText(this,blocked?"User blocked":"User unblocked",Toast.LENGTH_SHORT).show();}else reportDialog(who);}).show();
     }
     private void reportDialog(String who){
+        if (hasOnlineAccount()) { openOnline("safety"); return; }
         String[] reasons={"Spam","Harassment","Inappropriate content","Fake account","Other"};
-        new AlertDialog.Builder(this).setTitle("Report "+who).setItems(reasons,(d,w)->{int count=getPreferences(0).getInt("reports",0)+1;getPreferences(0).edit().putInt("reports",count).apply();Toast.makeText(this,"Report saved for review",Toast.LENGTH_SHORT).show();}).setNegativeButton("Cancel",null).show();
+        new AlertDialog.Builder(this).setTitle("Report "+who).setItems(reasons,(d,w)->{int count=getPreferences(0).getInt("reports",0)+1;getPreferences(0).edit().putInt("reports",count).apply();Toast.makeText(this,"Demo report saved on this phone only",Toast.LENGTH_SHORT).show();}).setNegativeButton("Cancel",null).show();
     }
     private void notifications(){ notificationsCenter(); }
 
@@ -710,7 +810,8 @@ public class MainActivity extends Activity {
 
 
     private void walletPage(){
-        screen="wallet"; base("My Wallet","KING Plus balance");
+        if (hasOnlineAccount()) { openOnline("wallet"); return; }
+        screen="wallet"; base("Demo Wallet","Local test coins • not online balance");
         text("💎 "+coinBalance+" Coins",28,Color.WHITE,true); text("Available balance",14,MUTED,false);
         text("🎁 Gifts sent: "+giftCount+"   •   Received: "+receivedGiftCount,16,Color.WHITE,false);
         button("Open Gift Catalog",PURPLE,this::giftCatalogPage);
@@ -751,16 +852,17 @@ public class MainActivity extends Activity {
         screen="settings"; base("Settings","Account and app controls");
         text("Account",18,Color.WHITE,true); text("Signed in as "+displayName,15,MUTED,false);
         button("Edit Profile",CARD,this::editProfile);
-        button("🔔 Notifications: "+(getPreferences(0).getBoolean("setting_notifications",true)?"ON":"OFF"),CARD,()->toggleSetting("setting_notifications","Notifications",this::settingsPage));
+        button("🔔 Notifications: "+(getPreferences(0).getBoolean("setting_notifications",true)?"ON":"OFF"),CARD,()->{if(hasOnlineAccount())openOnline("notifications");else toggleSetting("setting_notifications","Notifications",this::settingsPage);});
         button("✨ Entrance effects: "+(getPreferences(0).getBoolean("setting_entrance_effects",true)?"ON":"OFF"),CARD,()->toggleSetting("setting_entrance_effects","Entrance effects",this::settingsPage));
         button("🔊 Room sounds: "+(getPreferences(0).getBoolean("setting_room_sounds",true)?"ON":"OFF"),CARD,()->toggleSetting("setting_room_sounds","Room sounds",this::settingsPage));
         button("Privacy & Safety",CARD,this::privacySafetyPage);
         button("Help & Feedback",CARD,this::helpCenterPage);
-        button("Log out",0xffb23a48,()->new AlertDialog.Builder(this).setTitle("Log out?").setMessage("Your local KING Plus session will be cleared. Saved local content will remain on this device.").setNegativeButton("Cancel",null).setPositiveButton("Log out",(d,w)->{if(firebaseAuth!=null)firebaseAuth.signOut();if(googleSignInClient!=null)googleSignInClient.signOut();getPreferences(0).edit().remove("name").apply();displayName="";login();}).show());
+        button("Log out",0xffb23a48,()->new AlertDialog.Builder(this).setTitle("Log out?").setMessage("Your local KING Plus session will be cleared. Saved local content will remain on this device.").setNegativeButton("Cancel",null).setPositiveButton("Log out",(d,w)->{if(firebaseAuth!=null)firebaseAuth.signOut();if(googleSignInClient!=null)googleSignInClient.signOut();getPreferences(0).edit().remove("name").remove("login_provider").apply();displayName="";login();}).show());
         button("Back",PURPLE,this::profile);
     }
 
     private void privacySafetyPage(){
+        if (hasOnlineAccount()) { openOnline("safety"); return; }
         screen="privacy"; base("Privacy & Safety","Control your KING Plus experience");
         Set<String> blocked=new HashSet<>(getPreferences(0).getStringSet("blocked",new HashSet<>()));
         button("💬 Messages from friends only: "+(getPreferences(0).getBoolean("privacy_friends_dm",false)?"ON":"OFF"),CARD,()->toggleSetting("privacy_friends_dm","Friends-only messages",this::privacySafetyPage));
@@ -790,6 +892,7 @@ public class MainActivity extends Activity {
     }
 
     private void rankingsPage(){
+        if (hasOnlineAccount()) { openOnline("rankings"); return; }
         screen="rankings"; base("Rankings","Community leaderboard preview");
         text("👑 Weekly Stars",20,Color.WHITE,true);
         String[] stars={"🥇 Lily   •  28.4K charm","🥈 Alex   •  21.7K charm","🥉 Mia   •  18.9K charm","4   KING Host   •  12.6K charm","5   Music Fan   •  9.8K charm"};
@@ -825,6 +928,7 @@ public class MainActivity extends Activity {
     }
 
     private void dailyCheckInPage(){
+        if (hasOnlineAccount()) { openOnline("wallet"); return; }
         screen="checkin"; base("Daily Check-in","Build a streak and earn local rewards");
         SharedPreferences p=getPreferences(0); long today=System.currentTimeMillis()/86400000L; long last=p.getLong("checkin_day_long",-10); int streak=p.getInt("checkin_streak",0); boolean claimed=last==today;
         int shownStreak=claimed?streak:(last==today-1?streak+1:1); int reward=Math.min(100+Math.max(0,shownStreak-1)*20,300);
@@ -889,7 +993,7 @@ public class MainActivity extends Activity {
     private void newMessageDialog(){final EditText e=new EditText(this);e.setHint("User name");new AlertDialog.Builder(this).setTitle("New message").setView(e).setNegativeButton("Cancel",null).setPositiveButton("Open",(d,w)->{String n=e.getText().toString().trim();if(n.isEmpty())n="New Friend";conversation(n);}).show();}
     private void selectCosmetic(String key,String[] values,Runnable refresh){int selected=0;String current=getPreferences(0).getString(key,values[0]);for(int i=0;i<values.length;i++)if(values[i].equals(current))selected=i;new AlertDialog.Builder(this).setTitle("Choose item").setSingleChoiceItems(values,selected,(d,w)->{getPreferences(0).edit().putString(key,values[w]).apply();d.dismiss();refresh.run();}).setNegativeButton("Cancel",null).show();}
 
-    private void helpCenterPage(){screen="help";base("Help & Feedback","KING Plus support center");button("Login & OTP help",CARD,()->new AlertDialog.Builder(this).setTitle("Login & OTP").setMessage("Use a real phone number with country code. Firebase Phone Authentication must be enabled and SHA fingerprints configured.").setPositiveButton("OK",null).show());button("Voice room help",CARD,()->new AlertDialog.Builder(this).setTitle("Voice rooms").setMessage("Join a seat, allow microphone permission, then tap Mic. Live multi-user audio still requires a real-time voice service/backend.").setPositiveButton("OK",null).show());button("Send feedback",PURPLE,()->{final EditText e=new EditText(this);e.setHint("Describe the issue or suggestion");new AlertDialog.Builder(this).setTitle("Feedback").setView(e).setNegativeButton("Cancel",null).setPositiveButton("Save",(d,w)->{String m=e.getText().toString().trim();if(!m.isEmpty()){String old=getPreferences(0).getString("feedback","");getPreferences(0).edit().putString("feedback",m+"|||"+old).apply();Toast.makeText(this,"Feedback saved",Toast.LENGTH_SHORT).show();}}).show();});button("Back to Settings",CARD,this::settingsPage);}
+    private void helpCenterPage(){screen="help";base("Help & Feedback","KING Plus support center");button("Login & OTP help",CARD,()->new AlertDialog.Builder(this).setTitle("Login & OTP").setMessage("Debug test build: use mobile number and test OTP 123456; no SMS is sent. Release builds require Firebase Phone Authentication and SHA fingerprints.").setPositiveButton("OK",null).show());button("Voice room help",CARD,()->new AlertDialog.Builder(this).setTitle("Voice rooms").setMessage("Join a seat, allow microphone permission, then tap Mic. Live multi-user audio still requires a real-time voice service/backend.").setPositiveButton("OK",null).show());button("Send feedback",PURPLE,()->{final EditText e=new EditText(this);e.setHint("Describe the issue or suggestion");new AlertDialog.Builder(this).setTitle("Feedback").setView(e).setNegativeButton("Cancel",null).setPositiveButton("Save",(d,w)->{String m=e.getText().toString().trim();if(!m.isEmpty()){String old=getPreferences(0).getString("feedback","");getPreferences(0).edit().putString("feedback",m+"|||"+old).apply();Toast.makeText(this,"Feedback saved",Toast.LENGTH_SHORT).show();}}).show();});button("Back to Settings",CARD,this::settingsPage);}
 
     @Override public void onBackPressed() {
         if ("login".equals(screen) || "home".equals(screen)) super.onBackPressed(); else home();
@@ -897,9 +1001,10 @@ public class MainActivity extends Activity {
     @Override protected void onPause() { super.onPause(); stopMic(); }
     @Override protected void onDestroy() { stopMic(); super.onDestroy(); }
     private void notificationsCenter(){
-        screen="notifications"; base("Notifications","Activity from your KING Plus community");
+        if (hasOnlineAccount()) { openOnline("notifications"); return; }
+        screen="notifications"; base("Demo notifications","Local activity on this phone");
         String raw=getPreferences(0).getString("notifications_log","");
-        if(raw.isEmpty()) raw="👑 Welcome to KING Plus|||💜 Lily followed you|||🎁 Alex sent a Rose in KING Lounge|||🎮 Game Talk invited you to play|||🎤 Music & Friends is live now";
+        if(raw.isEmpty()) text("No notifications yet",16,MUTED,false);
         for(String n:raw.split("\\|\\|\\|")) if(!n.trim().isEmpty()) button(n,CARD,()->Toast.makeText(this,"Opened",Toast.LENGTH_SHORT).show());
         button("Mark all as read",PURPLE,()->{getPreferences(0).edit().putBoolean("notifications_read",true).apply();Toast.makeText(this,"All notifications marked as read",Toast.LENGTH_SHORT).show();});
         button("Clear notifications",CARD,()->{getPreferences(0).edit().putString("notifications_log","").apply();notificationsCenter();});

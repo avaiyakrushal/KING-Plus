@@ -1,3 +1,18 @@
+# Current update: KING Plus 2.7.1
+
+Online coins/gifts/rankings and notifications/moderation code added.
+**Deployment and APK/device validation are pending.**
+See `backend/SETUP.md` and `CHANGELOG-v2.7.1.txt`.
+
+## Earlier 2.7 merge notes
+
+# v2.7 update
+
+Debug builds include free local mobile test login. Enter a valid mobile number,
+then test OTP **123456**. No SMS is sent and phone ownership is not verified.
+Release builds use the existing Firebase phone flow. Google/Facebook still
+require provider configuration. See CHANGELOG-v2.7.txt for merge scope and validation.
+
 # KING Plus v2.5
 
 This version advances the v2.1 Family & Agency prototype and replaces the fake mobile test PIN flow with Firebase-ready authentication.
