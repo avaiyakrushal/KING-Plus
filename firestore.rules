@@ -1,0 +1,32 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() { return request.auth != null; }
+    function owner(uid) { return signedIn() && request.auth.uid == uid; }
+
+    match /users/{uid} {
+      allow read, create, update: if owner(uid);
+      allow delete: if false;
+      match /devices/{token} {
+        allow read, create, update, delete: if owner(uid);
+      }
+    }
+
+    // TEST-ONLY client snapshot. Never use this collection as the authoritative paid balance.
+    match /test_wallet_snapshots/{uid} {
+      allow read, create, update: if owner(uid);
+      allow delete: if false;
+    }
+
+    match /reports/{reportId} {
+      allow create: if signedIn() && request.resource.data.reporterUid == request.auth.uid;
+      allow read, update, delete: if false;
+    }
+
+    // Production wallet/ledger must only be changed by trusted backend/admin code.
+    match /wallets/{uid} {
+      allow read: if owner(uid);
+      allow write: if false;
+    }
+  }
+}
