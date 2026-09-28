@@ -19,12 +19,20 @@
 - Production-readiness UI explains server wallet, FCM, Play Billing and release-signing state.
 - v3.0 release-candidate workflow builds a minified release APK and release AAB plus source ZIP.
 
-## External setup still required before production launch
-- Deploy Firestore rules and Cloud Functions from this repository to the correct Firebase project.
-- Configure Firebase Authentication providers, including the required Android SHA fingerprints.
-- In Play Console create and activate the three one-time coin products, publish the app to an internal testing track, link the Cloud Functions service account, grant Android Publisher purchase/order permissions, and enable the Android Publisher API.
-- Replace the CI test signing key with a private production upload key and use Play App Signing before public Play Store release.
-- Configure/verify production FCM sender behavior, moderation admin claims, privacy/terms, support contact, data safety declarations and store policy requirements.
-- Production voice still needs a dedicated RTC provider and production credentials if the current web voice bridge is not sufficient.
+## Production launch preparation added
+- Manual `Firebase production deploy` workflow for Firestore rules and Cloud Functions using a repository service-account secret.
+- Manual `Production signed release` workflow that refuses to build without private upload-key secrets and produces a production-signed APK/AAB.
+- Production smoke checks validate Firebase package configuration, Billing product IDs, backend exports, Firestore wallet lock and required Android permissions before CI builds.
+- `docs/PRODUCTION_LAUNCH_CHECKLIST.md` contains the two-device test matrix, Play Console setup, production signing, RTC and store launch gates.
+- Firebase project mapping is already present for `king-plus-2f365` and deployment configuration points at `firestore.rules` plus `functions/`.
 
-The v3.0.0 CI APK/AAB is a release candidate for testing. It is not represented as a store-production build until the external signing, Play Console and Firebase deployment steps above are completed.
+## External account setup still required before production launch
+- Configure and authorize the Firebase deployment service account, then run the manual deploy workflow.
+- Configure Firebase Authentication providers and production Android SHA fingerprints.
+- For Facebook, create/configure the Meta developer app and Firebase Facebook provider; provider secrets must never be embedded in the APK.
+- In Play Console create and activate the three one-time coin products, publish to internal testing, authorize Android Publisher API access for backend verification, and complete required store declarations.
+- Create and securely store a private upload keystore, add its values as GitHub repository secrets, enable Play App Signing, then run the production signed release workflow.
+- Choose/configure a production RTC provider and server-issued voice token flow; the current public Jitsi bridge remains test-only.
+- Run the physical two-device end-to-end test matrix before rollout.
+
+The current CI APK/AAB remains a release candidate until the account-side Firebase, Play Console, signing and RTC steps above are completed and validated.
