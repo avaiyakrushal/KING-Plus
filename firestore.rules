@@ -108,6 +108,11 @@ service cloud.firestore {
       allow write: if false;
     }
 
+    match /account_deletion_requests/{uid} {
+      allow read: if owner(uid) || admin();
+      allow write: if false;
+    }
+
     match /notifications/{uid}/items/{itemId} {
       allow read, delete: if owner(uid);
       allow create, update: if false;
