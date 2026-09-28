@@ -57,8 +57,11 @@ jobs:
           python3 tools/prepare_v30_build.py
           python3 tools/configure_production_signing.py
 
-      - name: Backend syntax check
-        run: node --check functions/index.js
+      - name: Production backend and configuration checks
+        run: |
+          MAIN_FILE=$(node -p "require('./functions/package.json').main || 'index.js'")
+          node --check "functions/$MAIN_FILE"
+          python3 tools/production_smoke_check.py
 
       - name: Build signed release APK and AAB
         run: gradle :app:assembleRelease :app:bundleRelease --no-daemon
