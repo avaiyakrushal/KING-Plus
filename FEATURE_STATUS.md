@@ -1,46 +1,30 @@
-# KING Plus v2.9.0 Feature Status
+# KING Plus v3.0.0 Feature Status
 
-## Work added for items 1–6
-1. **Real login path**
-   - v2.9 build stops replacing mobile login with the fixed test OTP flow.
-   - Firebase Phone Auth real SMS OTP path from the app source is used again.
-   - Google Firebase Auth wiring remains in place.
-   - Google sign-in still needs the stable APK SHA-1 registered in Firebase/Google OAuth.
-   - Facebook still needs Meta App credentials/provider configuration before it can be genuinely enabled.
+## v3.0 work completed in source / release candidate
+- Server wallet and gift hardening:
+  - normal app clients cannot write production wallet or ledger collections;
+  - gift writes go through Cloud Functions;
+  - gift requests use client request IDs and server-side idempotency records to reduce double-charge risk;
+  - wallet ledger entries can be read only by the involved account or an admin.
+- Push notification expansion:
+  - gift, room invite and room-message notifications remain supported;
+  - direct-message and follow notification callable/trigger paths are added;
+  - invalid FCM registration tokens are cleaned up by the v3 backend.
+- Google Play recharge integration foundation:
+  - Android uses Google Play Billing Library 9.1.0;
+  - configured one-time product IDs are `king_coins_100`, `king_coins_600`, `king_coins_1300`;
+  - the app never credits Play coins locally;
+  - completed purchases send the purchase token to `verifyPlayPurchase`;
+  - the Cloud Function verifies the purchase with Android Publisher API, checks the obfuscated KING Plus account ID when available, credits the server wallet exactly once, records a receipt/ledger row, and then attempts server-side consumption.
+- Production-readiness UI explains server wallet, FCM, Play Billing and release-signing state.
+- v3.0 release-candidate workflow builds a minified release APK and release AAB plus source ZIP.
 
-2. **Real-time rooms & chat**
-   - Added `LiveCloudActivity` backed by Firestore snapshot listeners.
-   - Signed-in users can create cloud rooms and exchange room messages across devices.
-   - Added Firestore rules for authenticated live-room reads and protected room/message writes.
+## External setup still required before production launch
+- Deploy Firestore rules and Cloud Functions from this repository to the correct Firebase project.
+- Configure Firebase Authentication providers, including the required Android SHA fingerprints.
+- In Play Console create and activate the three one-time coin products, publish the app to an internal testing track, link the Cloud Functions service account, grant Android Publisher purchase/order permissions, and enable the Android Publisher API.
+- Replace the CI test signing key with a private production upload key and use Play App Signing before public Play Store release.
+- Configure/verify production FCM sender behavior, moderation admin claims, privacy/terms, support contact, data safety declarations and store policy requirements.
+- Production voice still needs a dedicated RTC provider and production credentials if the current web voice bridge is not sufficient.
 
-3. **Real voice**
-   - Added an experimental real multi-user audio room path using an in-app WebView connected to Jitsi Meet.
-   - Microphone access is restricted to audio capture; video starts muted/audio-only.
-   - This is suitable for live testing but should be replaced by a dedicated production RTC provider (LiveKit/Agora/Zego/WebRTC infrastructure) before store release.
-
-4. **Server-authoritative wallet & gifts**
-   - Added callable Cloud Functions client bridge.
-   - Added backend `sendGift` transaction that debits sender and credits receiver on trusted server code.
-   - Client writes to production `/wallets` and `/wallet_ledger` remain denied by Firestore rules.
-   - Admin wallet adjustment is protected by Firebase custom claim `admin=true` and audited in the ledger.
-
-5. **Real push backend**
-   - Existing FCM device token registration is used.
-   - Added callable room-invite push backend.
-   - Added Firestore room-message trigger that notifies the room owner of new messages.
-   - In-app notification records are stored server-side as well.
-
-6. **Admin dashboard & moderation**
-   - Added Android admin dashboard that verifies `admin=true` custom claim.
-   - Admin can review/resolve/dismiss reports, ban users, and perform audited wallet adjustments through trusted functions.
-   - Normal app clients cannot read moderation queues or write production wallets.
-
-## External setup still required before all six are production-live
-- Register the stable GitHub APK signing SHA-1 in Firebase/Google OAuth for Google sign-in.
-- Enable/configure Firebase Phone Authentication and SMS billing/provider requirements for production OTP.
-- Add Meta/Facebook App ID, secret and Firebase Facebook provider setup for Facebook login.
-- Deploy `firestore.rules` and the `functions/` backend to the Firebase project.
-- Set the desired account custom claim `admin=true` through a trusted admin process before using the admin dashboard.
-- Replace the public Jitsi test voice path with a controlled production RTC provider for scale, abuse controls, tokens and reliability.
-
-The Android APK can build without deploying the backend, but Firestore live rooms, server gifts, push sends and privileged moderation only become fully functional after the corresponding Firebase services/rules/functions are deployed.
+The v3.0.0 CI APK/AAB is a release candidate for testing. It is not represented as a store-production build until the external signing, Play Console and Firebase deployment steps above are completed.
