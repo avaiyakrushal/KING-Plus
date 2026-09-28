@@ -140,6 +140,14 @@ public class LiveCloudActivity extends Activity {
         openRoomId = roomId; openRoomName = roomName; openRoomOwnerUid = ownerUid;
         base(roomName, "Live cloud room • messages sync across signed-in devices");
         button("‹ Back to live rooms", CARD, v -> renderRooms());
+        button("🎛 Seats, Mic & Host Controls", CARD, v -> {
+            Intent i = new Intent(this, RoomControlActivity.class);
+            i.putExtra("roomId", roomId);
+            i.putExtra("roomName", roomName);
+            i.putExtra("name", safeName());
+            i.putExtra("ownerUid", ownerUid);
+            startActivity(i);
+        });
         button("🎤 Join REAL voice test", PURPLE, v -> {
             Intent i = new Intent(this, VoiceWebActivity.class);
             i.putExtra("roomId", roomId); i.putExtra("roomName", roomName); startActivity(i);
