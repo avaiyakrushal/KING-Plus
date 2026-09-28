@@ -29,6 +29,42 @@ service cloud.firestore {
       }
     }
 
+    match /direct_threads/{threadId} {
+      allow read: if signedIn() && request.auth.uid in resource.data.members;
+      allow create: if signedIn()
+        && request.resource.data.members is list
+        && request.resource.data.members.size() >= 2
+        && request.resource.data.members.size() <= 8
+        && request.auth.uid in request.resource.data.members;
+      allow update: if signedIn() && request.auth.uid in resource.data.members;
+      allow delete: if false;
+
+      match /messages/{messageId} {
+        allow read: if signedIn()
+          && request.auth.uid in get(/databases/$(database)/documents/direct_threads/$(threadId)).data.members;
+        allow create: if signedIn()
+          && request.auth.uid in get(/databases/$(database)/documents/direct_threads/$(threadId)).data.members
+          && request.resource.data.senderUid == request.auth.uid
+          && request.resource.data.recipientUid is string
+          && request.resource.data.text is string
+          && request.resource.data.text.size() > 0
+          && request.resource.data.text.size() <= 1000;
+        allow update, delete: if false;
+      }
+    }
+
+    match /follows/{followId} {
+      allow read: if signedIn();
+      allow create: if signedIn()
+        && request.resource.data.followerUid == request.auth.uid
+        && request.resource.data.targetUid is string
+        && request.resource.data.targetUid != request.auth.uid;
+      allow delete: if signedIn()
+        && (resource.data.followerUid == request.auth.uid
+            || resource.data.targetUid == request.auth.uid);
+      allow update: if false;
+    }
+
     match /test_wallet_snapshots/{uid} {
       allow read, create, update: if owner(uid);
       allow delete: if false;
@@ -40,7 +76,20 @@ service cloud.firestore {
     }
 
     match /wallet_ledger/{entryId} {
+      allow read: if signedIn()
+        && (admin()
+            || resource.data.senderUid == request.auth.uid
+            || resource.data.targetUid == request.auth.uid);
+      allow write: if false;
+    }
+
+    match /wallet_operations/{operationId} {
       allow read, write: if false;
+    }
+
+    match /play_purchase_receipts/{receiptId} {
+      allow read: if signedIn() && (admin() || resource.data.uid == request.auth.uid);
+      allow write: if false;
     }
 
     match /reports/{reportId} {
