@@ -1,4 +1,4 @@
-name: Build KING Plus APK
+name: Build KING Plus v3
 
 on:
   push:
@@ -29,29 +29,40 @@ jobs:
       - name: Prepare v2.9 real auth and live foundation
         run: python3 tools/prepare_v29_build.py
 
-      - name: Build debug APK
-        run: gradle :app:assembleDebug --no-daemon
+      - name: Prepare v3.0 security, billing and release candidate
+        run: python3 tools/prepare_v30_build.py
 
-      - name: Show APK signing certificate
+      - name: Build debug and release candidates
+        run: gradle :app:assembleDebug :app:assembleRelease :app:bundleRelease --no-daemon
+
+      - name: Show release APK signing certificate
         run: |
           APK_SIGNER=$(find "$ANDROID_HOME/build-tools" -name apksigner -type f | sort -V | tail -n 1)
-          "$APK_SIGNER" verify --print-certs app/build/outputs/apk/debug/app-debug.apk
+          "$APK_SIGNER" verify --print-certs app/build/outputs/apk/release/app-release.apk
 
       - name: Prepare release files
         run: |
           mkdir -p release
-          cp app/build/outputs/apk/debug/app-debug.apk release/KING-Plus-v2.9.0.apk
-          zip -r KING-Plus-v2.9.0-source.zip . \
-            -x '.git/*' '.gradle/*' 'app/build/*' 'release/*' 'KING-Plus-v2.9.0-source.zip' 'functions/node_modules/*'
+          cp app/build/outputs/apk/release/app-release.apk release/KING-Plus-v3.0.0-RC.apk
+          cp app/build/outputs/bundle/release/app-release.aab release/KING-Plus-v3.0.0-RC.aab
+          cp app/build/outputs/apk/debug/app-debug.apk release/KING-Plus-v3.0.0-debug.apk
+          zip -r KING-Plus-v3.0.0-source.zip . \
+            -x '.git/*' '.gradle/*' 'app/build/*' 'release/*' 'KING-Plus-v3.0.0-source.zip' 'functions/node_modules/*'
 
       - uses: actions/upload-artifact@v4
         with:
-          name: KING-Plus-v2.9.0-APK
-          path: release/KING-Plus-v2.9.0.apk
+          name: KING-Plus-v3.0.0-RC-APK
+          path: release/KING-Plus-v3.0.0-RC.apk
           if-no-files-found: error
 
       - uses: actions/upload-artifact@v4
         with:
-          name: KING-Plus-v2.9.0-source-ZIP
-          path: KING-Plus-v2.9.0-source.zip
+          name: KING-Plus-v3.0.0-RC-AAB
+          path: release/KING-Plus-v3.0.0-RC.aab
+          if-no-files-found: error
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: KING-Plus-v3.0.0-source-ZIP
+          path: KING-Plus-v3.0.0-source.zip
           if-no-files-found: error
