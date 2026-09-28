@@ -14,14 +14,12 @@ android {
         }
     }
 
-    defaultConfig { applicationId 'com.kingplus.social'; minSdk 24; targetSdk 35; versionCode 29; versionName '2.5.4' }
+    defaultConfig { applicationId 'com.kingplus.social'; minSdk 24; targetSdk 35; versionCode 30; versionName '2.6' }
     buildTypes { debug { signingConfig signingConfigs.debug } }
     compileOptions { sourceCompatibility JavaVersion.VERSION_17; targetCompatibility JavaVersion.VERSION_17 }
 }
 
 dependencies {
-    // Firebase Phone Auth calls the four-argument ContextCompat.registerReceiver.
-    // Declare Core explicitly so an old transitive version cannot cause NoSuchMethodError.
     implementation 'androidx.core:core:1.15.0'
     implementation platform('com.google.firebase:firebase-bom:34.19.0')
     implementation 'com.google.firebase:firebase-auth'
