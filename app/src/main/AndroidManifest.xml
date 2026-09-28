@@ -3,6 +3,7 @@
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
     <uses-feature android:name="android.hardware.microphone" android:required="false" />
     <application android:theme="@android:style/Theme.Material.Light.NoActionBar" android:label="KING Plus" android:icon="@drawable/king_logo" android:usesCleartextTraffic="false">
+        <activity android:name=".RoomEntryActivity" android:exported="false" />
         <activity android:name=".RoomControlActivity" android:exported="false" />
         <activity android:name=".VoiceWebActivity" android:exported="false" />
         <activity android:name=".MainActivity" android:exported="true">
