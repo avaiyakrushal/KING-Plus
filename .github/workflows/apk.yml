@@ -32,6 +32,11 @@ jobs:
       - name: Prepare v3.0 security, billing and release candidate
         run: python3 tools/prepare_v30_build.py
 
+      - name: Production smoke checks
+        run: |
+          python3 tools/production_smoke_check.py
+          node --check functions/index.js
+
       - name: Build debug and release candidates
         run: gradle :app:assembleDebug :app:assembleRelease :app:bundleRelease --no-daemon
 
