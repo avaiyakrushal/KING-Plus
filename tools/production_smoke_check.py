@@ -12,6 +12,7 @@ required_files = [
     Path('app/src/main/java/com/kingplus/social/CloudBackend.java'),
     Path('app/src/main/java/com/kingplus/social/LiveCloudActivity.java'),
     Path('app/src/main/java/com/kingplus/social/KingMessagingService.java'),
+    Path('app/src/main/java/com/kingplus/social/MainActivity.java'),
 ]
 
 missing = [str(p) for p in required_files if not p.exists()]
@@ -38,7 +39,7 @@ main_path = Path('functions') / main_name
 if not main_path.exists():
     raise SystemExit(f'Firebase Functions main entry does not exist: {main_path}')
 backend = Path('functions/index.js').read_text(encoding='utf-8') + '\n' + main_path.read_text(encoding='utf-8')
-for callable_name in ('sendGift', 'sendRoomInvite', 'verifyPlayPurchase', 'moderateReport', 'banUser'):
+for callable_name in ('sendGift', 'sendRoomInvite', 'verifyPlayPurchase', 'moderateReport', 'banUser', 'requestAccountDeletion'):
     if callable_name not in backend:
         raise SystemExit(f'Missing backend export/implementation: {callable_name}')
 
@@ -56,10 +57,17 @@ if 'match /play_purchase_receipts/{receiptId}' not in rules:
     raise SystemExit('Play purchase receipt rules are missing')
 if 'function activeUser()' not in rules or 'match /bans/{uid}' not in rules:
     raise SystemExit('Ban enforcement is missing from Firestore rules')
+if 'match /account_deletion_requests/{uid}' not in rules:
+    raise SystemExit('Account deletion request rules are missing')
+
+cloud = Path('app/src/main/java/com/kingplus/social/CloudBackend.java').read_text(encoding='utf-8')
+main = Path('app/src/main/java/com/kingplus/social/MainActivity.java').read_text(encoding='utf-8')
+if 'requestAccountDeletion(Callback callback)' not in cloud or 'requestAccountDeletionFlow()' not in main:
+    raise SystemExit('In-app account deletion request flow is missing')
 
 manifest = Path('app/src/main/AndroidManifest.xml').read_text(encoding='utf-8')
 for permission in ('android.permission.INTERNET', 'android.permission.RECORD_AUDIO', 'android.permission.POST_NOTIFICATIONS'):
     if permission not in manifest:
         raise SystemExit(f'Missing manifest permission: {permission}')
 
-print(f'KING Plus production smoke checks passed (functions main: {main_name}; ban enforcement: enabled)')
+print(f'KING Plus production smoke checks passed (functions main: {main_name}; ban enforcement + deletion flow: enabled)')
