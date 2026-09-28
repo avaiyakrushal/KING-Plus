@@ -3,7 +3,19 @@ plugins { id 'com.android.application' }
 android {
     namespace 'com.kingplus.social'
     compileSdk 35
-    defaultConfig { applicationId 'com.kingplus.social'; minSdk 24; targetSdk 35; versionCode 28; versionName '2.5.3' }
+
+    signingConfigs {
+        debug {
+            // Stable CI debug key so Firebase/Google SHA-1 does not change on every GitHub build.
+            storeFile file('kingplus-ci-debug.keystore')
+            storePassword 'android'
+            keyAlias 'androiddebugkey'
+            keyPassword 'android'
+        }
+    }
+
+    defaultConfig { applicationId 'com.kingplus.social'; minSdk 24; targetSdk 35; versionCode 29; versionName '2.5.4' }
+    buildTypes { debug { signingConfig signingConfigs.debug } }
     compileOptions { sourceCompatibility JavaVersion.VERSION_17; targetCompatibility JavaVersion.VERSION_17 }
 }
 
