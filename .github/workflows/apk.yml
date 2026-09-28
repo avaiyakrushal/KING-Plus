@@ -32,10 +32,14 @@ jobs:
       - name: Prepare v3.0 security, billing and release candidate
         run: python3 tools/prepare_v30_build.py
 
+      - name: Prepare v3.0.1 production abuse hardening
+        run: python3 tools/prepare_v301_hardening.py
+
       - name: Production smoke checks
         run: |
           python3 tools/production_smoke_check.py
           node --check functions/index.js
+          node --check functions/v3.js
 
       - name: Build debug and release candidates
         run: gradle :app:assembleDebug :app:assembleRelease :app:bundleRelease --no-daemon
@@ -48,26 +52,26 @@ jobs:
       - name: Prepare release files
         run: |
           mkdir -p release
-          cp app/build/outputs/apk/release/app-release.apk release/KING-Plus-v3.0.0-RC.apk
-          cp app/build/outputs/bundle/release/app-release.aab release/KING-Plus-v3.0.0-RC.aab
-          cp app/build/outputs/apk/debug/app-debug.apk release/KING-Plus-v3.0.0-debug.apk
-          zip -r KING-Plus-v3.0.0-source.zip . \
-            -x '.git/*' '.gradle/*' 'app/build/*' 'release/*' 'KING-Plus-v3.0.0-source.zip' 'functions/node_modules/*'
+          cp app/build/outputs/apk/release/app-release.apk release/KING-Plus-v3.0.1-RC.apk
+          cp app/build/outputs/bundle/release/app-release.aab release/KING-Plus-v3.0.1-RC.aab
+          cp app/build/outputs/apk/debug/app-debug.apk release/KING-Plus-v3.0.1-debug.apk
+          zip -r KING-Plus-v3.0.1-source.zip . \
+            -x '.git/*' '.gradle/*' 'app/build/*' 'release/*' 'KING-Plus-v3.0.1-source.zip' 'functions/node_modules/*'
 
       - uses: actions/upload-artifact@v4
         with:
-          name: KING-Plus-v3.0.0-RC-APK
-          path: release/KING-Plus-v3.0.0-RC.apk
+          name: KING-Plus-v3.0.1-RC-APK
+          path: release/KING-Plus-v3.0.1-RC.apk
           if-no-files-found: error
 
       - uses: actions/upload-artifact@v4
         with:
-          name: KING-Plus-v3.0.0-RC-AAB
-          path: release/KING-Plus-v3.0.0-RC.aab
+          name: KING-Plus-v3.0.1-RC-AAB
+          path: release/KING-Plus-v3.0.1-RC.aab
           if-no-files-found: error
 
       - uses: actions/upload-artifact@v4
         with:
-          name: KING-Plus-v3.0.0-source-ZIP
-          path: KING-Plus-v3.0.0-source.zip
+          name: KING-Plus-v3.0.1-source-ZIP
+          path: KING-Plus-v3.0.1-source.zip
           if-no-files-found: error
