@@ -112,7 +112,7 @@ MAIN.write_text(src, encoding='utf-8')
 
 # Version the generated APK without touching signing/Firebase settings.
 gradle = BUILD.read_text(encoding='utf-8')
-gradle = re.sub(r"versionCode\s+\d+;\s+versionName\s+'[^']+'", "versionCode 31; versionName '2.7.1'", gradle)
+gradle = re.sub(r"versionCode\s+\d+;\s+versionName\s+'[^']+'", "versionCode 32; versionName '2.7.2'", gradle)
 BUILD.write_text(gradle, encoding='utf-8')
 
-print('Prepared KING Plus v2.7.1 free-test build')
+print('Prepared KING Plus v2.7.2 free-test build')

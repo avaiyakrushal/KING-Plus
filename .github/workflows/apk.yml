@@ -23,7 +23,7 @@ jobs:
         with:
           gradle-version: '8.9'
 
-      - name: Prepare v2.7.1 free test build
+      - name: Prepare v2.7.2 free test build
         run: python3 tools/prepare_test_build.py
 
       - name: Build debug APK
@@ -34,8 +34,21 @@ jobs:
           APK_SIGNER=$(find "$ANDROID_HOME/build-tools" -name apksigner -type f | sort -V | tail -n 1)
           "$APK_SIGNER" verify --print-certs app/build/outputs/apk/debug/app-debug.apk
 
+      - name: Prepare release files
+        run: |
+          mkdir -p release
+          cp app/build/outputs/apk/debug/app-debug.apk release/KING-Plus-v2.7.2.apk
+          zip -r KING-Plus-v2.7.2-source.zip . \
+            -x '.git/*' '.gradle/*' 'app/build/*' 'release/*' 'KING-Plus-v2.7.2-source.zip'
+
       - uses: actions/upload-artifact@v4
         with:
-          name: KING-Plus-v2.7.1-login-help-test-APK
-          path: app/build/outputs/apk/debug/app-debug.apk
+          name: KING-Plus-v2.7.2-APK
+          path: release/KING-Plus-v2.7.2.apk
+          if-no-files-found: error
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: KING-Plus-v2.7.2-source-ZIP
+          path: KING-Plus-v2.7.2-source.zip
           if-no-files-found: error
