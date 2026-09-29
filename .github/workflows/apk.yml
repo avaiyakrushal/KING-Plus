@@ -1,4 +1,4 @@
-name: Build KING Plus v3.1 No Billing Test OTP
+name: Build KING Plus v3.1.1 Party Complete
 
 on:
   push:
@@ -38,6 +38,9 @@ jobs:
       - name: Switch mobile login to no-billing test OTP
         run: python3 tools/prepare_test_build.py
 
+      - name: Prepare v3.1.1 BoloHi-style Party
+        run: python3 tools/prepare_party_v311.py
+
       - name: Production smoke checks
         run: |
           python3 tools/production_smoke_check.py
@@ -50,10 +53,10 @@ jobs:
       - name: Prepare APK file
         run: |
           mkdir -p release
-          cp app/build/outputs/apk/debug/app-debug.apk release/KING-Plus-v3.1-no-billing-test-otp.apk
+          cp app/build/outputs/apk/debug/app-debug.apk release/KING-Plus-v3.1.1-party-complete-no-billing-test-otp.apk
 
       - uses: actions/upload-artifact@v4
         with:
-          name: KING-Plus-v3.1-no-billing-test-otp-APK
-          path: release/KING-Plus-v3.1-no-billing-test-otp.apk
+          name: KING-Plus-v3.1.1-party-complete-APK
+          path: release/KING-Plus-v3.1.1-party-complete-no-billing-test-otp.apk
           if-no-files-found: error
