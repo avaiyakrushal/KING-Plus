@@ -23,6 +23,26 @@ service cloud.firestore {
       allow read: if signedIn();
       allow create: if activeUser() && request.resource.data.ownerUid == request.auth.uid;
       allow update, delete: if activeUser() && resource.data.ownerUid == request.auth.uid;
+
+      match /members/{memberUid} {
+        allow read: if signedIn();
+        allow create, update: if activeUser()
+          && memberUid == request.auth.uid
+          && request.resource.data.uid == request.auth.uid;
+        allow delete: if signedIn() && memberUid == request.auth.uid;
+      }
+
+      match /seats/{seatId} {
+        allow read: if signedIn();
+        allow create: if activeUser()
+          && request.resource.data.uid == request.auth.uid
+          && request.resource.data.name is string;
+        allow update: if activeUser()
+          && resource.data.uid == request.auth.uid
+          && request.resource.data.uid == request.auth.uid;
+        allow delete: if signedIn() && resource.data.uid == request.auth.uid;
+      }
+
       match /messages/{messageId} {
         allow read: if signedIn();
         allow create: if activeUser()
@@ -30,6 +50,17 @@ service cloud.firestore {
           && request.resource.data.text is string
           && request.resource.data.text.size() > 0
           && request.resource.data.text.size() <= 500;
+        allow update, delete: if false;
+      }
+
+      match /events/{eventId} {
+        allow read: if signedIn();
+        allow create: if activeUser()
+          && request.resource.data.actorUid == request.auth.uid
+          && request.resource.data.type is string
+          && request.resource.data.text is string
+          && request.resource.data.text.size() > 0
+          && request.resource.data.text.size() <= 300;
         allow update, delete: if false;
       }
     }
