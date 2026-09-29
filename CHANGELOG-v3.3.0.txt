@@ -1,0 +1,10 @@
+KING Plus v3.3.0 — Games Center
+
+- Replaces the old six-card Game page with Hot, LUDO, Party and Team tabs.
+- Adds Ludo Master, Sheep Fight, Werewolf, Spy Game, Draw & Guess, Bingo and Crazy Zoo flows.
+- Adds Quick Match, 1 vs 1, Team Match, Play with Friends, Voice Game Room and Rules actions.
+- Adds local/test match history, wins, win rate and separate Game Points progression.
+- Fixes incorrect old mappings such as Sheep Fight -> Snake Battle and Rummy -> Lucky Draw.
+- Aligns the legacy in-room game picker with the new Games Center.
+- Adds a Free Fire MAX squad/team voice-room launcher only; third-party game code/assets are not embedded.
+- Keeps no-billing mode and mobile test OTP 123456 unchanged.

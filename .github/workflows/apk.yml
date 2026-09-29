@@ -1,4 +1,4 @@
-name: Build KING Plus v3.2.2 Party Password Seats
+name: Build KING Plus v3.3.0 Games Center
 
 on:
   push:
@@ -53,6 +53,9 @@ jobs:
       - name: Prepare v3.2.2 password rooms and seat request flow
         run: python3 tools/prepare_party_password_v322.py
 
+      - name: Prepare v3.3.0 complete Games Center
+        run: python3 tools/prepare_games_v330.py
+
       - name: Production smoke checks
         run: |
           python3 tools/production_smoke_check.py
@@ -65,14 +68,14 @@ jobs:
       - name: Prepare APK and source files
         run: |
           mkdir -p release
-          cp app/build/outputs/apk/debug/app-debug.apk release/KING-Plus-v3.2.2-party-password-seats-no-billing-test-otp.apk
-          zip -qr release/KING-Plus-v3.2.2-party-password-seats-source.zip . \
+          cp app/build/outputs/apk/debug/app-debug.apk release/KING-Plus-v3.3.0-games-center-no-billing-test-otp.apk
+          zip -qr release/KING-Plus-v3.3.0-games-center-source.zip . \
             -x '.git/*' 'app/build/*' 'release/*'
 
       - uses: actions/upload-artifact@v4
         with:
-          name: KING-Plus-v3.2.2-party-password-seats
+          name: KING-Plus-v3.3.0-games-center
           path: |
-            release/KING-Plus-v3.2.2-party-password-seats-no-billing-test-otp.apk
-            release/KING-Plus-v3.2.2-party-password-seats-source.zip
+            release/KING-Plus-v3.3.0-games-center-no-billing-test-otp.apk
+            release/KING-Plus-v3.3.0-games-center-source.zip
           if-no-files-found: error
