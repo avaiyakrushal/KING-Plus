@@ -33,6 +33,7 @@ jobs:
           base64 -d /tmp/mbdd/source.b64 > /tmp/mbdd/source.zip
           mkdir -p /tmp/mbdd/project
           unzip -q /tmp/mbdd/source.zip -d /tmp/mbdd/project
+          printf 'android.useAndroidX=true\nandroid.enableJetifier=true\n' > /tmp/mbdd/project/gradle.properties
       - name: Build APK
         working-directory: /tmp/mbdd/project
         run: gradle :app:assembleDebug --stacktrace
