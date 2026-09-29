@@ -50,13 +50,17 @@ jobs:
       - name: Build debug APK
         run: gradle :app:assembleDebug --no-daemon
 
-      - name: Prepare APK file
+      - name: Prepare APK and source files
         run: |
           mkdir -p release
           cp app/build/outputs/apk/debug/app-debug.apk release/KING-Plus-v3.1.1-party-complete-no-billing-test-otp.apk
+          zip -qr release/KING-Plus-v3.1.1-party-complete-source.zip . \
+            -x '.git/*' 'app/build/*' 'release/*'
 
       - uses: actions/upload-artifact@v4
         with:
-          name: KING-Plus-v3.1.1-party-complete-APK
-          path: release/KING-Plus-v3.1.1-party-complete-no-billing-test-otp.apk
+          name: KING-Plus-v3.1.1-party-complete
+          path: |
+            release/KING-Plus-v3.1.1-party-complete-no-billing-test-otp.apk
+            release/KING-Plus-v3.1.1-party-complete-source.zip
           if-no-files-found: error
