@@ -1,4 +1,4 @@
-name: Build MB Diamond Diary v2.0.12
+name: Build MB Diamond Diary v2.0.13
 
 on:
   push:
@@ -48,47 +48,40 @@ jobs:
           cat .ci/mbdd-v2010/chunk01.txt .ci/mbdd-v2010/chunk02.txt .ci/mbdd-v2010/chunk03.txt .ci/mbdd-v2010/chunk04.txt .ci/mbdd-v2010/chunk05.txt > /tmp/mbdd/v2010.b64
           base64 -d /tmp/mbdd/v2010.b64 | gzip -d > /tmp/mbdd/v2010.patch
           patch -d /tmp/mbdd/project -p1 < /tmp/mbdd/v2010.patch
-      - name: Apply v2.0.12 stable Google-login signing
+      - name: Apply v2.0.13 stable Google-login signing
         shell: bash
         run: |
           set -euo pipefail
           base64 -d .ci/mbdd-signing/debug.keystore.b64 > /tmp/mbdd/project/mbdd-debug.keystore
           python3 - <<'PY'
           from pathlib import Path
+          import re
           p = Path('/tmp/mbdd/project/app/build.gradle')
           s = p.read_text()
-          s = __import__('re').sub(r"versionCode\s+\d+", "versionCode 31", s)
-          s = __import__('re').sub(r"versionName\s+'[^']+'", "versionName '2.0.12'", s)
-          needle = """    compileOptions {
-                  sourceCompatibility JavaVersion.VERSION_17
-                  targetCompatibility JavaVersion.VERSION_17
+          s = re.sub(r"versionCode\s+\d+", "versionCode 32", s)
+          s = re.sub(r"versionName\s+'[^']+'", "versionName '2.0.13'", s)
+          marker = "\n}\n\ndependencies {"
+          signing = """
+              signingConfigs {
+                  stableDebug {
+                      storeFile file("${rootProject.projectDir}/mbdd-debug.keystore")
+                      storePassword 'android'
+                      keyAlias 'androiddebugkey'
+                      keyPassword 'android'
+                  }
+              }
+              buildTypes {
+                  debug {
+                      signingConfig signingConfigs.stableDebug
+                  }
               }
           """
-          # normalize exact indentation from the reconstructed project
-          needle = """    compileOptions {
-              sourceCompatibility JavaVersion.VERSION_17
-              targetCompatibility JavaVersion.VERSION_17
-          }
-          """
-          signing = """    signingConfigs {
-              stableDebug {
-                  storeFile file("${rootProject.projectDir}/mbdd-debug.keystore")
-                  storePassword 'android'
-                  keyAlias 'androiddebugkey'
-                  keyPassword 'android'
-              }
-          }
-          buildTypes {
-              debug {
-                  signingConfig signingConfigs.stableDebug
-              }
-          }
-          """
-          if signing not in s:
-              if needle not in s:
-                  raise SystemExit('compileOptions block not found')
-              s = s.replace(needle, signing + needle)
+          if 'stableDebug {' not in s:
+              if marker not in s:
+                  raise SystemExit('android block end not found')
+              s = s.replace(marker, signing + marker, 1)
           p.write_text(s)
+          print(p.read_text())
           PY
           keytool -list -v -keystore /tmp/mbdd/project/mbdd-debug.keystore -storepass android -alias androiddebugkey | grep -E 'SHA1:|SHA256:'
       - name: Build APK
@@ -105,18 +98,18 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          cp /tmp/mbdd/project/app/build/outputs/apk/debug/app-debug.apk MB-Diamond-Diary-v2.0.12-debug.apk
+          cp /tmp/mbdd/project/app/build/outputs/apk/debug/app-debug.apk MB-Diamond-Diary-v2.0.13-debug.apk
           cd /tmp/mbdd/project
-          zip -qr "$GITHUB_WORKSPACE/MB-Diamond-Diary-v2.0.12-source.zip" . -x '*/build/*' '.gradle/*' 'mbdd-debug.keystore'
+          zip -qr "$GITHUB_WORKSPACE/MB-Diamond-Diary-v2.0.13-source.zip" . -x '*/build/*' '.gradle/*' 'mbdd-debug.keystore'
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
-          name: MB-Diamond-Diary-v2.0.12-APK
-          path: MB-Diamond-Diary-v2.0.12-debug.apk
+          name: MB-Diamond-Diary-v2.0.13-APK
+          path: MB-Diamond-Diary-v2.0.13-debug.apk
           if-no-files-found: error
       - name: Upload reconstructed source artifact
         uses: actions/upload-artifact@v4
         with:
-          name: MB-Diamond-Diary-v2.0.12-source
-          path: MB-Diamond-Diary-v2.0.12-source.zip
+          name: MB-Diamond-Diary-v2.0.13-source
+          path: MB-Diamond-Diary-v2.0.13-source.zip
           if-no-files-found: error
