@@ -1,4 +1,4 @@
-name: Build MB Diamond Diary v2.0.14
+name: Build MB Diamond Diary v2.0.16
 
 on:
   push:
@@ -52,7 +52,23 @@ jobs:
           base64 -d /tmp/mbdd/v2010.b64 | gzip -d > /tmp/mbdd/v2010.patch
           patch -d /tmp/mbdd/project -p1 < /tmp/mbdd/v2010.patch
 
-      - name: Apply v2.0.14 stable Google login and branded icon
+      - name: Apply v2.0.15 owner dashboard patch
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat .ci/mbdd-v2015/chunk01.txt > /tmp/mbdd/v2015.b64
+          base64 -d /tmp/mbdd/v2015.b64 | gzip -d > /tmp/mbdd/v2015.patch
+          patch -d /tmp/mbdd/project -p1 < /tmp/mbdd/v2015.patch
+
+      - name: Apply v2.0.16 withdrawal report patch
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat .ci/mbdd-v2016/chunk01.txt .ci/mbdd-v2016/chunk02.txt > /tmp/mbdd/v2016.b64
+          base64 -d /tmp/mbdd/v2016.b64 | gzip -d > /tmp/mbdd/v2016.patch
+          patch -d /tmp/mbdd/project -p1 < /tmp/mbdd/v2016.patch
+
+      - name: Apply stable Google login signing and branded icon
         shell: bash
         run: |
           set -euo pipefail
@@ -63,8 +79,8 @@ jobs:
           root = Path('/tmp/mbdd/project')
           p = root / 'app/build.gradle'
           s = p.read_text()
-          s = re.sub(r"versionCode\s+\d+", "versionCode 33", s)
-          s = re.sub(r"versionName\s+'[^']+'", "versionName '2.0.14'", s)
+          s = re.sub(r"versionCode\s+\d+", "versionCode 35", s)
+          s = re.sub(r"versionName\s+'[^']+'", "versionName '2.0.16'", s)
           marker = "\n}\n\ndependencies {"
           signing = """
               signingConfigs {
@@ -121,20 +137,20 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          cp /tmp/mbdd/project/app/build/outputs/apk/debug/app-debug.apk MB-Diamond-Diary-v2.0.14-debug.apk
+          cp /tmp/mbdd/project/app/build/outputs/apk/debug/app-debug.apk MB-Diamond-Diary-v2.0.16-debug.apk
           cd /tmp/mbdd/project
-          zip -qr "$GITHUB_WORKSPACE/MB-Diamond-Diary-v2.0.14-source.zip" . -x '*/build/*' '.gradle/*' 'mbdd-debug.keystore'
+          zip -qr "$GITHUB_WORKSPACE/MB-Diamond-Diary-v2.0.16-source.zip" . -x '*/build/*' '.gradle/*' 'mbdd-debug.keystore'
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
-          name: MB-Diamond-Diary-v2.0.14-APK
-          path: MB-Diamond-Diary-v2.0.14-debug.apk
+          name: MB-Diamond-Diary-v2.0.16-APK
+          path: MB-Diamond-Diary-v2.0.16-debug.apk
           if-no-files-found: error
 
       - name: Upload reconstructed source artifact
         uses: actions/upload-artifact@v4
         with:
-          name: MB-Diamond-Diary-v2.0.14-source
-          path: MB-Diamond-Diary-v2.0.14-source.zip
+          name: MB-Diamond-Diary-v2.0.16-source
+          path: MB-Diamond-Diary-v2.0.16-source.zip
           if-no-files-found: error
