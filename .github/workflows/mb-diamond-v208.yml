@@ -1,4 +1,4 @@
-name: Build MB Diamond Diary v2.0.10
+name: Build MB Diamond Diary v2.0.11
 
 on:
   push:
@@ -48,25 +48,37 @@ jobs:
           cat .ci/mbdd-v2010/chunk01.txt .ci/mbdd-v2010/chunk02.txt .ci/mbdd-v2010/chunk03.txt .ci/mbdd-v2010/chunk04.txt .ci/mbdd-v2010/chunk05.txt > /tmp/mbdd/v2010.b64
           base64 -d /tmp/mbdd/v2010.b64 | gzip -d > /tmp/mbdd/v2010.patch
           patch -d /tmp/mbdd/project -p1 < /tmp/mbdd/v2010.patch
+      - name: Apply v2.0.11 stable Google-login signing
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$HOME/.android"
+          base64 -d .ci/mbdd-signing/debug.keystore.b64 > "$HOME/.android/debug.keystore"
+          chmod 600 "$HOME/.android/debug.keystore"
+          sed -i -E "s/versionCode [0-9]+/versionCode 30/; s/versionName '[^']+'/versionName '2.0.11'/" /tmp/mbdd/project/app/build.gradle
+          keytool -list -v -keystore "$HOME/.android/debug.keystore" -storepass android -alias androiddebugkey | grep -E 'SHA1:|SHA256:'
       - name: Build APK
         working-directory: /tmp/mbdd/project
         run: gradle :app:assembleDebug --stacktrace
+      - name: Verify APK signing certificate
+        shell: bash
+        run: keytool -printcert -jarfile /tmp/mbdd/project/app/build/outputs/apk/debug/app-debug.apk | grep -E 'SHA1:|SHA256:'
       - name: Stage APK and source
         shell: bash
         run: |
           set -euo pipefail
-          cp /tmp/mbdd/project/app/build/outputs/apk/debug/app-debug.apk MB-Diamond-Diary-v2.0.10-debug.apk
+          cp /tmp/mbdd/project/app/build/outputs/apk/debug/app-debug.apk MB-Diamond-Diary-v2.0.11-debug.apk
           cd /tmp/mbdd/project
-          zip -qr "$GITHUB_WORKSPACE/MB-Diamond-Diary-v2.0.10-source.zip" . -x '*/build/*' '.gradle/*'
+          zip -qr "$GITHUB_WORKSPACE/MB-Diamond-Diary-v2.0.11-source.zip" . -x '*/build/*' '.gradle/*'
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
-          name: MB-Diamond-Diary-v2.0.10-APK
-          path: MB-Diamond-Diary-v2.0.10-debug.apk
+          name: MB-Diamond-Diary-v2.0.11-APK
+          path: MB-Diamond-Diary-v2.0.11-debug.apk
           if-no-files-found: error
       - name: Upload reconstructed source artifact
         uses: actions/upload-artifact@v4
         with:
-          name: MB-Diamond-Diary-v2.0.10-source
-          path: MB-Diamond-Diary-v2.0.10-source.zip
+          name: MB-Diamond-Diary-v2.0.11-source
+          path: MB-Diamond-Diary-v2.0.11-source.zip
           if-no-files-found: error
