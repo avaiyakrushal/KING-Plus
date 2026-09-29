@@ -118,7 +118,7 @@ public class PartyActivity extends Activity {
         TextView create = pill("＋ Create", PURPLE, this::createRoomDialog); head.addView(create,new LinearLayout.LayoutParams(dp(105),dp(44))); root.addView(head);
 
         LinearLayout tabs = new LinearLayout(this); tabs.setPadding(dp(12),dp(4),dp(12),dp(8));
-        String[] names = {"Hot","New","Nearby","Follow"};
+        String[] names = {"Hot","Event","Date","Music","Game"};
         for (String n : names) {
             TextView t = pill(n, n.equals(selected)?PURPLE:0xffdcd9e4, () -> renderLobby(n));
             t.setTextColor(n.equals(selected)?Color.WHITE:0xff55515f);
@@ -151,10 +151,15 @@ public class PartyActivity extends Activity {
             TextView mode = tv("FREE TEST MODE • local Party works without Firebase billing",12,0xff77717f,false); page.addView(mode);
         }
 
-        addRoomCard(page,"💜 Sweet Girls","Priya • 358 online • Music & friends",() -> openLocalRoom("Sweet Girls","Priya"));
-        addRoomCard(page,"🎵 Music & Friends","DJ Max • 212 online • Singing",() -> openLocalRoom("Music & Friends","DJ Max"));
-        addRoomCard(page,"👑 KING Lounge","KING Host • 186 online • Gujarati",() -> openLocalRoom("KING Lounge","KING Host"));
-        addRoomCard(page,"🎮 Game Talk","Alex • 96 online • Ludo & fun",() -> openLocalRoom("Game Talk","Alex"));
+        addRoomGridRow(page,
+            "💜 Sweet Girls","Priya • 358","Sweet Girls","Priya",
+            "🎵 Music & Friends","DJ Max • 212","Music & Friends","DJ Max");
+        addRoomGridRow(page,
+            "👑 KING Lounge","KING Host • 186","KING Lounge","KING Host",
+            "🎮 Game Talk","Alex • 96","Game Talk","Alex");
+        addRoomGridRow(page,
+            "💞 Make Friends","Riya • 154","Make Friends","Riya",
+            "🎤 Singing Club","Neha • 128","Singing Club","Neha");
         root.addView(scroll,new LinearLayout.LayoutParams(-1,0,1));
         addBottomNav(root,0); setContentView(root);
     }
@@ -169,6 +174,23 @@ public class PartyActivity extends Activity {
         LinearLayout card = new LinearLayout(this); card.setOrientation(LinearLayout.VERTICAL); card.setPadding(dp(16),dp(11),dp(16),dp(11)); card.setBackground(bg(Color.WHITE,16));
         TextView a = tv(title,16,0xff202020,true); card.addView(a); TextView b = tv(sub,13,0xff888888,false); card.addView(b);
         card.setOnClickListener(v -> action.run()); LinearLayout.LayoutParams p = new LinearLayout.LayoutParams(-1,dp(72)); p.setMargins(0,dp(5),0,dp(5)); host.addView(card,p);
+    }
+    private void addRoomGridRow(LinearLayout host,
+                                String title1,String sub1,String room1,String owner1,
+                                String title2,String sub2,String room2,String owner2) {
+        LinearLayout row = new LinearLayout(this); row.setOrientation(LinearLayout.HORIZONTAL); row.setGravity(Gravity.CENTER);
+        addSmallRoomCard(row,title1,sub1,() -> openLocalRoom(room1,owner1));
+        addSmallRoomCard(row,title2,sub2,() -> openLocalRoom(room2,owner2));
+        LinearLayout.LayoutParams rp = new LinearLayout.LayoutParams(-1,dp(128)); rp.setMargins(0,dp(3),0,dp(3)); host.addView(row,rp);
+    }
+    private void addSmallRoomCard(LinearLayout row,String title,String sub,Runnable action) {
+        LinearLayout card = new LinearLayout(this); card.setOrientation(LinearLayout.VERTICAL); card.setGravity(Gravity.BOTTOM); card.setPadding(dp(12),dp(12),dp(12),dp(10));
+        card.setBackground(bg(0xffeee8f8,18));
+        TextView live = pill("● LIVE",PINK,null); live.setTextSize(10); card.addView(live,new LinearLayout.LayoutParams(dp(62),dp(28)));
+        TextView a = tv(title,15,0xff21172f,true); card.addView(a);
+        TextView b = tv(sub,12,0xff756b7d,false); card.addView(b);
+        card.setOnClickListener(v -> action.run());
+        LinearLayout.LayoutParams cp = new LinearLayout.LayoutParams(0,-1,1); cp.setMargins(dp(3),dp(3),dp(3),dp(3)); row.addView(card,cp);
     }
 
     private void createRoomDialog() {
@@ -201,27 +223,28 @@ public class PartyActivity extends Activity {
         page = new LinearLayout(this); page.setOrientation(LinearLayout.VERTICAL); page.setPadding(dp(12),dp(14),dp(12),dp(20)); scroll.addView(page); setContentView(scroll);
 
         LinearLayout head = new LinearLayout(this); head.setGravity(Gravity.CENTER_VERTICAL);
-        TextView close = pill("✕",0xff49315f,this::leaveRoom); head.addView(close,new LinearLayout.LayoutParams(dp(46),dp(42)));
-        LinearLayout info = new LinearLayout(this); info.setOrientation(LinearLayout.VERTICAL); info.setPadding(dp(8),0,0,0);
-        TextView rn = tv(roomName,18,Color.WHITE,true); info.addView(rn); TextView id = tv("ID: "+shortId()+"   •   "+(cloudRoom?"LIVE":"TEST"),11,MUTED,false); info.addView(id);
+        LinearLayout info = new LinearLayout(this); info.setOrientation(LinearLayout.VERTICAL); info.setPadding(dp(4),0,0,0);
+        TextView rn = tv(roomName,19,Color.WHITE,true); info.addView(rn); TextView id = tv("ID: "+shortId()+"   •   "+(cloudRoom?"LIVE":"TEST"),11,MUTED,false); info.addView(id);
         head.addView(info,new LinearLayout.LayoutParams(0,dp(52),1));
-        viewerLabel = pill("👥 1",0xff49315f,null); head.addView(viewerLabel,new LinearLayout.LayoutParams(dp(80),dp(42)));
-        TextView more = pill("⋯",0xff49315f,this::roomMenu); LinearLayout.LayoutParams mp=new LinearLayout.LayoutParams(dp(50),dp(42));mp.setMargins(dp(5),0,0,0);head.addView(more,mp); page.addView(head);
+        viewerLabel = pill("👥 1",0xff49315f,null); head.addView(viewerLabel,new LinearLayout.LayoutParams(dp(78),dp(42)));
+        TextView more = pill("⋯",0xff49315f,this::roomMenu); LinearLayout.LayoutParams mp=new LinearLayout.LayoutParams(dp(48),dp(42));mp.setMargins(dp(5),0,0,0);head.addView(more,mp);
+        TextView close = pill("✕",0xff49315f,this::leaveRoom); LinearLayout.LayoutParams cp=new LinearLayout.LayoutParams(dp(46),dp(42));cp.setMargins(dp(5),0,0,0);head.addView(close,cp); page.addView(head);
+        addMemberStrip();
 
         announcementLabel = tv("📢  "+announcement,12,GOLD,true); announcementLabel.setBackground(bg(0xff342048,12)); announcementLabel.setPadding(dp(12),dp(9),dp(12),dp(9));
         LinearLayout.LayoutParams ap=new LinearLayout.LayoutParams(-1,-2);ap.setMargins(0,dp(8),0,dp(8));page.addView(announcementLabel,ap);
 
         LinearLayout host = new LinearLayout(this); host.setOrientation(LinearLayout.VERTICAL); host.setGravity(Gravity.CENTER); host.setPadding(0,dp(4),0,dp(4));
-        TextView crown = tv("👑",44,Color.WHITE,true); crown.setGravity(Gravity.CENTER); crown.setBackground(bg(0xff7b42d3,60)); host.addView(crown,new LinearLayout.LayoutParams(dp(92),dp(92)));
+        TextView crown = tv("🪽  👑  🪽",38,Color.WHITE,true); crown.setGravity(Gravity.CENTER); crown.setBackground(bg(0xff7b42d3,60)); host.addView(crown,new LinearLayout.LayoutParams(dp(150),dp(76)));
         TextView hn = tv("Host  •  "+ownerName,15,Color.WHITE,true); hn.setGravity(Gravity.CENTER); host.addView(hn);
-        if (!isOwner()) { followLabel = pill("＋ Follow",PINK,this::toggleFollow); LinearLayout.LayoutParams fp=new LinearLayout.LayoutParams(dp(110),dp(38));fp.gravity=Gravity.CENTER_HORIZONTAL;host.addView(followLabel,fp); }
-        page.addView(host,new LinearLayout.LayoutParams(-1,dp(155)));
+        if (!isOwner()) { followLabel = pill("＋ Follow",PINK,this::toggleFollow); LinearLayout.LayoutParams fp=new LinearLayout.LayoutParams(dp(106),dp(36));fp.gravity=Gravity.CENTER_HORIZONTAL;host.addView(followLabel,fp); }
+        page.addView(host,new LinearLayout.LayoutParams(-1,dp(135)));
 
         TextView seatsTitle = tv("Mic Seats",14,MUTED,true); page.addView(seatsTitle);
         seatsBox = new LinearLayout(this); seatsBox.setOrientation(LinearLayout.VERTICAL); page.addView(seatsBox); rebuildSeats();
 
         LinearLayout quick = new LinearLayout(this); quick.setGravity(Gravity.CENTER); quick.setPadding(0,dp(6),0,dp(6));
-        addQuick(quick,"🎙\nVoice",this::openVoice); addQuick(quick,"🔊\nSound",this::toggleSound); addQuick(quick,"🎁\nGift",this::giftDialog); addQuick(quick,"🔗\nShare",this::shareRoom); addQuick(quick,"⚔\nPK",this::pkBattle);
+        addQuick(quick,"🎙\nVoice",this::openVoice); addQuick(quick,"🔊\nSound",this::toggleSound); addQuick(quick,"💬\nChat",() -> toast("Room chat is below")); addQuick(quick,"🎁\nGift",this::giftDialog); addQuick(quick,"⋯\nMore",this::roomMenu);
         page.addView(quick,new LinearLayout.LayoutParams(-1,dp(64)));
 
         TextView feedTitle=tv("Room Activity",13,MUTED,true);page.addView(feedTitle); feedBox=new LinearLayout(this);feedBox.setOrientation(LinearLayout.VERTICAL);page.addView(feedBox); seedLocalFeed();
@@ -240,12 +263,23 @@ public class PartyActivity extends Activity {
         }
     }
 
+    private void addMemberStrip() {
+        LinearLayout strip = new LinearLayout(this); strip.setGravity(Gravity.CENTER_VERTICAL); strip.setPadding(0,dp(5),0,dp(5));
+        String[] names = {ownerName == null ? "Host" : ownerName,"Neha","Riya","Amit","Pooja"};
+        for (String n : names) {
+            TextView av = tv(n.substring(0,1).toUpperCase(),12,Color.WHITE,true); av.setGravity(Gravity.CENTER); av.setBackground(bg(0xff5b3a78,40));
+            LinearLayout.LayoutParams p = new LinearLayout.LayoutParams(dp(34),dp(34)); p.setMargins(0,0,dp(5),0); strip.addView(av,p);
+        }
+        TextView label = tv("Members",11,MUTED,false); strip.addView(label,new LinearLayout.LayoutParams(0,dp(34),1));
+        page.addView(strip,new LinearLayout.LayoutParams(-1,dp(46)));
+    }
+
     private void addQuick(LinearLayout row,String text,Runnable action) {
         TextView v = pill(text,CARD,action); v.setTextSize(11); LinearLayout.LayoutParams p=new LinearLayout.LayoutParams(0,dp(56),1);p.setMargins(dp(2),0,dp(2),0);row.addView(v,p);
     }
     private void rebuildSeats() {
         if (seatsBox == null) return; seatsBox.removeAllViews();
-        for (int r=0;r<2;r++) {
+        for (int r=0;r<3;r++) {
             LinearLayout row=new LinearLayout(this);row.setGravity(Gravity.CENTER);
             for (int c=0;c<4;c++) {
                 int no=r*4+c+1; LinearLayout seat=new LinearLayout(this);seat.setOrientation(LinearLayout.VERTICAL);seat.setGravity(Gravity.CENTER);
@@ -259,7 +293,7 @@ public class PartyActivity extends Activity {
     }
     private void fillLocalSeats() {
         seatNames.clear();seatUids.clear();seatMics.clear();
-        String[] samples={"Neha","Riya","Anjali","Pooja","Simran","Kajal"};
+        String[] samples={"Neha","Riya","Anjali","Pooja","Simran","Kajal","Amit","Rohit"};
         for(int i=0;i<samples.length;i++){int no=i+1;if(no==mySeat)continue;seatNames.put(no,samples[i]);seatMics.put(no,i%3!=0);}
         if(mySeat>0){seatNames.put(mySeat,displayName);seatMics.put(mySeat,micOn);}rebuildSeats();
     }
@@ -318,9 +352,9 @@ public class PartyActivity extends Activity {
     private void pkBattle(){String msg="⚔ PK Battle started: "+ownerName+" vs Guest Team\n\nGifts and room activity decide the winner in this test preview.";new AlertDialog.Builder(this).setTitle("PK Battle").setMessage(msg).setPositiveButton("Start",(d,w)->addEvent("pk",displayName+" started a PK battle ⚔")).setNegativeButton("Close",null).show();}
 
     private void roomMenu() {
-        List<String> items=new ArrayList<>();items.add("🔗 Share room");items.add("🔔 Invite by Firebase UID");items.add("⚑ Report host");items.add("🚫 Block host");if(isOwner()){items.add(roomLocked?"🔓 Unlock seats":"🔒 Lock seats");items.add(muteAll?"🎤 Unmute all seats":"🔇 Mute all seats");items.add("📢 Edit announcement");items.add("⛔ Close room");}
+        List<String> items=new ArrayList<>();items.add("🎙 Open voice room");items.add("⚔ PK battle");items.add("🔗 Share room");items.add("🔔 Invite by Firebase UID");items.add("⚑ Report host");items.add("🚫 Block host");if(isOwner()){items.add(roomLocked?"🔓 Unlock seats":"🔒 Lock seats");items.add(muteAll?"🎤 Unmute all seats":"🔇 Mute all seats");items.add("📢 Edit announcement");items.add("⛔ Close room");}
         String[] a=items.toArray(new String[0]);new AlertDialog.Builder(this).setTitle(roomName).setItems(a,(d,w)->{
-            String x=a[w];if(x.contains("Share"))shareRoom();else if(x.contains("Invite"))inviteDialog();else if(x.contains("Report"))reportHost();else if(x.contains("Block"))blockHost();else if(x.contains("Lock")||x.contains("Unlock"))setRoomFlag("locked",!roomLocked);else if(x.contains("Mute all")||x.contains("Unmute"))setRoomFlag("muteAll",!muteAll);else if(x.contains("announcement"))editAnnouncement();else if(x.contains("Close room"))closeRoom();
+            String x=a[w];if(x.contains("Open voice"))openVoice();else if(x.contains("PK battle"))pkBattle();else if(x.contains("Share"))shareRoom();else if(x.contains("Invite"))inviteDialog();else if(x.contains("Report"))reportHost();else if(x.contains("Block"))blockHost();else if(x.contains("Lock")||x.contains("Unlock"))setRoomFlag("locked",!roomLocked);else if(x.contains("Mute all")||x.contains("Unmute"))setRoomFlag("muteAll",!muteAll);else if(x.contains("announcement"))editAnnouncement();else if(x.contains("Close room"))closeRoom();
         }).show();
     }
     private void inviteDialog(){if(!cloudRoom||user==null){shareRoom();return;}final EditText e=new EditText(this);e.setHint("Friend Firebase UID");new AlertDialog.Builder(this).setTitle("Invite to Party").setView(e).setNegativeButton("Cancel",null).setPositiveButton("Invite",(d,w)->{String uid=e.getText().toString().trim();if(uid.isEmpty())return;CloudBackend.sendRoomInvite(uid,roomId,roomName,(ok,m)->runOnUiThread(()->toast(m)));}).show();}
