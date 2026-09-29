@@ -85,6 +85,8 @@ jobs:
           cat .ci/mbdd-v2018/chunk01.txt .ci/mbdd-v2018/chunk02.txt .ci/mbdd-v2018/chunk03.txt .ci/mbdd-v2018/chunk04.txt .ci/mbdd-v2018/chunk05.txt > /tmp/mbdd/v2018.b64
           base64 -d /tmp/mbdd/v2018.b64 | gzip -d > /tmp/mbdd/v2018.patch
           patch -d /tmp/mbdd/project -p1 < /tmp/mbdd/v2018.patch
+          base64 -d .ci/mbdd-v2018/fix01.txt | gzip -d > /tmp/mbdd/v2018-fix.patch
+          patch -d /tmp/mbdd/project -p1 < /tmp/mbdd/v2018-fix.patch
           node --check /tmp/mbdd/project/app/src/main/assets/app.js
 
       - name: Apply stable Google signing and branded icon
