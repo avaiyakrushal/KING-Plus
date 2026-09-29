@@ -1,0 +1,12 @@
+KING Plus v3.4.0 — Party Complete Controls
+
+- Expands the Party More menu with Room Info, Host Profile, Room Ranking, Gift History and Recent Activity.
+- Adds a central Seat Request panel for host/co-host moderation.
+- Adds Co-host list management for the room host.
+- Adds Banned Users list with unban controls for room moderators.
+- Makes the Room Members list open usable member profile/actions instead of being moderator-only.
+- Member profiles now support gift, follow, report, local block and role-gated kick/ban/co-host actions.
+- Host header is tappable for host profile, gift, follow, report, block and share actions.
+- Reuses the existing secure host/co-host, seat lock, private/password room and moderation rules.
+- Keeps no-billing mode and mobile test OTP 123456 unchanged.
+- Uses original KING Plus implementation/assets; no proprietary BoloHi source code or assets are copied.

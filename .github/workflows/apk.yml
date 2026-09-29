@@ -1,4 +1,4 @@
-name: Build KING Plus v3.3.0 Games Center
+name: Build KING Plus v3.4.0 Party Complete Controls
 
 on:
   push:
@@ -56,6 +56,9 @@ jobs:
       - name: Prepare v3.3.0 complete Games Center
         run: python3 tools/prepare_games_v330.py
 
+      - name: Prepare v3.4.0 Party complete controls
+        run: python3 tools/prepare_party_complete_v340.py
+
       - name: Production smoke checks
         run: |
           python3 tools/production_smoke_check.py
@@ -68,14 +71,14 @@ jobs:
       - name: Prepare APK and source files
         run: |
           mkdir -p release
-          cp app/build/outputs/apk/debug/app-debug.apk release/KING-Plus-v3.3.0-games-center-no-billing-test-otp.apk
-          zip -qr release/KING-Plus-v3.3.0-games-center-source.zip . \
+          cp app/build/outputs/apk/debug/app-debug.apk release/KING-Plus-v3.4.0-party-complete-no-billing-test-otp.apk
+          zip -qr release/KING-Plus-v3.4.0-party-complete-source.zip . \
             -x '.git/*' 'app/build/*' 'release/*'
 
       - uses: actions/upload-artifact@v4
         with:
-          name: KING-Plus-v3.3.0-games-center
+          name: KING-Plus-v3.4.0-party-complete
           path: |
-            release/KING-Plus-v3.3.0-games-center-no-billing-test-otp.apk
-            release/KING-Plus-v3.3.0-games-center-source.zip
+            release/KING-Plus-v3.4.0-party-complete-no-billing-test-otp.apk
+            release/KING-Plus-v3.4.0-party-complete-source.zip
           if-no-files-found: error
