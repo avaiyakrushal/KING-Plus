@@ -1,4 +1,4 @@
-name: Build MB Diamond Diary v2.0.24 Notice Rate Fix
+name: Build MB Diamond Diary v2.0.25 Entry Total
 
 on:
   push:
@@ -22,28 +22,28 @@ jobs:
         with:
           gradle-version: '8.9'
 
-      - name: Download v2.0.23 source baseline
+      - name: Download v2.0.24 source baseline
         uses: actions/download-artifact@v4
         with:
-          name: MB-Diamond-Diary-v2.0.23-source
+          name: MB-Diamond-Diary-v2.0.24-source
           path: /tmp/mbdd/source-artifact
           repository: avaiyakrushal/KING-Plus
-          run-id: 36593027477
+          run-id: 36603544731
           github-token: ${{ github.token }}
 
-      - name: Apply v2.0.24 fixes
+      - name: Apply v2.0.25 diamond totals
         shell: bash
         run: |
           set -euo pipefail
           mkdir -p /tmp/mbdd/project
-          unzip -q /tmp/mbdd/source-artifact/MB-Diamond-Diary-v2.0.23-source.zip -d /tmp/mbdd/project
-          base64 -d .ci/mbdd-v2024/chunk01.txt | gzip -d > /tmp/mbdd/v2024.patch
-          patch -d /tmp/mbdd/project -p1 < /tmp/mbdd/v2024.patch
+          unzip -q /tmp/mbdd/source-artifact/MB-Diamond-Diary-v2.0.24-source.zip -d /tmp/mbdd/project
+          base64 -d .ci/mbdd-v2024/chunk01.txt | gzip -d > /tmp/mbdd/v2025.patch
+          patch -d /tmp/mbdd/project -p1 < /tmp/mbdd/v2025.patch
           node --check /tmp/mbdd/project/app/src/main/assets/app.js
-          grep -q "deleteNotification" /tmp/mbdd/project/app/src/main/assets/app.html
+          grep -q "diamondGrandTotal" /tmp/mbdd/project/app/src/main/assets/app.html
+          grep -q "updateDiamondTotals" /tmp/mbdd/project/app/src/main/assets/app.js
+          grep -q "deleteNotification" /tmp/mbdd/project/app/src/main/java/com/example/diamonddiary/MainActivity.java
           grep -q "settingsDirty" /tmp/mbdd/project/app/src/main/assets/app.js
-          grep -q "ExifInterface" /tmp/mbdd/project/app/src/main/java/com/example/diamonddiary/MainActivity.java
-          grep -q "workerCompanyCard" /tmp/mbdd/project/app/src/main/assets/app.html
 
       - name: Stable signing and version
         shell: bash
@@ -55,8 +55,8 @@ jobs:
           import re
           p=Path('/tmp/mbdd/project/app/build.gradle')
           s=p.read_text()
-          s=re.sub(r'versionCode\s+\d+','versionCode 43',s)
-          s=re.sub(r"versionName\s+'[^']+'","versionName '2.0.24'",s)
+          s=re.sub(r'versionCode\s+\d+','versionCode 44',s)
+          s=re.sub(r"versionName\s+'[^']+'","versionName '2.0.25'",s)
           p.write_text(s)
           PY
 
@@ -72,17 +72,17 @@ jobs:
           SHA1=$(keytool -printcert -jarfile "$APK" | awk '/SHA1:/{print $2; exit}')
           echo "APK SHA1: $SHA1"
           test "$SHA1" = "1C:69:20:02:92:FB:2F:5A:C7:B5:DE:22:2D:03:B1:6D:F1:3E:C8:2E"
-          cp "$APK" MB-Diamond-Diary-v2.0.24-debug.apk
+          cp "$APK" MB-Diamond-Diary-v2.0.25-debug.apk
           cd /tmp/mbdd/project
-          zip -qr "$GITHUB_WORKSPACE/MB-Diamond-Diary-v2.0.24-source.zip" . -x '*/build/*' '.gradle/*' 'mbdd-debug.keystore'
+          zip -qr "$GITHUB_WORKSPACE/MB-Diamond-Diary-v2.0.25-source.zip" . -x '*/build/*' '.gradle/*' 'mbdd-debug.keystore'
 
       - uses: actions/upload-artifact@v4
         with:
-          name: MB-Diamond-Diary-v2.0.24-APK
-          path: MB-Diamond-Diary-v2.0.24-debug.apk
+          name: MB-Diamond-Diary-v2.0.25-APK
+          path: MB-Diamond-Diary-v2.0.25-debug.apk
           if-no-files-found: error
       - uses: actions/upload-artifact@v4
         with:
-          name: MB-Diamond-Diary-v2.0.24-source
-          path: MB-Diamond-Diary-v2.0.24-source.zip
+          name: MB-Diamond-Diary-v2.0.25-source
+          path: MB-Diamond-Diary-v2.0.25-source.zip
           if-no-files-found: error
