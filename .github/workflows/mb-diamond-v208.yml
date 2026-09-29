@@ -1,47 +1,10 @@
-name: Build MB Diamond Diary v2.0.8
+name: Build MB Diamond Diary v2.0.9
 
 on:
-  push:
-    branches:
-      - mb-diamond-diary-v2.0.8-build
   workflow_dispatch:
 
 jobs:
   build:
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: '17'
-      - uses: gradle/actions/setup-gradle@v4
-        with:
-          gradle-version: '8.9'
-      - name: Reconstruct project
-        shell: bash
-        run: |
-          set -euo pipefail
-          mkdir -p /tmp/mbdd
-          cat .ci/mbdd/chunk01.txt .ci/mbdd/chunk02.txt .ci/mbdd/chunk03.txt .ci/mbdd/chunk04.txt .ci/mbdd/chunk05.txt > /tmp/mbdd/source.b64
-          python3 - <<'PY' >> /tmp/mbdd/source.b64
-          from pathlib import Path
-          print(bytes.fromhex(Path('.ci/mbdd/chunk06.hex').read_text().strip()).decode(), end='')
-          PY
-          base64 -d /tmp/mbdd/source.b64 > /tmp/mbdd/source.zip
-          mkdir -p /tmp/mbdd/project
-          unzip -q /tmp/mbdd/source.zip -d /tmp/mbdd/project
-          printf 'android.useAndroidX=true\nandroid.enableJetifier=true\n' > /tmp/mbdd/project/gradle.properties
-      - name: Build APK
-        working-directory: /tmp/mbdd/project
-        run: gradle :app:assembleDebug --stacktrace
-      - name: Stage APK
-        run: cp /tmp/mbdd/project/app/build/outputs/apk/debug/app-debug.apk MB-Diamond-Diary-v2.0.8-debug.apk
-      - name: Upload APK artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: MB-Diamond-Diary-v2.0.8-APK
-          path: MB-Diamond-Diary-v2.0.8-debug.apk
-          if-no-files-found: error
+      - run: echo "v2.0.9 patch staging"
