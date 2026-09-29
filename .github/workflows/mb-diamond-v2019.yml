@@ -1,4 +1,4 @@
-name: Build MB Diamond Diary v2.0.19
+name: Build MB Diamond Diary v2.0.20
 
 on:
   push:
@@ -48,6 +48,8 @@ jobs:
           patch -d /tmp/mbdd/project -p4 < /tmp/mbdd/v2018.patch
           cat .ci/mbdd-v2019-final/chunk01.txt | base64 -d | gzip -d > /tmp/mbdd/v2019.patch
           patch -d /tmp/mbdd/project -p1 < /tmp/mbdd/v2019.patch
+          cat .ci/mbdd-v2020/chunk01.txt | base64 -d | gzip -d > /tmp/mbdd/v2020.patch
+          patch -d /tmp/mbdd/project -p1 < /tmp/mbdd/v2020.patch
           node --check /tmp/mbdd/project/app/src/main/assets/app.js
 
       - name: Stable signing, version and branded icon
@@ -61,8 +63,8 @@ jobs:
           root=Path('/tmp/mbdd/project')
           gradle=root/'app/build.gradle'
           s=gradle.read_text()
-          s=re.sub(r'versionCode\s+\d+','versionCode 38',s)
-          s=re.sub(r"versionName\s+'[^']+'","versionName '2.0.19'",s)
+          s=re.sub(r'versionCode\s+\d+','versionCode 39',s)
+          s=re.sub(r"versionName\s+'[^']+'","versionName '2.0.20'",s)
           marker='\n}\n\ndependencies {'
           signing='''
               signingConfigs {
@@ -108,17 +110,17 @@ jobs:
           SHA1=$(keytool -printcert -jarfile "$APK" | awk '/SHA1:/{print $2; exit}')
           echo "APK SHA1: $SHA1"
           test "$SHA1" = "1C:69:20:02:92:FB:2F:5A:C7:B5:DE:22:2D:03:B1:6D:F1:3E:C8:2E"
-          cp "$APK" MB-Diamond-Diary-v2.0.19-debug.apk
+          cp "$APK" MB-Diamond-Diary-v2.0.20-debug.apk
           cd /tmp/mbdd/project
-          zip -qr "$GITHUB_WORKSPACE/MB-Diamond-Diary-v2.0.19-source.zip" . -x '*/build/*' '.gradle/*' 'mbdd-debug.keystore'
+          zip -qr "$GITHUB_WORKSPACE/MB-Diamond-Diary-v2.0.20-source.zip" . -x '*/build/*' '.gradle/*' 'mbdd-debug.keystore'
 
       - uses: actions/upload-artifact@v4
         with:
-          name: MB-Diamond-Diary-v2.0.19-APK
-          path: MB-Diamond-Diary-v2.0.19-debug.apk
+          name: MB-Diamond-Diary-v2.0.20-APK
+          path: MB-Diamond-Diary-v2.0.20-debug.apk
           if-no-files-found: error
       - uses: actions/upload-artifact@v4
         with:
-          name: MB-Diamond-Diary-v2.0.19-source
-          path: MB-Diamond-Diary-v2.0.19-source.zip
+          name: MB-Diamond-Diary-v2.0.20-source
+          path: MB-Diamond-Diary-v2.0.20-source.zip
           if-no-files-found: error
