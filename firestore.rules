@@ -39,6 +39,10 @@ service cloud.firestore {
       return signedIn()
         && exists(/databases/$(database)/documents/live_rooms/$(roomId)/members/$(request.auth.uid));
     }
+    function seatLocked(roomId, seatId) {
+      return exists(/databases/$(database)/documents/live_rooms/$(roomId)/seat_locks/$(seatId))
+        && get(/databases/$(database)/documents/live_rooms/$(roomId)/seat_locks/$(seatId)).data.locked == true;
+    }
 
     match /users/{uid} {
       allow read: if owner(uid) || admin();
@@ -79,11 +83,15 @@ service cloud.firestore {
 
       match /seats/{seatId} {
         allow read: if roomAccess(roomId);
-        allow create: if roomAccess(roomId)
-          && roomMember(roomId)
-          && request.resource.data.uid == request.auth.uid
-          && request.resource.data.name is string
-          && (roomData(roomId).locked != true || roomModerator(roomId));
+        allow create: if roomAccess(roomId) && request.resource.data.name is string && (
+          (roomMember(roomId)
+            && request.resource.data.uid == request.auth.uid
+            && roomData(roomId).locked != true
+            && !seatLocked(roomId, seatId))
+          || (roomModerator(roomId)
+            && request.resource.data.uid is string
+            && exists(/databases/$(database)/documents/live_rooms/$(roomId)/members/$(request.resource.data.uid)))
+        );
         allow update: if roomAccess(roomId) && (
           (resource.data.uid == request.auth.uid
             && request.resource.data.uid == request.auth.uid)
@@ -139,10 +147,52 @@ service cloud.firestore {
           && bannedUid != roomData(roomId).ownerUid;
       }
 
-      match /access/{accessUid} {
-        allow read: if signedIn()
-          && (accessUid == request.auth.uid || roomModerator(roomId));
+      match /secrets/{secretId} {
+        // Password hashes are write-only from the client perspective.
+        allow read: if false;
+        allow create, update, delete: if roomOwner(roomId);
+      }
+
+      match /seat_locks/{seatId} {
+        allow read: if roomAccess(roomId);
         allow create, update: if roomModerator(roomId)
+          && request.resource.data.locked == true;
+        allow delete: if roomModerator(roomId);
+      }
+
+      match /seat_requests/{requestId} {
+        allow read: if signedIn()
+          && (roomModerator(roomId)
+              || (roomAccess(roomId) && resource.data.uid == request.auth.uid));
+        allow create: if roomAccess(roomId)
+          && roomMember(roomId)
+          && request.resource.data.uid == request.auth.uid
+          && request.resource.data.name is string
+          && request.resource.data.seatNo is int
+          && request.resource.data.seatNo >= 1
+          && request.resource.data.seatNo <= 12;
+        allow update: if false;
+        allow delete: if signedIn()
+          && (roomModerator(roomId) || resource.data.uid == request.auth.uid);
+      }
+
+      match /access/{accessUid} {
+        // Access markers are intentionally not client-readable. roomAccess() only needs exists().
+        allow read: if false;
+        allow create: if (
+          roomModerator(roomId)
+          && request.resource.data.uid == accessUid
+        ) || (
+          activeUser()
+          && accessUid == request.auth.uid
+          && roomData(roomId).isPrivate == true
+          && roomData(roomId).hasPassword == true
+          && request.resource.data.uid == request.auth.uid
+          && request.resource.data.passwordHash is string
+          && request.resource.data.passwordHash
+             == get(/databases/$(database)/documents/live_rooms/$(roomId)/secrets/password).data.passwordHash
+        );
+        allow update: if roomModerator(roomId)
           && request.resource.data.uid == accessUid;
         allow delete: if roomModerator(roomId);
       }

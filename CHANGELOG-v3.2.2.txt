@@ -1,0 +1,10 @@
+KING Plus v3.2.2 — Party Password & Seat Requests
+
+- Adds password-protected private room entry without storing the password/hash in readable room metadata.
+- Password proof is checked by Firestore rules against a non-readable room secret; no paid Firebase Functions are required.
+- Adds per-seat lock/unlock for host/co-host.
+- Locked/global-locked seats now support guest seat requests.
+- Host/co-host can view seat requests and approve or deny them.
+- Moderator-approved users can be placed on the requested seat under Firestore authorization.
+- Keeps v3.2.1 host/co-host, kick/ban, private access and moderation protections.
+- Keeps no-billing mode and mobile test OTP 123456 unchanged.
