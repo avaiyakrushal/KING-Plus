@@ -57,7 +57,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          grep -q 'versionName "2.1.0"' app/build.gradle
+          grep -q "versionName '2.1.0'" app/build.gradle
           grep -q 'MB ડાયમંડ ડાયરી' app/src/main/assets/app.html
           test -f app/google-services.json
 
