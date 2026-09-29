@@ -47,7 +47,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          cat .ci/mbdd-v210/chunk01.txt .ci/mbdd-v210/chunk02.txt .ci/mbdd-v210/chunk03.txt .ci/mbdd-v210/chunk04.txt > /tmp/mbdd/v210.b64
+          cat .ci/mbdd-v210/part01.txt .ci/mbdd-v210/part02.txt .ci/mbdd-v210/part03.txt .ci/mbdd-v210/part04.txt .ci/mbdd-v210/part05.txt .ci/mbdd-v210/part06.txt .ci/mbdd-v210/chunk02.txt .ci/mbdd-v210/chunk03.txt .ci/mbdd-v210/chunk04.txt > /tmp/mbdd/v210.b64
           base64 -d /tmp/mbdd/v210.b64 | gzip -d > /tmp/mbdd/v210.patch
           patch -d /tmp/mbdd/project -p1 < /tmp/mbdd/v210.patch
           printf 'android.useAndroidX=true\nandroid.enableJetifier=true\n' > /tmp/mbdd/project/gradle.properties
