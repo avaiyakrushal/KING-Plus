@@ -1,13 +1,6 @@
 name: Deploy KING Plus Chat Backend
 
 on:
-  push:
-    branches: [feature/remaining-social-v31]
-    paths:
-      - '.github/workflows/chat-firebase-deploy.yml'
-      - 'firestore.rules'
-      - 'functions/index.js'
-      - 'functions/v3.js'
   workflow_dispatch:
 
 permissions:
