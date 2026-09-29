@@ -1,0 +1,10 @@
+KING Plus v3.2.1 — Party Roles & Security
+
+- Adds server-backed host/co-host room roles.
+- Host can grant/revoke co-host.
+- Host/co-host can lock/unlock seats, mute/unmute seats, remove seats, kick and room-ban members.
+- Firestore enforces room lock and room bans; client-only checks are no longer authoritative.
+- Adds private room flag plus per-user access grants for invites.
+- Private room subcollections (members, seats, messages, events) require room access.
+- Room password/secret is intentionally not stored in readable room metadata; secure password verification remains a separate server-side stage.
+- Keeps no-billing mode and mobile test OTP 123456 unchanged.

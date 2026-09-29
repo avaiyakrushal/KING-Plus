@@ -9,9 +9,35 @@ service cloud.firestore {
         && (!exists(/databases/$(database)/documents/bans/$(request.auth.uid))
             || get(/databases/$(database)/documents/bans/$(request.auth.uid)).data.active != true);
     }
+
+    function roomData(roomId) {
+      return get(/databases/$(database)/documents/live_rooms/$(roomId)).data;
+    }
     function roomOwner(roomId) {
+      return activeUser() && roomData(roomId).ownerUid == request.auth.uid;
+    }
+    function roomCoHost(roomId) {
+      return activeUser()
+        && exists(/databases/$(database)/documents/live_rooms/$(roomId)/roles/$(request.auth.uid))
+        && get(/databases/$(database)/documents/live_rooms/$(roomId)/roles/$(request.auth.uid)).data.role == 'cohost';
+    }
+    function roomModerator(roomId) {
+      return roomOwner(roomId) || roomCoHost(roomId);
+    }
+    function roomBanned(roomId, uid) {
+      return exists(/databases/$(database)/documents/live_rooms/$(roomId)/room_bans/$(uid))
+        && get(/databases/$(database)/documents/live_rooms/$(roomId)/room_bans/$(uid)).data.active == true;
+    }
+    function roomAccess(roomId) {
+      return activeUser()
+        && !roomBanned(roomId, request.auth.uid)
+        && (roomData(roomId).isPrivate != true
+            || roomModerator(roomId)
+            || exists(/databases/$(database)/documents/live_rooms/$(roomId)/access/$(request.auth.uid)));
+    }
+    function roomMember(roomId) {
       return signedIn()
-        && get(/databases/$(database)/documents/live_rooms/$(roomId)).data.ownerUid == request.auth.uid;
+        && exists(/databases/$(database)/documents/live_rooms/$(roomId)/members/$(request.auth.uid));
     }
 
     match /users/{uid} {
@@ -24,34 +50,55 @@ service cloud.firestore {
     }
 
     match /live_rooms/{roomId} {
+      // Room cards/metadata remain discoverable to signed-in users. Never store a room password here.
       allow read: if signedIn();
-      allow create: if activeUser() && request.resource.data.ownerUid == request.auth.uid;
-      allow update, delete: if activeUser() && resource.data.ownerUid == request.auth.uid;
+      allow create: if activeUser()
+        && request.resource.data.ownerUid == request.auth.uid
+        && request.resource.data.isPrivate != true;
+      allow update: if activeUser() && (
+        resource.data.ownerUid == request.auth.uid
+        || (roomCoHost(roomId)
+            && request.resource.data.ownerUid == resource.data.ownerUid
+            && request.resource.data.diff(resource.data).affectedKeys()
+                 .hasOnly(['locked', 'muteAll', 'announcement', 'updatedAt']))
+      );
+      allow delete: if activeUser() && resource.data.ownerUid == request.auth.uid;
 
       match /members/{memberUid} {
-        allow read: if signedIn();
-        allow create, update: if activeUser()
+        allow read: if roomAccess(roomId);
+        allow create: if roomAccess(roomId)
           && memberUid == request.auth.uid
           && request.resource.data.uid == request.auth.uid;
+        allow update: if roomAccess(roomId)
+          && memberUid == request.auth.uid
+          && resource.data.uid == request.auth.uid
+          && request.resource.data.uid == request.auth.uid;
         allow delete: if signedIn()
-          && (memberUid == request.auth.uid || roomOwner(roomId));
+          && (memberUid == request.auth.uid || roomModerator(roomId));
       }
 
       match /seats/{seatId} {
-        allow read: if signedIn();
-        allow create: if activeUser()
+        allow read: if roomAccess(roomId);
+        allow create: if roomAccess(roomId)
+          && roomMember(roomId)
           && request.resource.data.uid == request.auth.uid
-          && request.resource.data.name is string;
-        allow update: if activeUser()
-          && request.resource.data.uid == resource.data.uid
-          && (resource.data.uid == request.auth.uid || roomOwner(roomId));
-        allow delete: if signedIn()
-          && (resource.data.uid == request.auth.uid || roomOwner(roomId));
+          && request.resource.data.name is string
+          && (roomData(roomId).locked != true || roomModerator(roomId));
+        allow update: if roomAccess(roomId) && (
+          (resource.data.uid == request.auth.uid
+            && request.resource.data.uid == request.auth.uid)
+          || (roomModerator(roomId)
+            && request.resource.data.uid == resource.data.uid
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['micOn']))
+        );
+        allow delete: if roomAccess(roomId)
+          && (resource.data.uid == request.auth.uid || roomModerator(roomId));
       }
 
       match /messages/{messageId} {
-        allow read: if signedIn();
-        allow create: if activeUser()
+        allow read: if roomAccess(roomId);
+        allow create: if roomAccess(roomId)
+          && roomMember(roomId)
           && request.resource.data.senderUid == request.auth.uid
           && request.resource.data.text is string
           && request.resource.data.text.size() > 0
@@ -60,14 +107,44 @@ service cloud.firestore {
       }
 
       match /events/{eventId} {
-        allow read: if signedIn();
-        allow create: if activeUser()
+        allow read: if roomAccess(roomId);
+        allow create: if roomAccess(roomId)
+          && (roomMember(roomId) || roomModerator(roomId))
           && request.resource.data.actorUid == request.auth.uid
           && request.resource.data.type is string
           && request.resource.data.text is string
           && request.resource.data.text.size() > 0
           && request.resource.data.text.size() <= 300;
         allow update, delete: if false;
+      }
+
+      match /roles/{roleUid} {
+        allow read: if signedIn()
+          && (roleUid == request.auth.uid || roomModerator(roomId));
+        allow create, update: if roomOwner(roomId)
+          && roleUid != roomData(roomId).ownerUid
+          && request.resource.data.uid == roleUid
+          && request.resource.data.role == 'cohost';
+        allow delete: if roomOwner(roomId);
+      }
+
+      match /room_bans/{bannedUid} {
+        allow read: if signedIn()
+          && (bannedUid == request.auth.uid || roomModerator(roomId));
+        allow create, update: if roomModerator(roomId)
+          && bannedUid != roomData(roomId).ownerUid
+          && request.resource.data.uid == bannedUid
+          && request.resource.data.active == true;
+        allow delete: if roomModerator(roomId)
+          && bannedUid != roomData(roomId).ownerUid;
+      }
+
+      match /access/{accessUid} {
+        allow read: if signedIn()
+          && (accessUid == request.auth.uid || roomModerator(roomId));
+        allow create, update: if roomModerator(roomId)
+          && request.resource.data.uid == accessUid;
+        allow delete: if roomModerator(roomId);
       }
     }
 
