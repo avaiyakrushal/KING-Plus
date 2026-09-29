@@ -1,0 +1,14 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    function signedIn() { return request.auth != null; }
+
+    match /chat_media/{ownerUid}/{threadId}/{fileName} {
+      allow read: if signedIn();
+      allow create, update: if signedIn()
+        && request.auth.uid == ownerUid
+        && request.resource.size < 12 * 1024 * 1024;
+      allow delete: if signedIn() && request.auth.uid == ownerUid;
+    }
+  }
+}
