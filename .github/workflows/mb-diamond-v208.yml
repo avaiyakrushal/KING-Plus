@@ -61,13 +61,12 @@ jobs:
           from pathlib import Path
           import re
           root = Path('/tmp/mbdd/project')
-
           p = root / 'app/build.gradle'
           s = p.read_text()
           s = re.sub(r"versionCode\s+\d+", "versionCode 33", s)
           s = re.sub(r"versionName\s+'[^']+'", "versionName '2.0.14'", s)
           marker = "\n}\n\ndependencies {"
-          signing = '''
+          signing = """
               signingConfigs {
                   stableDebug {
                       storeFile file("${rootProject.projectDir}/mbdd-debug.keystore")
@@ -81,52 +80,29 @@ jobs:
                       signingConfig signingConfigs.stableDebug
                   }
               }
-          '''
+          """
           if 'stableDebug {' not in s:
               if marker not in s:
                   raise SystemExit('android block end not found')
               s = s.replace(marker, signing + marker, 1)
           p.write_text(s)
-
           manifest = root / 'app/src/main/AndroidManifest.xml'
           m = manifest.read_text()
           if 'android:icon=' not in m:
               m = m.replace('android:label="MB ડાયમંડ ડાયરી"', 'android:label="MB ડાયમંડ ડાયરી" android:icon="@mipmap/ic_launcher" android:roundIcon="@mipmap/ic_launcher_round"')
           manifest.write_text(m)
-
-          (root/'app/src/main/res/values').mkdir(parents=True, exist_ok=True)
-          (root/'app/src/main/res/drawable').mkdir(parents=True, exist_ok=True)
-          (root/'app/src/main/res/mipmap-anydpi').mkdir(parents=True, exist_ok=True)
-          (root/'app/src/main/res/mipmap-anydpi-v26').mkdir(parents=True, exist_ok=True)
-
-          (root/'app/src/main/res/values/colors.xml').write_text('<resources>\n  <color name="mb_navy">#172A4A</color>\n</resources>\n')
-
-          foreground = '''<vector xmlns:android="http://schemas.android.com/apk/res/android" android:width="108dp" android:height="108dp" android:viewportWidth="108" android:viewportHeight="108">
-  <path android:fillColor="#00000000" android:strokeColor="#FFFFFF" android:strokeWidth="4" android:strokeLineJoin="round" android:pathData="M54,22 L78,39 L68,66 L54,84 L40,66 L30,39 Z"/>
-  <path android:fillColor="#00000000" android:strokeColor="#FFFFFF" android:strokeWidth="3" android:strokeLineJoin="round" android:pathData="M30,39 L78,39 M40,66 L68,66 M54,22 L40,39 L54,66 L68,39 Z M30,39 L40,66 L54,84 M78,39 L68,66 L54,84"/>
-  <path android:fillColor="#F4C45E" android:pathData="M81,26 L84,32 L90,35 L84,38 L81,44 L78,38 L72,35 L78,32 Z"/>
-</vector>
-'''
-          (root/'app/src/main/res/drawable/ic_launcher_foreground.xml').write_text(foreground)
-
-          legacy = '''<vector xmlns:android="http://schemas.android.com/apk/res/android" android:width="108dp" android:height="108dp" android:viewportWidth="108" android:viewportHeight="108">
-  <path android:fillColor="#172A4A" android:pathData="M4,4 L104,4 L104,104 L4,104 Z"/>
-  <path android:fillColor="#00000000" android:strokeColor="#FFFFFF" android:strokeWidth="4" android:strokeLineJoin="round" android:pathData="M54,22 L78,39 L68,66 L54,84 L40,66 L30,39 Z"/>
-  <path android:fillColor="#00000000" android:strokeColor="#FFFFFF" android:strokeWidth="3" android:strokeLineJoin="round" android:pathData="M30,39 L78,39 M40,66 L68,66 M54,22 L40,39 L54,66 L68,39 Z M30,39 L40,66 L54,84 M78,39 L68,66 L54,84"/>
-  <path android:fillColor="#F4C45E" android:pathData="M81,26 L84,32 L90,35 L84,38 L81,44 L78,38 L72,35 L78,32 Z"/>
-</vector>
-'''
-          (root/'app/src/main/res/mipmap-anydpi/ic_launcher.xml').write_text(legacy)
-          (root/'app/src/main/res/mipmap-anydpi/ic_launcher_round.xml').write_text(legacy)
-
-          adaptive = '''<adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
-  <background android:drawable="@color/mb_navy"/>
-  <foreground android:drawable="@drawable/ic_launcher_foreground"/>
-</adaptive-icon>
-'''
-          (root/'app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml').write_text(adaptive)
-          (root/'app/src/main/res/mipmap-anydpi-v26/ic_launcher_round.xml').write_text(adaptive)
           PY
+
+          mkdir -p /tmp/mbdd/project/app/src/main/res/values
+          mkdir -p /tmp/mbdd/project/app/src/main/res/drawable
+          mkdir -p /tmp/mbdd/project/app/src/main/res/mipmap-anydpi
+          mkdir -p /tmp/mbdd/project/app/src/main/res/mipmap-anydpi-v26
+          echo 'PHJlc291cmNlcz4KICA8Y29sb3IgbmFtZT0ibWJfbmF2eSI+IzE3MkE0QTwvY29sb3I+CjwvcmVzb3VyY2VzPgo=' | base64 -d > /tmp/mbdd/project/app/src/main/res/values/colors.xml
+          echo 'PHZlY3RvciB4bWxuczphbmRyb2lkPSJodHRwOi8vc2NoZW1hcy5hbmRyb2lkLmNvbS9hcGsvcmVzL2FuZHJvaWQiIGFuZHJvaWQ6d2lkdGg9IjEwOGRwIiBhbmRyb2lkOmhlaWdodD0iMTA4ZHAiIGFuZHJvaWQ6dmlld3BvcnRXaWR0aD0iMTA4IiBhbmRyb2lkOnZpZXdwb3J0SGVpZ2h0PSIxMDgiPgogIDxwYXRoIGFuZHJvaWQ6ZmlsbENvbG9yPSIjMDAwMDAwMDAiIGFuZHJvaWQ6c3Ryb2tlQ29sb3I9IiNGRkZGRkYiIGFuZHJvaWQ6c3Ryb2tlV2lkdGg9IjQiIGFuZHJvaWQ6c3Ryb2tlTGluZUpvaW49InJvdW5kIiBhbmRyb2lkOnBhdGhEYXRhPSJNNTQsMjIgTDc4LDM5IEw2OCw2NiBMNTQsODQgTDQwLDY2IEwzMCwzOSBaIi8+CiAgPHBhdGggYW5kcm9pZDpmaWxsQ29sb3I9IiMwMDAwMDAwMCIgYW5kcm9pZDpzdHJva2VDb2xvcj0iI0ZGRkZGRiIgYW5kcm9pZDpzdHJva2VXaWR0aD0iMyIgYW5kcm9pZDpzdHJva2VMaW5lSm9pbj0icm91bmQiIGFuZHJvaWQ6cGF0aERhdGE9Ik0zMCwzOSBMNzgsMzkgTTQwLDY2IEw2OCw2NiBNNTQsMjIgTDQwLDM5IEw1NCw2NiBMNjgsMzkgWiBNMzAsMzkgTDQwLDY2IEw1NCw4NCBNNzgsMzkgTDY4LDY2IEw1NCw4NCIvPgogIDxwYXRoIGFuZHJvaWQ6ZmlsbENvbG9yPSIjRjRDNDVFIiBhbmRyb2lkOnBhdGhEYXRhPSJNODEsMjYgTDg0LDMyIEw5MCwzNSBMODQsMzggTDgxLDQ0IEw3OCwzOCBMNzIsMzUgTDc4LDMyIFoiLz4KPC92ZWN0b3I+Cg==' | base64 -d > /tmp/mbdd/project/app/src/main/res/drawable/ic_launcher_foreground.xml
+          echo 'PHZlY3RvciB4bWxuczphbmRyb2lkPSJodHRwOi8vc2NoZW1hcy5hbmRyb2lkLmNvbS9hcGsvcmVzL2FuZHJvaWQiIGFuZHJvaWQ6d2lkdGg9IjEwOGRwIiBhbmRyb2lkOmhlaWdodD0iMTA4ZHAiIGFuZHJvaWQ6dmlld3BvcnRXaWR0aD0iMTA4IiBhbmRyb2lkOnZpZXdwb3J0SGVpZ2h0PSIxMDgiPgogIDxwYXRoIGFuZHJvaWQ6ZmlsbENvbG9yPSIjMTcyQTRBIiBhbmRyb2lkOnBhdGhEYXRhPSJNNCw0IEwxMDQsNCBMMTA0LDEwNCBMNCwxMDQgWiIvPgogIDxwYXRoIGFuZHJvaWQ6ZmlsbENvbG9yPSIjMDAwMDAwMDAiIGFuZHJvaWQ6c3Ryb2tlQ29sb3I9IiNGRkZGRkYiIGFuZHJvaWQ6c3Ryb2tlV2lkdGg9IjQiIGFuZHJvaWQ6c3Ryb2tlTGluZUpvaW49InJvdW5kIiBhbmRyb2lkOnBhdGhEYXRhPSJNNTQsMjIgTDc4LDM5IEw2OCw2NiBMNTQsODQgTDQwLDY2IEwzMCwzOSBaIi8+CiAgPHBhdGggYW5kcm9pZDpmaWxsQ29sb3I9IiMwMDAwMDAwMCIgYW5kcm9pZDpzdHJva2VDb2xvcj0iI0ZGRkZGRiIgYW5kcm9pZDpzdHJva2VXaWR0aD0iMyIgYW5kcm9pZDpzdHJva2VMaW5lSm9pbj0icm91bmQiIGFuZHJvaWQ6cGF0aERhdGE9Ik0zMCwzOSBMNzgsMzkgTTQwLDY2IEw2OCw2NiBNNTQsMjIgTDQwLDM5IEw1NCw2NiBMNjgsMzkgWiBNMzAsMzkgTDQwLDY2IEw1NCw4NCBNNzgsMzkgTDY4LDY2IEw1NCw4NCIvPgogIDxwYXRoIGFuZHJvaWQ6ZmlsbENvbG9yPSIjRjRDNDVFIiBhbmRyb2lkOnBhdGhEYXRhPSJNODEsMjYgTDg0LDMyIEw5MCwzNSBMODQsMzggTDgxLDQ0IEw3OCwzOCBMNzIsMzUgTDc4LDMyIFoiLz4KPC92ZWN0b3I+Cg==' | base64 -d > /tmp/mbdd/project/app/src/main/res/mipmap-anydpi/ic_launcher.xml
+          cp /tmp/mbdd/project/app/src/main/res/mipmap-anydpi/ic_launcher.xml /tmp/mbdd/project/app/src/main/res/mipmap-anydpi/ic_launcher_round.xml
+          echo 'PGFkYXB0aXZlLWljb24geG1sbnM6YW5kcm9pZD0iaHR0cDovL3NjaGVtYXMuYW5kcm9pZC5jb20vYXBrL3Jlcy9hbmRyb2lkIj4KICA8YmFja2dyb3VuZCBhbmRyb2lkOmRyYXdhYmxlPSJAY29sb3IvbWJfbmF2eSIvPgogIDxmb3JlZ3JvdW5kIGFuZHJvaWQ6ZHJhd2FibGU9IkBkcmF3YWJsZS9pY19sYXVuY2hlcl9mb3JlZ3JvdW5kIi8+CjwvYWRhcHRpdmUtaWNvbj4K' | base64 -d > /tmp/mbdd/project/app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml
+          cp /tmp/mbdd/project/app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml /tmp/mbdd/project/app/src/main/res/mipmap-anydpi-v26/ic_launcher_round.xml
           keytool -list -v -keystore /tmp/mbdd/project/mbdd-debug.keystore -storepass android -alias androiddebugkey | grep -E 'SHA1:|SHA256:'
 
       - name: Build APK
