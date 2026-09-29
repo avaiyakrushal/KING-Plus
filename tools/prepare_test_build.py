@@ -71,7 +71,7 @@ if 'private void termsPrivacyPage()' not in src:
         text("Terms", 20, Color.WHITE, true);
         text("Use KING Plus respectfully. Do not post illegal, abusive, deceptive or harmful content. Test coins, gifts, ranks and rewards have no cash value.", 15, MUTED, false);
         text("Privacy", 20, Color.WHITE, true);
-        text("This test build stores profile, rooms, messages and activity locally on this device. Firebase may be used for enabled authentication methods. Do not use this prototype for sensitive data.", 15, MUTED, false);
+        text("This test build stores local-mode chat and profile activity on this device. Firebase is used for enabled real-account cloud features.", 15, MUTED, false);
         button("Back to Login", PURPLE, this::login);
     }
     private void troubleLoginPage() {
@@ -102,17 +102,36 @@ new_google = '''            } catch (ApiException e) {
             }'''
 src = src.replace(old_google, new_google)
 
-# Update built-in OTP help copy for this test build.
 src = src.replace(
     'Use a real phone number with country code. Firebase Phone Authentication must be enabled and SHA fingerprints configured.',
-    'FREE TEST MODE: enter a valid phone number and use OTP 123456. No SMS is sent. Production SMS OTP can be restored after Firebase billing/provider setup.'
+    'FREE TEST MODE: enter a valid phone number and use OTP 123456. No SMS is sent. Production SMS OTP can be restored after Firebase provider setup.'
 )
+
+# BoloHi-style Messages tab: launch the dedicated inbox and conversation activities.
+if 'startActivity(new Intent(this, InboxActivity.class));' not in src:
+    start = src.index('    private void messages() {')
+    end = src.index('\n    private void addBottomNav', start)
+    src = src[:start] + '''    private void messages() {
+        screen="messages";
+        stopMic();
+        startActivity(new Intent(this, InboxActivity.class));
+    }
+''' + src[end:]
+
+if 'new Intent(this, ChatActivity.class)' not in src:
+    start = src.index('    private void conversation(String who){')
+    end = src.index('\n    private void momentsPage()', start)
+    src = src[:start] + '''    private void conversation(String who){
+        Intent i = new Intent(this, ChatActivity.class);
+        i.putExtra("peerName", who);
+        startActivity(i);
+    }
+''' + src[end:]
 
 MAIN.write_text(src, encoding='utf-8')
 
-# Version the generated APK without touching signing/Firebase settings.
 gradle = BUILD.read_text(encoding='utf-8')
-gradle = re.sub(r"versionCode\s+\d+;\s+versionName\s+'[^']+'", "versionCode 32; versionName '2.7.2'", gradle)
+gradle = re.sub(r"versionCode\s+\d+;\s+versionName\s+'[^']+'", "versionCode 43; versionName '3.1.0'", gradle)
 BUILD.write_text(gradle, encoding='utf-8')
 
-print('Prepared KING Plus v2.7.2 free-test build')
+print('Prepared KING Plus v3.1.0 no-billing test OTP + BoloHi-style chat build')
