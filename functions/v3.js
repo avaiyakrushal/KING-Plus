@@ -45,10 +45,12 @@ async function sendUserNotification(uid, title, body, data = {}) {
   const tokens = await tokensForUser(uid);
   if (!tokens.length) return { sent: 0, failed: 0 };
 
+  // Data-only delivery lets KingMessagingService create the notification and attach
+  // the correct PendingIntent, so a direct-message alert opens the exact chat.
+  const payload = { ...data, title, body };
   const response = await getMessaging().sendEachForMulticast({
     tokens,
-    notification: { title, body },
-    data: Object.fromEntries(Object.entries(data).map(([key, value]) => [key, String(value)]))
+    data: Object.fromEntries(Object.entries(payload).map(([key, value]) => [key, String(value)]))
   });
 
   const invalid = [];
@@ -210,7 +212,7 @@ const sendDirectMessageNotification = onCall(async request => {
   const senderName = cleanText(request.data && request.data.senderName, 60) || 'KING user';
   const preview = cleanText(request.data && request.data.preview, 100) || 'New message';
   if (!targetUid || targetUid === senderUid) throw new HttpsError('invalid-argument', 'Target user required.');
-  const result = await sendUserNotification(targetUid, senderName, preview, { type: 'direct_message', senderUid });
+  const result = await sendUserNotification(targetUid, senderName, preview, { type: 'direct_message', senderUid, senderName });
   return { ok: true, ...result, message: result.sent ? 'Message push sent.' : 'Message saved; no active push token found.' };
 });
 
@@ -232,7 +234,7 @@ const onDirectMessageCreated = onDocumentCreated('direct_threads/{threadId}/mess
   const senderName = cleanText(message.senderName, 60) || 'KING user';
   const preview = cleanText(message.text, 100) || 'New message';
   await sendUserNotification(targetUid, senderName, preview, {
-    type: 'direct_message', senderUid, threadId: event.params.threadId
+    type: 'direct_message', senderUid, senderName, threadId: event.params.threadId
   });
 });
 
