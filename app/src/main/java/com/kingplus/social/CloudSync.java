@@ -43,6 +43,12 @@ public final class CloudSync {
         profile.put("tags", prefs.getString("tags", ""));
         profile.put("updatedAt", FieldValue.serverTimestamp());
 
+        Map<String,Object> publicProfile = new HashMap<>();
+        publicProfile.put("displayName", displayName);
+        publicProfile.put("bio", prefs.getString("bio", ""));
+        publicProfile.put("tags", prefs.getString("tags", ""));
+        publicProfile.put("updatedAt", FieldValue.serverTimestamp());
+
         Map<String,Object> wallet = new HashMap<>();
         wallet.put("coins", coinBalance);
         wallet.put("giftsSent", giftCount);
@@ -53,9 +59,13 @@ public final class CloudSync {
         db.collection("users").document(user.getUid()).set(profile)
             .continueWithTask(task -> {
                 if (!task.isSuccessful()) throw task.getException();
+                return db.collection("public_profiles").document(user.getUid()).set(publicProfile);
+            })
+            .continueWithTask(task -> {
+                if (!task.isSuccessful()) throw task.getException();
                 return db.collection("test_wallet_snapshots").document(user.getUid()).set(wallet);
             })
-            .addOnSuccessListener(unused -> callback.onResult(true, "Profile and TEST wallet snapshot synced to Firestore."))
+            .addOnSuccessListener(unused -> callback.onResult(true, "Profile, public chat identity and TEST wallet snapshot synced to Firestore."))
             .addOnFailureListener(error -> callback.onResult(false, "Cloud sync failed: " + safe(error.getLocalizedMessage())));
     }
 
