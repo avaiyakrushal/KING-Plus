@@ -1,4 +1,4 @@
-name: Build MB Diamond Diary v2.0.25 Entry Total
+name: Build MB Diamond Diary v2.0.25 Final Diamond UI
 
 on:
   push:
@@ -31,7 +31,7 @@ jobs:
           run-id: 36603544731
           github-token: ${{ github.token }}
 
-      - name: Apply v2.0.25 diamond totals
+      - name: Apply v2.0.25 final diamond UI
         shell: bash
         run: |
           set -euo pipefail
@@ -40,10 +40,12 @@ jobs:
           base64 -d .ci/mbdd-v2024/chunk01.txt | gzip -d > /tmp/mbdd/v2025.patch
           patch -d /tmp/mbdd/project -p1 < /tmp/mbdd/v2025.patch
           node --check /tmp/mbdd/project/app/src/main/assets/app.js
-          grep -q "diamondGrandTotal" /tmp/mbdd/project/app/src/main/assets/app.html
+          grep -q "diamondAfterTotal" /tmp/mbdd/project/app/src/main/assets/app.html
           grep -q "updateDiamondTotals" /tmp/mbdd/project/app/src/main/assets/app.js
+          grep -q "grid-template-columns:repeat(4" /tmp/mbdd/project/app/src/main/assets/app.html
           grep -q "deleteNotification" /tmp/mbdd/project/app/src/main/java/com/example/diamonddiary/MainActivity.java
           grep -q "settingsDirty" /tmp/mbdd/project/app/src/main/assets/app.js
+          ! grep -q "નોંધ (વૈકલ્પિક)" /tmp/mbdd/project/app/src/main/assets/app.html
 
       - name: Stable signing and version
         shell: bash
