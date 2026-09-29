@@ -1,4 +1,4 @@
-name: Build KING Plus v3.1.2 Me Complete
+name: Build KING Plus v3.2.0 Party Complete
 
 on:
   push:
@@ -38,11 +38,14 @@ jobs:
       - name: Switch mobile login to no-billing test OTP
         run: python3 tools/prepare_test_build.py
 
-      - name: Prepare v3.1.1 BoloHi-style Party
+      - name: Prepare v3.1.1 BoloHi-style Party base
         run: python3 tools/prepare_party_v311.py
 
-      - name: Prepare v3.1.2 BoloHi-style complete Me profile
+      - name: Prepare v3.1.2 complete Me profile
         run: python3 tools/prepare_me_copy_v312.py
+
+      - name: Prepare v3.2.0 complete Party page
+        run: python3 tools/prepare_party_copy_v320.py
 
       - name: Production smoke checks
         run: |
@@ -56,14 +59,14 @@ jobs:
       - name: Prepare APK and source files
         run: |
           mkdir -p release
-          cp app/build/outputs/apk/debug/app-debug.apk release/KING-Plus-v3.1.2-me-complete-no-billing-test-otp.apk
-          zip -qr release/KING-Plus-v3.1.2-me-complete-source.zip . \
+          cp app/build/outputs/apk/debug/app-debug.apk release/KING-Plus-v3.2.0-party-complete-no-billing-test-otp.apk
+          zip -qr release/KING-Plus-v3.2.0-party-complete-source.zip . \
             -x '.git/*' 'app/build/*' 'release/*'
 
       - uses: actions/upload-artifact@v4
         with:
-          name: KING-Plus-v3.1.2-me-complete
+          name: KING-Plus-v3.2.0-party-complete
           path: |
-            release/KING-Plus-v3.1.2-me-complete-no-billing-test-otp.apk
-            release/KING-Plus-v3.1.2-me-complete-source.zip
+            release/KING-Plus-v3.2.0-party-complete-no-billing-test-otp.apk
+            release/KING-Plus-v3.2.0-party-complete-source.zip
           if-no-files-found: error
