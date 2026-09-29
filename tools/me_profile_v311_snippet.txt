@@ -1,0 +1,275 @@
+    private void profile() {
+        screen="profile"; stopMic();
+        int xp=getPreferences(0).getInt("xp",120);
+        int level=(xp/500)+1;
+        int following=new HashSet<>(getPreferences(0).getStringSet("following",new HashSet<>())).size();
+        int friends=new HashSet<>(getPreferences(0).getStringSet("friends",new HashSet<>())).size();
+        int followers=getPreferences(0).getInt("followers_count",356);
+        int charm=getPreferences(0).getInt("charm_count",1200+xp);
+        String uid=roomId(displayName);
+        String bio=getPreferences(0).getString("bio","Love music, games and new friends ✨");
+        String photo=getPreferences(0).getString("profile_photo","");
+
+        LinearLayout root=new LinearLayout(this);
+        root.setOrientation(LinearLayout.VERTICAL);
+        root.setBackgroundColor(0xfff6f4f8);
+
+        LinearLayout top=new LinearLayout(this);
+        top.setGravity(Gravity.CENTER_VERTICAL);
+        top.setPadding(dp(16),dp(10),dp(10),dp(4));
+        TextView title=new TextView(this);
+        title.setText("Me");
+        title.setTextSize(27);
+        title.setTextColor(0xff17131f);
+        title.setTypeface(null,Typeface.BOLD);
+        top.addView(title,new LinearLayout.LayoutParams(0,dp(52),1));
+        TextView actions=new TextView(this);
+        actions.setText("⚙");
+        actions.setTextSize(24);
+        actions.setGravity(Gravity.CENTER);
+        actions.setTextColor(0xff332a3d);
+        actions.setOnClickListener(v->settingsPage());
+        top.addView(actions,new LinearLayout.LayoutParams(dp(52),dp(52)));
+        root.addView(top);
+
+        ScrollView sv=new ScrollView(this);
+        LinearLayout content=new LinearLayout(this);
+        content.setOrientation(LinearLayout.VERTICAL);
+        content.setPadding(dp(12),dp(3),dp(12),dp(18));
+        sv.addView(content);
+
+        LinearLayout hero=new LinearLayout(this);
+        hero.setOrientation(LinearLayout.HORIZONTAL);
+        hero.setGravity(Gravity.CENTER_VERTICAL);
+        hero.setPadding(dp(14),dp(14),dp(12),dp(14));
+        hero.setBackground(background(Color.WHITE,20));
+
+        if(photo.isEmpty()){
+            TextView av=new TextView(this);
+            av.setText("👑");
+            av.setTextSize(43);
+            av.setGravity(Gravity.CENTER);
+            av.setBackground(background(0xffeee4ff,48));
+            av.setOnClickListener(v->editProfile());
+            hero.addView(av,new LinearLayout.LayoutParams(dp(86),dp(86)));
+        }else{
+            ImageView av=new ImageView(this);
+            av.setScaleType(ImageView.ScaleType.CENTER_CROP);
+            try{av.setImageURI(Uri.parse(photo));}catch(Exception ignored){}
+            av.setBackground(background(0xffeee4ff,48));
+            av.setOnClickListener(v->editProfile());
+            hero.addView(av,new LinearLayout.LayoutParams(dp(86),dp(86)));
+        }
+
+        LinearLayout info=new LinearLayout(this);
+        info.setOrientation(LinearLayout.VERTICAL);
+        info.setPadding(dp(13),0,dp(4),0);
+
+        LinearLayout nameRow=new LinearLayout(this);
+        nameRow.setGravity(Gravity.CENTER_VERTICAL);
+        TextView nm=new TextView(this);
+        nm.setText(displayName);
+        nm.setTextSize(21);
+        nm.setTextColor(0xff1f1a24);
+        nm.setTypeface(null,Typeface.BOLD);
+        nameRow.addView(nm,new LinearLayout.LayoutParams(0,dp(34),1));
+        TextView edit=new TextView(this);
+        edit.setText("✎");
+        edit.setTextSize(18);
+        edit.setTextColor(PURPLE);
+        edit.setGravity(Gravity.CENTER);
+        edit.setOnClickListener(v->editProfile());
+        nameRow.addView(edit,new LinearLayout.LayoutParams(dp(40),dp(34)));
+        info.addView(nameRow);
+
+        TextView id=new TextView(this);
+        id.setText("ID: "+uid+"   ⧉");
+        id.setTextSize(13);
+        id.setTextColor(0xff77717e);
+        id.setPadding(0,dp(2),0,dp(3));
+        id.setOnClickListener(v->{
+            android.content.ClipboardManager cm=(android.content.ClipboardManager)getSystemService(CLIPBOARD_SERVICE);
+            cm.setPrimaryClip(android.content.ClipData.newPlainText("KING Plus ID",uid));
+            Toast.makeText(this,"ID copied",Toast.LENGTH_SHORT).show();
+        });
+        info.addView(id);
+
+        LinearLayout badgeRow=new LinearLayout(this);
+        badgeRow.setGravity(Gravity.CENTER_VERTICAL);
+        TextView vip=smallBadge("VIP",0xffffd84b,0xff3a2b00);
+        badgeRow.addView(vip,new LinearLayout.LayoutParams(dp(58),dp(28)));
+        TextView lv=smallBadge("Lv."+level,0xff8755e8,Color.WHITE);
+        LinearLayout.LayoutParams blp=new LinearLayout.LayoutParams(dp(66),dp(28)); blp.setMargins(dp(6),0,0,0);
+        badgeRow.addView(lv,blp);
+        info.addView(badgeRow);
+
+        TextView bioView=new TextView(this);
+        bioView.setText(bio);
+        bioView.setTextSize(12);
+        bioView.setTextColor(0xff625b69);
+        bioView.setMaxLines(2);
+        info.addView(bioView,new LinearLayout.LayoutParams(-1,-2));
+        hero.addView(info,new LinearLayout.LayoutParams(0,dp(92),1));
+        hero.setOnClickListener(v->editProfile());
+        content.addView(hero,new LinearLayout.LayoutParams(-1,dp(118)));
+
+        LinearLayout stats=new LinearLayout(this);
+        stats.setGravity(Gravity.CENTER);
+        stats.setPadding(dp(2),dp(6),dp(2),dp(6));
+        stats.setBackground(background(Color.WHITE,18));
+        addProfileStat(stats,String.valueOf(following),"Following",()->peoplePage("Following"));
+        addProfileStat(stats,String.valueOf(followers),"Followers",()->peoplePage("Followers"));
+        addProfileStat(stats,String.valueOf(friends),"Friends",()->peoplePage("Friends"));
+        addProfileStat(stats,String.valueOf(charm),"Charm",this::rankingsPage);
+        LinearLayout.LayoutParams stp=new LinearLayout.LayoutParams(-1,dp(74)); stp.setMargins(0,dp(8),0,0);
+        content.addView(stats,stp);
+
+        LinearLayout wallet=new LinearLayout(this);
+        wallet.setOrientation(LinearLayout.HORIZONTAL);
+        wallet.setGravity(Gravity.CENTER_VERTICAL);
+        wallet.setPadding(dp(14),dp(9),dp(12),dp(9));
+        wallet.setBackground(background(0xff2d1d46,18));
+        TextView walletTitle=new TextView(this);
+        walletTitle.setText("My Wallet");
+        walletTitle.setTextSize(16);
+        walletTitle.setTextColor(Color.WHITE);
+        walletTitle.setTypeface(null,Typeface.BOLD);
+        wallet.addView(walletTitle,new LinearLayout.LayoutParams(0,dp(44),1));
+        TextView coins=smallBadge("💎 "+coinBalance,0xff4b326c,Color.WHITE);
+        wallet.addView(coins,new LinearLayout.LayoutParams(dp(105),dp(36)));
+        TextView gifts=smallBadge("🎁 "+giftCount,0xff4b326c,Color.WHITE);
+        LinearLayout.LayoutParams gp=new LinearLayout.LayoutParams(dp(85),dp(36)); gp.setMargins(dp(6),0,0,0);
+        wallet.addView(gifts,gp);
+        wallet.setOnClickListener(v->walletPage());
+        LinearLayout.LayoutParams wp=new LinearLayout.LayoutParams(-1,dp(62));wp.setMargins(0,dp(8),0,0);
+        content.addView(wallet,wp);
+
+        LinearLayout quick=new LinearLayout(this);
+        quick.setGravity(Gravity.CENTER);
+        quick.setPadding(0,dp(8),0,dp(4));
+        addMeQuick(quick,"🎒","Backpack",this::backpackPage);
+        addMeQuick(quick,"🏆","Level",this::levelPage);
+        addMeQuick(quick,"👑","Ranking",this::rankingsPage);
+        addMeQuick(quick,"💠","VIP",this::vipPage);
+        content.addView(quick,new LinearLayout.LayoutParams(-1,dp(92)));
+
+        LinearLayout familyCard=new LinearLayout(this);
+        familyCard.setGravity(Gravity.CENTER_VERTICAL);
+        familyCard.setPadding(dp(14),dp(10),dp(12),dp(10));
+        familyCard.setBackground(background(0xfffff3cf,16));
+        TextView familyIcon=new TextView(this); familyIcon.setText("👑"); familyIcon.setTextSize(26); familyIcon.setGravity(Gravity.CENTER);
+        familyCard.addView(familyIcon,new LinearLayout.LayoutParams(dp(48),dp(48)));
+        LinearLayout familyText=new LinearLayout(this); familyText.setOrientation(LinearLayout.VERTICAL);
+        TextView ft=new TextView(this); ft.setText("Family Square"); ft.setTextSize(16); ft.setTextColor(0xff352a12); ft.setTypeface(null,Typeface.BOLD); familyText.addView(ft);
+        TextView fs=new TextView(this); fs.setText("Family, agency and host center"); fs.setTextSize(12); fs.setTextColor(0xff796b43); familyText.addView(fs);
+        familyCard.addView(familyText,new LinearLayout.LayoutParams(0,dp(48),1));
+        TextView farrow=new TextView(this);farrow.setText("›");farrow.setTextSize(28);farrow.setGravity(Gravity.CENTER);farrow.setTextColor(0xff806b25);familyCard.addView(farrow,new LinearLayout.LayoutParams(dp(36),dp(48)));
+        familyCard.setOnClickListener(v->familyAgencyPage());
+        LinearLayout.LayoutParams fcp=new LinearLayout.LayoutParams(-1,dp(68)); fcp.setMargins(0,dp(4),0,dp(8));
+        content.addView(familyCard,fcp);
+
+        LinearLayout list=new LinearLayout(this);
+        list.setOrientation(LinearLayout.VERTICAL);
+        list.setPadding(dp(6),dp(4),dp(6),dp(6));
+        list.setBackground(background(Color.WHITE,18));
+        meRow(list,"✏","Edit Profile","Photo, name, bio & hometown",this::editProfile);
+        meRow(list,"🖼","My Gallery","Photos and profile moments",()->simplePage("My Gallery","Your KING Plus profile gallery will appear here."));
+        meRow(list,"📅","Daily Check-in","Claim daily rewards",this::dailyCheckInPage);
+        meRow(list,"🏅","Missions","Daily tasks, XP and rewards",this::missionsPage);
+        meRow(list,"🔔","Notifications","Likes, follows, gifts and messages",this::notificationsCenter);
+        meRow(list,"🛡","Privacy & Safety","Blocked users and reports",this::privacySafetyPage);
+        meRow(list,"⚙","Settings","Account, privacy and app settings",this::settingsPage);
+        content.addView(list,new LinearLayout.LayoutParams(-1,-2));
+
+        root.addView(sv,new LinearLayout.LayoutParams(-1,0,1));
+        addBottomNav(root,4);
+        setContentView(root);
+    }
+
+    private TextView smallBadge(String label,int bgColor,int textColor){
+        TextView v=new TextView(this);
+        v.setText(label);
+        v.setTextSize(12);
+        v.setTextColor(textColor);
+        v.setTypeface(null,Typeface.BOLD);
+        v.setGravity(Gravity.CENTER);
+        v.setBackground(background(bgColor,14));
+        return v;
+    }
+
+    private void addProfileStat(LinearLayout row,String value,String label,Runnable action){
+        LinearLayout box=new LinearLayout(this);
+        box.setOrientation(LinearLayout.VERTICAL);
+        box.setGravity(Gravity.CENTER);
+        TextView number=new TextView(this);
+        number.setText(value);
+        number.setTextSize(17);
+        number.setTextColor(0xff211b27);
+        number.setTypeface(null,Typeface.BOLD);
+        number.setGravity(Gravity.CENTER);
+        box.addView(number,new LinearLayout.LayoutParams(-1,dp(30)));
+        TextView name=new TextView(this);
+        name.setText(label);
+        name.setTextSize(11);
+        name.setTextColor(0xff77717e);
+        name.setGravity(Gravity.CENTER);
+        box.addView(name,new LinearLayout.LayoutParams(-1,dp(25)));
+        if(action!=null)box.setOnClickListener(v->action.run());
+        row.addView(box,new LinearLayout.LayoutParams(0,dp(60),1));
+    }
+
+    private void addMeQuick(LinearLayout row,String icon,String label,Runnable action){
+        LinearLayout box=new LinearLayout(this);
+        box.setOrientation(LinearLayout.VERTICAL);
+        box.setGravity(Gravity.CENTER);
+        TextView iv=new TextView(this);
+        iv.setText(icon);
+        iv.setTextSize(24);
+        iv.setGravity(Gravity.CENTER);
+        iv.setBackground(background(0xffeee8f8,18));
+        box.addView(iv,new LinearLayout.LayoutParams(dp(50),dp(50)));
+        TextView tv=new TextView(this);
+        tv.setText(label);
+        tv.setTextSize(11);
+        tv.setTextColor(0xff39323f);
+        tv.setGravity(Gravity.CENTER);
+        box.addView(tv,new LinearLayout.LayoutParams(-1,dp(28)));
+        if(action!=null)box.setOnClickListener(v->action.run());
+        row.addView(box,new LinearLayout.LayoutParams(0,dp(84),1));
+    }
+
+    private void meRow(LinearLayout host,String icon,String title,String subtitle,Runnable action){
+        LinearLayout row=new LinearLayout(this);
+        row.setGravity(Gravity.CENTER_VERTICAL);
+        row.setPadding(dp(8),dp(7),dp(5),dp(7));
+        TextView iv=new TextView(this);
+        iv.setText(icon);
+        iv.setTextSize(21);
+        iv.setGravity(Gravity.CENTER);
+        iv.setBackground(background(0xfff0ebf7,16));
+        row.addView(iv,new LinearLayout.LayoutParams(dp(46),dp(46)));
+        LinearLayout mid=new LinearLayout(this);
+        mid.setOrientation(LinearLayout.VERTICAL);
+        mid.setPadding(dp(11),0,0,0);
+        TextView t=new TextView(this);
+        t.setText(title);
+        t.setTextSize(15);
+        t.setTextColor(0xff29232f);
+        t.setTypeface(null,Typeface.BOLD);
+        mid.addView(t,new LinearLayout.LayoutParams(-1,dp(25)));
+        TextView st=new TextView(this);
+        st.setText(subtitle);
+        st.setTextSize(11);
+        st.setTextColor(0xff8a8490);
+        mid.addView(st,new LinearLayout.LayoutParams(-1,dp(21)));
+        row.addView(mid,new LinearLayout.LayoutParams(0,dp(48),1));
+        TextView arrow=new TextView(this);
+        arrow.setText("›");
+        arrow.setTextSize(27);
+        arrow.setTextColor(0xffa39ca9);
+        arrow.setGravity(Gravity.CENTER);
+        row.addView(arrow,new LinearLayout.LayoutParams(dp(30),dp(48)));
+        if(action!=null)row.setOnClickListener(v->action.run());
+        host.addView(row,new LinearLayout.LayoutParams(-1,dp(62)));
+    }
+
