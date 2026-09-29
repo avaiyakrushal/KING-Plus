@@ -1,14 +1,37 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-feature android:name="android.hardware.microphone" android:required="false" />
-    <application android:theme="@android:style/Theme.Material.Light.NoActionBar" android:label="KING Plus" android:icon="@drawable/king_logo" android:usesCleartextTraffic="false">
+
+    <application
+        android:theme="@android:style/Theme.Material.Light.NoActionBar"
+        android:label="KING Plus"
+        android:icon="@drawable/king_logo"
+        android:usesCleartextTraffic="false">
+
         <activity android:name=".RoomSettingsActivity" android:exported="false" />
         <activity android:name=".RoomEntryActivity" android:exported="false" />
         <activity android:name=".RoomControlActivity" android:exported="false" />
         <activity android:name=".VoiceWebActivity" android:exported="false" />
+
+        <activity android:name=".ChatInboxActivity" android:exported="false" />
+        <activity android:name=".PrivateChatActivity" android:exported="false" />
+        <activity android:name=".UserSocialActivity" android:exported="false" />
+
+        <service
+            android:name=".KingMessagingService"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="com.google.firebase.MESSAGING_EVENT" />
+            </intent-filter>
+        </service>
+
         <activity android:name=".MainActivity" android:exported="true">
-            <intent-filter><action android:name="android.intent.action.MAIN"/><category android:name="android.intent.category.LAUNCHER"/></intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
         </activity>
     </application>
 </manifest>
