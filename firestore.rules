@@ -14,9 +14,36 @@ service cloud.firestore {
       allow read: if owner(uid) || admin();
       allow create, update: if owner(uid);
       allow delete: if false;
+
       match /devices/{token} {
         allow read, create, update, delete: if owner(uid);
       }
+
+      match /following/{targetUid} {
+        allow read: if owner(uid) || admin();
+        allow create, delete: if owner(uid) && targetUid != request.auth.uid;
+        allow update: if false;
+      }
+
+      match /followers/{followerUid} {
+        allow read: if owner(uid) || admin();
+        allow create, delete: if activeUser() && followerUid == request.auth.uid && uid != request.auth.uid;
+        allow update: if false;
+      }
+
+      match /friends/{friendUid} {
+        allow read: if owner(uid) || admin();
+        allow create, delete: if activeUser()
+          && (uid == request.auth.uid || friendUid == request.auth.uid)
+          && uid != friendUid;
+        allow update: if false;
+      }
+    }
+
+    match /public_profiles/{uid} {
+      allow read: if signedIn();
+      allow create, update: if owner(uid);
+      allow delete: if owner(uid) || admin();
     }
 
     match /live_rooms/{roomId} {
@@ -38,10 +65,11 @@ service cloud.firestore {
       allow read: if signedIn() && request.auth.uid in resource.data.members;
       allow create: if activeUser()
         && request.resource.data.members is list
-        && request.resource.data.members.size() >= 2
-        && request.resource.data.members.size() <= 8
+        && request.resource.data.members.size() == 2
         && request.auth.uid in request.resource.data.members;
-      allow update: if activeUser() && request.auth.uid in resource.data.members;
+      allow update: if activeUser()
+        && request.auth.uid in resource.data.members
+        && request.resource.data.members == resource.data.members;
       allow delete: if false;
 
       match /messages/{messageId} {
@@ -51,6 +79,8 @@ service cloud.firestore {
           && request.auth.uid in get(/databases/$(database)/documents/direct_threads/$(threadId)).data.members
           && request.resource.data.senderUid == request.auth.uid
           && request.resource.data.recipientUid is string
+          && request.resource.data.recipientUid != request.auth.uid
+          && request.resource.data.recipientUid in get(/databases/$(database)/documents/direct_threads/$(threadId)).data.members
           && request.resource.data.text is string
           && request.resource.data.text.size() > 0
           && request.resource.data.text.size() <= 1000;
