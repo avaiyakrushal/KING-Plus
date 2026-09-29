@@ -1,4 +1,4 @@
-name: Build KING Plus v3.1.1 Party Complete
+name: Build KING Plus v3.1.2 Me Complete
 
 on:
   push:
@@ -41,6 +41,9 @@ jobs:
       - name: Prepare v3.1.1 BoloHi-style Party
         run: python3 tools/prepare_party_v311.py
 
+      - name: Prepare v3.1.2 BoloHi-style complete Me profile
+        run: python3 tools/prepare_me_copy_v312.py
+
       - name: Production smoke checks
         run: |
           python3 tools/production_smoke_check.py
@@ -53,14 +56,14 @@ jobs:
       - name: Prepare APK and source files
         run: |
           mkdir -p release
-          cp app/build/outputs/apk/debug/app-debug.apk release/KING-Plus-v3.1.1-party-complete-no-billing-test-otp.apk
-          zip -qr release/KING-Plus-v3.1.1-party-complete-source.zip . \
+          cp app/build/outputs/apk/debug/app-debug.apk release/KING-Plus-v3.1.2-me-complete-no-billing-test-otp.apk
+          zip -qr release/KING-Plus-v3.1.2-me-complete-source.zip . \
             -x '.git/*' 'app/build/*' 'release/*'
 
       - uses: actions/upload-artifact@v4
         with:
-          name: KING-Plus-v3.1.1-party-complete
+          name: KING-Plus-v3.1.2-me-complete
           path: |
-            release/KING-Plus-v3.1.1-party-complete-no-billing-test-otp.apk
-            release/KING-Plus-v3.1.1-party-complete-source.zip
+            release/KING-Plus-v3.1.2-me-complete-no-billing-test-otp.apk
+            release/KING-Plus-v3.1.2-me-complete-source.zip
           if-no-files-found: error
