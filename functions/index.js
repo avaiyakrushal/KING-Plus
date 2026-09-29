@@ -37,14 +37,14 @@ async function tokensForUser(uid) {
 
 async function sendUserNotification(uid, title, body, data = {}) {
   const tokens = await tokensForUser(uid);
+  const payload = { ...data, title, body };
   await db.collection('notifications').doc(uid).collection('items').add({
     title, body, data, read: false, createdAt: FieldValue.serverTimestamp()
   });
   if (!tokens.length) return { sent: 0 };
   const response = await getMessaging().sendEachForMulticast({
     tokens,
-    notification: { title, body },
-    data: Object.fromEntries(Object.entries(data).map(([k,v]) => [k, String(v)]))
+    data: Object.fromEntries(Object.entries(payload).map(([k,v]) => [k, String(v)]))
   });
   return { sent: response.successCount, failed: response.failureCount };
 }
@@ -141,5 +141,21 @@ exports.onRoomMessageCreated = onDocumentCreated('live_rooms/{roomId}/messages/{
   const text = cleanText(message.text, 100);
   await sendUserNotification(ownerUid, `${senderName} in ${roomSnap.get('name') || 'your room'}`, text || 'New message', {
     type: 'room_message', roomId: event.params.roomId, senderUid: senderUid || ''
+  });
+});
+
+exports.onDirectMessageCreated = onDocumentCreated('direct_threads/{threadId}/messages/{messageId}', async event => {
+  if (!event.data) return;
+  const message = event.data.data();
+  const senderUid = cleanText(message.senderUid, 160);
+  const recipientUid = cleanText(message.recipientUid, 160);
+  if (!senderUid || !recipientUid || senderUid === recipientUid) return;
+  const senderName = cleanText(message.senderName, 60) || 'KING User';
+  const preview = cleanText(message.text, 120) || 'New private message';
+  await sendUserNotification(recipientUid, senderName, preview, {
+    type: 'direct_message',
+    threadId: event.params.threadId,
+    senderUid,
+    senderName
   });
 });
