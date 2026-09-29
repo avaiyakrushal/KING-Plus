@@ -9,6 +9,10 @@ service cloud.firestore {
         && (!exists(/databases/$(database)/documents/bans/$(request.auth.uid))
             || get(/databases/$(database)/documents/bans/$(request.auth.uid)).data.active != true);
     }
+    function roomOwner(roomId) {
+      return signedIn()
+        && get(/databases/$(database)/documents/live_rooms/$(roomId)).data.ownerUid == request.auth.uid;
+    }
 
     match /users/{uid} {
       allow read: if owner(uid) || admin();
@@ -29,7 +33,8 @@ service cloud.firestore {
         allow create, update: if activeUser()
           && memberUid == request.auth.uid
           && request.resource.data.uid == request.auth.uid;
-        allow delete: if signedIn() && memberUid == request.auth.uid;
+        allow delete: if signedIn()
+          && (memberUid == request.auth.uid || roomOwner(roomId));
       }
 
       match /seats/{seatId} {
@@ -38,9 +43,10 @@ service cloud.firestore {
           && request.resource.data.uid == request.auth.uid
           && request.resource.data.name is string;
         allow update: if activeUser()
-          && resource.data.uid == request.auth.uid
-          && request.resource.data.uid == request.auth.uid;
-        allow delete: if signedIn() && resource.data.uid == request.auth.uid;
+          && request.resource.data.uid == resource.data.uid
+          && (resource.data.uid == request.auth.uid || roomOwner(roomId));
+        allow delete: if signedIn()
+          && (resource.data.uid == request.auth.uid || roomOwner(roomId));
       }
 
       match /messages/{messageId} {
