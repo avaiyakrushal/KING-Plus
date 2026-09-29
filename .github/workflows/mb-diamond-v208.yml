@@ -1,4 +1,4 @@
-name: Build MB Diamond Diary v2.0.17
+name: Build MB Diamond Diary v2.0.18
 
 on:
   push:
@@ -78,6 +78,15 @@ jobs:
           base64 -d /tmp/mbdd/v2017.b64 | gzip -d > /tmp/mbdd/v2017.patch
           patch -d /tmp/mbdd/project -p1 < /tmp/mbdd/v2017.patch
 
+      - name: Apply v2.0.18 final UI and editing patch
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat .ci/mbdd-v2018/chunk01.txt .ci/mbdd-v2018/chunk02.txt .ci/mbdd-v2018/chunk03.txt .ci/mbdd-v2018/chunk04.txt .ci/mbdd-v2018/chunk05.txt > /tmp/mbdd/v2018.b64
+          base64 -d /tmp/mbdd/v2018.b64 | gzip -d > /tmp/mbdd/v2018.patch
+          patch -d /tmp/mbdd/project -p1 < /tmp/mbdd/v2018.patch
+          node --check /tmp/mbdd/project/app/src/main/assets/app.js
+
       - name: Apply stable Google signing and branded icon
         shell: bash
         run: |
@@ -87,11 +96,10 @@ jobs:
           from pathlib import Path
           import re
           root = Path('/tmp/mbdd/project')
-
           gradle = root / 'app/build.gradle'
           s = gradle.read_text()
-          s = re.sub(r"versionCode\s+\d+", "versionCode 36", s)
-          s = re.sub(r"versionName\s+'[^']+'", "versionName '2.0.17'", s)
+          s = re.sub(r"versionCode\s+\d+", "versionCode 37", s)
+          s = re.sub(r"versionName\s+'[^']+'", "versionName '2.0.18'", s)
           marker = "\n}\n\ndependencies {"
           signing = '''
               signingConfigs {
@@ -126,7 +134,6 @@ jobs:
           adaptive_dir = root / 'app/src/main/res/mipmap-anydpi-v26'
           for d in (values, drawable, mipmap, adaptive_dir):
               d.mkdir(parents=True, exist_ok=True)
-
           (values / 'colors.xml').write_text('<resources>\n  <color name="mb_navy">#172A4A</color>\n</resources>\n')
           foreground = '''<vector xmlns:android="http://schemas.android.com/apk/res/android" android:width="108dp" android:height="108dp" android:viewportWidth="108" android:viewportHeight="108">
             <path android:fillColor="#00000000" android:strokeColor="#FFFFFF" android:strokeWidth="4" android:strokeLineJoin="round" android:pathData="M54,22 L78,39 L68,66 L54,84 L40,66 L30,39 Z"/>
@@ -138,7 +145,7 @@ jobs:
             <path android:fillColor="#172A4A" android:pathData="M4,4 L104,4 L104,104 L4,104 Z"/>
             <path android:fillColor="#00000000" android:strokeColor="#FFFFFF" android:strokeWidth="4" android:strokeLineJoin="round" android:pathData="M54,22 L78,39 L68,66 L54,84 L40,66 L30,39 Z"/>
             <path android:fillColor="#00000000" android:strokeColor="#FFFFFF" android:strokeWidth="3" android:strokeLineJoin="round" android:pathData="M30,39 L78,39 M40,66 L68,66 M54,22 L40,39 L54,66 L68,39 Z M30,39 L40,66 L54,84 M78,39 L68,66 L54,84"/>
-            <path android:fillColor="#F4C45E" android:pathData="M81,26 L84,32 L90,35 L84,38 L81,44 L78,38 L72,35 L78,32 Z"/>
+            <path android:fillColor="#F4C45E" android:pathData="M81,26 L84,32 L90,35 L84,38 L72,35 L78,32 Z"/>
           </vector>\n'''
           (mipmap / 'ic_launcher.xml').write_text(legacy)
           (mipmap / 'ic_launcher_round.xml').write_text(legacy)
@@ -167,20 +174,20 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          cp /tmp/mbdd/project/app/build/outputs/apk/debug/app-debug.apk MB-Diamond-Diary-v2.0.17-debug.apk
+          cp /tmp/mbdd/project/app/build/outputs/apk/debug/app-debug.apk MB-Diamond-Diary-v2.0.18-debug.apk
           cd /tmp/mbdd/project
-          zip -qr "$GITHUB_WORKSPACE/MB-Diamond-Diary-v2.0.17-source.zip" . -x '*/build/*' '.gradle/*' 'mbdd-debug.keystore'
+          zip -qr "$GITHUB_WORKSPACE/MB-Diamond-Diary-v2.0.18-source.zip" . -x '*/build/*' '.gradle/*' 'mbdd-debug.keystore'
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
-          name: MB-Diamond-Diary-v2.0.17-APK
-          path: MB-Diamond-Diary-v2.0.17-debug.apk
+          name: MB-Diamond-Diary-v2.0.18-APK
+          path: MB-Diamond-Diary-v2.0.18-debug.apk
           if-no-files-found: error
 
       - name: Upload reconstructed source artifact
         uses: actions/upload-artifact@v4
         with:
-          name: MB-Diamond-Diary-v2.0.17-source
-          path: MB-Diamond-Diary-v2.0.17-source.zip
+          name: MB-Diamond-Diary-v2.0.18-source
+          path: MB-Diamond-Diary-v2.0.18-source.zip
           if-no-files-found: error
