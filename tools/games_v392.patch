@@ -1,0 +1,89 @@
+--- app/src/main/java/com/kingplus/social/MainActivity.java
++++ app/src/main/java/com/kingplus/social/MainActivity.java
+@@ -757,26 +757,68 @@
+ 
+     private void renderGamesCategory(String selected){
+         screen="games"; stopMic();
+-        LinearLayout root=new LinearLayout(this); root.setOrientation(LinearLayout.VERTICAL); root.setBackgroundColor(0xfff7f7fb);
+-        LinearLayout head=new LinearLayout(this); head.setGravity(Gravity.CENTER_VERTICAL); head.setPadding(dp(16),dp(10),dp(12),dp(4));
+-        TextView title=new TextView(this); title.setText("Game"); title.setTextSize(30); title.setTextColor(0xff171717); title.setTypeface(null,Typeface.BOLD); head.addView(title,new LinearLayout.LayoutParams(0,dp(58),1));
++        LinearLayout root=new LinearLayout(this); root.setOrientation(LinearLayout.VERTICAL); root.setBackgroundColor(0xfffbfafc);
++
++        LinearLayout head=new LinearLayout(this); head.setGravity(Gravity.CENTER_VERTICAL); head.setPadding(dp(14),dp(8),dp(10),dp(2));
++        TextView today=new TextView(this);today.setText("Today");today.setTextSize(15);today.setTextColor(0xff8a858f);today.setGravity(Gravity.CENTER);today.setOnClickListener(v->discover());head.addView(today,new LinearLayout.LayoutParams(dp(68),dp(50)));
++        LinearLayout gameTab=new LinearLayout(this);gameTab.setOrientation(LinearLayout.VERTICAL);gameTab.setGravity(Gravity.CENTER);
++        TextView gameTitle=new TextView(this);gameTitle.setText("Games");gameTitle.setTextSize(23);gameTitle.setTextColor(0xff16131a);gameTitle.setTypeface(null,Typeface.BOLD);gameTitle.setGravity(Gravity.CENTER);gameTab.addView(gameTitle,new LinearLayout.LayoutParams(-1,dp(38)));
++        View underline=new View(this);underline.setBackgroundColor(0xffffb900);LinearLayout.LayoutParams ulp=new LinearLayout.LayoutParams(dp(30),dp(3));ulp.gravity=Gravity.CENTER_HORIZONTAL;gameTab.addView(underline,ulp);head.addView(gameTab,new LinearLayout.LayoutParams(0,dp(54),1));
++        TextView party=new TextView(this);party.setText("Party");party.setTextSize(15);party.setTextColor(0xff8a858f);party.setGravity(Gravity.CENTER);party.setOnClickListener(v->openPartyActivity());head.addView(party,new LinearLayout.LayoutParams(dp(70),dp(50)));
++        TextView trophy=new TextView(this);trophy.setText("🏆");trophy.setTextSize(20);trophy.setGravity(Gravity.CENTER);trophy.setOnClickListener(v->kingGameStats());head.addView(trophy,new LinearLayout.LayoutParams(dp(46),dp(50)));
++        TextView search=new TextView(this);search.setText("⌕");search.setTextSize(27);search.setTextColor(0xff39343e);search.setGravity(Gravity.CENTER);search.setOnClickListener(v->showGameSearch());head.addView(search,new LinearLayout.LayoutParams(dp(46),dp(50)));
+         root.addView(head);
+-        LinearLayout tabs=new LinearLayout(this); tabs.setPadding(dp(12),dp(4),dp(12),dp(8)); String[] names={"Hot","Quick","Party","Rooms"};
+-        for(String n:names){TextView t=new TextView(this);t.setText(n);t.setTextSize(13);t.setTypeface(null,Typeface.BOLD);t.setGravity(Gravity.CENTER);t.setTextColor(n.equals(selected)?Color.WHITE:0xff4e4a55);t.setBackground(background(n.equals(selected)?PURPLE:0xffe7e3ea,16));t.setOnClickListener(v->renderGamesCategory(n));LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(0,dp(44),1);lp.setMargins(dp(3),0,dp(3),0);tabs.addView(t,lp);} root.addView(tabs);
+-        ScrollView sv=new ScrollView(this); LinearLayout list=new LinearLayout(this); list.setOrientation(LinearLayout.VERTICAL); list.setPadding(dp(14),dp(4),dp(14),dp(18)); sv.addView(list);
+-        if("Hot".equals(selected)||"Quick".equals(selected)){
+-            cardLine(list,"⭕ Tic Tac Toe","Playable now • vs KING Bot",()->openPlayableGame("tic_tac_toe"));
+-            cardLine(list,"✊ Rock Paper Scissors","Playable now • quick round",()->openPlayableGame("rps"));
+-            cardLine(list,"🎲 Dice Duel","Playable now • best roll wins",()->openPlayableGame("dice"));
+-            cardLine(list,"🔢 Guess the Number","Playable now • 1 to 20",()->openPlayableGame("guess"));
+-        } else if("Party".equals(selected)){
+-            cardLine(list,"✊ Rock Paper Scissors","Pass-and-play friendly",()->openPlayableGame("rps"));
+-            cardLine(list,"🎲 Dice Duel","Quick party challenge",()->openPlayableGame("dice"));
+-        } else {
+-            cardLine(list,"🎤 Open real Game Room","Create/join a Firebase live room",()->{Intent i=new Intent(this,PartyActivity.class);i.putExtra("displayName",displayName);startActivity(i);});
+-            textInto(list,"Game rooms now use real Firebase rooms. Demo/fake room cards are removed.",13,0xff77717e,false);
++
++        LinearLayout tabs=new LinearLayout(this);tabs.setPadding(dp(12),dp(3),dp(12),dp(8));String[] names={"Hot","LUDO","Party","Team"};
++        for(String n:names){boolean active=n.equalsIgnoreCase(selected);TextView t=new TextView(this);t.setText(n);t.setTextSize(13);t.setTypeface(null,active?Typeface.BOLD:Typeface.NORMAL);t.setGravity(Gravity.CENTER);t.setTextColor(active?0xff19151e:0xff6c6671);t.setBackground(background(active?0xffffefd0:0xfff0eef2,14));t.setOnClickListener(v->renderGamesCategory(n));LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(0,dp(34),1);lp.setMargins(dp(3),0,dp(3),0);tabs.addView(t,lp);}root.addView(tabs,new LinearLayout.LayoutParams(-1,dp(46)));
++
++        ScrollView sv=new ScrollView(this);LinearLayout list=new LinearLayout(this);list.setOrientation(LinearLayout.VERTICAL);list.setPadding(dp(10),dp(2),dp(10),dp(16));sv.addView(list);
++        addGameHero(list,selected);
++        if("LUDO".equalsIgnoreCase(selected)){
++            addGameGridRow(list,new String[][]{{"🎲","Ludo Master","Classic • Quick Match","🎲 Ludo Master"},{"👥","Ludo Team","Team room • Friends","🎲 Ludo Master"}});
++        }else if("Party".equalsIgnoreCase(selected)){
++            addGameGridRow(list,new String[][]{{"🐺","Werewolf","Voice role game","🐺 Werewolf"},{"🕵","Spy Game","Find the hidden spy","🕵 Spy Game"}});
++            addGameGridRow(list,new String[][]{{"🎨","Draw & Guess","Draw • Guess • Laugh","🎨 Draw & Guess"},{"🎱","Bingo","Fast party rounds","🎱 Bingo"}});
++        }else if("Team".equalsIgnoreCase(selected)){
++            addGameGridRow(list,new String[][]{{"🐑","Sheep Fight","1v1 • Team battle","🐑 Sheep Fight"},{"🦁","Crazy Zoo","Collect • Team fun","🦁 Crazy Zoo"}});
++            cardLine(list,"🎤 Voice Game Room","Create or join a real Firebase room",()->kingOpenGameRoom("Game Room"));
++        }else{
++            addGameGridRow(list,new String[][]{{"🎲","Ludo Master","Quick • 1v1 • Team","🎲 Ludo Master"},{"🐑","Sheep Fight","Battle with friends","🐑 Sheep Fight"}});
++            addGameGridRow(list,new String[][]{{"🐺","Werewolf","Voice role game","🐺 Werewolf"},{"🕵","Spy Game","Secret clue challenge","🕵 Spy Game"}});
++            addGameGridRow(list,new String[][]{{"🎨","Draw & Guess","Party drawing game","🎨 Draw & Guess"},{"🎱","Bingo","Fast number rounds","🎱 Bingo"}});
++            addGameGridRow(list,new String[][]{{"🦁","Crazy Zoo","Collect & play","🦁 Crazy Zoo"},{"🎤","Voice Game Room","Play while talking","Game Room"}});
+         }
+-        root.addView(sv,new LinearLayout.LayoutParams(-1,0,1)); addBottomNav(root,1); setSafeContentView(root);
++        LinearLayout shortcuts=new LinearLayout(this);shortcuts.setGravity(Gravity.CENTER);shortcuts.setPadding(0,dp(8),0,dp(4));
++        addGameShortcut(shortcuts,"📜\nHistory",this::kingGameHistory);addGameShortcut(shortcuts,"⭐\nStats",this::kingGameStats);addGameShortcut(shortcuts,"🎤\nRoom",()->kingOpenGameRoom("Game Room"));list.addView(shortcuts,new LinearLayout.LayoutParams(-1,dp(72)));
++        root.addView(sv,new LinearLayout.LayoutParams(-1,0,1));addBottomNav(root,1);setSafeContentView(root);
++    }
++
++    private void addGameHero(LinearLayout host,String selected){
++        LinearLayout hero=new LinearLayout(this);hero.setOrientation(LinearLayout.VERTICAL);hero.setGravity(Gravity.CENTER_VERTICAL);hero.setPadding(dp(18),dp(12),dp(14),dp(12));hero.setBackground(background(0xff7547e8,20));
++        TextView a=new TextView(this);a.setText("🎮  KING Plus Games");a.setTextSize(21);a.setTextColor(Color.WHITE);a.setTypeface(null,Typeface.BOLD);hero.addView(a);
++        TextView b=new TextView(this);b.setText("Play • Voice • Friends • Team");b.setTextSize(13);b.setTextColor(0xffeee7ff);hero.addView(b);
++        LinearLayout.LayoutParams hp=new LinearLayout.LayoutParams(-1,dp(92));hp.setMargins(0,0,0,dp(10));host.addView(hero,hp);
++    }
++
++    private void addGameGridRow(LinearLayout host,String[][] games){
++        LinearLayout row=new LinearLayout(this);row.setOrientation(LinearLayout.HORIZONTAL);row.setGravity(Gravity.TOP);
++        for(String[] g:games)addGameGridCard(row,g[0],g[1],g[2],g[3]);
++        LinearLayout.LayoutParams rp=new LinearLayout.LayoutParams(-1,dp(174));rp.setMargins(0,dp(4),0,dp(4));host.addView(row,rp);
++    }
++
++    private void addGameGridCard(LinearLayout row,String icon,String title,String sub,String game){
++        LinearLayout card=new LinearLayout(this);card.setOrientation(LinearLayout.VERTICAL);card.setPadding(dp(12),dp(10),dp(12),dp(10));card.setBackground(background(0xffffffff,18));
++        TextView art=new TextView(this);art.setText(icon);art.setTextSize(36);art.setGravity(Gravity.CENTER);art.setBackground(background(title.contains("Ludo")||title.contains("Draw")?0xffffe7f1:0xffeee7ff,16));card.addView(art,new LinearLayout.LayoutParams(-1,dp(86)));
++        TextView t=new TextView(this);t.setText(title);t.setTextSize(15);t.setTextColor(0xff1c1820);t.setTypeface(null,Typeface.BOLD);t.setPadding(0,dp(7),0,0);card.addView(t);
++        TextView s=new TextView(this);s.setText(sub);s.setTextSize(11);s.setTextColor(0xff7e7783);card.addView(s);
++        card.setOnClickListener(v->{if("Game Room".equals(game))kingOpenGameRoom(game);else kingGameModes(game);});LinearLayout.LayoutParams cp=new LinearLayout.LayoutParams(0,-1,1);cp.setMargins(dp(4),0,dp(4),0);row.addView(card,cp);
++    }
++
++    private void addGameShortcut(LinearLayout host,String text,Runnable action){TextView x=new TextView(this);x.setText(text);x.setTextSize(12);x.setTextColor(0xff5f5866);x.setGravity(Gravity.CENTER);x.setBackground(background(0xfff0eef3,15));x.setOnClickListener(v->action.run());LinearLayout.LayoutParams p=new LinearLayout.LayoutParams(0,dp(58),1);p.setMargins(dp(4),0,dp(4),0);host.addView(x,p);}
++
++    private void showGameSearch(){
++        String[] games={"🎲 Ludo Master","🐑 Sheep Fight","🐺 Werewolf","🕵 Spy Game","🎨 Draw & Guess","🎱 Bingo","🦁 Crazy Zoo","🎤 Voice Game Room"};
++        new AlertDialog.Builder(this).setTitle("Games").setItems(games,(d,w)->{if(w==games.length-1)kingOpenGameRoom("Game Room");else kingGameModes(games[w]);}).setNegativeButton("Close",null).show();
+     }
+     private void openPlayableGame(String game){Intent i=new Intent(this,GamePlayActivity.class);i.putExtra("game",game);startActivity(i);}
+     private void textInto(LinearLayout host,String value,int size,int color,boolean bold){TextView t=new TextView(this);t.setText(value);t.setTextSize(size);t.setTextColor(color);if(bold)t.setTypeface(null,Typeface.BOLD);t.setPadding(dp(10),dp(12),dp(10),dp(12));host.addView(t,new LinearLayout.LayoutParams(-1,-2));}
