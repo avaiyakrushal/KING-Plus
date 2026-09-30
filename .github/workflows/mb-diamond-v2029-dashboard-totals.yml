@@ -1,0 +1,88 @@
+name: Build MB Diamond Diary v2.0.29 Dashboard Totals Fix
+
+on:
+  push:
+    branches:
+      - mb-diamond-diary-v2.0.8-build
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      actions: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+
+      - name: Download v2.0.28 source baseline
+        uses: actions/download-artifact@v4
+        with:
+          name: MB-Diamond-Diary-v2.0.28-source
+          path: /tmp/mbdd/source-artifact
+          repository: avaiyakrushal/KING-Plus
+          run-id: 36684266722
+          github-token: ${{ github.token }}
+
+      - name: Apply v2.0.29 compact header and boss totals patch
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/mbdd/project
+          unzip -q /tmp/mbdd/source-artifact/MB-Diamond-Diary-v2.0.28-source.zip -d /tmp/mbdd/project
+          base64 -d .ci/mbdd-v2029/chunk01.txt | gzip -d > /tmp/mbdd/v2029.patch
+          patch -d /tmp/mbdd/project -p1 < /tmp/mbdd/v2029.patch
+          node --check /tmp/mbdd/project/app/src/main/assets/app.js
+          grep -q "refreshBossSummariesFromEntries" /tmp/mbdd/project/app/src/main/java/com/example/diamonddiary/MainActivity.java
+          grep -q "bossLiveMonthSummaries" /tmp/mbdd/project/app/src/main/java/com/example/diamonddiary/MainActivity.java
+          ! grep -q "દૈનિક નોંધ અને માસિક હિસાબ" /tmp/mbdd/project/app/src/main/assets/app.html
+          ! grep -q "હીરા, કલાક અને ખર્ચની નોંધ ભરો; રિપોર્ટમાં હિસાબ જુઓ" /tmp/mbdd/project/app/src/main/assets/app.html
+
+      - name: Stable signing and version
+        shell: bash
+        run: |
+          set -euo pipefail
+          base64 -d .ci/mbdd-signing/debug.keystore.b64 > /tmp/mbdd/project/mbdd-debug.keystore
+          python3 - <<'PY2'
+          from pathlib import Path
+          import re
+          p=Path('/tmp/mbdd/project/app/build.gradle')
+          s=p.read_text()
+          s=re.sub(r'versionCode\s+\d+','versionCode 48',s)
+          s=re.sub(r"versionName\s+'[^']+'","versionName '2.0.29'",s)
+          p.write_text(s)
+          PY2
+
+      - name: Build APK
+        working-directory: /tmp/mbdd/project
+        run: gradle :app:assembleDebug --stacktrace
+
+      - name: Verify signing and stage artifacts
+        shell: bash
+        run: |
+          set -euo pipefail
+          APK=/tmp/mbdd/project/app/build/outputs/apk/debug/app-debug.apk
+          SHA1=$(keytool -printcert -jarfile "$APK" | awk '/SHA1:/{print $2; exit}')
+          echo "APK SHA1: $SHA1"
+          test "$SHA1" = "1C:69:20:02:92:FB:2F:5A:C7:B5:DE:22:2D:03:B1:6D:F1:3E:C8:2E"
+          cp "$APK" MB-Diamond-Diary-v2.0.29-debug.apk
+          cd /tmp/mbdd/project
+          zip -qr "$GITHUB_WORKSPACE/MB-Diamond-Diary-v2.0.29-source.zip" . -x '*/build/*' '.gradle/*' 'mbdd-debug.keystore'
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: MB-Diamond-Diary-v2.0.29-APK
+          path: MB-Diamond-Diary-v2.0.29-debug.apk
+          if-no-files-found: error
+      - uses: actions/upload-artifact@v4
+        with:
+          name: MB-Diamond-Diary-v2.0.29-source
+          path: MB-Diamond-Diary-v2.0.29-source.zip
+          if-no-files-found: error
