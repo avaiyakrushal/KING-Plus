@@ -1,0 +1,31 @@
+name: Build KING Plus v4.2.0 Google Gmail Login
+
+on:
+  push:
+    branches: [real-social-v390-build]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+      - name: Build v4.2.0 Google Gmail Login
+        run: bash tools/build_v420.sh
+      - uses: actions/upload-artifact@v4
+        with:
+          name: KING-Plus-v4.2.0-google-gmail-login
+          path: |
+            release/KING-Plus-v4.2.0-google-gmail-login-no-billing-test-otp.apk
+            release/KING-Plus-v4.2.0-google-gmail-login-source.zip
+          if-no-files-found: error
