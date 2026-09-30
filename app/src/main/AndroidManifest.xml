@@ -4,6 +4,7 @@
     <uses-feature android:name="android.hardware.microphone" android:required="false" />
     <application android:theme="@android:style/Theme.Material.Light.NoActionBar" android:label="KING Plus" android:icon="@drawable/king_logo" android:usesCleartextTraffic="false">
         <activity android:name=".PartyActivity" android:exported="false" />
+        <activity android:name=".SocialActivity" android:exported="false" />
         <activity android:name=".InboxActivity" android:exported="false" />
         <activity android:name=".ChatActivity" android:exported="false" />
         <activity android:name=".MainActivity" android:exported="true">

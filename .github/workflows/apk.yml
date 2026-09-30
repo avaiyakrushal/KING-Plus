@@ -1,4 +1,4 @@
-name: Build KING Plus v3.4.0 Party Complete Controls
+name: Build KING Plus v3.5.0 Social
 
 on:
   push:
@@ -59,6 +59,9 @@ jobs:
       - name: Prepare v3.4.0 Party complete controls
         run: python3 tools/prepare_party_complete_v340.py
 
+      - name: Prepare v3.5.0 social discovery, friends and messages
+        run: python3 tools/prepare_social_v350.py
+
       - name: Production smoke checks
         run: |
           python3 tools/production_smoke_check.py
@@ -71,14 +74,14 @@ jobs:
       - name: Prepare APK and source files
         run: |
           mkdir -p release
-          cp app/build/outputs/apk/debug/app-debug.apk release/KING-Plus-v3.4.0-party-complete-no-billing-test-otp.apk
-          zip -qr release/KING-Plus-v3.4.0-party-complete-source.zip . \
+          cp app/build/outputs/apk/debug/app-debug.apk release/KING-Plus-v3.5.0-social-no-billing-test-otp.apk
+          zip -qr release/KING-Plus-v3.5.0-social-source.zip . \
             -x '.git/*' 'app/build/*' 'release/*'
 
       - uses: actions/upload-artifact@v4
         with:
-          name: KING-Plus-v3.4.0-party-complete
+          name: KING-Plus-v3.5.0-social
           path: |
-            release/KING-Plus-v3.4.0-party-complete-no-billing-test-otp.apk
-            release/KING-Plus-v3.4.0-party-complete-source.zip
+            release/KING-Plus-v3.5.0-social-no-billing-test-otp.apk
+            release/KING-Plus-v3.5.0-social-source.zip
           if-no-files-found: error
