@@ -89,23 +89,43 @@ if count != 1:
     raise SystemExit('v3.6.0 room ranking template changed')
 PARTY.write_text(src, encoding='utf-8')
 
-# Main profile: Economy Center replaces the old local-only wallet entry and displays progression/frame.
+# Main profile: wire the v3.1.2 Me/Profile wallet card to Economy Center and show progression.
 main = MAIN.read_text(encoding='utf-8')
 main = replace_once(
     main,
-    'cardLine(list,"💎 My Wallet","Coins, gifts and transaction history",this::walletPage);',
-    'cardLine(list,"💎 Economy Center","Wallet, gifts, levels, VIP and frames",()->startActivity(new Intent(this,EconomyActivity.class)));',
-    'profile economy card')
+    'walletTitle.setText("My Wallet");',
+    'walletTitle.setText("Economy Center");',
+    'profile wallet title')
+main = replace_once(
+    main,
+    'TextView coins=smallBadge("💎 "+coinBalance,0xff4b326c,Color.WHITE);',
+    'TextView coins=smallBadge("💎 "+EconomyManager.getTestCoins(this,coinBalance),0xff4b326c,Color.WHITE);',
+    'profile wallet balance')
+main = replace_once(
+    main,
+    'TextView gifts=smallBadge("🎁 "+giftCount,0xff4b326c,Color.WHITE);',
+    'TextView gifts=smallBadge("🎁 "+EconomyManager.giftsSent(this),0xff4b326c,Color.WHITE);',
+    'profile gift count')
+main = replace_once(
+    main,
+    'wallet.setOnClickListener(v->walletPage());',
+    'wallet.setOnClickListener(v->startActivity(new Intent(this,EconomyActivity.class)));',
+    'profile economy click')
+main = replace_once(
+    main,
+    'TextView lv=smallBadge("Lv."+level,0xff8755e8,Color.WHITE);',
+    'TextView lv=smallBadge("Lv."+EconomyManager.userLevel(this),0xff8755e8,Color.WHITE);',
+    'profile user level')
+main = replace_once(
+    main,
+    'id.setText("ID: "+uid+"   ⧉");',
+    'id.setText("ID: "+uid+"   ⧉   W"+EconomyManager.wealthLevel(this)+" C"+EconomyManager.charmLevel(this)+" • "+EconomyManager.equippedProfileFrame(this));',
+    'profile progression label')
 main = replace_once(
     main,
     'else if(w==9)walletPage();',
     'else if(w==9)startActivity(new Intent(this,EconomyActivity.class));',
     'side menu economy')
-main = replace_once(
-    main,
-    'id.setText("ID: "+roomId(displayName)+"   ♢ Lv."+(xp/500+1));',
-    'id.setText("ID: "+roomId(displayName)+"   ♢ Lv."+EconomyManager.userLevel(this)+"   W"+EconomyManager.wealthLevel(this)+"   C"+EconomyManager.charmLevel(this)+"   🖼 "+EconomyManager.equippedProfileFrame(this));',
-    'profile progression label')
 MAIN.write_text(main, encoding='utf-8')
 
 # Firestore: progression is server-owned/readable; clients cannot forge levels or gift totals.
