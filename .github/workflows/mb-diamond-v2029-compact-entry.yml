@@ -37,19 +37,13 @@ jobs:
           set -euo pipefail
           mkdir -p /tmp/mbdd/project
           unzip -q /tmp/mbdd/source-artifact/MB-Diamond-Diary-v2.0.28-source.zip -d /tmp/mbdd/project
-          python3 - <<'PY'
-          from pathlib import Path
-          p=Path('/tmp/mbdd/project/app/src/main/assets/app.html')
-          s=p.read_text()
-          old='<main><span class="badge">દૈનિક નોંધ અને માસિક હિસાબ</span><p class="intro">હીરા, કલાક અને ખર્ચની નોંધ ભરો; રિપોર્ટમાં હિસાબ જુઓ.</p>'
-          if old not in s:
-              raise SystemExit('expected top intro block not found')
-          s=s.replace(old,'<main>',1)
-          p.write_text(s)
-          PY
+          base64 -d .ci/mbdd-v2029/chunk01.txt | gzip -d > /tmp/mbdd/v2029.patch
+          patch -d /tmp/mbdd/project -p1 < /tmp/mbdd/v2029.patch
           node --check /tmp/mbdd/project/app/src/main/assets/app.js
-          ! grep -q 'દૈનિક નોંધ અને માસિક હિસાબ' /tmp/mbdd/project/app/src/main/assets/app.html
-          ! grep -q 'હીરા, કલાક અને ખર્ચની નોંધ ભરો; રિપોર્ટમાં હિસાબ જુઓ.' /tmp/mbdd/project/app/src/main/assets/app.html
+          grep -q 'entry-compact' /tmp/mbdd/project/app/src/main/assets/app.html
+          grep -q "id==='diamond'||id==='hours'" /tmp/mbdd/project/app/src/main/assets/app.js
+          grep -q 'દૈનિક નોંધ અને માસિક હિસાબ' /tmp/mbdd/project/app/src/main/assets/app.html
+          grep -q 'હીરા, કલાક અને ખર્ચની નોંધ' /tmp/mbdd/project/app/src/main/assets/app.html
           grep -q 'id="diamondEditStrip"' /tmp/mbdd/project/app/src/main/assets/app.html
           grep -q 'id="hourEditStrip"' /tmp/mbdd/project/app/src/main/assets/app.html
           grep -q 'id="diamondWithdrawal"' /tmp/mbdd/project/app/src/main/assets/app.html
