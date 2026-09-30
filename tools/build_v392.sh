@@ -28,7 +28,12 @@ apply_patch tools/room_live_v370.patch.gz.b64 /tmp/room-live.patch
 apply_patch tools/room_real_v380.patch.gz.b64 /tmp/room-real.patch
 apply_patch tools/real_social_v390.patch.gz.b64 /tmp/real-social.patch
 apply_patch tools/party_unified_v391.patch.gz.b64 /tmp/party-unified.patch
-apply_patch tools/game_messages_v392.patch.gz.b64 /tmp/game-messages.patch
+
+# v3.9.2 is intentionally stored as plain source/patch files so the CI path
+# cannot be damaged by a large base64+gzip payload.
+cp tools/InboxActivity_v392.java app/src/main/java/com/kingplus/social/InboxActivity.java
+patch --dry-run -p0 < tools/games_v392.patch
+patch -p0 < tools/games_v392.patch
 
 python3 - <<'PY'
 from pathlib import Path
@@ -39,7 +44,7 @@ s=re.sub(r"versionCode\s+\d+;\s+versionName\s+'[^']+'", "versionCode 57; version
 p.write_text(s)
 Path('CHANGELOG-v3.9.2.txt').write_text(
     'KING Plus v3.9.2 — BoloHi-style Game + Messages\n\n'
-    'Refines Game and Messages pages to match the unified BoloHi-inspired navigation/layout used by Party, while preserving real Firebase social data, no-billing mode and TEST OTP 123456.\n'
+    'Messages uses compact conversation rows, real Firebase direct threads, search, followers/friends/notification shortcuts and the standard bottom navigation. Game uses the Today/Games/Party header, Hot/LUDO/Party/Team tabs, BoloHi-inspired two-column cards, Ludo Master, Sheep Fight, Werewolf, Spy Game, Draw & Guess, Bingo, Crazy Zoo, history/stats and voice game-room entry. No-billing and TEST OTP 123456 remain unchanged.\n'
 )
 PY
 
