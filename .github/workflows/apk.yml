@@ -1,4 +1,4 @@
-name: Build KING Plus v3.7.0 Live Room
+name: Build KING Plus v3.8.0 Real Live
 
 on:
   push:
@@ -92,6 +92,20 @@ jobs:
           Path('CHANGELOG-v3.7.0.txt').write_text('KING Plus v3.7.0 — Live Room Interaction\n\nAdds live entrance banners, gift combo effects, top-supporter strip, realtime room-event effects, and direct private chat from seat/member profiles. Keeps no-billing TEST mode.\n')
           PY
 
+      - name: Apply v3.8.0 real live data, music and playable games
+        run: |
+          base64 -d tools/room_real_v380.patch.gz.b64 | gzip -d > /tmp/room-real.patch
+          patch --dry-run -p0 < /tmp/room-real.patch
+          patch -p0 < /tmp/room-real.patch
+          python3 - <<'PY2'
+          from pathlib import Path
+          import re
+          p=Path('app/build.gradle')
+          s=p.read_text()
+          s=re.sub(r"versionCode\s+\d+;\s+versionName\s+'[^']+'", "versionCode 54; versionName '3.8.0'", s)
+          p.write_text(s)
+          PY2
+
       - name: Production smoke checks
         run: |
           python3 tools/production_smoke_check.py
@@ -104,14 +118,14 @@ jobs:
       - name: Prepare APK and source files
         run: |
           mkdir -p release
-          cp app/build/outputs/apk/debug/app-debug.apk release/KING-Plus-v3.7.0-live-room-no-billing-test-otp.apk
-          zip -qr release/KING-Plus-v3.7.0-live-room-source.zip . \
+          cp app/build/outputs/apk/debug/app-debug.apk release/KING-Plus-v3.8.0-real-live-no-billing-test-otp.apk
+          zip -qr release/KING-Plus-v3.8.0-real-live-source.zip . \
             -x '.git/*' 'app/build/*' 'release/*'
 
       - uses: actions/upload-artifact@v4
         with:
-          name: KING-Plus-v3.7.0-live-room
+          name: KING-Plus-v3.8.0-real-live
           path: |
-            release/KING-Plus-v3.7.0-live-room-no-billing-test-otp.apk
-            release/KING-Plus-v3.7.0-live-room-source.zip
+            release/KING-Plus-v3.8.0-real-live-no-billing-test-otp.apk
+            release/KING-Plus-v3.8.0-real-live-source.zip
           if-no-files-found: error
