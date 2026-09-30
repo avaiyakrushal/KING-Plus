@@ -7,43 +7,46 @@ CLOUD = Path('app/src/main/java/com/kingplus/social/CloudSync.java')
 
 src = MAIN.read_text(encoding='utf-8')
 
-# Restore an existing Firebase/Google session before deciding whether to show Login.
-needle = '        if (displayName.isEmpty()) login(); else home();\n'
-replacement = '        restoreFirebaseGoogleSession();\n        if (displayName.isEmpty()) login(); else home();\n'
-if needle not in src:
-    raise SystemExit('Login decision point changed')
-src = src.replace(needle, replacement, 1)
-
-# Add a Firebase session restore helper before the Google login entry point.
-marker = '    private void googleLogin() {\n'
-helper = r'''    private void restoreFirebaseGoogleSession() {
-        if (firebaseAuth == null) return;
-        FirebaseUser user = firebaseAuth.getCurrentUser();
-        if (user == null) return;
-        String name = user.getDisplayName();
-        if (name == null || name.trim().isEmpty()) {
-            String email = user.getEmail();
-            if (email != null && email.contains("@")) name = email.substring(0, email.indexOf('@'));
+# v4.1.1 already restores an authenticated Firebase session on app start.
+# Enrich the restored session with Google/Firebase identity metadata without
+# adding a second restore path.
+old_restore = '''        if (firebaseAuth != null && firebaseAuth.getCurrentUser() != null) {
+            FirebaseUser signedInUser = firebaseAuth.getCurrentUser();
+            if (displayName.isEmpty()) {
+                String restored = signedInUser.getDisplayName();
+                if (restored == null || restored.trim().isEmpty()) restored = "KING " + publicId(signedInUser.getUid());
+                displayName = restored.trim();
+                getPreferences(0).edit().putString("name", displayName).putString("login_provider", "Firebase").apply();
+            }
+            PushNotifications.refreshToken();
+            syncPublicProfile();
         }
-        if (name == null || name.trim().isEmpty()) name = "KING User";
-        displayName = name.trim();
-        SharedPreferences.Editor e = getPreferences(0).edit()
-            .putString("name", displayName)
-            .putString("login_provider", "Google/Firebase")
-            .putString("firebase_uid", user.getUid());
-        if (user.getEmail() != null) e.putString("google_email", user.getEmail());
-        if (user.getPhotoUrl() != null) e.putString("google_photo_url", user.getPhotoUrl().toString());
-        e.apply();
-    }
-
 '''
-if 'private void restoreFirebaseGoogleSession()' not in src:
-    if marker not in src:
-        raise SystemExit('googleLogin marker changed')
-    src = src.replace(marker, helper + marker, 1)
+new_restore = '''        if (firebaseAuth != null && firebaseAuth.getCurrentUser() != null) {
+            FirebaseUser signedInUser = firebaseAuth.getCurrentUser();
+            if (displayName.isEmpty()) {
+                String restored = signedInUser.getDisplayName();
+                if (restored == null || restored.trim().isEmpty()) {
+                    String email = signedInUser.getEmail();
+                    restored = email != null && email.contains("@") ? email.substring(0, email.indexOf('@')) : "KING " + publicId(signedInUser.getUid());
+                }
+                displayName = restored.trim();
+            }
+            SharedPreferences.Editor restoredIdentity = getPreferences(0).edit()
+                .putString("name", displayName)
+                .putString("login_provider", "Google/Firebase")
+                .putString("firebase_uid", signedInUser.getUid());
+            if (signedInUser.getEmail() != null) restoredIdentity.putString("google_email", signedInUser.getEmail());
+            if (signedInUser.getPhotoUrl() != null) restoredIdentity.putString("google_photo_url", signedInUser.getPhotoUrl().toString());
+            restoredIdentity.apply();
+            PushNotifications.refreshToken();
+            syncPublicProfile();
+        }
+'''
+if old_restore in src:
+    src = src.replace(old_restore, new_restore, 1)
 
-# Replace Google login with a fresh account-picker flow. This avoids stale cached credentials
-# while keeping Firebase as the authoritative signed-in session.
+# Replace Google login with a fresh account-picker flow.
 start = src.index('    private void googleLogin() {')
 end = src.index('    private void firebaseAuthWithGoogle(', start)
 new_google = r'''    private void googleLogin() {
@@ -68,8 +71,6 @@ new_google = r'''    private void googleLogin() {
             .requestProfile()
             .build();
         googleSignInClient = GoogleSignIn.getClient(this, options);
-        // Sign out only from the Google picker cache when the user explicitly taps Google login.
-        // The Firebase session remains authoritative and will be recreated after account selection.
         googleSignInClient.signOut().addOnCompleteListener(task -> {
             if (isFinishing() || isDestroyed()) return;
             startActivityForResult(googleSignInClient.getSignInIntent(), GOOGLE_SIGN_IN_REQUEST);
@@ -78,7 +79,7 @@ new_google = r'''    private void googleLogin() {
 '''
 src = src[:start] + new_google + src[end:]
 
-# Replace Firebase credential completion with real profile persistence + non-blocking cloud sync.
+# Firebase credential completion: persist the real account identity and sync it.
 start = src.index('    private void firebaseAuthWithGoogle(')
 end = src.index('    private void mobileLogin()', start)
 new_auth = r'''    private void firebaseAuthWithGoogle(String idToken, String fallbackName) {
@@ -117,6 +118,7 @@ new_auth = r'''    private void firebaseAuthWithGoogle(String idToken, String fa
             e.apply();
 
             try { PushNotifications.refreshToken(); } catch (Exception ignored) { }
+            try { syncPublicProfile(); } catch (Exception ignored) { }
             try {
                 CloudSync.syncProfileAndTestWallet(this, getPreferences(0), displayName,
                     coinBalance, giftCount, receivedGiftCount,
@@ -131,7 +133,7 @@ new_auth = r'''    private void firebaseAuthWithGoogle(String idToken, String fa
 '''
 src = src[:start] + new_auth + src[end:]
 
-# Harden the Google activity-result handling and surface common configuration errors.
+# Harden Google activity result handling.
 pattern = re.compile(r'''        if \(requestCode == GOOGLE_SIGN_IN_REQUEST\) \{.*?\n            return;\n        \}\n''', re.S)
 m = pattern.search(src)
 if not m:
@@ -169,7 +171,6 @@ new_result = r'''        if (requestCode == GOOGLE_SIGN_IN_REQUEST) {
 '''
 src = src[:m.start()] + new_result + src[m.end():]
 
-# Login copy: make it explicit that Google/Gmail is live, while test mobile remains separate.
 src = src.replace('button("G  Continue with Google", 0xff4285f4, this::googleLogin);',
                   'button("G  Continue with Google / Gmail", 0xff4285f4, this::googleLogin);')
 src = src.replace('FREE TEST MODE: Mobile login does not send SMS. Use OTP 123456. Google/Facebook still require provider setup.',
@@ -177,7 +178,6 @@ src = src.replace('FREE TEST MODE: Mobile login does not send SMS. Use OTP 12345
 
 MAIN.write_text(src, encoding='utf-8')
 
-# Add authenticated identity metadata to Firestore profile sync.
 cloud = CLOUD.read_text(encoding='utf-8')
 needle = '        profile.put("displayName", displayName);\n'
 extra = '''        profile.put("displayName", displayName);\n        profile.put("uid", user.getUid());\n        if (user.getEmail() != null) profile.put("email", user.getEmail());\n        if (user.getPhotoUrl() != null) profile.put("photoUrl", user.getPhotoUrl().toString());\n        profile.put("authProvider", "firebase");\n'''
