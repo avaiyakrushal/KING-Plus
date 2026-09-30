@@ -1,8 +1,8 @@
-name: Build KING Plus v3.6.0 Room Options
+name: Build KING Plus v3.7.0 Live Room
 
 on:
   push:
-    branches: [room-options-v360-build]
+    branches: [room-live-v370-build]
   workflow_dispatch:
 
 permissions:
@@ -77,6 +77,21 @@ jobs:
           Path('CHANGELOG-v3.6.0.txt').write_text('KING Plus v3.6.0 — Room Experience Upgrade\n\nPrivate chat, Events/Activities, emoji/reactions, gift shop with recipient/category/quantity controls, and Silver/Gold Weekly Gift Card in TEST/no-billing mode.\n')
           PY
 
+      - name: Apply v3.7.0 live room interaction upgrade
+        run: |
+          base64 -d tools/room_live_v370.patch.gz.b64 | gzip -d > /tmp/room-live.patch
+          patch --dry-run -p0 < /tmp/room-live.patch
+          patch -p0 < /tmp/room-live.patch
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+          p=Path('app/build.gradle')
+          s=p.read_text()
+          s=re.sub(r"versionCode\s+\d+;\s+versionName\s+'[^']+'", "versionCode 53; versionName '3.7.0'", s)
+          p.write_text(s)
+          Path('CHANGELOG-v3.7.0.txt').write_text('KING Plus v3.7.0 — Live Room Interaction\n\nAdds live entrance banners, gift combo effects, top-supporter strip, realtime room-event effects, and direct private chat from seat/member profiles. Keeps no-billing TEST mode.\n')
+          PY
+
       - name: Production smoke checks
         run: |
           python3 tools/production_smoke_check.py
@@ -89,14 +104,14 @@ jobs:
       - name: Prepare APK and source files
         run: |
           mkdir -p release
-          cp app/build/outputs/apk/debug/app-debug.apk release/KING-Plus-v3.6.0-room-options-no-billing-test-otp.apk
-          zip -qr release/KING-Plus-v3.6.0-room-options-source.zip . \
+          cp app/build/outputs/apk/debug/app-debug.apk release/KING-Plus-v3.7.0-live-room-no-billing-test-otp.apk
+          zip -qr release/KING-Plus-v3.7.0-live-room-source.zip . \
             -x '.git/*' 'app/build/*' 'release/*'
 
       - uses: actions/upload-artifact@v4
         with:
-          name: KING-Plus-v3.6.0-room-options
+          name: KING-Plus-v3.7.0-live-room
           path: |
-            release/KING-Plus-v3.6.0-room-options-no-billing-test-otp.apk
-            release/KING-Plus-v3.6.0-room-options-source.zip
+            release/KING-Plus-v3.7.0-live-room-no-billing-test-otp.apk
+            release/KING-Plus-v3.7.0-live-room-source.zip
           if-no-files-found: error
