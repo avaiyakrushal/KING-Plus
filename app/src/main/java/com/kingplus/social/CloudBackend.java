@@ -16,10 +16,15 @@ public final class CloudBackend {
     }
 
     public static void sendGift(String targetUid, String giftName, int cost, Callback callback) {
+        sendGift(targetUid, giftName, cost, "", callback);
+    }
+
+    public static void sendGift(String targetUid, String giftName, int cost, String roomId, Callback callback) {
         Map<String,Object> data = new HashMap<>();
         data.put("targetUid", targetUid);
         data.put("giftName", giftName);
         data.put("cost", cost);
+        data.put("roomId", roomId == null ? "" : roomId);
         data.put("requestId", UUID.randomUUID().toString());
         call("sendGift", data, callback);
     }
