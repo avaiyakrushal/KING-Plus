@@ -1,4 +1,4 @@
-name: Build KING Plus v3.9.0 Real Social
+name: Build KING Plus v3.9.1 Unified Party
 
 on:
   push:
@@ -106,7 +106,7 @@ jobs:
           p.write_text(s)
           PY2
 
-      - name: Apply v3.9.0 real social and BoloHi-style live-room grid
+      - name: Apply v3.9.0 real social and live-room grid
         run: |
           base64 -d tools/real_social_v390.patch.gz.b64 | gzip -d > /tmp/real-social.patch
           patch --dry-run -p0 < /tmp/real-social.patch
@@ -118,8 +118,22 @@ jobs:
           s=p.read_text()
           s=re.sub(r"versionCode\s+\d+;\s+versionName\s+'[^']+'", "versionCode 55; versionName '3.9.0'", s)
           p.write_text(s)
-          Path('CHANGELOG-v3.9.0.txt').write_text('KING Plus v3.9.0 — Real Social + Live Room UI\n\nReal Firebase public-profile sync after Google/Firebase login, real follower/following/friend counts, name or KING-ID people search, direct chat/follow connectivity between signed-in users, real Firestore room grid with no demo room cards, create-room sign-in enforcement, and clipping fixes. No-billing mode and TEST OTP 123456 remain unchanged.\n')
           PY3
+
+      - name: Apply v3.9.1 unified BoloHi-style Party
+        run: |
+          base64 -d tools/party_unified_v391.patch.gz.b64 | gzip -d > /tmp/party-unified.patch
+          patch --dry-run -p0 < /tmp/party-unified.patch
+          patch -p0 < /tmp/party-unified.patch
+          python3 - <<'PY4'
+          from pathlib import Path
+          import re
+          p=Path('app/build.gradle')
+          s=p.read_text()
+          s=re.sub(r"versionCode\s+\d+;\s+versionName\s+'[^']+'", "versionCode 56; versionName '3.9.1'", s)
+          p.write_text(s)
+          Path('CHANGELOG-v3.9.1.txt').write_text('KING Plus v3.9.1 — Unified Party\n\nRemoves the duplicate Party page, routes every Party entry to one PartyActivity, uses a BoloHi-inspired Today/Games/Party header and colorful two-column cards, and keeps only real Firebase rooms/member counts. No-billing and TEST OTP 123456 remain unchanged.\n')
+          PY4
 
       - name: Production smoke checks
         run: |
@@ -133,14 +147,14 @@ jobs:
       - name: Prepare APK and source files
         run: |
           mkdir -p release
-          cp app/build/outputs/apk/debug/app-debug.apk release/KING-Plus-v3.9.0-real-social-no-billing-test-otp.apk
-          zip -qr release/KING-Plus-v3.9.0-real-social-source.zip . \
+          cp app/build/outputs/apk/debug/app-debug.apk release/KING-Plus-v3.9.1-unified-party-no-billing-test-otp.apk
+          zip -qr release/KING-Plus-v3.9.1-unified-party-source.zip . \
             -x '.git/*' 'app/build/*' 'release/*'
 
       - uses: actions/upload-artifact@v4
         with:
-          name: KING-Plus-v3.9.0-real-social
+          name: KING-Plus-v3.9.1-unified-party
           path: |
-            release/KING-Plus-v3.9.0-real-social-no-billing-test-otp.apk
-            release/KING-Plus-v3.9.0-real-social-source.zip
+            release/KING-Plus-v3.9.1-unified-party-no-billing-test-otp.apk
+            release/KING-Plus-v3.9.1-unified-party-source.zip
           if-no-files-found: error
