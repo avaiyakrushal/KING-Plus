@@ -1,4 +1,4 @@
-name: Build KING Plus v3.9.1 Unified Party
+name: Build KING Plus v3.9.2 BoloHi Games Messages
 
 on:
   push:
@@ -74,7 +74,6 @@ jobs:
           s=p.read_text()
           s=re.sub(r"versionCode\s+\d+;\s+versionName\s+'[^']+'", "versionCode 51; versionName '3.6.0'", s)
           p.write_text(s)
-          Path('CHANGELOG-v3.6.0.txt').write_text('KING Plus v3.6.0 — Room Experience Upgrade\n\nPrivate chat, Events/Activities, emoji/reactions, gift shop with recipient/category/quantity controls, and Silver/Gold Weekly Gift Card in TEST/no-billing mode.\n')
           PY
 
       - name: Apply v3.7.0 live room interaction upgrade
@@ -89,7 +88,6 @@ jobs:
           s=p.read_text()
           s=re.sub(r"versionCode\s+\d+;\s+versionName\s+'[^']+'", "versionCode 53; versionName '3.7.0'", s)
           p.write_text(s)
-          Path('CHANGELOG-v3.7.0.txt').write_text('KING Plus v3.7.0 — Live Room Interaction\n\nAdds live entrance banners, gift combo effects, top-supporter strip, realtime room-event effects, and direct private chat from seat/member profiles. Keeps no-billing TEST mode.\n')
           PY
 
       - name: Apply v3.8.0 real live data, music and playable games
@@ -132,8 +130,22 @@ jobs:
           s=p.read_text()
           s=re.sub(r"versionCode\s+\d+;\s+versionName\s+'[^']+'", "versionCode 56; versionName '3.9.1'", s)
           p.write_text(s)
-          Path('CHANGELOG-v3.9.1.txt').write_text('KING Plus v3.9.1 — Unified Party\n\nRemoves the duplicate Party page, routes every Party entry to one PartyActivity, uses a BoloHi-inspired Today/Games/Party header and colorful two-column cards, and keeps only real Firebase rooms/member counts. No-billing and TEST OTP 123456 remain unchanged.\n')
           PY4
+
+      - name: Apply v3.9.2 BoloHi-style Games and Messages
+        run: |
+          base64 -d tools/game_messages_v392.patch.gz.b64 | gzip -d > /tmp/game-messages.patch
+          patch --dry-run -p0 < /tmp/game-messages.patch
+          patch -p0 < /tmp/game-messages.patch
+          python3 - <<'PY5'
+          from pathlib import Path
+          import re
+          p=Path('app/build.gradle')
+          s=p.read_text()
+          s=re.sub(r"versionCode\s+\d+;\s+versionName\s+'[^']+'", "versionCode 57; versionName '3.9.2'", s)
+          p.write_text(s)
+          Path('CHANGELOG-v3.9.2.txt').write_text('KING Plus v3.9.2 — BoloHi-style Games + Messages\n\nMessages now uses clean conversation rows with avatar, preview, time, unread dot, Followers/Friends/Notifications shortcuts, search and the standard bottom navigation while retaining real Firebase direct threads. Games now uses the Today/Games/Party header, Hot/LUDO/Party/Team tabs, two-column game cards, Ludo Master, Sheep Fight, Werewolf, Spy, Draw & Guess, Bingo, Crazy Zoo, history/stats and voice game room flow. No-billing and TEST OTP 123456 remain unchanged.\n')
+          PY5
 
       - name: Production smoke checks
         run: |
@@ -147,14 +159,14 @@ jobs:
       - name: Prepare APK and source files
         run: |
           mkdir -p release
-          cp app/build/outputs/apk/debug/app-debug.apk release/KING-Plus-v3.9.1-unified-party-no-billing-test-otp.apk
-          zip -qr release/KING-Plus-v3.9.1-unified-party-source.zip . \
+          cp app/build/outputs/apk/debug/app-debug.apk release/KING-Plus-v3.9.2-bolohi-games-messages-no-billing-test-otp.apk
+          zip -qr release/KING-Plus-v3.9.2-bolohi-games-messages-source.zip . \
             -x '.git/*' 'app/build/*' 'release/*'
 
       - uses: actions/upload-artifact@v4
         with:
-          name: KING-Plus-v3.9.1-unified-party
+          name: KING-Plus-v3.9.2-bolohi-games-messages
           path: |
-            release/KING-Plus-v3.9.1-unified-party-no-billing-test-otp.apk
-            release/KING-Plus-v3.9.1-unified-party-source.zip
+            release/KING-Plus-v3.9.2-bolohi-games-messages-no-billing-test-otp.apk
+            release/KING-Plus-v3.9.2-bolohi-games-messages-source.zip
           if-no-files-found: error
