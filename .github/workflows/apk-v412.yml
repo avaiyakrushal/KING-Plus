@@ -29,3 +29,4 @@ jobs:
             release_v412/KING-Plus-v4.1.2-google-login-no-billing-test-otp.apk
             release_v412/KING-Plus-v4.1.2-google-login-source.zip
           if-no-files-found: error
+# Google provider + stable SHA-1 build
