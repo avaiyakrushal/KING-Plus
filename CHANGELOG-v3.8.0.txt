@@ -1,0 +1,10 @@
+KING Plus v3.8.0 — Real Live Data & Room Polish
+
+- Fix status-bar and bottom-nav clipping on Android 15/16.
+- Remove demo/fake Party room cards; show Firebase live rooms only.
+- Replace fake social fallback with sign-in-required real data.
+- Profile followers/following/friends now load from Firestore follows.
+- Profile wallet reads the server-authoritative wallet balance.
+- Add host/co-host room music picker/play/pause/stop from phone audio.
+- Add playable in-app games: Tic Tac Toe, Rock Paper Scissors, Dice Duel, Guess Number.
+- Keep real-money recharge disabled in this no-billing stage.
