@@ -1,4 +1,4 @@
-name: Build KING Plus v3.5.0 Social
+name: Build KING Plus v3.6.0 Economy
 
 on:
   push:
@@ -62,6 +62,9 @@ jobs:
       - name: Prepare v3.5.0 social discovery, friends and messages
         run: python3 tools/prepare_social_v350.py
 
+      - name: Prepare v3.6.0 gifts, wallet, levels, VIP and frames
+        run: python3 tools/prepare_economy_v360.py
+
       - name: Production smoke checks
         run: |
           python3 tools/production_smoke_check.py
@@ -74,14 +77,14 @@ jobs:
       - name: Prepare APK and source files
         run: |
           mkdir -p release
-          cp app/build/outputs/apk/debug/app-debug.apk release/KING-Plus-v3.5.0-social-no-billing-test-otp.apk
-          zip -qr release/KING-Plus-v3.5.0-social-source.zip . \
+          cp app/build/outputs/apk/debug/app-debug.apk release/KING-Plus-v3.6.0-economy-no-billing-test-otp.apk
+          zip -qr release/KING-Plus-v3.6.0-economy-source.zip . \
             -x '.git/*' 'app/build/*' 'release/*'
 
       - uses: actions/upload-artifact@v4
         with:
-          name: KING-Plus-v3.5.0-social
+          name: KING-Plus-v3.6.0-economy
           path: |
-            release/KING-Plus-v3.5.0-social-no-billing-test-otp.apk
-            release/KING-Plus-v3.5.0-social-source.zip
+            release/KING-Plus-v3.6.0-economy-no-billing-test-otp.apk
+            release/KING-Plus-v3.6.0-economy-source.zip
           if-no-files-found: error
