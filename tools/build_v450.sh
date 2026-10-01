@@ -3,6 +3,7 @@ set -euo pipefail
 
 bash tools/build_v441.sh
 python3 tools/prepare_party_room_v450.py
+python3 tools/fix_v450_java_strings.py
 python3 tools/production_smoke_check.py
 node --check functions/index.js
 node --check functions/v3.js
