@@ -3,7 +3,8 @@ set -euo pipefail
 
 bash tools/build_v450.sh
 
-base64 -d tools/discover_v460.patch.gz.b64 | gzip -d > /tmp/discover_v460.patch
+cat tools/discover_v460.part00 tools/discover_v460.part01 tools/discover_v460.part02 tools/discover_v460.part03 > /tmp/discover_v460.b64
+base64 -d /tmp/discover_v460.b64 | gzip -d > /tmp/discover_v460.patch
 patch --dry-run -p0 < /tmp/discover_v460.patch
 patch -p0 < /tmp/discover_v460.patch
 
