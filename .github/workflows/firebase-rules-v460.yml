@@ -32,23 +32,20 @@ jobs:
           FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_JSON }}
         run: |
           test -n "$FIREBASE_SERVICE_ACCOUNT_JSON" || (echo "Missing FIREBASE_SERVICE_ACCOUNT_JSON" && exit 1)
+          printf '%s' "$FIREBASE_SERVICE_ACCOUNT_JSON" | jq -e '.type == "service_account" and .project_id == "king-plus-2f365" and (.client_email|length>0) and (.private_key|length>0)' >/dev/null || (echo "FIREBASE_SERVICE_ACCOUNT_JSON is not a valid king-plus-2f365 service-account key" && exit 1)
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_JSON }}
+          create_credentials_file: true
+          export_environment_variables: true
 
       - name: Install Firebase CLI
         run: npm install --global firebase-tools
-
-      - name: Prepare Google service account credentials
-        env:
-          FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_JSON }}
-        run: |
-          printf '%s' "$FIREBASE_SERVICE_ACCOUNT_JSON" > "$RUNNER_TEMP/firebase-service-account.json"
-          echo "GOOGLE_APPLICATION_CREDENTIALS=$RUNNER_TEMP/firebase-service-account.json" >> "$GITHUB_ENV"
 
       - name: Reproduce verified v4.6.0 rules
         run: bash tools/build_v460.sh
 
       - name: Deploy Firestore rules only
         run: firebase deploy --project king-plus-2f365 --only firestore:rules --non-interactive
-
-      - name: Remove temporary credentials
-        if: always()
-        run: rm -f "$RUNNER_TEMP/firebase-service-account.json"
