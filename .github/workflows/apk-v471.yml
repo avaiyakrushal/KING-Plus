@@ -1,0 +1,27 @@
+name: Build KING Plus v4.7.1 Shared Room Music
+
+on:
+  push:
+    branches: [ real-social-v390-build ]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+      - name: Build v4.7.1 Shared Room Music
+        run: bash tools/build_v471.sh
+      - uses: actions/upload-artifact@v4
+        with:
+          name: KING-Plus-v4.7.1-shared-room-music
+          path: release_v471/*
+          if-no-files-found: error
