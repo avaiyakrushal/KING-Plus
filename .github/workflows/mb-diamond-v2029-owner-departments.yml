@@ -6,6 +6,7 @@ on:
       - mb-diamond-diary-v2.0.8-build
   workflow_dispatch:
 
+# v2.0.29 owner department build trigger
 jobs:
   build:
     runs-on: ubuntu-latest
