@@ -2,7 +2,7 @@
 set -euo pipefail
 
 bash tools/build_v520.sh
-python3 tools/prepare_party_v530_current.py
+python3 tools/run_prepare_party_v530.py
 
 python3 - <<'PY'
 from pathlib import Path
