@@ -2,7 +2,7 @@
 set -euo pipefail
 
 bash tools/build_v520.sh
-python3 tools/run_prepare_party_v530.py
+python3 tools/prepare_party_v530_current.py
 
 python3 - <<'PY'
 from pathlib import Path
@@ -13,7 +13,7 @@ s=re.sub(r"versionCode\s+\d+;\s+versionName\s+'[^']+'", "versionCode 76; version
 p.write_text(s, encoding='utf-8')
 Path('CHANGELOG-v5.3.0.txt').write_text(
     'KING Plus v5.3.0 — Live Emoji + Seat Invite/Kick Stage\n\n'
-    'Builds on v5.2.0 real-data cleanup. Adds a BoloHi-inspired KING Plus Party lobby header with search and a Home/Create-room icon, keeps the Hot/Event/Date/Music/Game navigation, removes old hard-coded preview rooms, adds a live emoji bottom control and synchronized room-wide live emoji effects, and adds host/co-host seat controls for invite-to-seat, mute/unmute, kick from seat, and kick from room. Seat invitations are stored in Firestore and require the invited signed-in member to accept. No billing changes were added; existing no-billing behavior and TEST OTP flow remain unchanged.\n',
+    'Builds on v5.2.0 real-data cleanup. Adds a BoloHi-inspired KING Plus Party lobby Home/Create-room icon, room-wide synchronized live emoji animation through Firestore events, host/co-host seat Invite with member Accept/Decline, and direct occupied-seat moderation for mute/unmute, remove from seat, kick from room and ban. No billing changes were added; existing no-billing behavior and TEST OTP flow remain unchanged.\n',
     encoding='utf-8'
 )
 PY
