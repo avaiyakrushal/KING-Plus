@@ -1,0 +1,62 @@
+name: Build MB Diamond Diary v3.1
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - mb-diamond-diary-v3.1-build
+    paths:
+      - 'mbdd_build/**'
+      - '.github/workflows/mbdd-v31.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Gradle 8.9
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+
+      - name: Reconstruct MB Diamond Diary source
+        run: |
+          set -euxo pipefail
+          mkdir -p /tmp/mbdd-src
+          cat mbdd_build/source.part* | base64 -d > /tmp/mbdd-source.zip
+          unzip -q /tmp/mbdd-source.zip -d /tmp/mbdd-src
+          test -f /tmp/mbdd-src/app/build.gradle
+          test -f /tmp/mbdd-src/app/src/main/AndroidManifest.xml
+
+      - name: Build debug APK
+        run: |
+          set -euxo pipefail
+          gradle -p /tmp/mbdd-src :app:assembleDebug --no-daemon --stacktrace
+
+      - name: Prepare artifact
+        run: |
+          set -euxo pipefail
+          test -f /tmp/mbdd-src/app/build/outputs/apk/debug/app-debug.apk
+          mkdir -p release
+          cp /tmp/mbdd-src/app/build/outputs/apk/debug/app-debug.apk release/MB-Diamond-Diary-v3.1.0-source-build.apk
+          cp /tmp/mbdd-source.zip release/MB-Diamond-Diary-v3.1.0-source.zip
+
+      - name: Upload APK and source
+        uses: actions/upload-artifact@v4
+        with:
+          name: MB-Diamond-Diary-v3.1.0-source-build
+          path: |
+            release/MB-Diamond-Diary-v3.1.0-source-build.apk
+            release/MB-Diamond-Diary-v3.1.0-source.zip
+          if-no-files-found: error
