@@ -39,6 +39,12 @@ jobs:
           test -f /tmp/mbdd-src/app/build.gradle
           test -f /tmp/mbdd-src/app/src/main/AndroidManifest.xml
 
+      - name: Apply login role and Firebase fixes
+        run: |
+          set -euxo pipefail
+          cp mbdd_build/google-services.json /tmp/mbdd-src/app/google-services.json
+          python3 mbdd_build/patch_login_role.py
+
       - name: Build debug APK
         run: |
           set -euxo pipefail
@@ -49,14 +55,16 @@ jobs:
           set -euxo pipefail
           test -f /tmp/mbdd-src/app/build/outputs/apk/debug/app-debug.apk
           mkdir -p release
-          cp /tmp/mbdd-src/app/build/outputs/apk/debug/app-debug.apk release/MB-Diamond-Diary-v3.1.0-source-build.apk
-          cp /tmp/mbdd-source.zip release/MB-Diamond-Diary-v3.1.0-source.zip
+          cp /tmp/mbdd-src/app/build/outputs/apk/debug/app-debug.apk release/MB-Diamond-Diary-v3.1.1-login-role-fix.apk
+          cd /tmp/mbdd-src && zip -qr /tmp/MB-Diamond-Diary-v3.1.1-login-role-fix-source.zip .
+          cd "$GITHUB_WORKSPACE"
+          cp /tmp/MB-Diamond-Diary-v3.1.1-login-role-fix-source.zip release/
 
       - name: Upload APK and source
         uses: actions/upload-artifact@v4
         with:
-          name: MB-Diamond-Diary-v3.1.0-source-build
+          name: MB-Diamond-Diary-v3.1.1-login-role-fix
           path: |
-            release/MB-Diamond-Diary-v3.1.0-source-build.apk
-            release/MB-Diamond-Diary-v3.1.0-source.zip
+            release/MB-Diamond-Diary-v3.1.1-login-role-fix.apk
+            release/MB-Diamond-Diary-v3.1.1-login-role-fix-source.zip
           if-no-files-found: error
