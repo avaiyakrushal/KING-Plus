@@ -33,8 +33,14 @@ jobs:
       - name: Reconstruct MB Diamond Diary source
         run: |
           set -euxo pipefail
+          rm -rf /tmp/mbdd-src /tmp/mbdd-source.zip
           mkdir -p /tmp/mbdd-src
-          cat mbdd_build/source.part* | tr -cd 'A-Za-z0-9+/=' | base64 -d > /tmp/mbdd-source.zip
+          : > /tmp/mbdd-source.zip
+          for f in $(find mbdd_build -maxdepth 1 -type f -name 'source.part*' | sort); do
+            echo "Decoding $f"
+            base64 -d "$f" >> /tmp/mbdd-source.zip
+          done
+          unzip -t /tmp/mbdd-source.zip
           unzip -q /tmp/mbdd-source.zip -d /tmp/mbdd-src
           test -f /tmp/mbdd-src/app/build.gradle
           test -f /tmp/mbdd-src/app/src/main/AndroidManifest.xml
