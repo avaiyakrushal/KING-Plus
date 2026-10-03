@@ -38,7 +38,7 @@ jobs:
           : > /tmp/mbdd-source.zip
           for f in $(find mbdd_build -maxdepth 1 -type f -name 'source.part*' | sort); do
             echo "Decoding $f"
-            base64 -d "$f" >> /tmp/mbdd-source.zip
+            tr -cd 'A-Za-z0-9+/=' < "$f" | base64 -d >> /tmp/mbdd-source.zip
           done
           unzip -t /tmp/mbdd-source.zip
           unzip -q /tmp/mbdd-source.zip -d /tmp/mbdd-src
