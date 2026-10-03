@@ -1,0 +1,79 @@
+{
+  "project_info": {
+    "project_number": "123225699166",
+    "project_id": "diamond-diary-42f95",
+    "storage_bucket": "diamond-diary-42f95.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:123225699166:android:0a5f4da991944acbed55cf",
+        "android_client_info": {
+          "package_name": "com.example.diamonddiary"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "123225699166-3ebqni4mlk5p8onqn6g2u1qfr7elsdt2.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.diamonddiary",
+            "certificate_hash": "7f49aedac5a945e5205fcb8b75f8c147bb4b4f2f"
+          }
+        },
+        {
+          "client_id": "123225699166-3p5426iu49oietk33q0st3vgn9of2q7c.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.diamonddiary",
+            "certificate_hash": "96cfd141c5dbe487cf66ae597e565e18a3d7fc1d"
+          }
+        },
+        {
+          "client_id": "123225699166-dspqjmljun3dkh9hie2i8e1irhgg3ftb.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.diamonddiary",
+            "certificate_hash": "71b3672fd68a0f23d1e6f7163b90f46a07f9f169"
+          }
+        },
+        {
+          "client_id": "123225699166-ghonk30lc0rtjbrv99guomctmgv1050j.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.diamonddiary",
+            "certificate_hash": "ab4ff8a77c36e588bf38b1cd68a42b4b0c9c3af5"
+          }
+        },
+        {
+          "client_id": "123225699166-tpj6jqaob5mqb8j8jet6t8lvg9c2jmdh.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.diamonddiary",
+            "certificate_hash": "1c69200292fb2f5ac7b5de222d03b16df13ec82e"
+          }
+        },
+        {
+          "client_id": "123225699166-vftutn1bt95l4sgcsdtggejqnfi2h2k0.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBdsb4znkHRh_IAXY_exSqbx2AIuUGO7hc"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "123225699166-vftutn1bt95l4sgcsdtggejqnfi2h2k0.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
