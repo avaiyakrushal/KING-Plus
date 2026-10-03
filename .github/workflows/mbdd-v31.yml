@@ -34,7 +34,7 @@ jobs:
         run: |
           set -euxo pipefail
           mkdir -p /tmp/mbdd-src
-          cat mbdd_build/source.part* | base64 -d > /tmp/mbdd-source.zip
+          cat mbdd_build/source.part* | tr -cd 'A-Za-z0-9+/=' | base64 -d > /tmp/mbdd-source.zip
           unzip -q /tmp/mbdd-source.zip -d /tmp/mbdd-src
           test -f /tmp/mbdd-src/app/build.gradle
           test -f /tmp/mbdd-src/app/src/main/AndroidManifest.xml
