@@ -23,6 +23,7 @@ rm -rf app/build
 python3 tools/run_prepare_party_v530.py
 python3 tools/fix_live_emoji_v531.py
 python3 tools/prepare_party_ui_v532.py
+python3 tools/fix_v532_color.py
 
 python3 - <<'PY'
 from pathlib import Path
@@ -49,6 +50,7 @@ required=[
 ]
 missing=[x for x in required if x not in s]
 if missing: raise SystemExit('v5.3.2 Party UI/live emoji verification failed: '+', '.join(missing))
+if '0xffd8ffffff' in s: raise SystemExit('v5.3.2 invalid color literal remains')
 print('v5.3.2 compact Party UI + live emoji sender/receiver/overlay verified')
 PY
 node --check functions/index.js
