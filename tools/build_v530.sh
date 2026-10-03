@@ -1,7 +1,25 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# Apply every earlier source stage, but skip intermediate Gradle builds and
+# source ZIP packaging. Only the final v5.3.0 source state is compiled below.
+mkdir -p app/build/outputs/apk/debug
+: > app/build/outputs/apk/debug/app-debug.apk
+
+gradle() {
+  echo "[v5.3 fast CI] skipping intermediate Gradle build: $*"
+}
+zip() {
+  echo "[v5.3 fast CI] skipping intermediate source archive"
+}
+export -f gradle zip
+
 bash tools/build_v520.sh
+
+unset -f gradle
+unset -f zip
+rm -rf app/build
+
 python3 tools/run_prepare_party_v530.py
 
 python3 - <<'PY'
