@@ -2,7 +2,7 @@ name: Build KING Plus v5.3.0 Live Emoji Seat Controls
 
 on:
   push:
-    branches: [ real-social-v390-build ]
+    branches: [ v530-build-clean ]
   workflow_dispatch:
 
 permissions:
