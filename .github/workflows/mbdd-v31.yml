@@ -1,4 +1,4 @@
-name: Build MB Diamond Diary v3.1.1
+name: Build MB Diamond Diary v3.1.1 New
 
 on:
   workflow_dispatch:
