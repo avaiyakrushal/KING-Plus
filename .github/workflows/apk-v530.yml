@@ -1,4 +1,4 @@
-name: Build KING Plus v5.3.1 Full-screen Live Emoji
+name: Build KING Plus v5.3.2 Compact Party Live Emoji
 
 on:
   push:
@@ -18,10 +18,10 @@ jobs:
           distribution: temurin
           java-version: '17'
       - uses: gradle/actions/setup-gradle@v4
-      - name: Build v5.3.1 Full-screen Realtime Live Emoji
+      - name: Build v5.3.2 Compact 8-Seat Party + Realtime Live Emoji
         run: bash tools/build_v530.sh
       - uses: actions/upload-artifact@v4
         with:
-          name: KING-Plus-v5.3.1-full-screen-live-emoji
-          path: release_v531/*
+          name: KING-Plus-v5.3.2-compact-party-live-emoji
+          path: release_v532/*
           if-no-files-found: error
