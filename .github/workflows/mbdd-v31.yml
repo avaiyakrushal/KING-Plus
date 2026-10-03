@@ -45,6 +45,7 @@ jobs:
             mbdd_build/source2.part03 \
             mbdd_build/fix04.0 \
             mbdd_build/fix04.1 \
+            | tr -cd 'A-Za-z0-9+/=' \
             | base64 -d > /tmp/mbdd-source.zip
           unzip -t /tmp/mbdd-source.zip
           unzip -q /tmp/mbdd-source.zip -d /tmp/mbdd-src
