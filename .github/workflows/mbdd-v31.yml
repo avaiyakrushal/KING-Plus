@@ -30,12 +30,28 @@ jobs:
         with:
           gradle-version: '8.9'
 
-      - name: Reconstruct v3.1.1 source
+      - name: Reconstruct clean MB Diamond Diary source
         run: |
           set -euxo pipefail
           rm -rf /tmp/mbdd-src /tmp/mbdd-source.zip
           mkdir -p /tmp/mbdd-src
-          base64 -d mbdd_build/source-v311.b64 > /tmp/mbdd-source.zip
+          cat \
+            mbdd_build/source.part00 \
+            mbdd_build/source.part01 \
+            mbdd_build/source.part02 \
+            mbdd_build/source.part03 \
+            mbdd_build/source.part04 \
+            mbdd_build/source.part05 \
+            mbdd_build/source.part06a \
+            mbdd_build/source.part06b \
+            mbdd_build/source.part070 \
+            mbdd_build/source.part071 \
+            mbdd_build/source.part072 \
+            mbdd_build/source.part073 \
+            mbdd_build/source.part080 \
+            mbdd_build/source.part081 \
+            mbdd_build/source.part082 \
+            | base64 -d > /tmp/mbdd-source.zip
           unzip -t /tmp/mbdd-source.zip
           unzip -q /tmp/mbdd-source.zip -d /tmp/mbdd-src
           test -f /tmp/mbdd-src/app/build.gradle
@@ -43,12 +59,13 @@ jobs:
           test -f /tmp/mbdd-src/app/src/main/assets/app.html
           test -f /tmp/mbdd-src/app/src/main/assets/app.js
 
-      - name: Apply latest Firebase config
+      - name: Apply role login and latest Firebase config
         run: |
           set -euxo pipefail
           cp mbdd_build/google-services.json /tmp/mbdd-src/app/google-services.json
+          python3 mbdd_build/patch_login_role.py
 
-      - name: Verify login and report routing source
+      - name: Verify new login and report routing
         run: |
           set -euxo pipefail
           grep -q 'શેઠ તરીકે Google સાથે લોગીન કરો' /tmp/mbdd-src/app/src/main/java/com/example/diamonddiary/MainActivity.java
