@@ -115,9 +115,11 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          cat ci/v810/patch.part00 ci/v810/patch.part01 ci/v810/patch.part02 ci/v810/patch.part03 ci/v810/patch.part04 ci/v810/patch.part05 ci/v810/patch.part06 | tr -d '\r\n' | base64 -d | gzip -dc > /tmp/v810.patch
-          test "$(sha256sum /tmp/v810.patch | cut -d' ' -f1)" = "28206900d13d4baa9a1bb08fc66062823a8d9e17c895ec5ddd7602dc44b17767"
+          cat ci/v810/patch.part00 ci/v810/patch.part01 ci/v810/patch.part02 ci/v810/patch.part03 ci/v810/patch.part04 ci/v810/patch.part05 ci/v810/patch.part06 ci/v810/patch.part07 | tr -d '\r\n' | base64 -d | gzip -dc > /tmp/v810.patch
+          test "$(sha256sum /tmp/v810.patch | cut -d' ' -f1)" = "ce801b7e9082166f619d12b4c442ef980133f269aaedf18c37fa0f173bda0ff4"
           patch -p1 < /tmp/v810.patch
+          grep -q "versionName '8.1.0'" app/build.gradle
+          grep -q "versionCode 111" app/build.gradle
           rm -rf app/build
       - name: Apply v8.2.0 final function audit patch
         shell: bash
