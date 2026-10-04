@@ -17,11 +17,11 @@ if 'match /ludo_matches/{code}' not in s:
     s=s.replace(anchor,ludo+anchor,1)
     rules.write_text(s)
 
-parts=sorted((root/'ci/v851/parts').glob('OnlineLudoActivity.java.part*'))
-if not parts: raise SystemExit('Online Ludo Java parts missing')
+src=root/'ci/v851/OnlineLudoActivity.java'
+if not src.exists(): raise SystemExit('Online Ludo Java source missing')
 dst=root/'app/src/main/java/com/kingplus/social/OnlineLudoActivity.java'
 dst.parent.mkdir(parents=True,exist_ok=True)
-dst.write_text(''.join(x.read_text() for x in parts))
+shutil.copyfile(src,dst)
 
 manifest=root/'app/src/main/AndroidManifest.xml'
 m=manifest.read_text()
