@@ -1,0 +1,62 @@
+--- kp750_patchtest/app/src/main/java/com/kingplus/social/RoomGameActivity.java	2026-10-04 09:43:38.675936856 +0000
++++ kp750/app/src/main/java/com/kingplus/social/RoomGameActivity.java	2026-10-04 09:43:35.987458422 +0000
+@@ -88,6 +88,34 @@
+     private void clearOldMoves(long keep){room().collection("game_moves").get().addOnSuccessListener(q->{for(DocumentSnapshot d:q.getDocuments()){Long r=d.getLong("roundId");if(r==null||r!=keep)d.getReference().delete();}});}
+     private void submit(String move,int score){if(roundId==0||!"active".equals(status)){toast("No active round");return;}Map<String,Object>d=new HashMap<>();d.put("uid",me.getUid());d.put("name",displayName);d.put("roundId",roundId);d.put("type",type);d.put("move",move);d.put("score",score);d.put("updatedAt",FieldValue.serverTimestamp());room().collection("game_moves").document(me.getUid()).set(d).addOnSuccessListener(v->toast("Move submitted")).addOnFailureListener(e->toast("Move failed: "+e.getMessage()));}
+ 
++    private void listenReady750(){
++        if(readyListener!=null)readyListener.remove();
++        readyListener=room().collection("game_ready").addSnapshotListener((q,e)->{
++            readyBox.removeAllViews();
++            if(e!=null){readyBox.addView(tv("Ready list unavailable",13,MUTED,false));return;}
++            List<DocumentSnapshot> docs=q==null?new ArrayList<>():new ArrayList<>(q.getDocuments());
++            Collections.sort(docs,(a,b)->s(a.getString("name")).compareToIgnoreCase(s(b.getString("name"))));
++            if(docs.isEmpty()){readyBox.addView(tv("Nobody is ready yet",13,MUTED,false));return;}
++            for(DocumentSnapshot d:docs){String name=s(d.getString("name"));TextView row=tv("✅ "+(name.isEmpty()?"Player":name),14,Color.WHITE,true);row.setBackground(bg(CARD,12));LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(-1,dp(44));lp.setMargins(0,dp(3),0,dp(3));readyBox.addView(row,lp);}
++        });
++    }
++    private void toggleReady750(){
++        DocumentReference r=room().collection("game_ready").document(me.getUid());
++        r.get().addOnSuccessListener(d->{
++            if(d.exists())r.delete().addOnSuccessListener(v->toast("Not ready"));
++            else{Map<String,Object> m=new HashMap<>();m.put("uid",me.getUid());m.put("name",displayName);m.put("ready",true);m.put("updatedAt",FieldValue.serverTimestamp());r.set(m).addOnSuccessListener(v->toast("Ready ✓")).addOnFailureListener(e->toast("Ready failed: "+e.getMessage()));}
++        }).addOnFailureListener(e->toast("Ready failed: "+e.getMessage()));
++    }
++    private void clearReady750(){
++        if(!moderator)return;
++        room().collection("game_ready").get().addOnSuccessListener(q->{for(DocumentSnapshot d:q.getDocuments())d.getReference().delete();toast("Ready list cleared");});
++    }
++    private void rematch750(){
++        if(!moderator)return;
++        String game=type.isEmpty()?"rps":type;
++        startRoundNow750(game);
++    }
++
+     private void renderMoves(){movesBox.removeAllViews();if(currentMoves.isEmpty()){movesBox.addView(tv("Waiting for players…",13,MUTED,false));return;}List<DocumentSnapshot> sorted=new ArrayList<>(currentMoves);Collections.sort(sorted,(a,b)->s(a.getString("name")).compareToIgnoreCase(s(b.getString("name"))));for(DocumentSnapshot d:sorted){String name=s(d.getString("name")),move=s(d.getString("move"));TextView row=tv("👤 "+(name.isEmpty()?"Player":name)+"  •  "+("rps".equals(type)?"move locked ✓":move),14,Color.WHITE,true);row.setBackground(bg(CARD,12));LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(-1,dp(46));lp.setMargins(0,dp(3),0,dp(3));movesBox.addView(row,lp);}}
+     private void finishRound(){if(!moderator||roundId==0)return;room().collection("game_moves").get().addOnSuccessListener(q->{List<DocumentSnapshot> a=new ArrayList<>();for(DocumentSnapshot d:q.getDocuments()){Long r=d.getLong("roundId");if(r!=null&&r==roundId)a.add(d);}if(a.isEmpty()){toast("No player moves yet");return;}String out=resultFor(a);Map<String,Object>u=new HashMap<>();u.put("actorUid",me.getUid());u.put("result",out);u.put("status","closed");u.put("updatedAt",FieldValue.serverTimestamp());state().update(u).addOnSuccessListener(v->{postGameEvent750("🏁 "+out.replace("\n"," • "));new AlertDialog.Builder(this).setTitle("🏁 Round result").setMessage(out).setPositiveButton("Rematch",(d,w)->rematch750()).setNegativeButton("Close",null).show();}).addOnFailureListener(e->toast("Finish failed: "+e.getMessage()));});}
+     private String resultFor(List<DocumentSnapshot>a){if("dice".equals(type)){int best=-1;List<String>w=new ArrayList<>();for(DocumentSnapshot d:a){Long n=d.getLong("score");int v=n==null?0:n.intValue();if(v>best){best=v;w.clear();w.add(s(d.getString("name")));}else if(v==best)w.add(s(d.getString("name")));}return "🎲 Highest roll: "+best+"\n🏆 "+join(w);}if("number".equals(type)){int target=1+(int)(roundId%30),best=999;List<String>w=new ArrayList<>();for(DocumentSnapshot d:a){Long n=d.getLong("score");int v=n==null?0:n.intValue(),diff=Math.abs(v-target);if(diff<best){best=diff;w.clear();w.add(s(d.getString("name"))+" ("+v+")");}else if(diff==best)w.add(s(d.getString("name"))+" ("+v+")");}return "🔢 Winning number: "+target+"\n🏆 "+join(w);}Set<String>moves=new HashSet<>();Map<String,List<String>>names=new HashMap<>();for(DocumentSnapshot d:a){String m=s(d.getString("move")),n=s(d.getString("name"));moves.add(m);if(!names.containsKey(m))names.put(m,new ArrayList<>());names.get(m).add(n);}if(moves.size()==1||moves.size()==3)return "🤝 Draw • "+moves.toString();String win=moves.contains("Rock")&&moves.contains("Scissors")?"Rock":moves.contains("Scissors")&&moves.contains("Paper")?"Scissors":"Paper";return "🏆 "+win+" wins\n"+join(names.get(win));}
+--- kp750_patchtest/app/src/main/java/com/kingplus/social/CommunityHubActivity.java	2026-10-04 09:43:38.674592152 +0000
++++ kp750/app/src/main/java/com/kingplus/social/CommunityHubActivity.java	2026-10-04 09:43:35.987674518 +0000
+@@ -83,6 +83,22 @@
+     private void sendRelationship(String uid,String name){DocumentReference r=db.collection("relationships").document(pairId(me.getUid(),uid));r.get().addOnSuccessListener(x->{if(x.exists()){toast("Request already exists");return;}String a=me.getUid().compareTo(uid)<0?me.getUid():uid,b=me.getUid().compareTo(uid)<0?uid:me.getUid();Map<String,Object>m=new HashMap<>();m.put("uidA",a);m.put("uidB",b);m.put("nameA",a.equals(me.getUid())?displayName:name);m.put("nameB",b.equals(me.getUid())?displayName:name);m.put("initiatorUid",me.getUid());m.put("status","pending");m.put("createdAt",FieldValue.serverTimestamp());r.set(m).addOnSuccessListener(v->{toast("Request sent");targetUid="";targetName="";render("Relationship");});});}
+     private void addRelationship(DocumentSnapshot d){String a=safe(d.getString("uidA"),""),b=safe(d.getString("uidB"),""),other=me.getUid().equals(a)?b:a,name=me.getUid().equals(a)?safe(d.getString("nameB"),"KING User"):safe(d.getString("nameA"),"KING User"),status=safe(d.getString("status"),"pending"),init=safe(d.getString("initiatorUid"),"");TextView row=tv("💞 "+name+" • "+status,14,DARK,true);row.setBackground(bg(CARD,14));row.setOnClickListener(v->{List<String>ops=new ArrayList<>();if("pending".equals(status)&&!init.equals(me.getUid())){ops.add("Accept");ops.add("Decline");}ops.add("Private Chat");ops.add("Remove / Unpair");new AlertDialog.Builder(this).setTitle(name).setItems(ops.toArray(new String[0]),(x,w)->{String op=ops.get(w);if("Accept".equals(op)||"Decline".equals(op)){Map<String,Object>u=new HashMap<>();u.put("status","Accept".equals(op)?"accepted":"declined");u.put("updatedAt",FieldValue.serverTimestamp());d.getReference().update(u).addOnSuccessListener(q->{if("Accept".equals(op))getSharedPreferences("MainActivity",MODE_PRIVATE).edit().putString("coupling_name",name).apply();render("Relationship");});}else if("Private Chat".equals(op))openChat(other,name);else d.getReference().delete().addOnSuccessListener(q->{getSharedPreferences("MainActivity",MODE_PRIVATE).edit().remove("coupling_name").apply();render("Relationship");});}).show();});LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(-1,dp(52));lp.setMargins(0,dp(5),0,dp(5));body.addView(row,lp);}
+ 
++    private void visitors750(){
++        body.addView(tv("Profile Visitors",21,DARK,true));
++        if(!cloud()){body.addView(tv("Sign in to see profile visitors.",14,MUTED,false));return;}
++        db.collection("public_profiles").document(me.getUid()).collection("visitors")
++          .orderBy("updatedAt",Query.Direction.DESCENDING).limit(50).get()
++          .addOnSuccessListener(q->{
++              if(q.isEmpty()){body.addView(tv("No profile visitors yet.",14,MUTED,false));return;}
++              for(DocumentSnapshot d:q.getDocuments()){
++                  String uid=safe(d.getString("uid"),d.getId()),name=safe(d.getString("name"),"KING User");
++                  TextView row=tv("👁  "+name,14,DARK,true);row.setBackground(bg(CARD,14));
++                  row.setOnClickListener(v->openChat(uid,name));
++                  LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(-1,dp(52));lp.setMargins(0,dp(5),0,dp(5));body.addView(row,lp);
++              }
++          }).addOnFailureListener(e->body.addView(tv("Visitors unavailable right now.",14,MUTED,false)));
++    }
++
+     private void collection(){LevelSystem.Snapshot s=LevelSystem.read(this);body.addView(tv("Collection Center",21,DARK,true));body.addView(tv("⭐ Normal Level  "+s.level+" / "+LevelSystem.MAX_LEVEL+"  • "+LevelSystem.levelTier(s.level)+"\nXP "+s.xp+" / "+s.nextLevelXp()+"\n\n💎 VIP "+s.vipLevel+" / "+LevelSystem.MAX_VIP+" • "+LevelSystem.vipName(s.vipLevel)+"\nVIP Points "+s.vipPoints+" / "+s.nextVipPoints(),15,DARK,true));body.addView(tv("Medals",16,DARK,true));String medals=(s.level>=10?"🏅 Rising Star  ":"")+(s.level>=30?"🎖 Elite Voice  ":"")+(s.vipLevel>=3?"💎 VIP Supporter  ":"")+(s.vipLevel>=8?"👑 Royal Patron":"");body.addView(tv(medals.isEmpty()?"Keep chatting, playing and gifting to unlock medals.":medals,14,MUTED,false));body.addView(tv("Backpack",16,DARK,true));SharedPreferences bp=getSharedPreferences("king_backpack",MODE_PRIVATE);String[] keys={"rose","heart","star","firework"},names={"Rose","Heart","Star","Firework"},icons={"🌹","💗","⭐","🎆"};for(int i=0;i<keys.length;i++)body.addView(tv(icons[i]+"  "+names[i]+"  ×"+bp.getInt(keys[i],0),14,DARK,true));TextView claim=button("🎁 Claim Daily Free Gift",()->claimDaily(bp));LinearLayout.LayoutParams cl=new LinearLayout.LayoutParams(-1,dp(48));cl.setMargins(0,dp(8),0,dp(8));body.addView(claim,cl);TextView party=button("Open Party • Use Backpack",()->KingNav.openRoot(this,0));body.addView(party,new LinearLayout.LayoutParams(-1,dp(48)));}
+     private void claimDaily(SharedPreferences bp){long day=System.currentTimeMillis()/86400000L,last=bp.getLong("claim_day",-1);if(day==last){toast("Daily gift already claimed");return;}String[] keys={"rose","heart","star","firework"};String key=keys[(int)(day%keys.length)];bp.edit().putLong("claim_day",day).putInt(key,bp.getInt(key,0)+1).apply();toast("Daily gift added to Backpack");render("Collection");}
+ }
