@@ -106,8 +106,12 @@ jobs:
           printf '%s' "$FIREBASE_SERVICE_ACCOUNT_JSON" > "$RUNNER_TEMP/firebase-service-account.json"
           echo "GOOGLE_APPLICATION_CREDENTIALS=$RUNNER_TEMP/firebase-service-account.json" >> "$GITHUB_ENV"
 
-      - name: Deploy Firestore Storage and Functions
-        run: firebase deploy --project king-plus-2f365 --only firestore:rules,storage,functions --non-interactive
+      - name: Deploy Firestore rules and Functions
+        run: firebase deploy --project king-plus-2f365 --only firestore:rules,functions --non-interactive
+
+      - name: Deploy Storage rules
+        continue-on-error: true
+        run: firebase deploy --project king-plus-2f365 --only storage --non-interactive
 
       - name: Remove temporary credentials
         if: always()
