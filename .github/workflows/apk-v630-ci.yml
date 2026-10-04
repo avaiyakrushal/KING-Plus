@@ -68,8 +68,9 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          tr -d '\r\n' < ci/v630/patch.b64 | base64 -d | gzip -dc > /tmp/v630.patch
-          patch -p2 < /tmp/v630.patch
+          cat ci/v630/patch.part00 ci/v630/patch.part01 ci/v630/patch.part02 ci/v630/patch.part03 \
+            | tr -d '\r\n' | base64 -d | gzip -dc > /tmp/v630.patch
+          patch -p1 < /tmp/v630.patch
           grep -q "versionName '6.3.0'" app/build.gradle
           grep -q "versionCode 93" app/build.gradle
           test -f app/src/main/java/com/kingplus/social/LevelSystem.java
