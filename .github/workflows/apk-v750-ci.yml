@@ -106,15 +106,13 @@ jobs:
           grep -q 'entranceEffect' firestore.rules
           ! grep -q 'Coming soon' app/src/main/java/com/kingplus/social/PartyActivity.java
           rm -rf app/build
-      - name: Apply v7.5.0 complete flow patch + compile hotfix
+      - name: Apply v7.5.0 complete flow patch
         shell: bash
         run: |
           set -euo pipefail
           cat ci/v750/patch.part00 ci/v750/patch.part01 ci/v750/patch.part02 ci/v750/patch.part03 ci/v750/patch.part04 | tr -d '\r\n' | base64 -d | gzip -dc > /tmp/v750.patch
           test "$(sha256sum /tmp/v750.patch | cut -d' ' -f1)" = "c78f106b681b8c78aa16d09ad347be662f86caf349ff8c99dfbeee96bdd9cf1e"
           patch -p1 < /tmp/v750.patch
-          test "$(sha256sum ci/v750/compile-hotfix.patch | cut -d' ' -f1)" = "f8836caf8089f1e6c39fe45dbd6c15935b1ed3774e34322f8de80def24c87b7e"
-          patch -p1 < ci/v750/compile-hotfix.patch
           grep -q "versionName '7.5.0'" app/build.gradle
           grep -q "versionCode 105" app/build.gradle
           test -f app/src/main/java/com/kingplus/social/KingNav.java
@@ -122,11 +120,17 @@ jobs:
           grep -q 'game_ready' firestore.rules
           grep -q 'visitors' firestore.rules
           grep -q 'giftVipRequired' app/src/main/java/com/kingplus/social/PartyActivity.java
-          grep -q 'private void listenReady750()' app/src/main/java/com/kingplus/social/RoomGameActivity.java
-          grep -q 'private void toggleReady750()' app/src/main/java/com/kingplus/social/RoomGameActivity.java
-          grep -q 'private void rematch750()' app/src/main/java/com/kingplus/social/RoomGameActivity.java
-          grep -q 'private void clearReady750()' app/src/main/java/com/kingplus/social/RoomGameActivity.java
-          grep -q 'private void visitors750()' app/src/main/java/com/kingplus/social/CommunityHubActivity.java
+          rm -rf app/build
+      - name: Complete v7.5 Ready Rematch Visitors methods
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 tools/fix_v750_missing_methods.py
+          grep -q 'private void listenReady750' app/src/main/java/com/kingplus/social/RoomGameActivity.java
+          grep -q 'private void toggleReady750' app/src/main/java/com/kingplus/social/RoomGameActivity.java
+          grep -q 'private void clearReady750' app/src/main/java/com/kingplus/social/RoomGameActivity.java
+          grep -q 'private void rematch750' app/src/main/java/com/kingplus/social/RoomGameActivity.java
+          grep -q 'private void visitors750' app/src/main/java/com/kingplus/social/CommunityHubActivity.java
           rm -rf app/build
       - name: Generate original KING Plus sound pack
         shell: bash
