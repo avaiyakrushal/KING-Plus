@@ -80,7 +80,7 @@ jobs:
           patch -p1 < /tmp/v750.patch
           python3 tools/fix_v750_missing_methods.py
           cat ci/v810/patch.part00 ci/v810/patch.part01 ci/v810/patch.part02 ci/v810/patch.part03 ci/v810/patch.part04 ci/v810/patch.part05 ci/v810/patch.part06 ci/v810/patch.part07 | tr -d '\r\n' | base64 -d | gzip -dc > /tmp/v810.patch
-          test "$(sha256sum /tmp/v810.patch | cut -d' ' -f1)" = "d06765477216d7197351414331f94491599675411bb3233f40f3ba86d8cda4c6"
+          test "$(sha256sum /tmp/v810.patch | cut -d' ' -f1)" = "ce801b7e9082166f619d12b4c442ef980133f269aaedf18c37fa0f173bda0ff4"
           patch -p1 < /tmp/v810.patch
           cat ci/v820/patch.part00 ci/v820/patch.part01 ci/v820/patch.part02 ci/v820/patch.part03 ci/v820/patch.part04 | tr -d '\r\n' | base64 -d | gzip -dc > /tmp/v820.patch
           test "$(sha256sum /tmp/v820.patch | cut -d' ' -f1)" = "6e3b51a10e2f1770a84eb1b4b425db067fdc5144f250859e980e679776a655ef"
