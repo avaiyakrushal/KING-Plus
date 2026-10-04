@@ -1,0 +1,55 @@
+    private LinearLayout page;
+    private TextView status;
+    private DocumentSnapshot current;
+    private boolean resolving;
+
+    @Override public void onCreate(Bundle b){
+        super.onCreate(b);
+        try{ db=FirebaseFirestore.getInstance(); me=FirebaseAuth.getInstance().getCurrentUser(); }catch(Exception e){ db=null; me=null; }
+        if(me!=null){
+            String n=clean(me.getDisplayName());
+            if(n.isEmpty() && me.getEmail()!=null){ String e=me.getEmail(); int at=e.indexOf('@'); n=at>0?e.substring(0,at):e; }
+            if(n.isEmpty()) n="KING "+me.getUid().substring(0,Math.min(6,me.getUid().length()));
+            displayName=n.length()>80?n.substring(0,80):n;
+        }
+        buildShell();
+        if(db==null||me==null){ status.setText("Firebase sign-in required for Online Ludo."); return; }
+        String incoming=clean(getIntent().getStringExtra("matchCode")).toUpperCase(Locale.US);
+        if(incoming.matches("[A-Z2-9]{6}")) joinMatch(incoming); else showHome();
+    }
+
+    @Override protected void onDestroy(){ if(listener!=null)listener.remove(); super.onDestroy(); }
+
+    private int dp(int n){ return (int)(n*getResources().getDisplayMetrics().density+.5f); }
+    private String clean(String s){ return s==null?"":s.trim(); }
+    private GradientDrawable bg(int c,int r){ GradientDrawable d=new GradientDrawable(); d.setColor(c); d.setCornerRadius(dp(r)); return d; }
+    private TextView tv(String s,int z,int c,boolean bold){ TextView v=new TextView(this);v.setText(s);v.setTextSize(z);v.setTextColor(c);v.setPadding(dp(10),dp(8),dp(10),dp(8));if(bold)v.setTypeface(null,Typeface.BOLD);return v; }
+    private Button button(String s){ Button b=new Button(this);b.setText(s);b.setAllCaps(false);b.setTextColor(Color.WHITE);b.setTextSize(14);b.setBackground(bg(PURPLE,16));return b; }
+    private void toast(String s){ Toast.makeText(this,s,Toast.LENGTH_SHORT).show(); }
+
+    private void buildShell(){
+        LinearLayout root=new LinearLayout(this);root.setOrientation(LinearLayout.VERTICAL);root.setBackgroundColor(BG);
+        ScrollView sc=new ScrollView(this);page=new LinearLayout(this);page.setOrientation(LinearLayout.VERTICAL);page.setPadding(dp(16),dp(12),dp(16),dp(32));sc.addView(page);root.addView(sc,new LinearLayout.LayoutParams(-1,-1));
+        status=tv("Online Ludo",14,0xffd8cce8,false);page.addView(status);
+        setSafe(root);
+    }
+    private void setSafe(View root){ ViewCompat.setOnApplyWindowInsetsListener(root,(v,in)->{Insets z=in.getInsets(WindowInsetsCompat.Type.systemBars());v.setPadding(z.left,z.top,z.right,z.bottom);return in;});ViewCompat.requestApplyInsets(root);setContentView(root); }
+    private void header(String sub){
+        LinearLayout h=new LinearLayout(this);h.setGravity(Gravity.CENTER_VERTICAL);
+        TextView back=tv("‹",34,Color.WHITE,true);back.setGravity(Gravity.CENTER);back.setOnClickListener(v->finish());h.addView(back,new LinearLayout.LayoutParams(dp(48),dp(54)));
+        LinearLayout t=new LinearLayout(this);t.setOrientation(LinearLayout.VERTICAL);t.addView(tv("🎲 KING Plus Online Ludo",22,Color.WHITE,true));t.addView(tv(sub,12,0xffcfc4df,false));h.addView(t,new LinearLayout.LayoutParams(0,dp(64),1));page.addView(h);
+    }
+
+    private void showHome(){
+        current=null;code="";matchRef=null;if(listener!=null){listener.remove();listener=null;}page.removeAllViews();header("Real players • realtime match • secure server rules");
+        TextView hero=tv("Create a match and share the 6-character code with friends.",16,GOLD,true);hero.setGravity(Gravity.CENTER);hero.setBackground(bg(CARD,18));page.addView(hero,new LinearLayout.LayoutParams(-1,dp(86)));
+        LinearLayout row=new LinearLayout(this);Button two=button("1 vs 1");two.setOnClickListener(v->createMatch(2));Button four=button("4 Players");four.setOnClickListener(v->createMatch(4));LinearLayout.LayoutParams rp=new LinearLayout.LayoutParams(0,dp(54),1);rp.setMargins(dp(3),dp(10),dp(3),dp(8));row.addView(two,rp);row.addView(four,rp);page.addView(row);
+        EditText input=new EditText(this);input.setHint("ENTER MATCH CODE");input.setTextColor(Color.WHITE);input.setHintTextColor(0xff9f94ae);input.setSingleLine(true);input.setInputType(InputType.TYPE_CLASS_TEXT|InputType.TYPE_TEXT_FLAG_CAP_CHARACTERS);input.setFilters(new InputFilter[]{new InputFilter.LengthFilter(6)});input.setBackground(bg(CARD,14));input.setPadding(dp(14),0,dp(14),0);page.addView(input,new LinearLayout.LayoutParams(-1,dp(54)));
+        Button join=button("Join Online Match");join.setOnClickListener(v->{String c=clean(input.getText().toString()).toUpperCase(Locale.US);if(!c.matches("[A-Z2-9]{6}")){toast("Enter a valid 6-character code");return;}joinMatch(c);});LinearLayout.LayoutParams jp=new LinearLayout.LayoutParams(-1,dp(54));jp.setMargins(0,dp(8),0,dp(8));page.addView(join,jp);
+        status=tv("Ludo uses Firebase realtime sync. Dice are derived from the server timestamp; clients cannot choose the roll.",13,0xffcfc4df,false);page.addView(status);
+    }
+
+    private String newCode(){ Random r=new Random();StringBuilder b=new StringBuilder();for(int i=0;i<6;i++)b.append(ALPHABET.charAt(r.nextInt(ALPHABET.length())));return b.toString(); }
+    private void createMatch(int capacity){ tryCreate(capacity,0); }
+    private void tryCreate(int capacity,int attempt){
+        if(attempt>6){toast("Could not reserve a match code");return;}String c=newCode();DocumentReference r=db.collection("ludo_matches").document(c);
