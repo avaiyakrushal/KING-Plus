@@ -43,6 +43,157 @@ service cloud.firestore {
       return exists(/databases/$(database)/documents/live_rooms/$(roomId)/seat_locks/$(seatId))
         && get(/databases/$(database)/documents/live_rooms/$(roomId)/seat_locks/$(seatId)).data.locked == true;
     }
+    function invitedToSeat(roomId, uid, seatId) {
+      return exists(/databases/$(database)/documents/live_rooms/$(roomId)/seat_invites/$(uid))
+        && get(/databases/$(database)/documents/live_rooms/$(roomId)/seat_invites/$(uid)).data.targetUid == uid
+        && get(/databases/$(database)/documents/live_rooms/$(roomId)/seat_invites/$(uid)).data.seatId == seatId;
+    }
+    function blockedEither(uidA, uidB) {
+      return exists(/databases/$(database)/documents/blocks/$(uidA + "_" + uidB))
+        || exists(/databases/$(database)/documents/blocks/$(uidB + "_" + uidA));
+    }
+
+    function familyOwner(code) {
+      return activeUser() && exists(/databases/$(database)/documents/families/$(code))
+        && get(/databases/$(database)/documents/families/$(code)).data.ownerUid == request.auth.uid;
+    }
+    function familyMember(code) {
+      return activeUser() && exists(/databases/$(database)/documents/families/$(code)/members/$(request.auth.uid));
+    }
+
+
+    // Online casual Ludo. All moves and server-timestamp dice are checked here.
+    match /ludo_matches/{code} {
+      function fields(m) {
+        return m.keys().hasOnly(['schema','code','ownerUid','players','names','ready','capacity','pieces','turn','dice','sixes','winner','phase','revision','action','actorUid','selected','updatedAt','rollAt'])
+          && m.schema == 1 && m.code == code && code.matches('^[A-Z2-9]{6}$')
+          && m.ownerUid is string && m.ownerUid.size() > 0
+          && m.players is list && m.players.size() == 4
+          && m.names is list && m.names.size() == 4
+          && m.ready is list && m.ready.size() == 4
+          && m.pieces is list && m.pieces.size() == 16
+          && m.capacity in [2,4] && m.turn is int && m.turn >= 0 && m.turn < 4
+          && m.dice is int && m.dice >= 0 && m.dice <= 6
+          && m.sixes is int && m.sixes >= 0 && m.sixes <= 2
+          && m.winner is int && m.winner >= -1 && m.winner < 4
+          && m.phase in ['lobby','roll','resolve','move','finished','cancelled']
+          && m.revision is int && m.revision >= 0
+          && m.selected is int && m.selected >= -1 && m.selected < 4
+          && m.updatedAt is timestamp && m.rollAt is timestamp;
+      }
+      function fresh(m) { return m.pieces == [-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1] && m.turn == 0 && m.dice == 0 && m.sixes == 0 && m.winner == -1; }
+      function changedOnly(keys) { return request.resource.data.diff(resource.data).affectedKeys().hasOnly(keys.concat(['actorUid','action','selected','revision','updatedAt'])); }
+      function seat(m,i) { return i >= 0 && i < 4 && (m.capacity == 4 || i == 0 || i == 2); }
+      function next(m) { return m.capacity == 2 ? (m.turn == 0 ? 2 : 0) : (m.turn + 1) % 4; }
+      function player(m) { return request.auth.uid in m.players; }
+      function goodName(n) { return n is string && n.size() > 0 && n.size() <= 80; }
+      function join(o,n) {
+        let i = n.selected;
+        return o.phase == 'lobby' && !(request.auth.uid in o.players) && seat(o,i) && o.players[i] == ''
+          && goodName(n.names[i]) && n.players[i] == request.auth.uid && n.ready[i] == false
+          && unchangedSeats(o,n,i) && changedOnly(['players','names','ready']);
+      }
+      function unchangedSeats(o,n,i) { return (i == 0 || (n.players[0] == o.players[0] && n.names[0] == o.names[0] && n.ready[0] == o.ready[0])) && (i == 1 || (n.players[1] == o.players[1] && n.names[1] == o.names[1] && n.ready[1] == o.ready[1])) && (i == 2 || (n.players[2] == o.players[2] && n.names[2] == o.names[2] && n.ready[2] == o.ready[2])) && (i == 3 || (n.players[3] == o.players[3] && n.names[3] == o.names[3] && n.ready[3] == o.ready[3])); }
+      function ready(o,n) {
+        let i = n.selected;
+        return o.phase == 'lobby' && seat(o,i) && o.players[i] == request.auth.uid
+          && n.ready[i] == !o.ready[i] && changedOnly(['ready']) && (i == 0 || n.ready[0] == o.ready[0]) && (i == 1 || n.ready[1] == o.ready[1]) && (i == 2 || n.ready[2] == o.ready[2]) && (i == 3 || n.ready[3] == o.ready[3]);
+      }
+      function start(o,n) {
+        return o.phase == 'lobby' && o.ownerUid == request.auth.uid && n.phase == 'roll'
+          && o.players[0] != '' && o.players[2] != '' && o.ready[0] && o.ready[2]
+          && (o.capacity == 2 || (o.players[1] != '' && o.players[3] != '' && o.ready[1] && o.ready[3]))
+          && changedOnly(['phase']);
+      }
+      function roll(o,n) { return o.phase == 'roll' && o.players[o.turn] == request.auth.uid && n.phase == 'resolve' && n.dice == 0 && n.rollAt == request.time && changedOnly(['phase','dice','rollAt']); }
+      function die(o) { return o.rollAt.toMillis() % 6 + 1; }
+      function legal(p,d) { return p == -1 ? d == 6 : p < 56 && p + d <= 56; }
+      function anyMove(o,d) { return legal(o.pieces[o.turn*4],d) || legal(o.pieces[o.turn*4+1],d) || legal(o.pieces[o.turn*4+2],d) || legal(o.pieces[o.turn*4+3],d); }
+      function resolve(o,n) {
+        let d = die(o);
+        let third = o.sixes == 2 && d == 6;
+        let can = !third && anyMove(o,d);
+        let pass = third || (!can && d != 6);
+        return o.phase == 'resolve' && n.dice == d && n.turn == (pass ? next(o) : o.turn)
+          && n.sixes == (pass ? 0 : (d == 6 ? o.sixes+1 : 0))
+          && n.phase == (can ? 'move' : 'roll') && changedOnly(['dice','turn','sixes','phase']);
+      }
+      function destination(o,n) { let p = o.pieces[o.turn*4+n.selected]; return p == -1 ? 0 : p+o.dice; }
+      function board(o,n) {
+        let p = o.pieces;
+        let turn = o.turn;
+        let chosen = n.selected;
+        let target = destination(o,n);
+        let square = (turn*13+target)%52;
+        let capture = target <= 50 && !(square%13 in [0,8]);
+        return n.pieces == [
+          (0 == turn ? (0 == chosen ? target : p[0]) : (capture && p[0] >= 0 && p[0] <= 50 && (0+p[0])%52 == square ? -1 : p[0])),
+          (0 == turn ? (1 == chosen ? target : p[1]) : (capture && p[1] >= 0 && p[1] <= 50 && (0+p[1])%52 == square ? -1 : p[1])),
+          (0 == turn ? (2 == chosen ? target : p[2]) : (capture && p[2] >= 0 && p[2] <= 50 && (0+p[2])%52 == square ? -1 : p[2])),
+          (0 == turn ? (3 == chosen ? target : p[3]) : (capture && p[3] >= 0 && p[3] <= 50 && (0+p[3])%52 == square ? -1 : p[3])),
+          (1 == turn ? (0 == chosen ? target : p[4]) : (capture && p[4] >= 0 && p[4] <= 50 && (13+p[4])%52 == square ? -1 : p[4])),
+          (1 == turn ? (1 == chosen ? target : p[5]) : (capture && p[5] >= 0 && p[5] <= 50 && (13+p[5])%52 == square ? -1 : p[5])),
+          (1 == turn ? (2 == chosen ? target : p[6]) : (capture && p[6] >= 0 && p[6] <= 50 && (13+p[6])%52 == square ? -1 : p[6])),
+          (1 == turn ? (3 == chosen ? target : p[7]) : (capture && p[7] >= 0 && p[7] <= 50 && (13+p[7])%52 == square ? -1 : p[7])),
+          (2 == turn ? (0 == chosen ? target : p[8]) : (capture && p[8] >= 0 && p[8] <= 50 && (26+p[8])%52 == square ? -1 : p[8])),
+          (2 == turn ? (1 == chosen ? target : p[9]) : (capture && p[9] >= 0 && p[9] <= 50 && (26+p[9])%52 == square ? -1 : p[9])),
+          (2 == turn ? (2 == chosen ? target : p[10]) : (capture && p[10] >= 0 && p[10] <= 50 && (26+p[10])%52 == square ? -1 : p[10])),
+          (2 == turn ? (3 == chosen ? target : p[11]) : (capture && p[11] >= 0 && p[11] <= 50 && (26+p[11])%52 == square ? -1 : p[11])),
+          (3 == turn ? (0 == chosen ? target : p[12]) : (capture && p[12] >= 0 && p[12] <= 50 && (39+p[12])%52 == square ? -1 : p[12])),
+          (3 == turn ? (1 == chosen ? target : p[13]) : (capture && p[13] >= 0 && p[13] <= 50 && (39+p[13])%52 == square ? -1 : p[13])),
+          (3 == turn ? (2 == chosen ? target : p[14]) : (capture && p[14] >= 0 && p[14] <= 50 && (39+p[14])%52 == square ? -1 : p[14])),
+          (3 == turn ? (3 == chosen ? target : p[15]) : (capture && p[15] >= 0 && p[15] <= 50 && (39+p[15])%52 == square ? -1 : p[15]))];
+      }
+      function captured(o,n,c) { return c != o.turn && (o.pieces[c*4] != n.pieces[c*4] || o.pieces[c*4+1] != n.pieces[c*4+1] || o.pieces[c*4+2] != n.pieces[c*4+2] || o.pieces[c*4+3] != n.pieces[c*4+3]); }
+      function move(o,n) {
+        let win = n.pieces[o.turn*4] == 56 && n.pieces[o.turn*4+1] == 56 && n.pieces[o.turn*4+2] == 56 && n.pieces[o.turn*4+3] == 56;
+        let bonus = o.dice == 6 || destination(o,n) == 56 || n.pieces.removeAll([-1]).size() < o.pieces.removeAll([-1]).size();
+        let turn = win || bonus ? o.turn : next(o);
+        return o.phase == 'move' && o.players[o.turn] == request.auth.uid && n.selected >= 0 && n.selected < 4
+          && legal(o.pieces[o.turn*4+n.selected],o.dice) && board(o,n)
+          && n.turn == turn && n.sixes == (turn == o.turn ? o.sixes : 0)
+          && n.winner == (win ? o.turn : -1) && n.phase == (win ? 'finished' : 'roll')
+          && changedOnly(['pieces','turn','sixes','winner','phase']);
+      }
+      function first(m) { return m.players[0] != '' ? m.players[0] : (m.players[1] != '' ? m.players[1] : (m.players[2] != '' ? m.players[2] : m.players[3])); }
+      function leave(o,n) {
+        let i = n.selected;
+        return o.phase == 'lobby' && seat(o,i) && o.players[i] == request.auth.uid
+          && n.players[i] == '' && n.names[i] == '' && n.ready[i] == false && unchangedSeats(o,n,i)
+          && n.ownerUid == (o.ownerUid == request.auth.uid ? first(n) : o.ownerUid)
+          && n.ownerUid != '' && changedOnly(['players','names','ready','ownerUid']);
+      }
+      function timeout(o,n) { return o.phase in ['roll','resolve','move'] && request.time >= o.updatedAt + duration.value(60,'s') && n.phase == 'roll' && n.turn == next(o) && n.sixes == 0 && n.dice == 0 && changedOnly(['phase','turn','sixes','dice']); }
+      function cancel(o,n) { return o.phase in ['roll','resolve','move'] && n.phase == 'cancelled' && changedOnly(['phase']); }
+      function rematch(o,n) { return o.phase in ['finished','cancelled'] && o.ownerUid == request.auth.uid && n.phase == 'lobby' && n.ready == [false,false,false,false] && fresh(n) && changedOnly(['pieces','turn','dice','sixes','winner','phase','ready']); }
+      allow get: if activeUser() && (!exists(/databases/$(database)/documents/ludo_matches/$(code)) || resource.data.phase == 'lobby' || player(resource.data));
+      allow list: if false;
+      allow create: if activeUser() && fields(request.resource.data) && fresh(request.resource.data)
+        && request.resource.data.ownerUid == request.auth.uid
+        && request.resource.data.players == [request.auth.uid,'','','']
+        && goodName(request.resource.data.names[0]) && request.resource.data.names[1] == '' && request.resource.data.names[2] == '' && request.resource.data.names[3] == ''
+        && request.resource.data.ready == [false,false,false,false]
+        && request.resource.data.phase == 'lobby' && request.resource.data.revision == 0 && request.resource.data.action == 'create'
+        && request.resource.data.actorUid == request.auth.uid && request.resource.data.selected == -1
+        && request.resource.data.updatedAt == request.time && request.resource.data.rollAt == request.time;
+      allow update: if activeUser()
+        && request.resource.data.selected is int && request.resource.data.selected >= -1 && request.resource.data.selected < 4
+        && request.resource.data.players.size() == 4 && request.resource.data.names.size() == 4 && request.resource.data.ready.size() == 4 && request.resource.data.pieces.size() == 16
+        && request.resource.data.revision == resource.data.revision + 1
+        && request.resource.data.actorUid == request.auth.uid && request.resource.data.updatedAt == request.time
+        && ((request.resource.data.action == 'join' && join(resource.data,request.resource.data))
+          || (player(resource.data) && (
+            (request.resource.data.action == 'ready' && ready(resource.data,request.resource.data))
+            || (request.resource.data.action == 'start' && start(resource.data,request.resource.data))
+            || (request.resource.data.action == 'roll' && roll(resource.data,request.resource.data))
+            || (request.resource.data.action == 'resolve' && resolve(resource.data,request.resource.data))
+            || (request.resource.data.action == 'move' && move(resource.data,request.resource.data))
+            || (request.resource.data.action == 'timeout' && timeout(resource.data,request.resource.data))
+            || (request.resource.data.action == 'leave' && leave(resource.data,request.resource.data))
+            || (request.resource.data.action == 'cancel' && cancel(resource.data,request.resource.data))
+            || (request.resource.data.action == 'rematch' && rematch(resource.data,request.resource.data)))));
+      allow delete: if activeUser() && resource.data.ownerUid == request.auth.uid && resource.data.phase == 'lobby' && resource.data.players.toSet().size() == 2;
+    }
 
     match /users/{uid} {
       allow read: if owner(uid) || admin();
@@ -51,6 +202,54 @@ service cloud.firestore {
       match /devices/{token} {
         allow read, create, update, delete: if owner(uid);
       }
+    }
+
+    match /public_profiles/{uid} {
+      allow read: if signedIn();
+      allow create, update: if owner(uid)
+        && request.resource.data.uid == uid
+        && request.resource.data.keys().hasOnly([
+          'uid','displayName','searchName','bio','tags','publicId','hometown','birthday',
+          'level','xp','vipLevel','vipPoints','levelTier','equippedFrame','entranceEffect','updatedAt'
+        ])
+        && request.resource.data.displayName is string
+        && request.resource.data.displayName.size() > 0
+        && request.resource.data.displayName.size() <= 80
+        && (!('searchName' in request.resource.data) || (request.resource.data.searchName is string && request.resource.data.searchName.size() > 0 && request.resource.data.searchName.size() <= 80))
+        && (!('bio' in request.resource.data) || (request.resource.data.bio is string && request.resource.data.bio.size() <= 240))
+        && (!('tags' in request.resource.data) || (request.resource.data.tags is string && request.resource.data.tags.size() <= 160))
+        && (!('publicId' in request.resource.data) || (request.resource.data.publicId is string && request.resource.data.publicId.size() == 6))
+        && (!('hometown' in request.resource.data) || (request.resource.data.hometown is string && request.resource.data.hometown.size() <= 100))
+        && (!('birthday' in request.resource.data) || (request.resource.data.birthday is string && request.resource.data.birthday.size() <= 32))
+        && (!('level' in request.resource.data) || (request.resource.data.level is int && request.resource.data.level >= 1 && request.resource.data.level <= 99))
+        && (!('xp' in request.resource.data) || (request.resource.data.xp is int && request.resource.data.xp >= 0))
+        && (!('vipLevel' in request.resource.data) || (request.resource.data.vipLevel is int && request.resource.data.vipLevel >= 0 && request.resource.data.vipLevel <= 50))
+        && (!('vipPoints' in request.resource.data) || (request.resource.data.vipPoints is int && request.resource.data.vipPoints >= 0))
+        && (!('levelTier' in request.resource.data) || (request.resource.data.levelTier is string && request.resource.data.levelTier.size() <= 32))
+        && (!('equippedFrame' in request.resource.data) || (request.resource.data.equippedFrame is string && request.resource.data.equippedFrame.size() <= 40))
+        && (!('entranceEffect' in request.resource.data) || (request.resource.data.entranceEffect is string && request.resource.data.entranceEffect.size() <= 40));
+      allow delete: if owner(uid);
+
+      match /visitors/{visitorUid} {
+        allow read: if owner(uid);
+        allow create, update: if signedIn() && visitorUid == request.auth.uid
+          && request.resource.data.uid == request.auth.uid
+          && request.resource.data.name is string
+          && request.resource.data.name.size() <= 80;
+        allow delete: if owner(uid) || visitorUid == request.auth.uid;
+      }
+    }
+
+
+    match /discover_stats/{uid} {
+      allow read: if signedIn();
+      allow create, update: if owner(uid)
+        && request.resource.data.uid == uid
+        && request.resource.data.keys().hasOnly(['uid','gameScore','chatScore','eventScore','updatedAt'])
+        && request.resource.data.gameScore is int && request.resource.data.gameScore >= 0
+        && request.resource.data.chatScore is int && request.resource.data.chatScore >= 0
+        && request.resource.data.eventScore is int && request.resource.data.eventScore >= 0;
+      allow delete: if owner(uid);
     }
 
     match /live_rooms/{roomId} {
@@ -64,7 +263,7 @@ service cloud.firestore {
         || (roomCoHost(roomId)
             && request.resource.data.ownerUid == resource.data.ownerUid
             && request.resource.data.diff(resource.data).affectedKeys()
-                 .hasOnly(['locked', 'muteAll', 'announcement', 'updatedAt']))
+                 .hasOnly(['locked', 'muteAll', 'announcement', 'currentSong', 'updatedAt']))
       );
       allow delete: if activeUser() && resource.data.ownerUid == request.auth.uid;
 
@@ -86,8 +285,8 @@ service cloud.firestore {
         allow create: if roomAccess(roomId) && request.resource.data.name is string && (
           (roomMember(roomId)
             && request.resource.data.uid == request.auth.uid
-            && roomData(roomId).locked != true
-            && !seatLocked(roomId, seatId))
+            && ((roomData(roomId).locked != true && !seatLocked(roomId, seatId))
+                || invitedToSeat(roomId, request.auth.uid, seatId)))
           || (roomModerator(roomId)
             && request.resource.data.uid is string
             && exists(/databases/$(database)/documents/live_rooms/$(roomId)/members/$(request.resource.data.uid)))
@@ -160,6 +359,20 @@ service cloud.firestore {
         allow delete: if roomModerator(roomId);
       }
 
+      match /seat_invites/{inviteUid} {
+        allow read: if signedIn()
+          && (inviteUid == request.auth.uid || roomModerator(roomId));
+        allow create, update: if roomModerator(roomId)
+          && request.resource.data.targetUid == inviteUid
+          && request.resource.data.seatId is string
+          && request.resource.data.seatNo is int
+          && request.resource.data.seatNo >= 1
+          && request.resource.data.seatNo <= 12
+          && exists(/databases/$(database)/documents/live_rooms/$(roomId)/members/$(inviteUid));
+        allow delete: if signedIn()
+          && (inviteUid == request.auth.uid || roomModerator(roomId));
+      }
+
       match /seat_requests/{requestId} {
         allow read: if signedIn()
           && (roomModerator(roomId)
@@ -196,16 +409,229 @@ service cloud.firestore {
           && request.resource.data.uid == accessUid;
         allow delete: if roomModerator(roomId);
       }
+
+      // Persistent room-wide playlist. Audio bytes live in Firebase Storage; only URLs/metadata live here.
+      match /music_playlist/{songId} {
+        allow read: if roomAccess(roomId);
+        allow create: if roomModerator(roomId)
+          && request.resource.data.name is string
+          && request.resource.data.name.size() > 0
+          && request.resource.data.name.size() <= 180
+          && request.resource.data.url is string
+          && request.resource.data.url.size() > 0
+          && request.resource.data.ownerUid == request.auth.uid;
+        allow update: if roomModerator(roomId)
+          && request.resource.data.ownerUid == resource.data.ownerUid
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['name', 'url', 'addedBy']);
+        allow delete: if roomModerator(roomId);
+      }
+
+      // One durable shared playback state document (normally /music_state/current).
+      match /music_state/{stateId} {
+        allow read: if roomAccess(roomId);
+        allow create, update: if roomModerator(roomId)
+          && stateId == 'current'
+          && request.resource.data.actorUid == request.auth.uid
+          && request.resource.data.musicUrl is string
+          && request.resource.data.musicName is string
+          && request.resource.data.musicPlaying is bool
+          && request.resource.data.musicPositionMs is int
+          && request.resource.data.musicPositionMs >= 0;
+        allow delete: if roomModerator(roomId) && stateId == 'current';
+      }
+
+      // Structured room data used by the next Party Room stages.
+      match /room_invites/{inviteId} {
+        allow read: if signedIn() && (resource.data.recipientUid == request.auth.uid || roomModerator(roomId));
+        allow create: if roomAccess(roomId) && roomMember(roomId)
+          && request.resource.data.senderUid == request.auth.uid
+          && request.resource.data.recipientUid is string
+          && request.resource.data.recipientUid != request.auth.uid;
+        allow update: if signedIn() && resource.data.recipientUid == request.auth.uid;
+        allow delete: if signedIn() && (resource.data.recipientUid == request.auth.uid || roomModerator(roomId));
+      }
+
+      match /room_settings/{settingId} {
+        allow read: if roomAccess(roomId);
+        allow create, update, delete: if roomModerator(roomId);
+      }
+
+      // One synchronized Party/Play Center state for the room.
+      match /game_state/{stateId} {
+        allow read: if roomAccess(roomId);
+        allow create, update: if roomModerator(roomId)
+          && stateId == 'current'
+          && request.resource.data.actorUid == request.auth.uid
+          && request.resource.data.type is string
+          && request.resource.data.type.size() > 0
+          && request.resource.data.type.size() <= 40
+          && request.resource.data.prompt is string
+          && request.resource.data.prompt.size() <= 300
+          && request.resource.data.result is string
+          && request.resource.data.result.size() <= 300
+          && request.resource.data.status is string
+          && request.resource.data.roundId is int;
+        allow delete: if roomModerator(roomId) && stateId == 'current';
+      }
+
+      // Each signed-in member can submit one vote document per active round.
+      match /game_votes/{voteUid} {
+        allow read: if roomAccess(roomId);
+        allow create, update: if roomAccess(roomId)
+          && roomMember(roomId)
+          && voteUid == request.auth.uid
+          && request.resource.data.uid == request.auth.uid
+          && request.resource.data.roundId is int
+          && request.resource.data.choice is string
+          && request.resource.data.choice.size() > 0
+          && request.resource.data.choice.size() <= 80;
+        allow delete: if signedIn()
+          && (voteUid == request.auth.uid || roomModerator(roomId));
+      }
+
+
+
+      match /game_ready/{readyUid} {
+        allow read: if roomAccess(roomId);
+        allow create, update: if roomAccess(roomId)
+          && roomMember(roomId)
+          && readyUid == request.auth.uid
+          && request.resource.data.uid == request.auth.uid
+          && request.resource.data.ready == true
+          && request.resource.data.name is string
+          && request.resource.data.name.size() <= 80;
+        allow delete: if signedIn() && (readyUid == request.auth.uid || roomModerator(roomId));
+      }
+
+      // Realtime no-stakes room mini-game moves. Each member can only write their own move.
+      match /game_moves/{moveUid} {
+        allow read: if roomAccess(roomId);
+        allow create: if roomAccess(roomId)
+          && roomMember(roomId)
+          && moveUid == request.auth.uid
+          && request.resource.data.uid == request.auth.uid
+          && request.resource.data.roundId is int
+          && request.resource.data.type is string
+          && request.resource.data.type.size() > 0
+          && request.resource.data.type.size() <= 40
+          && request.resource.data.move is string
+          && request.resource.data.move.size() > 0
+          && request.resource.data.move.size() <= 80
+          && request.resource.data.score is int
+          && request.resource.data.score >= 0
+          && request.resource.data.score <= 100000;
+        allow update: if false;
+        allow delete: if signedIn() && (moveUid == request.auth.uid || roomModerator(roomId));
+      }
+
+      match /room_templates/{templateId} {
+        allow read: if roomAccess(roomId);
+        allow create, update, delete: if roomModerator(roomId);
+      }
+
+      match /room_announcements/{announcementId} {
+        allow read: if roomAccess(roomId);
+        allow create, update: if roomModerator(roomId)
+          && request.resource.data.text is string
+          && request.resource.data.text.size() > 0
+          && request.resource.data.text.size() <= 500;
+        allow delete: if roomModerator(roomId);
+      }
+
+      // Gift ledger/sticker catalog are backend-managed so clients cannot forge paid/privileged state.
+      match /room_gifts/{giftId} {
+        allow read: if roomAccess(roomId);
+        allow write: if false;
+      }
+
+      match /room_stickers/{stickerId} {
+        allow read: if roomAccess(roomId);
+        allow write: if false;
+      }
+    }
+
+    match /moments/{momentId} {
+      allow read: if signedIn();
+      allow create: if activeUser()
+        && request.resource.data.uid == request.auth.uid
+        && request.resource.data.text is string
+        && request.resource.data.text.size() > 0
+        && request.resource.data.text.size() <= 1000;
+      allow update: if false;
+      allow delete: if activeUser() && resource.data.uid == request.auth.uid;
+      match /likes/{likeUid} {
+        allow read: if signedIn();
+        allow create: if activeUser() && likeUid == request.auth.uid && request.resource.data.uid == request.auth.uid;
+        allow update: if false;
+        allow delete: if signedIn() && likeUid == request.auth.uid;
+      }
+    }
+
+    match /families/{code} {
+      allow read: if signedIn();
+      allow create: if activeUser()
+        && request.resource.data.ownerUid == request.auth.uid
+        && request.resource.data.code == code
+        && request.resource.data.name is string
+        && request.resource.data.name.size() > 0
+        && request.resource.data.name.size() <= 80;
+      allow update, delete: if familyOwner(code);
+      match /members/{memberUid} {
+        allow read: if familyMember(code) || familyOwner(code);
+        allow create: if activeUser()
+          && memberUid == request.auth.uid
+          && request.resource.data.uid == request.auth.uid
+          && request.resource.data.name is string
+          && request.resource.data.name.size() > 0
+          && request.resource.data.name.size() <= 80;
+        allow update: if signedIn() && (memberUid == request.auth.uid || familyOwner(code));
+        allow delete: if signedIn() && (memberUid == request.auth.uid || familyOwner(code));
+      }
+      match /messages/{messageId} {
+        allow read: if familyMember(code) || familyOwner(code);
+        allow create: if familyMember(code)
+          && request.resource.data.uid == request.auth.uid
+          && request.resource.data.text is string
+          && request.resource.data.text.size() > 0
+          && request.resource.data.text.size() <= 500;
+        allow update, delete: if false;
+      }
+    }
+
+    match /relationships/{pairId} {
+      allow read: if signedIn()
+        && (resource.data.uidA == request.auth.uid || resource.data.uidB == request.auth.uid);
+      allow create: if activeUser()
+        && !blockedEither(request.resource.data.uidA, request.resource.data.uidB)
+        && (request.resource.data.uidA == request.auth.uid || request.resource.data.uidB == request.auth.uid)
+        && request.resource.data.uidA != request.resource.data.uidB
+        && request.resource.data.initiatorUid == request.auth.uid
+        && request.resource.data.status == 'pending';
+      allow update: if activeUser()
+        && (resource.data.uidA == request.auth.uid || resource.data.uidB == request.auth.uid)
+        && request.auth.uid != resource.data.initiatorUid
+        && request.resource.data.uidA == resource.data.uidA
+        && request.resource.data.uidB == resource.data.uidB
+        && request.resource.data.initiatorUid == resource.data.initiatorUid
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status','updatedAt'])
+        && request.resource.data.status in ['accepted','declined'];
+      allow delete: if signedIn()
+        && (resource.data.uidA == request.auth.uid || resource.data.uidB == request.auth.uid);
     }
 
     match /direct_threads/{threadId} {
       allow read: if signedIn() && request.auth.uid in resource.data.members;
       allow create: if activeUser()
         && request.resource.data.members is list
-        && request.resource.data.members.size() >= 2
-        && request.resource.data.members.size() <= 8
+        && request.resource.data.members.size() == 2
+        && request.resource.data.members[0] != request.resource.data.members[1]
+        && !blockedEither(request.resource.data.members[0], request.resource.data.members[1])
         && request.auth.uid in request.resource.data.members;
-      allow update: if activeUser() && request.auth.uid in resource.data.members;
+      allow update: if activeUser()
+        && request.auth.uid in resource.data.members
+        && request.resource.data.members == resource.data.members
+        && request.resource.data.diff(resource.data).affectedKeys()
+             .hasOnly(['memberNames', 'lastMessage', 'lastSenderUid', 'updatedAt', 'readAt']);
       allow delete: if false;
 
       match /messages/{messageId} {
@@ -215,6 +641,9 @@ service cloud.firestore {
           && request.auth.uid in get(/databases/$(database)/documents/direct_threads/$(threadId)).data.members
           && request.resource.data.senderUid == request.auth.uid
           && request.resource.data.recipientUid is string
+          && request.resource.data.recipientUid != request.auth.uid
+          && !blockedEither(request.resource.data.senderUid, request.resource.data.recipientUid)
+          && request.resource.data.recipientUid in get(/databases/$(database)/documents/direct_threads/$(threadId)).data.members
           && request.resource.data.text is string
           && request.resource.data.text.size() > 0
           && request.resource.data.text.size() <= 1000;
@@ -223,14 +652,27 @@ service cloud.firestore {
     }
 
     match /follows/{followId} {
-      allow read: if signedIn();
+      allow read: if signedIn()
+        && (resource.data.followerUid == request.auth.uid
+            || resource.data.targetUid == request.auth.uid);
       allow create: if activeUser()
         && request.resource.data.followerUid == request.auth.uid
+        && !blockedEither(request.resource.data.followerUid, request.resource.data.targetUid)
         && request.resource.data.targetUid is string
         && request.resource.data.targetUid != request.auth.uid;
       allow delete: if signedIn()
         && (resource.data.followerUid == request.auth.uid
             || resource.data.targetUid == request.auth.uid);
+      allow update: if false;
+    }
+
+    match /blocks/{blockId} {
+      allow read, delete: if signedIn() && resource.data.ownerUid == request.auth.uid;
+      allow create: if activeUser()
+        && request.resource.data.ownerUid == request.auth.uid
+        && request.resource.data.keys().hasOnly(['ownerUid','targetUid','createdAt'])
+        && request.resource.data.targetUid is string
+        && request.resource.data.targetUid != request.auth.uid;
       allow update: if false;
     }
 
@@ -262,7 +704,16 @@ service cloud.firestore {
     }
 
     match /reports/{reportId} {
-      allow create: if signedIn() && request.resource.data.reporterUid == request.auth.uid;
+      allow create: if activeUser()
+        && request.resource.data.reporterUid == request.auth.uid
+        && request.resource.data.keys().hasOnly(['reporterUid','targetUid','reason','source','roomId','createdAt'])
+        && request.resource.data.targetUid is string
+        && request.resource.data.targetUid != request.auth.uid
+        && request.resource.data.reason is string
+        && request.resource.data.reason.size() > 0
+        && request.resource.data.reason.size() <= 120
+        && request.resource.data.source is string
+        && request.resource.data.source.size() <= 40;
       allow read, update: if admin();
       allow delete: if false;
     }

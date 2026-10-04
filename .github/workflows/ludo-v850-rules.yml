@@ -1,0 +1,35 @@
+name: Verify and deploy online Ludo rules v8.5.0
+on:
+  push:
+    branches: [build/v8.5.0-ludo-rules]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  rules:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Install test tools
+        run: npm install --prefix tests/firestore --no-audit --no-fund
+      - name: Verify multiplayer permissions and game transitions
+        run: ./tests/firestore/node_modules/.bin/firebase emulators:exec --config firebase-emulator.json --only firestore --project demo-kingplus 'node tests/firestore/ludo-rules.test.mjs'
+      - name: Validate existing Firebase deployment credential
+        env:
+          FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_JSON }}
+        run: |
+          test -n "$FIREBASE_SERVICE_ACCOUNT_JSON" || (echo 'Firebase deployment credential is missing.' && exit 1)
+          printf '%s' "$FIREBASE_SERVICE_ACCOUNT_JSON" > "$RUNNER_TEMP/king-firebase.json"
+          echo "GOOGLE_APPLICATION_CREDENTIALS=$RUNNER_TEMP/king-firebase.json" >> "$GITHUB_ENV"
+      - name: Deploy only Firestore rules
+        run: ./tests/firestore/node_modules/.bin/firebase deploy --project king-plus-2f365 --only firestore:rules --non-interactive
+      - name: Remove temporary credential
+        if: always()
+        run: rm -f "$RUNNER_TEMP/king-firebase.json"
