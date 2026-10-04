@@ -77,10 +77,31 @@ jobs:
           set -euo pipefail
           cat ci/v710/patch.part00 ci/v710/patch.part01 | tr -d '\r\n' | base64 -d | gzip -dc > /tmp/v710.patch
           patch -p1 < /tmp/v710.patch
+
+          # Jitsi Meet SDK 13.1.1 requires Android API 26+.
+          sed -i 's/minSdk 24/minSdk 26/' app/build.gradle
+
+          # Preserve KING Plus app label when the Jitsi manifest is merged.
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path('app/src/main/AndroidManifest.xml')
+          s = p.read_text()
+          if 'xmlns:tools=' not in s:
+              s = s.replace(
+                  '<manifest xmlns:android="http://schemas.android.com/apk/res/android">',
+                  '<manifest xmlns:android="http://schemas.android.com/apk/res/android" xmlns:tools="http://schemas.android.com/tools">'
+              )
+          if 'tools:replace="android:label"' not in s:
+              s = s.replace('<application ', '<application tools:replace="android:label" ', 1)
+          p.write_text(s)
+          PY
+
           grep -q "versionName '7.1.0'" app/build.gradle
           grep -q "versionCode 101" app/build.gradle
+          grep -q "minSdk 26" app/build.gradle
           grep -q "jitsi-meet-sdk:13.1.1" app/build.gradle
           grep -q "jitsi-maven-repository" settings.gradle
+          grep -q 'tools:replace="android:label"' app/src/main/AndroidManifest.xml
           test -f app/src/main/java/com/kingplus/social/NativeMeetBridge.java
           test -f app/src/main/java/com/kingplus/social/KingSoundFx.java
           test -f app/src/main/java/com/kingplus/social/AssetPackActivity.java
