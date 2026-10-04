@@ -48,6 +48,18 @@ jobs:
           patch -p1 < /tmp/v700.patch
           cat ci/v710/patch.part00 ci/v710/patch.part01 | tr -d '\r\n' | base64 -d | gzip -dc > /tmp/v710.patch
           patch -p1 < /tmp/v710.patch
+          sed -i 's/minSdk 24/minSdk 26/' app/build.gradle
+          sed -i '/\.setLowBandwidthMode(!video)/d' app/src/main/java/com/kingplus/social/NativeMeetBridge.java
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('app/src/main/AndroidManifest.xml')
+          s=p.read_text()
+          if 'xmlns:tools=' not in s:
+              s=s.replace('<manifest xmlns:android="http://schemas.android.com/apk/res/android">','<manifest xmlns:android="http://schemas.android.com/apk/res/android" xmlns:tools="http://schemas.android.com/tools">')
+          if 'tools:replace="android:label"' not in s:
+              s=s.replace('<application ', '<application tools:replace="android:label" ', 1)
+          p.write_text(s)
+          PY
           cat ci/v720/patch.part00 ci/v720/patch.part01 ci/v720/patch.part02 ci/v720/patch.part03 | tr -d '\r\n' | base64 -d | gzip -dc > /tmp/v720.patch
           patch -p1 < /tmp/v720.patch
           cat ci/v730/patch.part00 ci/v730/patch.part01 ci/v730/patch.part02 ci/v730/patch.part03 | tr -d '\r\n' | base64 -d | gzip -dc > /tmp/v730.patch
