@@ -1,0 +1,50 @@
+name: Deploy KING Plus v8.3 Firestore and Functions
+
+on:
+  push:
+    branches: [ 'build/v8.3.0-production-hardening' ]
+    paths: [ '.github/workflows/firebase-v830-core-deploy.yml' ]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  deploy-core:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Validate Firebase production credential
+        env:
+          FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_JSON }}
+        run: test -n "$FIREBASE_SERVICE_ACCOUNT_JSON" || (echo "Missing FIREBASE_SERVICE_ACCOUNT_JSON" && exit 1)
+      - name: Download verified v8.3 build artifact
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/v830"
+          gh run download 37199744818 --repo avaiyakrushal/KING-Plus --name KING-Plus-v8.3.0-Production-Hardening --dir "$RUNNER_TEMP/v830"
+          unzip -q "$RUNNER_TEMP/v830/KING-Plus-v8.3.0-production-hardening-source.zip" -d "$RUNNER_TEMP/v830/source"
+          grep -q "versionName '8.3.0'" "$RUNNER_TEMP/v830/source/app/build.gradle"
+          grep -q 'function blockedEither' "$RUNNER_TEMP/v830/source/firestore.rules"
+          grep -q 'assertSocialAllowed' "$RUNNER_TEMP/v830/source/functions/v3.js"
+      - name: Install Firebase CLI and function dependencies
+        run: |
+          npm install --global firebase-tools
+          npm install --prefix "$RUNNER_TEMP/v830/source/functions"
+      - name: Prepare service account
+        env:
+          FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_JSON }}
+        run: |
+          printf '%s' "$FIREBASE_SERVICE_ACCOUNT_JSON" > "$RUNNER_TEMP/firebase-service-account.json"
+          echo "GOOGLE_APPLICATION_CREDENTIALS=$RUNNER_TEMP/firebase-service-account.json" >> "$GITHUB_ENV"
+      - name: Deploy v8.3 Firestore rules and Cloud Functions
+        working-directory: ${{ runner.temp }}/v830/source
+        run: firebase deploy --project king-plus-2f365 --only firestore:rules,functions --non-interactive
+      - name: Remove temporary credentials
+        if: always()
+        run: rm -f "$RUNNER_TEMP/firebase-service-account.json"
