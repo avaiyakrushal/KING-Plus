@@ -1,0 +1,55 @@
+        r.get().addOnSuccessListener(d->{if(d.exists()){tryCreate(capacity,attempt+1);return;}Map<String,Object> m=fresh(c,capacity);r.set(m).addOnSuccessListener(v->attach(c)).addOnFailureListener(e->toast("Create failed: "+msg(e)));}).addOnFailureListener(e->toast("Create failed: "+msg(e)));
+    }
+    private Map<String,Object> fresh(String c,int cap){
+        Map<String,Object> m=new HashMap<>();m.put("schema",1);m.put("code",c);m.put("ownerUid",me.getUid());
+        ArrayList<String> p=new ArrayList<>(),n=new ArrayList<>();ArrayList<Boolean> ready=new ArrayList<>();ArrayList<Integer> pieces=new ArrayList<>();
+        for(int i=0;i<4;i++){p.add(i==0?me.getUid():"");n.add(i==0?displayName:"");ready.add(false);}for(int i=0;i<16;i++)pieces.add(-1);
+        m.put("players",p);m.put("names",n);m.put("ready",ready);m.put("capacity",cap);m.put("pieces",pieces);m.put("turn",0);m.put("dice",0);m.put("sixes",0);m.put("winner",-1);m.put("phase","lobby");m.put("revision",0);m.put("action","create");m.put("actorUid",me.getUid());m.put("selected",-1);m.put("updatedAt",FieldValue.serverTimestamp());m.put("rollAt",FieldValue.serverTimestamp());return m;
+    }
+
+    private void joinMatch(String c){
+        DocumentReference r=db.collection("ludo_matches").document(c);
+        r.get().addOnSuccessListener(d->{if(!d.exists()){toast("Match not found");return;}if(!"lobby".equals(clean(d.getString("phase")))){toast("Match already started");return;}
+            db.runTransaction(tx->{DocumentSnapshot s=tx.get(r);if(!s.exists())throw new IllegalStateException("Match not found");List<String> players=strings(s.get("players"));if(players.contains(me.getUid()))return true;int cap=i(s,"capacity",2),seat=-1;int[] order=cap==2?new int[]{0,2}:new int[]{0,1,2,3};for(int x:order)if(x<players.size()&&players.get(x).isEmpty()){seat=x;break;}if(seat<0)throw new IllegalStateException("Match is full");List<String> names=strings(s.get("names"));List<Boolean> ready=bools(s.get("ready"));players.set(seat,me.getUid());names.set(seat,displayName);ready.set(seat,false);Map<String,Object> m=copy(s);m.put("players",players);m.put("names",names);m.put("ready",ready);stamp(m,s,"join",seat);tx.set(r,m);return true;}).addOnSuccessListener(ok->attach(c)).addOnFailureListener(e->toast("Join failed: "+msg(e)));
+        }).addOnFailureListener(e->toast("Match unavailable: "+msg(e)));
+    }
+
+    private void attach(String c){
+        code=c;matchRef=db.collection("ludo_matches").document(c);if(listener!=null)listener.remove();listener=matchRef.addSnapshotListener((d,e)->{if(e!=null){toast("Match sync: "+msg(e));return;}if(d==null||!d.exists()){toast("Match ended");showHome();return;}current=d;render(d);if("resolve".equals(clean(d.getString("phase")))&&!d.getMetadata().hasPendingWrites())autoResolve();});
+    }
+
+    private void render(DocumentSnapshot d){
+        page.removeAllViews();header("Match "+code+" • "+i(d,"capacity",2)+" players");
+        LinearLayout shareRow=new LinearLayout(this);TextView codeView=tv("CODE  "+code,20,GOLD,true);codeView.setGravity(Gravity.CENTER_VERTICAL);shareRow.addView(codeView,new LinearLayout.LayoutParams(0,dp(54),1));Button share=button("Share");share.setOnClickListener(v->shareCode());shareRow.addView(share,new LinearLayout.LayoutParams(dp(100),dp(50)));page.addView(shareRow);
+        String phase=clean(d.getString("phase"));List<String> players=strings(d.get("players")),names=strings(d.get("names"));List<Boolean> ready=bools(d.get("ready"));List<Integer> pieces=ints(d.get("pieces"));int turn=i(d,"turn",0),dice=i(d,"dice",0),winner=i(d,"winner",-1);
+        String main=phase.toUpperCase(Locale.US)+(dice>0?"  •  🎲 "+dice:"");if("finished".equals(phase)&&winner>=0&&winner<4)main="🏆 "+nameAt(names,winner)+" WON";TextView state=tv(main,20,Color.WHITE,true);state.setGravity(Gravity.CENTER);state.setBackground(bg(CARD,18));page.addView(state,new LinearLayout.LayoutParams(-1,dp(64)));
+        for(int seat=0;seat<4;seat++){if(i(d,"capacity",2)==2&&(seat==1||seat==3))continue;LinearLayout card=new LinearLayout(this);card.setOrientation(LinearLayout.VERTICAL);card.setPadding(dp(10),dp(7),dp(10),dp(7));card.setBackground(bg(CARD,14));String nm=nameAt(names,seat);boolean occupied=seat<players.size()&&!players.get(seat).isEmpty();String top=(seat==turn&&!"lobby".equals(phase)?"▶ ":"")+COLOR_NAMES[seat]+" • "+(occupied?nm:"Waiting…")+(occupied&&seat<ready.size()&&ready.get(seat)?"  ✅":"");TextView a=tv(top,15,COLORS[seat],true);card.addView(a);StringBuilder ps=new StringBuilder();for(int k=0;k<4;k++){if(k>0)ps.append("   ");int pos=seat*4+k<pieces.size()?pieces.get(seat*4+k):-1;ps.append("P").append(k+1).append(":").append(pos<0?"HOME":pos>=56?"DONE":pos+"/56");}card.addView(tv(ps.toString(),12,0xffddd2e7,false));LinearLayout.LayoutParams cp=new LinearLayout.LayoutParams(-1,-2);cp.setMargins(0,dp(4),0,dp(4));page.addView(card,cp);}
+        controls(d,players,names,ready,pieces,phase,turn,dice,winner);
+    }
+
+    private void controls(DocumentSnapshot d,List<String> players,List<String> names,List<Boolean> ready,List<Integer> pieces,String phase,int turn,int dice,int winner){
+        int my=players.indexOf(me.getUid());boolean owner=me.getUid().equals(clean(d.getString("ownerUid")));
+        if("lobby".equals(phase)){
+            if(my>=0){Button r=button((my<ready.size()&&ready.get(my)?"☑":"☐")+" Ready");r.setOnClickListener(v->toggleReady());page.addView(r,new LinearLayout.LayoutParams(-1,dp(52)));}
+            if(owner){Button s=button("▶ Start Match");s.setOnClickListener(v->startMatch());LinearLayout.LayoutParams sp=new LinearLayout.LayoutParams(-1,dp(54));sp.setMargins(0,dp(6),0,0);page.addView(s,sp);}
+            Button leave=button("Leave Match");leave.setOnClickListener(v->leaveMatch());LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(-1,dp(50));lp.setMargins(0,dp(8),0,0);page.addView(leave,lp);return;
+        }
+        if("roll".equals(phase)){
+            TextView x=tv(turn==my?"Your turn — roll the secure dice":"Waiting for "+nameAt(names,turn)+" to roll",15,turn==my?GOLD:0xffcfc4df,true);x.setGravity(Gravity.CENTER);page.addView(x);
+            if(turn==my){Button r=button("🎲 ROLL DICE");r.setOnClickListener(v->roll());page.addView(r,new LinearLayout.LayoutParams(-1,dp(62)));}
+        }else if("resolve".equals(phase)){TextView x=tv("🎲 Server is resolving the roll…",16,GOLD,true);x.setGravity(Gravity.CENTER);page.addView(x);}
+        else if("move".equals(phase)){
+            TextView x=tv(turn==my?"Move one piece • dice "+dice:"Waiting for "+nameAt(names,turn)+" to move",15,turn==my?GOLD:0xffcfc4df,true);x.setGravity(Gravity.CENTER);page.addView(x);
+            if(turn==my){LinearLayout row=new LinearLayout(this);for(int k=0;k<4;k++){final int piece=k;int pos=turn*4+k<pieces.size()?pieces.get(turn*4+k):-1;Button b=button("P"+(k+1)+"\n"+(pos<0?"HOME":pos>=56?"DONE":String.valueOf(pos)));b.setEnabled(legal(pos,dice));b.setAlpha(b.isEnabled()?1f:.35f);b.setOnClickListener(v->movePiece(piece));LinearLayout.LayoutParams bp=new LinearLayout.LayoutParams(0,dp(66),1);bp.setMargins(dp(2),0,dp(2),0);row.addView(b,bp);}page.addView(row);}
+        }else if("finished".equals(phase)||"cancelled".equals(phase)){
+            if(owner){Button rem=button("↻ Rematch");rem.setOnClickListener(v->rematch());page.addView(rem,new LinearLayout.LayoutParams(-1,dp(54)));}
+            Button exit=button("Exit Ludo");exit.setOnClickListener(v->finish());LinearLayout.LayoutParams ep=new LinearLayout.LayoutParams(-1,dp(50));ep.setMargins(0,dp(8),0,0);page.addView(exit,ep);return;
+        }
+        if(phase.equals("roll")||phase.equals("resolve")||phase.equals("move")){
+            LinearLayout row=new LinearLayout(this);Button skip=button("⏱ Skip timeout");skip.setOnClickListener(v->timeoutTurn());Button cancel=button("End match");cancel.setOnClickListener(v->confirmCancel());LinearLayout.LayoutParams p=new LinearLayout.LayoutParams(0,dp(48),1);p.setMargins(dp(2),dp(12),dp(2),0);row.addView(skip,p);row.addView(cancel,p);page.addView(row);
+        }
+    }
+
+    private void toggleReady(){
+        db.runTransaction(tx->{DocumentSnapshot s=tx.get(matchRef);List<String> p=strings(s.get("players"));int seat=p.indexOf(me.getUid());if(seat<0||!"lobby".equals(clean(s.getString("phase"))))return false;List<Boolean> r=bools(s.get("ready"));r.set(seat,!r.get(seat));Map<String,Object> m=copy(s);m.put("ready",r);stamp(m,s,"ready",seat);tx.set(matchRef,m);return true;}).addOnFailureListener(e->toast("Ready failed: "+msg(e)));
+    }
