@@ -123,7 +123,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          cat ci/v740/patch.part00 ci/v740/patch.part01 \
+          cat ci/v740/fix.part00 ci/v740/fix.part01 ci/v740/fix.part02 ci/v740/fix.part03 ci/v740/fix.part04 \
             | tr -d '\r\n' | base64 -d | gzip -dc > /tmp/v740.patch
           echo "v7.4 patch sha256: $(sha256sum /tmp/v740.patch | cut -d' ' -f1)"
           test "$(sha256sum /tmp/v740.patch | cut -d' ' -f1)" = "6e5b8eb6bb6837e687d8025f56dbe1a0a6eefc2c767076fd14db23a7474dc89b"
