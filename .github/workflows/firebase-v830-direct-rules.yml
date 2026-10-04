@@ -1,0 +1,100 @@
+name: Firebase v8.3 direct rules fallback
+
+on:
+  push:
+    branches: [ 'build/v8.3.0-production-hardening' ]
+    paths:
+      - '.github/workflows/firebase-v830-direct-rules.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Validate Firebase deploy secret
+        env:
+          FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_JSON }}
+        run: test -n "$FIREBASE_SERVICE_ACCOUNT_JSON"
+
+      - name: Download verified v8.3 source artifact
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/v830-artifact /tmp/v830-src
+          gh run download 37199744818 -n KING-Plus-v8.3.0-Production-Hardening -D /tmp/v830-artifact
+          unzip -q /tmp/v830-artifact/KING-Plus-v8.3.0-production-hardening-source.zip -d /tmp/v830-src
+          grep -q "versionName '8.3.0'" /tmp/v830-src/app/build.gradle
+          grep -q 'function blockedEither' /tmp/v830-src/firestore.rules
+          grep -q 'safeChatType' /tmp/v830-src/storage.rules
+          grep -q 'assertSocialAllowed' /tmp/v830-src/functions/v3.js
+
+      - name: Install function dependencies
+        run: npm install --prefix /tmp/v830-src/functions
+
+      - name: Prepare Google service account credentials
+        env:
+          FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_JSON }}
+        run: |
+          printf '%s' "$FIREBASE_SERVICE_ACCOUNT_JSON" > "$RUNNER_TEMP/firebase-service-account.json"
+          echo "GOOGLE_APPLICATION_CREDENTIALS=$RUNNER_TEMP/firebase-service-account.json" >> "$GITHUB_ENV"
+
+      - name: Deploy Firestore rules directly with Admin SDK
+        working-directory: /tmp/v830-src/functions
+        run: |
+          node <<'NODE'
+          const fs = require('fs');
+          const { initializeApp, applicationDefault } = require('firebase-admin/app');
+          const { getSecurityRules } = require('firebase-admin/security-rules');
+          initializeApp({
+            credential: applicationDefault(),
+            projectId: 'king-plus-2f365',
+            storageBucket: 'king-plus-2f365.firebasestorage.app'
+          });
+          (async () => {
+            const src = fs.readFileSync('../firestore.rules', 'utf8');
+            const rs = await getSecurityRules().releaseFirestoreRulesetFromSource(src);
+            console.log('Firestore rules released:', rs.name);
+          })().catch(err => { console.error(err); process.exit(1); });
+          NODE
+
+      - name: Deploy Storage rules directly with Admin SDK
+        continue-on-error: true
+        working-directory: /tmp/v830-src/functions
+        run: |
+          node <<'NODE'
+          const fs = require('fs');
+          const { initializeApp, applicationDefault, getApps } = require('firebase-admin/app');
+          const { getSecurityRules } = require('firebase-admin/security-rules');
+          if (!getApps().length) initializeApp({
+            credential: applicationDefault(),
+            projectId: 'king-plus-2f365',
+            storageBucket: 'king-plus-2f365.firebasestorage.app'
+          });
+          (async () => {
+            const src = fs.readFileSync('../storage.rules', 'utf8');
+            const rs = await getSecurityRules().releaseStorageRulesetFromSource(src, 'king-plus-2f365.firebasestorage.app');
+            console.log('Storage rules released:', rs.name);
+          })().catch(err => { console.error(err); process.exit(1); });
+          NODE
+
+      - name: Try Functions deploy separately
+        continue-on-error: true
+        working-directory: /tmp/v830-src
+        run: |
+          npm install --global firebase-tools
+          firebase deploy --project king-plus-2f365 --only functions --non-interactive
+
+      - name: Remove temporary credentials
+        if: always()
+        run: rm -f "$RUNNER_TEMP/firebase-service-account.json"
