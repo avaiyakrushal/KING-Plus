@@ -79,11 +79,14 @@ jobs:
           from pathlib import Path
           p = Path('app/src/main/java/com/kingplus/social/MainActivity.java')
           s = p.read_text()
-          bad = '+(unlocked?icons[i]:"🔒")+"\n"+labels[i]'
-          good = '+(unlocked?icons[i]:"🔒")+"\\n"+labels[i]'
-          if bad in s:
-              s = s.replace(bad, good)
+          bad = '(unlocked?icons[i]:"🔒")+"' + '\n' + '"+labels[i]'
+          good = '(unlocked?icons[i]:"🔒")+"\\n"+labels[i]'
+          count = s.count(bad)
+          if count != 1:
+              raise SystemExit(f'Expected exactly 1 broken VIP tile string, found {count}')
+          s = s.replace(bad, good, 1)
           p.write_text(s)
+          print('Fixed broken VIP tile string')
           PY
           grep -q "versionName '6.3.0'" app/build.gradle
           grep -q "versionCode 93" app/build.gradle
@@ -95,6 +98,7 @@ jobs:
           grep -q 'awardDirectGiftProgress630' app/src/main/java/com/kingplus/social/ChatActivity.java
           grep -q 'senderVip' app/src/main/java/com/kingplus/social/ChatActivity.java
           grep -q 'vipPoints' app/src/main/java/com/kingplus/social/MainActivity.java
+          grep -q '"\\n"+labels\[i\]' app/src/main/java/com/kingplus/social/MainActivity.java
           rm -rf app/build
 
       - name: Build v6.3.0 debug APK
