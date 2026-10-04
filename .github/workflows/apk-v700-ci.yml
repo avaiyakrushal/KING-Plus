@@ -1,0 +1,107 @@
+name: Build KING Plus v7.0.0 Full Social Parity APK
+
+on:
+  push:
+    branches: [ 'build/v7.0.0-full-social' ]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+
+      - name: Prepare proven v5.3.2 base
+        run: bash tools/build_v530.sh
+
+      - name: Apply v5.7.0 patch
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat ci/v570/patch.part00a ci/v570/patch.part00b ci/v570/patch.part00c ci/v570/patch.part01 \
+            | tr -d '\r\n' | base64 -d | gzip -dc > /tmp/v570.patch
+          patch -p1 < /tmp/v570.patch
+          grep -q "versionName '5.7.0'" app/build.gradle
+          rm -rf app/build
+
+      - name: Apply v6.0.0 full reference parity patch
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat ci/v600/patch.part00 ci/v600/patch.part01 ci/v600/patch.part02 \
+            | tr -d '\r\n' | base64 -d | gzip -dc > /tmp/v600.patch
+          patch -p1 < /tmp/v600.patch
+          grep -q "versionName '6.0.0'" app/build.gradle
+          rm -rf app/build
+
+      - name: Apply v6.1.0 Party parity patch
+        shell: bash
+        run: |
+          set -euo pipefail
+          tr -d '\r\n' < ci/v610/patch.b64 | base64 -d | gzip -dc > /tmp/v610.patch
+          patch -p1 < /tmp/v610.patch
+          grep -q "versionName '6.1.0'" app/build.gradle
+          rm -rf app/build
+
+      - name: Apply v6.2.0 Gift Chat parity patch
+        shell: bash
+        run: |
+          set -euo pipefail
+          tr -d '\r\n' < ci/v620/patch.b64 | base64 -d | gzip -dc > /tmp/v620.patch
+          patch -p1 < /tmp/v620.patch
+          grep -q "versionName '6.2.0'" app/build.gradle
+          rm -rf app/build
+
+      - name: Apply v7.0.0 full social parity patch
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat ci/v700/patch.part00 ci/v700/patch.part01 ci/v700/patch.part02 ci/v700/patch.part03 \
+              ci/v700/patch.part04 ci/v700/patch.part05 ci/v700/patch.part06 ci/v700/patch.part07 \
+            | tr -d '\r\n' | base64 -d | gzip -dc > /tmp/v700.patch
+          patch -p1 < /tmp/v700.patch
+          grep -q "versionName '7.0.0'" app/build.gradle
+          grep -q "versionCode 100" app/build.gradle
+          test -f app/src/main/java/com/kingplus/social/CommunityHubActivity.java
+          test -f app/src/main/java/com/kingplus/social/LevelSystem.java
+          grep -q 'MAX_LEVEL = 99' app/src/main/java/com/kingplus/social/LevelSystem.java
+          grep -q 'MAX_VIP = 12' app/src/main/java/com/kingplus/social/LevelSystem.java
+          grep -q 'backpackGiftDialog700' app/src/main/java/com/kingplus/social/PartyActivity.java
+          grep -q 'audioPkPanel700' app/src/main/java/com/kingplus/social/PartyActivity.java
+          grep -q 'loopMicPanel700' app/src/main/java/com/kingplus/social/PartyActivity.java
+          grep -q 'showLudo' app/src/main/java/com/kingplus/social/GamePlayActivity.java
+          grep -q 'showSlot' app/src/main/java/com/kingplus/social/GamePlayActivity.java
+          grep -q 'showCoin' app/src/main/java/com/kingplus/social/GamePlayActivity.java
+          grep -q 'match /moments' firestore.rules
+          grep -q 'match /families' firestore.rules
+          grep -q 'match /relationships' firestore.rules
+          rm -rf app/build
+
+      - name: Build v7.0.0 debug APK
+        run: gradle :app:assembleDebug --no-daemon
+
+      - name: Package APK
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p release_v700
+          cp app/build/outputs/apk/debug/app-debug.apk release_v700/KING-Plus-v7.0.0-full-social-parity-no-billing-test-otp.apk
+          sha256sum release_v700/KING-Plus-v7.0.0-full-social-parity-no-billing-test-otp.apk > release_v700/SHA256.txt
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: KING-Plus-v7.0.0-APK
+          path: release_v700/*
+          if-no-files-found: error
