@@ -1,6 +1,14 @@
-name: Firebase production deploy
+name: Firebase v8.3 production backend deploy
 
 on:
+  push:
+    branches: [ 'build/v8.3.0-production-hardening' ]
+    paths:
+      - '.github/workflows/firebase-deploy.yml'
+      - 'ci/v830/**'
+      - 'firestore.rules'
+      - 'storage.rules'
+      - 'functions/**'
   workflow_dispatch:
 
 permissions:
@@ -20,7 +28,59 @@ jobs:
         env:
           FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_JSON }}
         run: |
+          set -euo pipefail
           test -n "$FIREBASE_SERVICE_ACCOUNT_JSON" || (echo "Missing FIREBASE_SERVICE_ACCOUNT_JSON" && exit 1)
+
+      - name: Reconstruct v8.3 backend snapshot
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash tools/build_v530.sh
+          cat ci/v570/patch.part00a ci/v570/patch.part00b ci/v570/patch.part00c ci/v570/patch.part01 | tr -d '\r\n' | base64 -d | gzip -dc > /tmp/v570.patch
+          patch -p1 < /tmp/v570.patch
+          cat ci/v600/patch.part00 ci/v600/patch.part01 ci/v600/patch.part02 | tr -d '\r\n' | base64 -d | gzip -dc > /tmp/v600.patch
+          patch -p1 < /tmp/v600.patch
+          tr -d '\r\n' < ci/v610/patch.b64 | base64 -d | gzip -dc > /tmp/v610.patch
+          patch -p1 < /tmp/v610.patch
+          tr -d '\r\n' < ci/v620/patch.b64 | base64 -d | gzip -dc > /tmp/v620.patch
+          patch -p1 < /tmp/v620.patch
+          cat ci/v700/patch.part00 ci/v700/patch.part01 ci/v700/patch.part02 ci/v700/patch.part03 ci/v700/patch.part04 ci/v700/patch.part05 ci/v700/patch.part06 ci/v700/patch.part07 | tr -d '\r\n' | base64 -d | gzip -dc > /tmp/v700.patch
+          patch -p1 < /tmp/v700.patch
+          cat ci/v710/patch.part00 ci/v710/patch.part01 | tr -d '\r\n' | base64 -d | gzip -dc > /tmp/v710.patch
+          patch -p1 < /tmp/v710.patch
+          cat ci/v720/patch.part00 ci/v720/patch.part01 ci/v720/patch.part02 ci/v720/patch.part03 | tr -d '\r\n' | base64 -d | gzip -dc > /tmp/v720.patch
+          patch -p1 < /tmp/v720.patch
+          cat ci/v730/patch.part00 ci/v730/patch.part01 ci/v730/patch.part02 ci/v730/patch.part03 | tr -d '\r\n' | base64 -d | gzip -dc > /tmp/v730.patch
+          test "$(sha256sum /tmp/v730.patch | cut -d' ' -f1)" = "815220138037af0d84bda665ab8a8295a55ec2a856db4de18530569add6e822d"
+          patch -p1 < /tmp/v730.patch
+          cat ci/v740/fix.part00 ci/v740/fix.part01 ci/v740/fix.part02 ci/v740/fix.part03 ci/v740/fix.part04 | tr -d '\r\n' | base64 -d | gzip -dc > /tmp/v740.patch
+          test "$(sha256sum /tmp/v740.patch | cut -d' ' -f1)" = "6e5b8eb6bb6837e687d8025f56dbe1a0a6eefc2c767076fd14db23a7474dc89b"
+          patch -p1 < /tmp/v740.patch
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('app/src/main/java/com/kingplus/social/RoomGameActivity.java')
+          if p.exists():
+              s=p.read_text().replace('ViewCompat.requestApplyWindowInsets(root)','ViewCompat.requestApplyInsets(root)')
+              p.write_text(s)
+          PY
+          cat ci/v750/patch.part00 ci/v750/patch.part01 ci/v750/patch.part02 ci/v750/patch.part03 ci/v750/patch.part04 | tr -d '\r\n' | base64 -d | gzip -dc > /tmp/v750.patch
+          test "$(sha256sum /tmp/v750.patch | cut -d' ' -f1)" = "c78f106b681b8c78aa16d09ad347be662f86caf349ff8c99dfbeee96bdd9cf1e"
+          patch -p1 < /tmp/v750.patch
+          python3 tools/fix_v750_missing_methods.py
+          cat ci/v810/patch.part00 ci/v810/patch.part01 ci/v810/patch.part02 ci/v810/patch.part03 ci/v810/patch.part04 ci/v810/patch.part05 ci/v810/patch.part06 ci/v810/patch.part07 | tr -d '\r\n' | base64 -d | gzip -dc > /tmp/v810.patch
+          test "$(sha256sum /tmp/v810.patch | cut -d' ' -f1)" = "d06765477216d7197351414331f94491599675411bb3233f40f3ba86d8cda4c6"
+          patch -p1 < /tmp/v810.patch
+          cat ci/v820/patch.part00 ci/v820/patch.part01 ci/v820/patch.part02 ci/v820/patch.part03 ci/v820/patch.part04 | tr -d '\r\n' | base64 -d | gzip -dc > /tmp/v820.patch
+          test "$(sha256sum /tmp/v820.patch | cut -d' ' -f1)" = "6e3b51a10e2f1770a84eb1b4b425db067fdc5144f250859e980e679776a655ef"
+          patch -p1 < /tmp/v820.patch
+          cat ci/v830/patch.part00 ci/v830/patch.part01 ci/v830/patch.part02 | tr -d '\r\n' | base64 -d | gzip -dc > /tmp/v830.patch
+          test "$(sha256sum /tmp/v830.patch | cut -d' ' -f1)" = "88f198ca767fa0ffe7325f58f134f91223bfef3260ac6349d7245e85a930f10e"
+          patch -p1 < /tmp/v830.patch
+          grep -q 'function blockedEither' firestore.rules
+          grep -q 'safeChatType' storage.rules
+          grep -q 'assertSocialAllowed' functions/v3.js
+          python3 tools/release_audit_v830.py
+          node --check functions/v3.js
 
       - name: Install Firebase CLI and function dependencies
         run: |
@@ -34,17 +94,8 @@ jobs:
           printf '%s' "$FIREBASE_SERVICE_ACCOUNT_JSON" > "$RUNNER_TEMP/firebase-service-account.json"
           echo "GOOGLE_APPLICATION_CREDENTIALS=$RUNNER_TEMP/firebase-service-account.json" >> "$GITHUB_ENV"
 
-      - name: Apply v3.0.1 production backend hardening
-        run: python3 tools/prepare_v301_hardening.py
-
-      - name: Validate backend syntax and production checks
-        run: |
-          MAIN_FILE=$(node -p "require('./functions/package.json').main || 'index.js'")
-          node --check "functions/$MAIN_FILE"
-          python3 tools/production_smoke_check.py
-
-      - name: Deploy Firestore rules and Cloud Functions
-        run: firebase deploy --project king-plus-2f365 --only firestore:rules,functions --non-interactive
+      - name: Deploy Firestore Storage and Functions
+        run: firebase deploy --project king-plus-2f365 --only firestore:rules,storage,functions --non-interactive
 
       - name: Remove temporary credentials
         if: always()
