@@ -1,0 +1,159 @@
+name: Build KING Plus v8.1.0 Deep Parity APK
+
+on:
+  push:
+    branches: [ 'build/v8.1.0-deep-parity' ]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+      - name: Prepare proven v5.3.2 base
+        run: bash tools/build_v530.sh
+      - name: Apply v5.7.0 patch
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat ci/v570/patch.part00a ci/v570/patch.part00b ci/v570/patch.part00c ci/v570/patch.part01 | tr -d '\r\n' | base64 -d | gzip -dc > /tmp/v570.patch
+          patch -p1 < /tmp/v570.patch
+          rm -rf app/build
+      - name: Apply v6.0.0 patch
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat ci/v600/patch.part00 ci/v600/patch.part01 ci/v600/patch.part02 | tr -d '\r\n' | base64 -d | gzip -dc > /tmp/v600.patch
+          patch -p1 < /tmp/v600.patch
+          rm -rf app/build
+      - name: Apply v6.1.0 patch
+        shell: bash
+        run: |
+          set -euo pipefail
+          tr -d '\r\n' < ci/v610/patch.b64 | base64 -d | gzip -dc > /tmp/v610.patch
+          patch -p1 < /tmp/v610.patch
+          rm -rf app/build
+      - name: Apply v6.2.0 patch
+        shell: bash
+        run: |
+          set -euo pipefail
+          tr -d '\r\n' < ci/v620/patch.b64 | base64 -d | gzip -dc > /tmp/v620.patch
+          patch -p1 < /tmp/v620.patch
+          rm -rf app/build
+      - name: Apply v7.0.0 patch
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat ci/v700/patch.part00 ci/v700/patch.part01 ci/v700/patch.part02 ci/v700/patch.part03 ci/v700/patch.part04 ci/v700/patch.part05 ci/v700/patch.part06 ci/v700/patch.part07 | tr -d '\r\n' | base64 -d | gzip -dc > /tmp/v700.patch
+          patch -p1 < /tmp/v700.patch
+          rm -rf app/build
+      - name: Apply v7.1.0 native engine patch
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat ci/v710/patch.part00 ci/v710/patch.part01 | tr -d '\r\n' | base64 -d | gzip -dc > /tmp/v710.patch
+          patch -p1 < /tmp/v710.patch
+          sed -i 's/minSdk 24/minSdk 26/' app/build.gradle
+          sed -i '/\.setLowBandwidthMode(!video)/d' app/src/main/java/com/kingplus/social/NativeMeetBridge.java
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('app/src/main/AndroidManifest.xml'); s=p.read_text()
+          if 'xmlns:tools=' not in s: s=s.replace('<manifest xmlns:android="http://schemas.android.com/apk/res/android">','<manifest xmlns:android="http://schemas.android.com/apk/res/android" xmlns:tools="http://schemas.android.com/tools">')
+          if 'tools:replace="android:label"' not in s: s=s.replace('<application ', '<application tools:replace="android:label" ', 1)
+          p.write_text(s)
+          PY
+          rm -rf app/build
+      - name: Apply v7.2.0 patch
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat ci/v720/patch.part00 ci/v720/patch.part01 ci/v720/patch.part02 ci/v720/patch.part03 | tr -d '\r\n' | base64 -d | gzip -dc > /tmp/v720.patch
+          patch -p1 < /tmp/v720.patch
+          rm -rf app/build
+      - name: Apply v7.3.0 patch
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat ci/v730/patch.part00 ci/v730/patch.part01 ci/v730/patch.part02 ci/v730/patch.part03 | tr -d '\r\n' | base64 -d | gzip -dc > /tmp/v730.patch
+          test "$(sha256sum /tmp/v730.patch | cut -d' ' -f1)" = "815220138037af0d84bda665ab8a8295a55ec2a856db4de18530569add6e822d"
+          patch -p1 < /tmp/v730.patch
+          rm -rf app/build
+      - name: Apply v7.4.0 patch
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat ci/v740/fix.part00 ci/v740/fix.part01 ci/v740/fix.part02 ci/v740/fix.part03 ci/v740/fix.part04 | tr -d '\r\n' | base64 -d | gzip -dc > /tmp/v740.patch
+          test "$(sha256sum /tmp/v740.patch | cut -d' ' -f1)" = "6e5b8eb6bb6837e687d8025f56dbe1a0a6eefc2c767076fd14db23a7474dc89b"
+          patch -p1 < /tmp/v740.patch
+          sed -i 's/ViewCompat.requestApplyWindowInsets(root)/ViewCompat.requestApplyInsets(root)/' app/src/main/java/com/kingplus/social/RoomGameActivity.java
+          rm -rf app/build
+      - name: Apply v7.5.0 complete flow patch
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat ci/v750/patch.part00 ci/v750/patch.part01 ci/v750/patch.part02 ci/v750/patch.part03 ci/v750/patch.part04 | tr -d '\r\n' | base64 -d | gzip -dc > /tmp/v750.patch
+          test "$(sha256sum /tmp/v750.patch | cut -d' ' -f1)" = "c78f106b681b8c78aa16d09ad347be662f86caf349ff8c99dfbeee96bdd9cf1e"
+          patch -p1 < /tmp/v750.patch
+          rm -rf app/build
+      - name: Complete v7.5 missing methods
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 tools/fix_v750_missing_methods.py
+          grep -q 'private void listenReady750' app/src/main/java/com/kingplus/social/RoomGameActivity.java
+          grep -q 'private void visitors750' app/src/main/java/com/kingplus/social/CommunityHubActivity.java
+          rm -rf app/build
+      - name: Apply v8.1.0 deep parity patch
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat ci/v810/patch.part00 ci/v810/patch.part01 ci/v810/patch.part02 ci/v810/patch.part03 ci/v810/patch.part04 ci/v810/patch.part05 ci/v810/patch.part06 ci/v810/patch.part07 | tr -d '\r\n' | base64 -d | gzip -dc > /tmp/v810.patch
+          test "$(sha256sum /tmp/v810.patch | cut -d' ' -f1)" = "ce801b7e9082166f619d12b4c442ef980133f269aaedf18c37fa0f173bda0ff4"
+          patch -p1 < /tmp/v810.patch
+          grep -q "versionName '8.1.0'" app/build.gradle
+          grep -q "versionCode 111" app/build.gradle
+          grep -q 'MAX_VIP = 50' app/src/main/java/com/kingplus/social/LevelSystem.java
+          grep -q 'KingDeepFlowActivity' app/src/main/AndroidManifest.xml
+          grep -q 'Coin Pick' app/src/main/java/com/kingplus/social/RoomGameActivity.java
+          grep -q 'vipLevel <= 50' firestore.rules
+          rm -rf app/build
+      - name: Generate KING Plus sound pack
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          import math,wave,struct
+          raw=Path('app/src/main/res/raw'); raw.mkdir(parents=True,exist_ok=True)
+          def make(name,freqs):
+              rate=22050; dur=.36; data=[]
+              for i in range(int(rate*dur)):
+                  t=i/rate; a=sum(math.sin(2*math.pi*f*t) for f in freqs)/len(freqs); fade=max(0,min(1,t/.03,(dur-t)/.08)); data.append(struct.pack('<h',int(8000*a*fade)))
+              with wave.open(str(raw/name),'wb') as w: w.setnchannels(1); w.setsampwidth(2); w.setframerate(rate); w.writeframes(b''.join(data))
+          make('king_gift.wav',[660,990]); make('king_join.wav',[440,660]); make('king_level.wav',[523,659,784]); make('king_win.wav',[784,988,1175])
+          PY
+      - name: Build v8.1.0 debug APK
+        run: gradle :app:assembleDebug --no-daemon
+      - name: Package APK and source
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p release_v810
+          cp app/build/outputs/apk/debug/app-debug.apk release_v810/KING-Plus-v8.1.0-deep-parity-native-no-billing-test-otp.apk
+          sha256sum release_v810/KING-Plus-v8.1.0-deep-parity-native-no-billing-test-otp.apk > release_v810/SHA256.txt
+          zip -qr release_v810/KING-Plus-v8.1.0-deep-parity-source.zip . -x '.git/*' 'release_v810/*' 'app/build/*' '.gradle/*'
+      - uses: actions/upload-artifact@v4
+        with:
+          name: KING-Plus-v8.1.0-Deep-Parity
+          path: release_v810/*
+          if-no-files-found: error
