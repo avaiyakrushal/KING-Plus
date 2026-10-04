@@ -1,0 +1,114 @@
+name: Build KING Plus v8.5.1 Online Ludo
+
+on:
+  push:
+    branches: [ 'build/v8.5.1-integrated-ludo' ]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+
+      - name: Download verified v8.3.1 source base
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/v831-art /tmp/v851-src
+          gh run download 37205145621 -n KING-Plus-v8.3.1-Compressed-Universal -D /tmp/v831-art
+          unzip -q /tmp/v831-art/KING-Plus-v8.3.1-compressed-universal-source.zip -d /tmp/v851-src
+          grep -q "versionName '8.3.1'" /tmp/v851-src/app/build.gradle
+          test -f /tmp/v851-src/app/src/main/java/com/kingplus/social/RoomGameActivity.java
+
+      - name: Import tested v8.5.0 Ludo security fixtures
+        run: |
+          set -euo pipefail
+          git fetch origin build/v8.5.0-ludo-rules --depth=1
+          git show FETCH_HEAD:firestore.rules > /tmp/v850-firestore.rules
+          mkdir -p /tmp/v851-src/tests/firestore /tmp/v851-src/ci/v851
+          git show FETCH_HEAD:tests/firestore/ludo-rules.test.mjs > /tmp/v851-src/tests/firestore/ludo-rules.test.mjs
+          git show FETCH_HEAD:tests/firestore/package.json > /tmp/v851-src/tests/firestore/package.json
+          git show FETCH_HEAD:firebase-emulator.json > /tmp/v851-src/firebase-emulator.json
+          cp ci/v851/OnlineLudoActivity.java /tmp/v851-src/ci/v851/OnlineLudoActivity.java
+          cp tools/apply_v851_ludo.py /tmp/v851-src/tools/apply_v851_ludo.py
+          grep -q 'match /ludo_matches/{code}' /tmp/v850-firestore.rules
+
+      - name: Integrate realtime Online Ludo into v8.3.1
+        working-directory: /tmp/v851-src
+        run: |
+          set -euo pipefail
+          python3 tools/apply_v851_ludo.py /tmp/v850-firestore.rules
+          grep -q "versionName '8.5.1'" app/build.gradle
+          grep -q "versionCode 115" app/build.gradle
+          grep -q 'OnlineLudoActivity' app/src/main/AndroidManifest.xml
+          grep -q 'OnlineLudoActivity.class' app/src/main/java/com/kingplus/social/MainActivity.java
+          grep -q 'Online Ludo' app/src/main/java/com/kingplus/social/RoomGameActivity.java
+          grep -q 'match /ludo_matches/{code}' firestore.rules
+
+      - name: Install Firestore test tools
+        working-directory: /tmp/v851-src
+        run: npm install --prefix tests/firestore --no-audit --no-fund
+
+      - name: Verify Online Ludo security and game transitions
+        working-directory: /tmp/v851-src
+        run: ./tests/firestore/node_modules/.bin/firebase emulators:exec --config firebase-emulator.json --only firestore --project demo-kingplus 'node tests/firestore/ludo-rules.test.mjs'
+
+      - name: Prepare Firebase deployment credential
+        continue-on-error: true
+        env:
+          FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_JSON }}
+        run: |
+          set -euo pipefail
+          test -n "$FIREBASE_SERVICE_ACCOUNT_JSON"
+          printf '%s' "$FIREBASE_SERVICE_ACCOUNT_JSON" > "$RUNNER_TEMP/king-firebase.json"
+          echo "GOOGLE_APPLICATION_CREDENTIALS=$RUNNER_TEMP/king-firebase.json" >> "$GITHUB_ENV"
+
+      - name: Attempt Firestore rules deployment
+        continue-on-error: true
+        working-directory: /tmp/v851-src
+        run: ./tests/firestore/node_modules/.bin/firebase deploy --project king-plus-2f365 --only firestore:rules --non-interactive
+
+      - name: Build v8.5.1 universal APK
+        working-directory: /tmp/v851-src
+        run: gradle :app:assembleDebug --no-daemon
+
+      - name: Package APK and complete source
+        working-directory: /tmp/v851-src
+        run: |
+          set -euo pipefail
+          mkdir -p release_v851
+          cp app/build/outputs/apk/debug/app-debug.apk release_v851/KING-Plus-v8.5.1-online-ludo-no-billing-test-otp.apk
+          sha256sum release_v851/KING-Plus-v8.5.1-online-ludo-no-billing-test-otp.apk > release_v851/SHA256.txt
+          printf '%s\n' 'KING Plus v8.5.1 Online Ludo' 'Realtime 2/4-player room-code Ludo client integrated.' 'Firestore Ludo rules are emulator-tested. Production deploy depends on Firebase service-account IAM permission.' > release_v851/BUILD-NOTES.txt
+          zip -qr release_v851/KING-Plus-v8.5.1-online-ludo-source.zip . -x '.git/*' 'release_v851/*' 'app/build/*' '.gradle/*' 'tests/firestore/node_modules/*'
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: KING-Plus-v8.5.1-Online-Ludo
+          path: /tmp/v851-src/release_v851/*
+          if-no-files-found: error
+
+      - name: Remove temporary credential
+        if: always()
+        run: rm -f "$RUNNER_TEMP/king-firebase.json"
