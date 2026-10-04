@@ -22,6 +22,14 @@ if not src.exists(): raise SystemExit('Online Ludo Java source missing')
 dst=root/'app/src/main/java/com/kingplus/social/OnlineLudoActivity.java'
 dst.parent.mkdir(parents=True,exist_ok=True)
 shutil.copyfile(src,dst)
+# Firestore runTransaction infers Object when the helper returns Task<Void>.
+# Pin the generic result to Void so javac accepts the realtime transaction helper.
+j=dst.read_text()
+needle='return db.runTransaction(tx->{DocumentSnapshot d=tx.get(ref());if(!d.exists())throw new IllegalStateException("Room closed");Map<String,Object> o=copy(d.getData());change.apply(o);tx.set(ref(),o);return null;}).addOnFailureListener(e->showError(label,e));'
+replacement='return db.<Void>runTransaction(tx->{DocumentSnapshot d=tx.get(ref());if(!d.exists())throw new IllegalStateException("Room closed");Map<String,Object> o=copy(d.getData());change.apply(o);tx.set(ref(),o);return null;}).addOnFailureListener(e->showError(label,e));'
+if needle not in j: raise SystemExit('Online Ludo transaction helper anchor not found')
+j=j.replace(needle,replacement,1)
+dst.write_text(j)
 
 manifest=root/'app/src/main/AndroidManifest.xml'
 m=manifest.read_text()
