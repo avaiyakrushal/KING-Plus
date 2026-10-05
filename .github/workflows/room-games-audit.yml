@@ -1,0 +1,32 @@
+name: Inspect current room games
+on:
+  push:
+    branches: ['build/room-games-audit']
+permissions:
+  contents: read
+  actions: read
+jobs:
+  inspect:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Inspect verified v8.5.2 game sources
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/games-art /tmp/games-src
+          gh run download 37251882373 -n KING-Plus-v8.5.2 -D /tmp/games-art
+          unzip -q /tmp/games-art/KING-Plus-v8.5.2-source.zip -d /tmp/games-src
+          python3 - <<'PY'
+          from pathlib import Path
+          root=Path('/tmp/games-src')
+          for name in ['GamePlayActivity.java','RoomGameActivity.java']:
+              p=root/'app/src/main/java/com/kingplus/social'/name
+              print('FILE_START '+name)
+              print(p.read_text())
+              print('FILE_END '+name)
+          print('FILE_START firestore.rules')
+          print((root/'firestore.rules').read_text())
+          print('FILE_END firestore.rules')
+          PY
