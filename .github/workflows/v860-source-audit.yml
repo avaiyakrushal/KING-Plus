@@ -1,0 +1,63 @@
+name: KING Plus v8.6.0 source audit
+on:
+  push:
+    branches: ['build/v8.6.0-parity-fixes']
+    paths-ignore:
+      - 'ci/v860/source-audit/**'
+  workflow_dispatch:
+permissions:
+  contents: write
+  actions: read
+jobs:
+  audit:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: build/v8.6.0-parity-fixes
+      - name: Recover verified v8.5.3 source
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          rm -rf /tmp/base /tmp/src
+          mkdir -p /tmp/base /tmp/src ci/v860/source-audit
+          gh run download 37252755854 -n KING-Plus-v8.5.3-APK-and-source -D /tmp/base
+          unzip -q /tmp/base/KING-Plus-v8.5.3-source.zip -d /tmp/src
+      - name: Capture relevant source for v8.6.0 work
+        run: |
+          set -euo pipefail
+          OUT=ci/v860/source-audit
+          rm -rf "$OUT" && mkdir -p "$OUT"
+          find /tmp/src/app/src/main/java/com/kingplus/social -maxdepth 1 -type f -name '*.java' -printf '%f\n' | sort > "$OUT/java-files.txt"
+          for f in PartyActivity.java MainActivity.java GamePlayActivity.java RoomGameActivity.java OnlineLudoActivity.java; do
+            if [ -f "/tmp/src/app/src/main/java/com/kingplus/social/$f" ]; then
+              cp "/tmp/src/app/src/main/java/com/kingplus/social/$f" "$OUT/$f"
+            fi
+          done
+          python3 - <<'PY'
+          from pathlib import Path
+          root=Path('/tmp/src')
+          out=Path('ci/v860/source-audit/relevant.txt')
+          keys=('gift','emoji','sticker','keyboard','inputmethod','sendmessage','send message','game','ludo','werewolf','spy','draw','bingo')
+          rows=[]
+          for p in root.rglob('*.java'):
+              try: lines=p.read_text(errors='ignore').splitlines()
+              except: continue
+              hits=[]
+              for i,line in enumerate(lines,1):
+                  if any(k in line.lower() for k in keys):
+                      hits.append(f'{i}: {line[:500]}')
+              if hits:
+                  rows.append(f'\n===== {p.relative_to(root)} =====\n'+'\n'.join(hits[:300]))
+          out.write_text('\n'.join(rows))
+          PY
+      - name: Commit source audit snapshot
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add ci/v860/source-audit
+          if git diff --cached --quiet; then exit 0; fi
+          git commit -m 'Audit v8.5.3 party, gifting, emoji, chat and games source'
+          git push origin HEAD:build/v8.6.0-parity-fixes
