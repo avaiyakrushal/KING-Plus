@@ -1,0 +1,849 @@
+
+===== tools/InboxActivity_v392.java =====
+8: import android.graphics.drawable.GradientDrawable;
+65:     private GradientDrawable bg(int color, int radius) {
+66:         GradientDrawable d = new GradientDrawable(); d.setColor(color); d.setCornerRadius(dp(radius)); return d;
+191:         String[] items={"Follow activity","Likes & gifts","Room invitations","KING Plus updates"};
+205:         LinearLayout nav=new LinearLayout(this);nav.setGravity(Gravity.CENTER);nav.setBackgroundColor(Color.WHITE);String[] ni={"⌂\nParty","♟\nGame","◇\nDiscover","✉\nMessages","●\nMe"};
+
+===== app/src/main/java/com/kingplus/social/OnlineLudoBoardView.java =====
+13: public final class OnlineLudoBoardView extends View {
+23:     public OnlineLudoBoardView(Context context){super(context);setContentDescription("Ludo board. Use numbered piece buttons below to move.");}
+27:     private void rect(Canvas c,float x,float y,float w,float h,int color){paint.setColor(color);paint.setStyle(Paint.Style.FILL);c.drawRect(x,y,x+w,y+h,paint);}
+28:     private void text(Canvas c,String value,float x,float y,float size,int color){paint.setColor(color);paint.setTextAlign(Paint.Align.CENTER);paint.setTextSize(size);paint.setStyle(Paint.Style.FILL);c.drawText(value,x,y-(paint.ascent()+paint.descent())/2,paint);}
+29:     @Override protected void onDraw(Canvas c){super.onDraw(c);float u=getWidth()/15f;rect(c,0,0,getWidth(),getHeight(),0xffeee9f6);
+32:         for(int square=0;square<52;square++){int[] p=TRACK[square];int color=square%13==0?COLORS[square/13]:Color.WHITE;rect(c,p[0]*u,p[1]*u,u,u,color);paint.setStyle(Paint.Style.STROKE);paint.setStrokeWidth(u*.025f);paint.setColor(0xffb9adc8);c.drawRect(p[0]*u,p[1]*u,(p[0]+1)*u,(p[1]+1)*u,paint);if(square%13==8||square%13==0)text(c,"★",(p[0]+.5f)*u,(p[1]+.5f)*u,u*.65f,0xff776381);}
+33:         for(int seat=0;seat<4;seat++)for(int k=0;k<5;k++){float[] p=home(seat,k);rect(c,p[0]*u,p[1]*u,u,u,COLORS[seat]);paint.setStyle(Paint.Style.STROKE);paint.setStrokeWidth(u*.025f);paint.setColor(0xffeee9f6);c.drawRect(p[0]*u,p[1]*u,(p[0]+1)*u,(p[1]+1)*u,paint);}
+35:         for(int seat=0;seat<4;seat++){Path p=new Path();p.moveTo(7.5f*u,7.5f*u);p.lineTo(edges[seat][0]*u,edges[seat][1]*u);p.lineTo(edges[seat][2]*u,edges[seat][3]*u);p.close();paint.setColor(COLORS[seat]);paint.setStyle(Paint.Style.FILL);c.drawPath(p,paint);}
+41:             paint.setStyle(Paint.Style.FILL);paint.setColor(COLORS[seat]);c.drawCircle(x*u,y*u,u*.32f,paint);paint.setStyle(Paint.Style.STROKE);paint.setStrokeWidth(u*.065f);paint.setColor(seat==turn?Color.WHITE:0xff463653);c.drawCircle(x*u,y*u,u*.32f,paint);text(c,String.valueOf(k+1),x*u,y*u,u*.39f,Color.BLACK);
+
+===== app/src/main/java/com/kingplus/social/DiscoverActivity.java =====
+8: import android.graphics.drawable.GradientDrawable;
+44:     private int gameScore, chatScore, eventScore;
+55:             gameScore=Math.max(0,in.getIntExtra("gameScore",0));
+64:     private GradientDrawable bg(int color,int radius){GradientDrawable d=new GradientDrawable();d.setColor(color);d.setCornerRadius(dp(radius));return d;}
+72:         Map<String,Object> x=new HashMap<>();x.put("uid",me.getUid());x.put("gameScore",gameScore);x.put("chatScore",chatScore);x.put("eventScore",eventScore);x.put("updatedAt",FieldValue.serverTimestamp());
+84:         sectionTitle("Game Master","More",()->showRankingPage("Game Master","gameScore"));
+85:         loadTalentGrid("gameScore",false);
+102:         LinearLayout box=new LinearLayout(this);box.setOrientation(LinearLayout.VERTICAL);box.setPadding(dp(14),dp(14),dp(14),dp(14));box.setBackground(new GradientDrawable(GradientDrawable.Orientation.TL_BR,new int[]{0xfff2d3ff,0xffc084ee,0xffffe0f7}));
+119:         LinearLayout row=new LinearLayout(this);row.setGravity(Gravity.CENTER);TextView a=smallRankCard("🏆 Contribution Ranking");TextView b=smallRankCard("⭐ Charisma Ranking");a.setOnClickListener(v->showRankingPage("Game Master","gameScore"));b.setOnClickListener(v->showRankingPage("Chat Talent","chatScore"));LinearLayout.LayoutParams p=new LinearLayout.LayoutParams(0,dp(76),1);p.setMargins(dp(2),0,dp(5),0);row.addView(a,p);p=new LinearLayout.LayoutParams(0,dp(76),1);p.setMargins(dp(5),0,dp(2)
+134:         TextView banner=tv(activityEmoji(cat)+"   "+cat,18,Color.WHITE,true);banner.setGravity(Gravity.CENTER);banner.setBackground(bg(activityColor(cat),12));card.addView(banner,new LinearLayout.LayoutParams(-1,dp(92)));
+140:     private String activityEmoji(String c){if(c.toLowerCase(Locale.US).contains("music")||c.toLowerCase(Locale.US).contains("sing"))return "🎵";if(c.toLowerCase(Locale.US).contains("game"))return "🎮";if(c.toLowerCase(Locale.US).contains("event"))return "🎉";return "💬";}
+154:         TextView action=tv(chatMode?"💬 Chat room  ›":"🎮 Game profile  ›",12,DARK,true);action.setGravity(Gravity.CENTER_VERTICAL);action.setPadding(dp(10),0,0,0);action.setBackground(bg(0xfff4f3f7,10));card.addView(action,new LinearLayout.LayoutParams(-1,dp(42)));
+208:     private void addHonorPanel(LinearLayout b){LinearLayout p=new LinearLayout(this);p.setOrientation(LinearLayout.VERTICAL);p.setPadding(dp(14),dp(12),dp(14),dp(14));p.setBackground(bg(0xff2b244b,16));TextView h=tv("✦  Honor Display  ✦",20,Color.WHITE,true);h.setGravity(Gravity.CENTER);p.addView(h,new LinearLayout.LayoutParams(-1,dp(50)));TextView x=tv("Talent Honor Ranking      Talent in Spotlight\n\nGame Master • Chat Talent • Event Star",14,0xffddd4ff,false);x.setGravity(Gravity.CENTER);p.ad
+213:         LinearLayout tabs=new LinearLayout(this);tabs.setGravity(Gravity.CENTER);String[] n={"Game Master","Chat Talent","Event Star"};for(String s:n){TextView t=tv(s,15,DARK,"Chat Talent".equals(s));t.setGravity(Gravity.CENTER);tabs.addView(t,new LinearLayout.LayoutParams(0,dp(58),1));}root.addView(tabs);ScrollView sv=new ScrollView(this);LinearLayout list=new LinearLayout(this);list.setOrientation(LinearLayout.VERTICAL);list.setPadding(dp(18),dp(12),dp(18),dp(20));sv.addView(list);root.addView
+216:     private int scoreDelta(){int prev=getSharedPreferences("discover_public",MODE_PRIVATE).getInt("last_total",0),now=gameScore+chatScore+eventScore;getSharedPreferences("discover_public",MODE_PRIVATE).edit().putInt("last_total",now).apply();return now-prev;}
+225:     private View bottomNav(){LinearLayout nav=new LinearLayout(this);nav.setGravity(Gravity.CENTER);nav.setBackgroundColor(Color.WHITE);addNav(nav,"⌂\nParty",0);addNav(nav,"▣\nGame",1);addNav(nav,"◉\nDiscover",2);addNav(nav,"▢\nMessages",3);addNav(nav,"♙\nMe",4);return nav;}
+
+===== app/src/main/java/com/kingplus/social/KingEntranceView.java =====
+20:     @Override protected void onDraw(Canvas c){super.onDraw(c);int w=getWidth(),h=getHeight();if(w<=0||h<=0)return;float alpha=progress<.15f?progress/.15f:progress>.78f?(1f-progress)/.22f:1f;alpha=Math.max(0,Math.min(1,alpha));
+21:         p.setColor(((int)(90*alpha)<<24)|0x12091f);c.drawRect(0,0,w,h,p);
+22:         String particle=KingCosmetics.effectEmoji(effect);if(particle.isEmpty())particle="✨";p.setTextSize(Math.max(24,w/18f));p.setTextAlign(Paint.Align.CENTER);
+23:         for(int i=0;i<px.length;i++){float x=px[i]*w;float y=((py[i]-progress*speed[i])%1f+1f)%1f*h;p.setColor(Color.argb((int)(220*alpha),255,220-(i%3)*25,255));c.drawText(particle,x,y,p);}
+24:         float cx=w/2f,cy=h*.48f;float ring=Math.min(w,h)*(.16f+.06f*(float)Math.sin(progress*Math.PI));p.setStyle(Paint.Style.STROKE);p.setStrokeWidth(Math.max(5,w/90f));p.setColor(Color.argb((int)(240*alpha),255,207,71));c.drawCircle(cx,cy,ring,p);p.setStyle(Paint.Style.FILL);
+25:         p.setTextAlign(Paint.Align.CENTER);p.setTextSize(Math.max(30,w/12f));p.setColor(Color.argb((int)(255*alpha),255,255,255));c.drawText(KingCosmetics.frameEmoji(frame),cx,cy-ring*.20f,p);
+26:         p.setTextSize(Math.max(24,w/18f));c.drawText(name,cx,cy+ring*.35f,p);p.setTextSize(Math.max(15,w/30f));p.setColor(Color.argb((int)(240*alpha),255,224,125));c.drawText(effect+" • "+frame,cx,cy+ring*.67f,p);
+
+===== app/src/main/java/com/kingplus/social/GamePlayActivity.java =====
+6: import android.graphics.drawable.GradientDrawable;
+22: public class GamePlayActivity extends Activity {
+30:     private int ludoYou=0,ludoBot=0;
+34:         String game=getIntent().getStringExtra("game");
+35:         if(game==null)game="tic_tac_toe";
+36:         if("rps".equals(game))showRps();
+37:         else if("dice".equals(game))showDice();
+38:         else if("guess".equals(game))showGuess();
+39:         else if("ludo".equals(game)){startActivity(new android.content.Intent(this,OnlineLudoActivity.class));finish();}
+40:         else if("slot".equals(game))showSlot();
+41:         else if("coin".equals(game))showCoin();
+42:         else if("memory".equals(game))showMemory();
+43:         else if("reaction".equals(game))showReactionTap();
+44:         else if("highlow".equals(game))showHighLow();
+45:         else if("wheel".equals(game))showWheel();
+46:         else if("sheep".equals(game))showSheepFight();
+47:         else if("werewolf".equals(game))showWerewolf();
+48:         else if("spy".equals(game))showSpy();
+49:         else if("draw".equals(game))showDrawGuess();
+50:         else if("bingo".equals(game))showBingo();
+51:         else if("zoo".equals(game))showZoo();
+52:         else if("domino".equals(game))showDomino();
+57:     private GradientDrawable bg(int color,int radius){GradientDrawable d=new GradientDrawable();d.setColor(color);d.setCornerRadius(dp(radius));return d;}
+72:         base("Tic Tac Toe","Real playable game • You are X");
+77:         Button again=action("New Game");again.setOnClickListener(v->showTicTacToe());LinearLayout.LayoutParams ap=new LinearLayout.LayoutParams(-1,dp(52));ap.setMargins(0,dp(14),0,0);page.addView(again,ap);
+79:     private void playCell(int idx){if(finished||board[idx]!=' ')return;board[idx]='X';cells[idx].setText("X");if(check('X')){finishTtt("You win 👑");return;}if(full()){finishTtt("Draw");return;}int bot;do{bot=random.nextInt(9);}while(board[bot]!=' ');board[bot]='O';cells[bot].setText("O");if(check('O'))finishTtt("KING Bot wins");else if(full())finishTtt("Draw");else status.setText("Your turn");}
+84:     private void showLudo(){
+85:         base("Ludo Race","Playable KING Plus quick race • first to 30");ludoYou=0;ludoBot=0;status=label(ludoBoard(),18,0xffffd768,true);status.setGravity(Gravity.CENTER);page.addView(status,new LinearLayout.LayoutParams(-1,dp(150)));Button roll=action("🎲 Roll & Move");roll.setOnClickListener(v->ludoRoll());page.addView(roll,new LinearLayout.LayoutParams(-1,dp(60)));
+88:     private String ludoBoard(){return "YOU  "+raceBar(ludoYou)+"  "+ludoYou+"/30\n\nBOT  "+raceBar(ludoBot)+"  "+ludoBot+"/30";}
+89:     private void ludoRoll(){if(ludoYou>=30||ludoBot>=30)return;int you=1+random.nextInt(6),bot=1+random.nextInt(6);ludoYou=Math.min(30,ludoYou+you);ludoBot=Math.min(30,ludoBot+bot);status.setText(ludoBoard()+"\n\nYou rolled "+you+" • Bot "+bot+(ludoYou>=30?"\n🏆 YOU WIN":ludoBot>=30?"\nKING Bot wins":""));}
+104:     private void playRps(int you){int bot=random.nextInt(3);String[] n={"Rock","Paper","Scissors"};String result=you==bot?"Draw":((you-bot+3)%3==1?"You win 👑":"KING Bot wins");status.setText("You: "+n[you]+" • Bot: "+n[bot]+"\n"+result);}
+109:         Button roll=action("🎲 Roll Dice");roll.setOnClickListener(v->{int you=1+random.nextInt(6),bot=1+random.nextInt(6);String r=you==bot?"Draw":you>bot?"You win 👑":"KING Bot wins";status.setText("You rolled "+you+" • Bot "+bot+"\n"+r);});page.addView(roll,new LinearLayout.LayoutParams(-1,dp(60)));
+145:         base("Lucky Wheel","Free game • no money");status=label("🎡 Ready",30,0xffffd768,true);status.setGravity(Gravity.CENTER);page.addView(status,new LinearLayout.LayoutParams(-1,dp(120)));Button spin=action("SPIN");spin.setOnClickListener(v->{String[] r={"🌹 Rose","⭐ Star","👑 Crown","🎉 Party","💎 Diamond","🦁 Lion"};String x=r[random.nextInt(r.length)];status.setText("🎡  "+x);KingSoundFx.win(this);});page.addView(spin,new LinearLayout.LayoutParams(-1,dp(64)));
+155:     private void showWerewolf(){
+156:         base("Werewolf","Single-player deduction round");
+158:         status=label("A werewolf is hiding. You have 2 investigations.",18,0xffffd768,true);status.setGravity(Gravity.CENTER);page.addView(status,new LinearLayout.LayoutParams(-1,dp(90)));
+160:         Button vote=action("🗳 Vote for Werewolf");LinearLayout.LayoutParams vp=new LinearLayout.LayoutParams(-1,dp(58));vp.setMargins(0,dp(10),0,0);vote.setOnClickListener(v->new android.app.AlertDialog.Builder(this).setTitle("Final Vote").setItems(names,(d,w)->{boolean win=w==wolf;status.setText((win?"🏆 Correct! ":"Wrong vote • ")+names[wolf]+" was the Werewolf");if(win)KingSoundFx.win(this);}).show());page.addView(vote,vp);
+163:     private void showSpy(){
+164:         base("Spy Game","Find the spy from secret clues");
+165:         final String[] people={"Player 1","Player 2","Player 3","Player 4"};final int spy=random.nextInt(4);final String[] locations={"Airport","Beach","School","Cinema","Market"};final String loc=locations[random.nextInt(locations.length)];
+167:         for(int i=0;i<4;i++){final int k=i;Button b=action("💬 Ask "+people[i]);b.setOnClickListener(v->{String clue=k==spy?new String[]{"Maybe crowded?","I saw people","Hard to say"}[random.nextInt(3)]:spyClue(loc);status.setText(people[k]+": \""+clue+"\"\nWho is the spy?");});LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(-1,dp(52));lp.setMargins(0,dp(5),0,0);page.addView(b,lp);}
+168:         Button vote=action("🕵 Identify Spy");LinearLayout.LayoutParams vp=new LinearLayout.LayoutParams(-1,dp(58));vp.setMargins(0,dp(9),0,0);vote.setOnClickListener(v->new android.app.AlertDialog.Builder(this).setTitle("Choose Spy").setItems(people,(d,w)->{boolean win=w==spy;status.setText(win?"🏆 Spy found!":"Spy escaped • it was "+people[spy]);if(win)KingSoundFx.win(this);}).show());page.addView(vote,vp);
+170:     private String spyClue(String loc){if("Airport".equals(loc))return "Flights and luggage";if("Beach".equals(loc))return "Sand and waves";if("School".equals(loc))return "Books and classes";if("Cinema".equals(loc))return "Big screen and popcorn";return "Shops and bargaining";}
+172:     private void showDrawGuess(){
+173:         base("Draw & Guess","Draw the shown word • pass phone to a friend to guess");
+175:         status=label("DRAW: "+target[0],19,0xffffd768,true);status.setGravity(Gravity.CENTER);page.addView(status,new LinearLayout.LayoutParams(-1,dp(54)));
+176:         KingDrawPadView pad=new KingDrawPadView(this);page.addView(pad,new LinearLayout.LayoutParams(-1,dp(260)));
+177:         LinearLayout row=new LinearLayout(this);Button clear=action("Clear"),newWord=action("New Word");clear.setOnClickListener(v->pad.clear());newWord.setOnClickListener(v->{target[0]=words[random.nextInt(words.length)];status.setText("DRAW: "+target[0]);pad.clear();});row.addView(clear,new LinearLayout.LayoutParams(0,dp(54),1));LinearLayout.LayoutParams np=new LinearLayout.LayoutParams(0,dp(54),1);np.setMargins(dp(8),0,0,0);row.addView(newWord,np);page.addView(row);
+181:     private void showBingo(){
+182:         base("Bingo","Tap CALL, then mark matching numbers • complete a row");
+184:         final java.util.HashSet<Integer> called=new java.util.HashSet<>();final boolean[] won={false};final boolean[] marked=new boolean[25];final Button[] bs=new Button[25];status=label("Press CALL to draw a number",17,0xffffd768,true);status.setGravity(Gravity.CENTER);page.addView(status,new LinearLayout.LayoutParams(-1,dp(55)));
+185:         LinearLayout grid=new LinearLayout(this);grid.setOrientation(LinearLayout.VERTICAL);for(int r=0;r<5;r++){LinearLayout row=new LinearLayout(this);for(int c=0;c<5;c++){int k=r*5+c;Button b=action(String.valueOf(nums[k]));b.setTextSize(12);bs[k]=b;b.setOnClickListener(v->{if(won[0]||!called.contains(nums[k]))return;marked[k]=!marked[k];b.setText(marked[k]?"✓"+nums[k]:String.valueOf(nums[k]));if(bingoWin(marked)){won[0]=true;status.setText("BINGO! 🏆");KingSoundFx.win(this);}});LinearLayout.L
+186:         final java.util.ArrayList<Integer> draws=new java.util.ArrayList<>();for(int n=1;n<=75;n++)draws.add(n);java.util.Collections.shuffle(draws);Button call=action("🎱 CALL NUMBER");LinearLayout.LayoutParams cp=new LinearLayout.LayoutParams(-1,dp(58));cp.setMargins(0,dp(8),0,0);call.setOnClickListener(v->{if(won[0]||draws.isEmpty()){call.setEnabled(false);return;}int n=draws.remove(draws.size()-1);called.add(n);for(int k=0;k<25;k++)if(nums[k]==n)bs[k].setBackground(bg(0xff775626,12));status.s
+188:     private boolean bingoWin(boolean[] m){for(int r=0;r<5;r++){boolean ok=true;for(int c=0;c<5;c++)ok&=m[r*5+c];if(ok)return true;}for(int c=0;c<5;c++){boolean ok=true;for(int r=0;r<5;r++)ok&=m[r*5+c];if(ok)return true;}boolean a=true,b=true;for(int i=0;i<5;i++){a&=m[i*5+i];b&=m[i*5+4-i];}return a||b;}
+198:         for(int i=0;i<3;i++){Button b=action("Draw Tile");b.setOnClickListener(v->{int a=random.nextInt(7),z=random.nextInt(7);new android.app.AlertDialog.Builder(this).setTitle("Tile "+a+" | "+z).setMessage("Chain end is "+end[0]).setPositiveButton("Play",(d,w)->{if(a==end[0]||z==end[0]){end[0]=a==end[0]?z:a;score[0]++;status.setText("Matched! • Chain end: "+end[0]+" • Score "+score[0]);if(score[0]>=5){status.setText("🏆 DOMINO WIN • Score "+score[0]);KingSoundFx.win(this);}}else status.setText(
+
+===== app/src/main/java/com/kingplus/social/ReferenceEmojiView.java =====
+6: public final class ReferenceEmojiView extends SVGAImageView {
+7:     private static final String[] FILES={"im_interactive_emoji_heart.svga","im_interactive_emoji_cry.svga","im_interactive_emoji_smile.svga","im_emoji_full_heart.svga","im_emoji_full_cry.svga","im_emoji_full_smile.svga"};
+9:     public ReferenceEmojiView(Context context,int index,boolean loop){super(context);setLoops(loop?0:1);setClearsAfterDetached(true);setContentDescription(new String[]{"Heart","Cry","Smile","Full heart","Full cry","Full smile"}[index]);
+10:         new SVGAParser(context).decodeFromAssets("reference_emoji/"+FILES[index],new SVGAParser.ParseCompletion(){
+
+===== app/src/main/java/com/kingplus/social/PushNotifications.java =====
+46:             .setSmallIcon(android.R.drawable.ic_dialog_info)
+
+===== app/src/main/java/com/kingplus/social/LiveCloudActivity.java =====
+148:             button("🎁 Send 10-coin Rose via server", CARD, v -> CloudBackend.sendGift(ownerUid,"Rose",10,(ok,m)->runOnUiThread(() -> toast(m))));
+
+===== app/src/main/java/com/kingplus/social/PartyActivity.java =====
+14: import android.graphics.drawable.GradientDrawable;
+143:     private ListenerRegistration gameStateListener;
+144:     private long activeGameRound = 0L;
+145:     private String activeGameType = "";
+146:     private String activeGamePrompt = "";
+147:     private String activeGameResult = "";
+148:     private boolean gameSnapshotReady;
+154:     private AlertDialog giftShopDialog;
+155:     private LinearLayout giftGridBox;
+156:     private TextView giftSelectionLabel;
+157:     private TextView giftBalanceLabel;
+161:     private String giftTargetUid = "";
+162:     private String giftTargetName = "";
+163:     private String giftCategory = "Activity";
+164:     private int giftQuantity = 1;
+165:     private int giftSelectedIndex = 0;
+166:     private final String[] giftNames = {"Gold Rose","Gold Teapot","Gold Mask","Luxury Set","Super Car","Jeweled Box","Lionheart Glory","Super Star","Love Heart","Flying Crown","Royal Castle","Firework","Lucky Fish","Couple Ring","Magic Star","Parcel Box","Crystal Swan","Galaxy Ship","Royal Throne","Phoenix","Diamond Rain","Moon Palace","VIP Crown","King Dragon"};
+167:     private final String[] giftIcons = {"🌹","🫖","🎭","👜","🏎️","🎁","🦁","⭐","💗","👑","🏰","🎆","🐠","💍","🌟","📦","🦢","🚀","🪑","🔥","💎","🌙","♛","🐉"};
+168:     private final int[] giftCosts = {200,3000,3000,10000,13200,13200,19800,59800,50,1000,5000,10000,800,2400,5200,999,7500,22000,36000,48000,68000,88000,120000,168000};
+169:     private final String[] giftCategories = {"Activity","Activity","Activity","Activity","Classic","Classic","Fame","Fame","Relationship","Flying","Privilege","Flying","Filters","Relationship","Privilege","Parcel","Classic","Flying","Privilege","Fame","Privilege","Flying","Privilege","Fame"};
+170:     private final int[] giftVipRequired = {0,0,0,0,0,0,1,2,0,0,2,0,0,0,1,0,2,3,4,5,6,7,8,10};
+186:     private String lastGiftActor720 = "";
+187:     private String lastGiftName720 = "";
+188:     private long lastGiftAt720 = 0L;
+189:     private int giftCombo720 = 0;
+194:     private FrameLayout liveEmojiStageV530;
+195:     private ListenerRegistration liveEmojiListenerV530;
+201:     private final Set<String> seenLiveEmojiEventsV530 = new HashSet<>();
+226:     private GradientDrawable bg(int color, int radius) {
+227:         GradientDrawable d = new GradientDrawable(); d.setColor(color); d.setCornerRadius(dp(radius)); return d;
+258:         ListenerRegistration[] ls = {roomsListener,roomListener,seatsListener,membersListener,messagesListener,eventsListener,roleListener,selfMemberListener,roomBanListener,seatLocksListener,seatRequestsListener,musicStateListener,musicPlaylistListener,gameStateListener};
+260:         if (liveEmojiListenerV530 != null) liveEmojiListenerV530.remove();
+263:         liveEmojiListenerV530 = seatInviteListenerV530 = roleListenerV530 = null;
+266:         seenLiveEmojiEventsV530.clear();
+269:         seatLocksListener = seatRequestsListener = musicStateListener = musicPlaylistListener = gameStateListener = null;
+270:         gameSnapshotReady=false; activeGameRound=0L; activeGameType=""; activeGamePrompt=""; activeGameResult="";
+284:         String[] names = {"Hot","Event","Date","Music","Game"};
+344:         if("Game".equalsIgnoreCase(category))return "🎮";
+402:         TextView b = tv("Join rooms • take a seat • talk • chat • send gifts • make friends",13,0xffeee6ff,false); card.addView(b);
+459:         TextView type=tv("Room type: "+pendingCreateCategory+"  ›",13,0xffd5eee5,true);type.setGravity(Gravity.CENTER_VERTICAL);type.setPadding(dp(4),0,0,0);type.setOnClickListener(v->{String[] cats={"Chat","Event","Date","Music","Game","KTV","Radio","PK","Pick Me","Family","Multi Video"};new AlertDialog.Builder(this).setTitle("Choose room type").setItems(cats,(d,w)->{pendingCreateCategory=cats[w];renderCreateRoomPage();}).show();});body.addView(type,new LinearLayout.LayoutParams(-1,dp(52)));
+527:         shell.setBackgroundResource(R.drawable.ref_voice_room_bg);
+605:         composerBox=new EditText(this); composerBox.setHint("Type message..."); composerBox.setTextColor(0xff111111); composerBox.setHintTextColor(0xff777777); composerBox.setSingleLine(true); composerBox.setTextSize(14); composerBox.setImeOptions(android.view.inputmethod.EditorInfo.IME_ACTION_SEND); composerBox.setOnEditorActionListener((v, actionId, event)->{ if(actionId==android.view.inputmethod.EditorInfo.IME_ACTION_SEND){sendMessage(composerBox);return true;}return false;}); composerBox.set
+607:         TextView emoji=pill("😊",0x00ffffff,this::showLiveEmojiPanelV530); emoji.setTextColor(0xff333333); emoji.setTextSize(23); composer.addView(emoji,new LinearLayout.LayoutParams(dp(42),dp(46)));
+609:         TextView gift=pill("🎁",0x00ffffff,this::giftShopPanel); gift.setTextColor(0xff333333); gift.setTextSize(22); composer.addView(gift,new LinearLayout.LayoutParams(dp(42),dp(46)));
+610:         TextView send=pill("➤",0x00ffffff,()->sendMessage(composerBox)); send.setTextColor(0xff008e6b); send.setTextSize(23); composer.addView(send,new LinearLayout.LayoutParams(dp(38),dp(46)));
+612:         plus.setContentDescription("Open Play Center"); emoji.setContentDescription("Emoji and reactions"); gift.setContentDescription("Send a gift"); send.setContentDescription("Send message");
+617:         // Full-screen transparent live emoji overlay must remain above the room UI.
+618:         liveEmojiStageV530 = new FrameLayout(this); liveEmojiStageV530.setClipChildren(false); liveEmojiStageV530.setClipToPadding(false); liveEmojiStageV530.setClickable(false); liveEmojiStageV530.setFocusable(false);
+619:         FrameLayout.LayoutParams liveOverlayLpV531 = new FrameLayout.LayoutParams(-1,-1); liveOverlayLpV531.bottomMargin=dp(64); shell.addView(liveEmojiStageV530,liveOverlayLpV531);
+690:     private GradientDrawable vipFrame720(int vip,boolean host){GradientDrawable d=new GradientDrawable();d.setShape(GradientDrawable.OVAL);d.setColor(host?0xffe9b949:0x38ffffff);int stroke=0xff8f7b99;if(vip>=10)stroke=0xffff4fc3;else if(vip>=7)stroke=0xffffcf47;else if(vip>=4)stroke=0xff70dcff;else if(vip>0)stroke=0xffc78cff;if(host)stroke=0xffffe27a;d.setStroke(dp(vip>0||host?3:1),stroke);return d;}
+814:     private void showLiveEmojiPanelV530() {
+817:         TextView title=tv("Emoji & Stickers",15,0xff333333,true);bar.addView(title,new LinearLayout.LayoutParams(0,dp(44),1));
+825:         String[] live=new String[12];for(int i=0;i<live.length;i++)live[i]=LiveEmojiView.token(i);
+834:                 String[] pack=k==0?reference:(k==1?live:(k==2?stickerPack550(0,67):(k==3?faces:favouriteEmojiPack610())));
+835:                 fillEmojiGrid610(grid,pack,k==2||k==3?6:4,k<2);
+840:         dialog.setOnShowListener(v->{android.view.Window w=dialog.getWindow();if(w!=null){w.setBackgroundDrawableResource(android.R.color.transparent);w.clearFlags(android.view.WindowManager.LayoutParams.FLAG_DIM_BEHIND);w.setGravity(Gravity.BOTTOM);w.setLayout(-1,Math.min(dp(430),(int)(getResources().getDisplayMetrics().heightPixels*.52f)));}});
+844:     private void fillEmojiGrid610(LinearLayout grid,String[] emojis,int columns,boolean livePack){
+846:         if(emojis==null||emojis.length==0){TextView empty=tv("No favourites yet\nLong-press any Face or Expression to add it here.",14,0xff777777,false);empty.setGravity(Gravity.CENTER);grid.addView(empty,new LinearLayout.LayoutParams(-1,dp(150)));return;}
+848:         for(int i=0;i<emojis.length;i++){
+850:             final String token=emojis[i];int live=LiveEmojiView.parse(token);View cell;
+851:             if(ReferenceEmojiView.parse(token)>=0){cell=new ReferenceEmojiView(this,ReferenceEmojiView.parse(token),true);}
+852:             else if(stickerResource550(token)!=0){android.widget.ImageView im=new android.widget.ImageView(this);im.setImageResource(stickerResource550(token));im.setScaleType(android.widget.ImageView.ScaleType.FIT_CENTER);im.setContentDescription("Sticker "+token);cell=im;}
+853:             else if(live>=0){cell=new LiveEmojiView(this,live,0);cell.setContentDescription("Send animated "+LiveEmojiView.LABELS[live]);}
+856:             cell.setOnClickListener(v->sendLiveEmojiV530(token));
+857:             if(!livePack)cell.setOnLongClickListener(v->{toggleFavouriteEmoji610(token);return true;});
+859:         if(row!=null){int rem=emojis.length%columns;if(rem>0)for(int i=rem;i<columns;i++)row.addView(new View(this),new LinearLayout.LayoutParams(0,1,1));}
+862:     private String[] favouriteEmojiPack610(){
+863:         java.util.Set<String> set=prefs.getStringSet("favorite_emojis_610",null);
+868:     private void toggleFavouriteEmoji610(String emoji){
+869:         java.util.Set<String> current=new java.util.LinkedHashSet<>(prefs.getStringSet("favorite_emojis_610",new java.util.LinkedHashSet<>()));
+870:         boolean added;if(current.contains(emoji)){current.remove(emoji);added=false;}else{current.add(emoji);added=true;}
+871:         prefs.edit().putStringSet("favorite_emojis_610",current).apply();toast(added?"Added to Favourites":"Removed from Favourites");
+874:     private String[] stickerPack550(int start,int end){String[] out=new String[Math.max(0,end-start)];for(int i=0;i<out.length;i++)out[i]=String.format(java.util.Locale.US,"[sticker:%02d]",start+i);return out;}
+875:     private int stickerResource550(String text){if(text==null||!text.matches("\\[sticker:[0-9]{2}\\]"))return 0;int index=Integer.parseInt(text.substring(9,11));if(index>66)return 0;return getResources().getIdentifier(String.format(java.util.Locale.US,"kp_emoji_%02d",index),"drawable",getPackageName());}
+876:     private String stickerFallback610(String text){return text;}
+877:     private android.widget.ImageView stickerImage852(int resource){android.widget.ImageView im=new android.widget.ImageView(this);im.setImageResource(resource);im.setScaleType(android.widget.ImageView.ScaleType.FIT_CENTER);im.setContentDescription("Room sticker");return im;}
+879:     private void sendLiveEmojiV530(String emoji) {
+880:         String visual=stickerFallback610(emoji);
+881:         showLiveEmojiEffect560(visual,displayName,user==null?null:user.getUid());
+883:             Map<String,Object> event=new HashMap<>();event.put("actorUid",user.getUid());event.put("actorName",safeName());event.put("type","live_emoji");event.put("text",visual);event.put("emoji",visual);event.put("createdAt",FieldValue.serverTimestamp());
+885:             com.google.firebase.firestore.WriteBatch batch=db.batch();DocumentReference room=db.collection("live_rooms").document(roomId);batch.set(room.collection("messages").document(),message);batch.set(room.collection("events").document(),event);batch.commit().addOnFailureListener(e->toast("Shown on this phone only. Emoji not sent to room: "+msg(e)));
+889:     private void showLiveEmojiEffectV530(String emoji,String sender){showLiveEmojiEffect560(emoji,sender,null);}
+890:     private void showLiveEmojiEffect560(String emoji,String sender,String uid){
+891:         if(emoji==null||emoji.trim().isEmpty())return;emoji=stickerFallback610(emoji);
+892:         if(!cloudRoom)addChatRow(sender==null?"User":sender,emoji);
+893:         final FrameLayout stage=liveEmojiStageV530;if(stage==null)return;
+896:         int live=LiveEmojiView.parse(emoji);final View reaction;
+897:         if(ReferenceEmojiView.parse(emoji)>=0)reaction=new ReferenceEmojiView(this,ReferenceEmojiView.parse(emoji),false);
+898:         else if(stickerResource550(emoji)!=0)reaction=stickerImage852(stickerResource550(emoji));
+899:         else if(live>=0)reaction=new LiveEmojiView(this,live,4000);
+900:         else{TextView text=tv(emoji,42,Color.WHITE,false);text.setGravity(Gravity.CENTER);reaction=text;}
+907:         if(ReferenceEmojiView.parse(emoji)>=3){lp.width=stage.getWidth();lp.height=stage.getHeight();lp.leftMargin=0;lp.topMargin=0;}
+996:         liveEmojiListenerV530=roomV530.collection("events").orderBy("createdAt",Query.Direction.DESCENDING).limit(20).addSnapshotListener((snapV530,eV530) -> {
+997:             if(eV530!=null){toast("Live emoji sync unavailable: "+msg(eV530));return;}if(snapV530==null)return;
+999:                 if(!"live_emoji".equals(docV530.getString("type")) || seenLiveEmojiEventsV530.contains(docV530.getId())) continue;
+1000:                 seenLiveEmojiEventsV530.add(docV530.getId()); Object tsV530=docV530.get("createdAt");
+1002:                 String actorV530=str(docV530,"actorName","User"); String emojiV530=str(docV530,"emoji",str(docV530,"text","😊"));
+1003:                 if(!user.getUid().equals(docV530.getString("actorUid"))) showLiveEmojiEffect560(emojiV530,actorV530,docV530.getString("actorUid"));
+1025:         micLabel.setText("");android.graphics.drawable.Drawable micArt=getDrawable(micOn?R.drawable.ref_ico_bottom_mic_on_black:R.drawable.ref_ico_bottom_mic_off_black);micArt.setBounds(0,0,dp(24),dp(24));micLabel.setCompoundDrawables(null,micArt,null,null);
+1077:         dialog.setOnShowListener(v->{android.view.Window w=dialog.getWindow();if(w!=null){w.setLayout(-1,-1);w.setGravity(Gravity.BOTTOM);w.setBackgroundDrawable(bg(0xff18a88b,0));}});
+1239:         dialog.setOnShowListener(v->{android.view.Window w=dialog.getWindow();if(w!=null){w.setLayout(-1,-2);w.setGravity(Gravity.BOTTOM);w.setBackgroundDrawable(bg(0xee202734,22));}});dialog.show();
+1253:     private void sendMessage(EditText box) {
+1266:         card.setPadding(dp(9),dp(4),dp(9),dp(5));boolean giftMessage=text!=null&&text.contains("🎁")&&(text.contains(" sent ")||text.contains("Gift"));card.setBackground(bg(giftMessage?0x55b78925:0x20ffffff,12));
+1267:         TextView n=tv((giftMessage?"🎁  ":"👤  ")+chatIdentity750(who),11,giftMessage?0xffffdf6b:0xffffedaf,true);n.setPadding(0,0,0,dp(2));
+1270:         text=stickerFallback610(text);msg.setText(text);int live=LiveEmojiView.parse(text);if(ReferenceEmojiView.parse(text)>=0)card.addView(new ReferenceEmojiView(this,ReferenceEmojiView.parse(text),false),new LinearLayout.LayoutParams(dp(72),dp(72)));else if(stickerResource550(text)!=0)card.addView(stickerImage852(stickerResource550(text)),new LinearLayout.LayoutParams(dp(64),dp(64)));else if(live>=0)card.addView(new LiveEmojiView(this,live,4500),new LinearLayout.LayoutParams(dp(72),dp(72)));e
+1278:         List<String> items=new ArrayList<>();items.add("↩ Reply");items.add("@ Mention");if(!targetUid.isEmpty()&&(user==null||!targetUid.equals(user.getUid()))){items.add("💬 Private chat");items.add("🎁 Send gift");items.add("👤 Profile");}
+1279:         new AlertDialog.Builder(this).setTitle(who).setItems(items.toArray(new String[0]),(d,w)->{String x=items.get(w);if(x.contains("Reply")){pendingReplyName620=who;pendingReplyText620=text;if(composerBox!=null){composerBox.setHint("Reply to "+who+" • "+shortChatPreview620(text));composerBox.requestFocus();}}else if(x.contains("Mention")){if(composerBox!=null){String now=composerBox.getText().toString();composerBox.setText(now+(now.isEmpty()?"":" ")+"@"+who+" ");composerBox.setSelection(compo
+1289:     private void giftWall620(){
+1290:         if(!cloudRoom||db==null){new AlertDialog.Builder(this).setTitle("🎁 Gift Wall").setMessage("Gift Wall becomes live inside a Firebase room. Gifts sent in this test room still appear in chat.").setPositiveButton("Gift Shop",(d,w)->giftShopPanel()).setNegativeButton("Close",null).show();return;}
+1291:         db.collection("live_rooms").document(roomId).collection("events").orderBy("createdAt",Query.Direction.DESCENDING).limit(250).get().addOnSuccessListener(snap->{Map<String,Long> giftValue=new HashMap<>();Map<String,Integer> giftCount=new HashMap<>();long total=0;int events=0;for(DocumentSnapshot d:snap.getDocuments())if("gift".equals(d.getString("type"))){String g=str(d,"giftIcon","🎁")+" "+str(d,"giftName","Gift");Long v=d.getLong("giftValue");long value=v==null?0:Math.max(0,v);giftValue.p
+1297:     private void giftRecipientDialog(){ giftShopPanel(); }
+1298:     private void giftDialog(){ giftShopPanel(); }
+1299:     private void giftDialogFor(String targetUid,String targetLabel) {
+1300:         giftTargetUid=targetUid==null?"":targetUid; giftTargetName=targetLabel==null?"Host":targetLabel; giftShopPanel();
+1302:     private void giftShopPanel(){
+1304:         if(giftTargetName==null||giftTargetName.isEmpty()){giftTargetName="👑 "+ownerName;giftTargetUid=ownerUid==null?"":ownerUid;}
+1305:         giftQuantity=1; giftCategory="Activity"; giftSelectedIndex=0;
+1308:         TextView wt=tv("🎟  Weekly Gift Card",16,Color.WHITE,true);banner.addView(wt,new LinearLayout.LayoutParams(0,dp(42),1));TextView arrow=tv("›",28,Color.WHITE,true);arrow.setGravity(Gravity.CENTER);banner.addView(arrow,new LinearLayout.LayoutParams(dp(40),dp(42)));banner.setOnClickListener(v->{if(giftShopDialog!=null)giftShopDialog.dismiss();weeklyGiftCardDialog();});root.addView(banner,new LinearLayout.LayoutParams(-1,dp(40)));
+1309:         LinearLayout top=new LinearLayout(this);top.setGravity(Gravity.CENTER_VERTICAL);TextView title=tv("Gift",19,Color.WHITE,true);top.addView(title,new LinearLayout.LayoutParams(0,dp(42),1));giftBalanceLabel=pill("💎 "+localCoins,0xff302d40,null);top.addView(giftBalanceLabel,new LinearLayout.LayoutParams(dp(104),dp(38)));root.addView(top);
+1310:         giftSelectionLabel=tv("To: "+giftTargetName+"  •  "+giftNames[giftSelectedIndex]+" x"+giftQuantity,12,0xffffdf6b,true);root.addView(giftSelectionLabel);
+1311:         HorizontalScrollView peopleScroll=new HorizontalScrollView(this);peopleScroll.setHorizontalScrollBarEnabled(false);LinearLayout people=new LinearLayout(this);people.setGravity(Gravity.CENTER_VERTICAL);people.setPadding(0,dp(3),0,dp(5));addGiftRecipientChip(people,"👑 "+ownerName,ownerUid==null?"":ownerUid);for(int no=1;no<=maxSeats;no++){String n=seatNames.get(no);if(n==null||n.equals(displayName))continue;addGiftRecipientChip(people,no+" • "+n,seatUids.get(no)==null?"":seatUids.get(no));
+1312:         HorizontalScrollView catScroll=new HorizontalScrollView(this);catScroll.setHorizontalScrollBarEnabled(false);LinearLayout cats=new LinearLayout(this);String[] cs={"Activity","Classic","Flying","Relationship","Fame","Privilege","Filters","Parcel"};for(String c:cs){TextView t=tv(c,12,c.equals(giftCategory)?Color.WHITE:0xff9d98a6,c.equals(giftCategory));t.setGravity(Gravity.CENTER);t.setOnClickListener(v->{giftCategory=c;rebuildGiftGrid();});LinearLayout.LayoutParams cp=new LinearLayout.Lay
+1313:         ScrollView giftsScroll=new ScrollView(this);giftGridBox=new LinearLayout(this);giftGridBox.setOrientation(LinearLayout.VERTICAL);giftsScroll.addView(giftGridBox);root.addView(giftsScroll,new LinearLayout.LayoutParams(-1,0,1));rebuildGiftGrid();
+1314:         LinearLayout qty=new LinearLayout(this);qty.setGravity(Gravity.CENTER);int[] qs={1,9,49,99,499};for(int q:qs){TextView b=pill(String.valueOf(q),q==1?0xff776a00:0xff343143,()->{giftQuantity=q;giftSelectionLabel.setText("To: "+giftTargetName+"  •  "+giftNames[giftSelectedIndex]+" x"+giftQuantity);});if(q==1)b.setBackground(bg(0xff5d5520,10));LinearLayout.LayoutParams qp=new LinearLayout.LayoutParams(0,dp(44),1);qp.setMargins(dp(3),0,dp(3),0);qty.addView(b,qp);}TextView send=pill("Send",0xf
+1315:         giftShopDialog=new AlertDialog.Builder(this).setView(root).create();
+1316:         giftShopDialog.setOnShowListener(v->{android.view.Window w=giftShopDialog.getWindow();if(w!=null){w.setBackgroundDrawableResource(android.R.color.transparent);w.clearFlags(android.view.WindowManager.LayoutParams.FLAG_DIM_BEHIND);w.setGravity(Gravity.BOTTOM);w.setLayout(-1,(int)(getResources().getDisplayMetrics().heightPixels*.58f));}});giftShopDialog.show();
+1318:     private void addGiftRecipientChip(LinearLayout row,String label,String uid){
+1319:         TextView chip=pill(label,0xff343143,()->{giftTargetName=label;giftTargetUid=uid==null?"":uid;if(giftSelectionLabel!=null)giftSelectionLabel.setText("To: "+giftTargetName+" • "+giftNames[giftSelectedIndex]+" x"+giftQuantity);});
+1322:     private void rebuildGiftGrid(){
+1323:         if(giftGridBox==null)return;giftGridBox.removeAllViews();LinearLayout row=null;int col=0;boolean chosen=false;
+1324:         for(int i=0;i<giftNames.length;i++){
+1325:             if(!giftCategory.equals(giftCategories[i]))continue;if(!chosen){giftSelectedIndex=i;chosen=true;if(giftSelectionLabel!=null)giftSelectionLabel.setText("To: "+giftTargetName+"  •  "+giftNames[giftSelectedIndex]+" x"+giftQuantity);}
+1326:             if(row==null||col==4){row=new LinearLayout(this);row.setGravity(Gravity.CENTER);giftGridBox.addView(row,new LinearLayout.LayoutParams(-1,dp(108)));col=0;}
+1327:             final int idx=i;final int vipNeed=giftVipRequired[i];final int myVip=LevelSystem.read(this).vipLevel;final boolean unlocked=myVip>=vipNeed;LinearLayout card=new LinearLayout(this);card.setOrientation(LinearLayout.VERTICAL);card.setGravity(Gravity.CENTER);card.setBackground(bg(unlocked?0xff20202d:0xff171720,12));card.setPadding(dp(2),dp(4),dp(2),dp(2));
+1329:             TextView icon=tv(unlocked?giftIcons[i]:"🔒",34,unlocked?Color.WHITE:0xff77727e,false);icon.setGravity(Gravity.CENTER);card.addView(icon,new LinearLayout.LayoutParams(-1,dp(42)));
+1330:             TextView name=tv(giftNames[i],9,unlocked?0xfff5f2f7:0xff817b88,true);name.setGravity(Gravity.CENTER);card.addView(name,new LinearLayout.LayoutParams(-1,dp(22)));
+1331:             TextView cost=tv("◇ "+giftCosts[i],9,0xff9a97a5,false);cost.setGravity(Gravity.CENTER);card.addView(cost,new LinearLayout.LayoutParams(-1,dp(20)));
+1332:             card.setOnClickListener(v->{if(!unlocked){toast("Unlocks at VIP "+vipNeed);return;}giftSelectedIndex=idx;if(giftSelectionLabel!=null)giftSelectionLabel.setText("To: "+giftTargetName+"  •  "+giftNames[giftSelectedIndex]+" x"+giftQuantity);});LinearLayout.LayoutParams cp=new LinearLayout.LayoutParams(0,dp(102),1);cp.setMargins(dp(3),dp(3),dp(3),dp(3));row.addView(card,cp);col++;
+1334:         if(!chosen){TextView none=tv("No gifts in this category yet",13,MUTED,false);giftGridBox.addView(none);}
+1336:     private void sendGift(String gift,int cost) { sendGiftTo(ownerUid==null?"":ownerUid,ownerName,gift,cost); }
+1337:     private void sendGiftTo(String targetUid,String targetName,String gift,int cost) {
+1338:         sendGiftQuantity(targetUid,targetName,gift,"🎁",cost,1,cost);
+1340:     private void sendGiftQuantity(String targetUid,String targetName,String gift,String icon,int unitCost,int quantity,int totalCost){
+1341:         int idx=-1;for(int i=0;i<giftNames.length;i++)if(giftNames[i].equals(gift)){idx=i;break;}if(idx>=0&&LevelSystem.read(this).vipLevel<giftVipRequired[idx]){toast("Gift unlocks at VIP "+giftVipRequired[idx]);return;}
+1343:         String label=icon+" "+gift+" x"+quantity;
+1344:         if(cloudRoom&&totalCost>50000000){toast("Live gift total is limited to 50000000 coins • choose a smaller quantity");return;}
+1346:             CloudBackend.sendGift(targetUid,gift+" x"+quantity,totalCost,(ok,message)->runOnUiThread(()->{
+1348:                 if(ok)addGiftEvent(targetUid,targetName,gift,icon,unitCost,quantity,totalCost);
+1353:         addGiftEvent(targetUid,targetName,gift,icon,unitCost,quantity,totalCost);
+1354:         showGiftEffect(safeName(),targetName,gift,icon,quantity,totalCost);
+1355:         if(supporterLabel!=null)supporterLabel.setText("🏆 Top supporter • "+safeName()+" • "+totalCost+" gift coins");
+1358:     private void addGiftEvent(String targetUid,String targetName,String gift,String icon,int unitCost,int quantity,int totalCost){
+1359:         String text=safeName()+" sent "+icon+" "+gift+" to "+targetName+" 🎁 x"+quantity;
+1362:             Map<String,Object>d=new HashMap<>();d.put("actorUid",user.getUid());d.put("actorName",safeName());d.put("actorLevel",progress700.level);d.put("actorVip",progress700.vipLevel);d.put("type","gift");d.put("text",text);d.put("giftName",gift);d.put("giftIcon",icon);d.put("giftValue",totalCost);d.put("giftQty",quantity);d.put("giftUnitCost",unitCost);d.put("targetUid",targetUid==null?"":targetUid);d.put("targetName",targetName==null?"User":targetName);d.put("createdAt",FieldValue.serverTim
+1364:             Map<String,Object>m=new HashMap<>();m.put("senderUid",user.getUid());m.put("senderName",safeName());m.put("senderLevel",progress700.level);m.put("senderVip",progress700.vipLevel);m.put("text",text);m.put("type","gift");m.put("giftName",gift);m.put("giftIcon",icon);m.put("giftValue",totalCost);m.put("giftQty",quantity);m.put("targetUid",targetUid==null?"":targetUid);m.put("targetName",targetName==null?"User":targetName);m.put("createdAt",FieldValue.serverTimestamp());room.collection("
+1366:         awardGiftProgress700(totalCost);
+1368:     private void awardGiftProgress700(long value){LevelSystem.Snapshot before=LevelSystem.read(this),after=LevelSystem.gift(this,value);if(after.level>before.level)toast("⭐ Level up • Lv."+after.level);if(after.vipLevel>before.vipLevel)toast("💎 VIP up • VIP "+after.vipLevel);syncMyProgress700(after);}
+1374:         if(!isModerator()){if("battle".equals(activeGameType))new AlertDialog.Builder(this).setTitle("⚔ Room Battle").setMessage(activeGameResult.isEmpty()?activeGamePrompt:activeGameResult).setPositiveButton("OK",null).show();else toast("Host/co-host starts Room Battle");return;}
+1375:         db.collection("live_rooms").document(roomId).collection("events").orderBy("createdAt",Query.Direction.DESCENDING).limit(100).get().addOnSuccessListener(q->{long hostScore=0,guestScore=0;for(DocumentSnapshot e:q.getDocuments()){Long v=e.getLong("giftValue");long score=v==null?1:Math.max(1,v);String actor=e.getString("actorUid");if(ownerUid!=null&&ownerUid.equals(actor))hostScore+=score;else guestScore+=score;}String result="Team Host  "+compactNumber(hostScore)+"  vs  Room  "+compactNumbe
+1388:         String[] labels={"Events","Room seat",queueOn?"Queue ON":"Enable queue","Private chat","Music","Atmosphere","Income","Share Family","Theme Room","Party Master","Party Data","KTV Queue","Radio Mic","Lucky Gift","Gift Wish","Find User","Notice","Voice Room","Multi Video","Gift Wall","Gift Rank","Chat History","Backpack","Community","Relationship","Audio PK","Loop Mic","Room Games","Asset Pack"};
+1391:         dialog.setOnShowListener(v->{android.view.Window w=dialog.getWindow();if(w!=null){w.setLayout(-1,(int)(getResources().getDisplayMetrics().heightPixels*.52f));w.clearFlags(android.view.WindowManager.LayoutParams.FLAG_DIM_BEHIND);w.setGravity(Gravity.BOTTOM);w.setBackgroundDrawable(bg(0xff242333,22));}});
+1416:         else if("Income".equals(label))giftHistoryDialog();
+1423:         else if("Lucky Gift".equals(label))luckyGiftPanel();
+1424:         else if("Gift Wish".equals(label))giftWishPanel();
+1429:         else if("Gift Wall".equals(label))giftWall620();
+1430:         else if("Gift Rank".equals(label))roomRankingDialog();
+1432:         else if("Backpack".equals(label))backpackGiftDialog700();
+1437:         else if("Room Games".equals(label))openRoomGames740();
+1453:     private boolean canStartRoomGame(String label){
+1458:     private void attachGameState(DocumentReference room){
+1459:         gameStateListener=room.collection("game_state").document("current").addSnapshotListener((doc,e)->{
+1461:             if(!doc.exists()){activeGameRound=0L;activeGameType="";activeGamePrompt="";activeGameResult="";gameSnapshotReady=true;return;}
+1463:             String type=str(doc,"type","game"),prompt=str(doc,"prompt",""),result=str(doc,"result",""),status=str(doc,"status","active");
+1464:             boolean changed=round>0&&round!=activeGameRound;
+1465:             activeGameRound=round;activeGameType=type;activeGamePrompt=prompt;activeGameResult=result;
+1466:             if("active".equals(status)&&(changed||!gameSnapshotReady))showGameStateBanner(type,prompt,result);
+1467:             gameSnapshotReady=true;
+1471:     private void showGameStateBanner(String type,String prompt,String result){
+1475:         String text=icon+"  "+(prompt==null?"Room game":prompt)+(result==null||result.isEmpty()?"":"  •  "+result);
+1480:     private void publishGameState(String type,String prompt,String result){publishGameState(type,prompt,result,null);}
+1481:     private void publishGameState(String type,String prompt,String result,Map<String,Object> extras){
+1483:         if(!cloudRoom||db==null||user==null){activeGameRound=round;activeGameType=type;activeGamePrompt=prompt;activeGameResult=result;showGameStateBanner(type,prompt,result);addEvent("game",safeName()+" started "+prompt);return;}
+1484:         if(!isModerator()){toast("Host/co-host starts room games");return;}
+1486:         db.collection("live_rooms").document(roomId).collection("game_state").document("current").set(d)
+1487:             .addOnSuccessListener(v->{activeGameRound=round;activeGameType=type;activeGamePrompt=prompt==null?"":prompt;activeGameResult=result==null?"":result;addEvent("game",safeName()+" started "+(prompt==null?type:prompt));})
+1488:             .addOnFailureListener(e->toast("Game start failed: "+msg(e)));
+1491:     private void closeActiveGame(){
+1494:         db.collection("live_rooms").document(roomId).collection("game_state").document("current").update(u).addOnSuccessListener(v->{addEvent("game",safeName()+" closed the room game");toast("Game closed");}).addOnFailureListener(e->toast(msg(e)));
+1498:         if(!canStartRoomGame("Vote"))return;
+1502:             ArrayList<String> opts=new ArrayList<>();opts.add("👍 Yes");opts.add("👎 No");opts.add("❤️ Love it");opts.add("😂 Funny");Map<String,Object>x=new HashMap<>();x.put("options",opts);publishGameState("vote",q,"",x);
+1508:         db.collection("live_rooms").document(roomId).collection("game_state").document("current").get().addOnSuccessListener(doc->{
+1512:                 Map<String,Object>vote=new HashMap<>();vote.put("uid",user.getUid());vote.put("name",safeName());vote.put("roundId",round);vote.put("choice",a[w]);vote.put("choiceIndex",w);vote.put("updatedAt",FieldValue.serverTimestamp());db.collection("live_rooms").document(roomId).collection("game_votes").document(user.getUid()).set(vote).addOnSuccessListener(v->{addEvent("vote",safeName()+" voted "+a[w]);toast("Vote sent: "+a[w]);}).addOnFailureListener(e->toast("Vote failed: "+msg(e)));
+1519:         db.collection("live_rooms").document(roomId).collection("game_state").document("current").get().addOnSuccessListener(state->{
+1521:             db.collection("live_rooms").document(roomId).collection("game_votes").get().addOnSuccessListener(snap->{Map<String,Integer>counts=new HashMap<>();int total=0;for(DocumentSnapshot v:snap.getDocuments()){Long r=v.getLong("roundId");if(r==null||r!=round)continue;String c=str(v,"choice","Vote");counts.put(c,counts.containsKey(c)?counts.get(c)+1:1);total++;}StringBuilder out=new StringBuilder(question).append("\n\n");String[] known={"👍 Yes","👎 No","❤️ Love it","😂 Funny"};for(String k:know
+1544:         String[] items={"✨ Classic","💙 KTV","💗 Love","🎮 Game","👑 Royal"};
+1547:             String[] raw={"Classic","KTV","Love","Game","Royal","Neon","Galaxy","Festival","Ice"};roomTheme=raw[w];if(cloudRoom)setRoomValue("theme",roomTheme);else prefs.edit().putString("theme_"+roomName,roomTheme).apply();renderParty();
+1557:     private void counterPanel(){giftSendingCounterDialog();}
+1561:         if(isModerator()){int answer=1+new java.util.Random().nextInt(9);Map<String,Object>x=new HashMap<>();x.put("answer",answer);publishGameState("guess","Guess a number from 1 to 9","",x);new AlertDialog.Builder(this).setTitle("🌷 Guess It").setMessage("Room game started. Everyone can open Guess It and submit a guess.").setPositiveButton("OK",null).show();return;}
+1562:         db.collection("live_rooms").document(roomId).collection("game_state").document("current").get().addOnSuccessListener(doc->{if(!doc.exists()||!"guess".equals(doc.getString("type"))||"closed".equals(doc.getString("status"))){toast("Host/co-host has not started Guess It");return;}Long a=doc.getLong("answer");int answer=a==null?-1:a.intValue();final EditText input=new EditText(this);input.setHint("Guess 1 to 9");input.setInputType(android.text.InputType.TYPE_CLASS_NUMBER);new AlertDialog.Bui
+1566:         String[] truth={"What made you smile today?","Who is your best friend here?","What is your favourite song?","What is your dream trip?"};String[] dare={"Send 😂 in chat","Say hello to everyone","Send a rose gift","Take an empty mic seat"};
+1567:         if(cloudRoom&&!isModerator()){if("truth_dare".equals(activeGameType)&&activeGamePrompt!=null&&!activeGamePrompt.isEmpty())new AlertDialog.Builder(this).setTitle("🥊 Truth or Dare").setMessage(activeGamePrompt).setPositiveButton("Done",(d,w)->addEvent("play",safeName()+" completed Truth or Dare")).setNegativeButton("Close",null).show();else toast("Host/co-host has not started Truth or Dare");return;}
+1568:         new AlertDialog.Builder(this).setTitle("🥊 Truth or Dare").setItems(new String[]{"Truth","Dare"},(d,w)->{String text=w==0?truth[new java.util.Random().nextInt(truth.length)]:dare[new java.util.Random().nextInt(dare.length)];if(cloudRoom)publishGameState("truth_dare",(w==0?"Truth: ":"Dare: ")+text,"");else addEvent("play",safeName()+" chose "+(w==0?"Truth":"Dare"));new AlertDialog.Builder(this).setTitle(w==0?"Truth":"Dare").setMessage(text).setPositiveButton("Done",null).show();}).setNegat
+1572:         if(cloudRoom&&!isModerator()){if("bomb".equals(activeGameType))new AlertDialog.Builder(this).setTitle("💣 Pass the Bomb").setMessage(activeGameResult.isEmpty()?activeGamePrompt:activeGameResult).setPositiveButton("OK",null).show();else toast("Host/co-host has not started Pass the Bomb");return;}
+1573:         List<String> names=new ArrayList<>();names.add(ownerName==null?"Host":ownerName);for(String n:seatNames.values())if(n!=null&&!names.contains(n))names.add(n);for(String n:memberNames)if(n!=null&&!names.contains(n))names.add(n);String picked=names.get(new java.util.Random().nextInt(names.size()));String result="🔥 Bomb landed on "+picked+" 🔥";if(cloudRoom)publishGameState("bomb","Pass the Bomb",result);else addEvent("play","💣 Bomb passed to "+picked);new AlertDialog.Builder(this).setTitle("
+1577:         new AlertDialog.Builder(this).setTitle("📦 Fan Box").setItems(new String[]{"🔥 Charisma & Gift Senders","🎁 Gift Wall / History","🏆 Room Ranking"},(d,w)->{if(w==0)giftSendingCounterDialog();else if(w==1)giftHistoryDialog();else roomRankingDialog();}).setNegativeButton("Close",null).show();
+1581:         if(cloudRoom&&!isModerator()){if("wheel".equals(activeGameType))new AlertDialog.Builder(this).setTitle("🎡 "+title).setMessage(activeGameResult.isEmpty()?activeGamePrompt:activeGameResult).setPositiveButton("OK",null).show();else toast("Host/co-host starts the room wheel");return;}
+1582:         String[] prizes={"🌹 Rose","⭐ 10 points","😂 Funny task","🎤 Take mic","💗 Heart","👑 Crown challenge","🎁 Gift challenge","🎉 Party shoutout"};String result=prizes[new java.util.Random().nextInt(prizes.length)];if(cloudRoom)publishGameState("wheel",title,result);else addEvent("play",safeName()+" spun "+title+" • "+result);new AlertDialog.Builder(this).setTitle("🎡 "+title).setMessage(result).setPositiveButton("Spin again",(d,w)->wheelPanel(title)).setNegativeButton("Close",null).show();
+1588:         String current="vote".equals(activeGameType)&&activeGameRound>0?"Current: "+activeGamePrompt:"No active vote";new AlertDialog.Builder(this).setTitle("💌 Room Vote • "+current).setItems(new String[]{"Start new vote","Vote now","View results","Close active vote"},(d,w)->{if(w==0)startNewVoteDialog();else if(w==1)submitCurrentVote();else if(w==2)showVoteResults();else closeActiveGame();}).setNegativeButton("Close",null).show();
+1611:     private void emojiPanel(){
+1612:         stickerCategoryPanel("Emoji");
+1615:     private void stickerCategoryPanel(String selected){
+1616:         final String[] cats={"Emoji","Festival","Laugh","World","Yellow","Cute","VIP","Lion"};
+1627:             t.setOnClickListener(v->{if(composerBox!=null){composerBox.setText(q);sendMessage(composerBox);}});
+1636:             t.setOnClickListener(v->stickerCategoryPanel(c));tabs.addView(t,new LinearLayout.LayoutParams(dp(82),dp(42)));
+1641:             TextView lock=tv("VIP Exclusive Stickers • no billing in this build",12,0xff4a3442,true);lock.setGravity(Gravity.CENTER_VERTICAL);lock.setPadding(dp(12),0,dp(12),0);lock.setBackground(bg(0xffffedf2,12));root.addView(lock,new LinearLayout.LayoutParams(-1,dp(54)));
+1644:             TextView join=tv(selected+" sticker series • JOIN",12,0xff493900,true);join.setGravity(Gravity.CENTER_VERTICAL);join.setPadding(dp(12),0,dp(12),0);join.setBackground(bg(0xfffff1bf,12));join.setOnClickListener(v->addEvent("sticker",safeName()+" joined the "+selected+" sticker series"));root.addView(join,new LinearLayout.LayoutParams(-1,dp(54)));
+1647:         String[] icons=stickerSet(selected);
+1654:                 final String em=icons[idx++];TextView x=tv(em,31,0xff222222,false);x.setGravity(Gravity.CENTER);x.setOnClickListener(v->sendStickerOrEmoji(selected,em));row.addView(x,new LinearLayout.LayoutParams(0,dp(72),1));
+1660:         dialog.setOnShowListener(v->{android.view.Window w=dialog.getWindow();if(w!=null){w.setLayout(-1,(int)(getResources().getDisplayMetrics().heightPixels*.68f));w.setGravity(Gravity.BOTTOM);w.setBackgroundDrawable(bg(0xfff7f8fc,24));}});
+1664:     private String[] stickerSet(String category){
+1675:     private void sendStickerOrEmoji(String category,String value){
+1676:         if("VIP".equals(category)&&prefs.getInt("vip_level",0)<1){toast("VIP sticker is locked in this no-billing build");return;}
+1677:         if(composerBox!=null){composerBox.setText(value);sendMessage(composerBox);}
+1678:         showReactionEffect(value);addEvent("sticker",safeName()+" sent "+category+" sticker "+value);
+1681:     private void showReactionEffect(String emoji){
+1685:             banner.setText((emoji==null?"✨":emoji)+"   "+safeName());
+1695:     private void showEntranceEffect730(String name,int level,int vip,String effect,String frame){if(partyUiDead())return;loadRoomPersonalSettings();if(skipEntranceVisuals||"None".equals(effect)||liveEmojiStageV530==null)return;if(!skipEntranceSound)KingSoundFx.join(this);
+1696:         try{KingEntranceView fx=new KingEntranceView(this,name,effect,frame);FrameLayout.LayoutParams lp=new FrameLayout.LayoutParams(-1,-1);liveEmojiStageV530.addView(fx,lp);fx.start(()->{try{if(liveEmojiStageV530!=null&&fx.getParent()==liveEmojiStageV530)liveEmojiStageV530.removeView(fx);}catch(Exception ignored){}});}catch(Exception e){android.util.Log.e("KINGPlusParty","Entrance overlay failed",e);}
+1697:         if(reactionBanner==null||partyUiDead())return;try{reactionBanner.animate().cancel();reactionBanner.clearAnimation();String badge=(vip>0?" 💎VIP "+vip:"")+(level>0?" • Lv."+level:"");reactionBanner.setText(KingCosmetics.effectEmoji(effect)+" "+(name==null?"Guest":name)+badge+" • "+frame);reactionBanner.setTextSize(vip>=7?18:17);reactionBanner.setAlpha(1f);reactionBanner.setVisibility(View.VISIBLE);reactionBanner.setBackground(KingCosmetics.idFrame(this,frame));reactionBanner.setTranslation
+1699:     private void showGiftEffect(String actor,String target,String gift,String icon,long qty,long value){if(partyUiDead())return;KingSoundFx.gift(this);
+1700:         String a=(actor==null||actor.isEmpty())?"User":actor;String t=(target==null||target.isEmpty())?"Host":target;String g=(gift==null||gift.isEmpty())?"Gift":gift;String ic=(icon==null||icon.isEmpty())?"🎁":icon;
+1701:         long now=System.currentTimeMillis();if(a.equals(lastGiftActor720)&&g.equals(lastGiftName720)&&now-lastGiftAt720<7000)giftCombo720++;else giftCombo720=1;lastGiftActor720=a;lastGiftName720=g;lastGiftAt720=now;
+1702:         long total=Math.max(0,value);String tier=total>=50000?"MYTHIC":total>=10000?"ROYAL":total>=2500?"PREMIUM":"GIFT";int accent=total>=50000?0xffff2fa6:total>=10000?0xffffc13a:total>=2500?0xff38c8ff:0xff9a67ff;
+1703:         String title=tier+" • "+ic+" "+g+(giftCombo720>1?"  COMBO ×"+giftCombo720:"");String sub=a+" → "+t+" • x"+Math.max(1,qty)+(total<=0?" • FREE":" • 💎"+compactNumber(total));
+1704:         if(liveEmojiStageV530!=null&&!partyUiDead()){try{GiftBurstView fx=new GiftBurstView(this,ic,title,sub,accent);FrameLayout.LayoutParams lp=new FrameLayout.LayoutParams(-1,-1);liveEmojiStageV530.addView(fx,lp);long duration=total>=50000?4300:total>=10000?3600:2900;fx.start(()->{try{if(liveEmojiStageV530!=null&&fx.getParent()==liveEmojiStageV530)liveEmojiStageV530.removeView(fx);}catch(Exception ignored){}},duration);}catch(Exception e){android.util.Log.e("KINGPlusParty","Gift burst failed"
+1705:         if(reactionBanner!=null&&!partyUiDead()){try{reactionBanner.animate().cancel();reactionBanner.setText(ic+"  "+a+" → "+t+"  "+g+" x"+Math.max(1,qty)+(giftCombo720>1?"  🔥x"+giftCombo720:"")+(total<=0?"  FREE":"  💎"+compactNumber(total)));reactionBanner.setTextSize(16);reactionBanner.setAlpha(1f);reactionBanner.setVisibility(View.VISIBLE);reactionBanner.setBackground(bg(accent,28));reactionBanner.postDelayed(()->{if(reactionBanner!=null&&!partyUiDead())try{reactionBanner.animate().cancel();
+1708:         if(snap==null)return;Map<String,Long> score=new HashMap<>();long totalGift=0;long activity=Math.max(1,snap.size());
+1709:         for(DocumentSnapshot d:snap.getDocuments())if("gift".equals(d.getString("type"))){String n=str(d,"actorName","User");Long raw=d.getLong("giftValue");long v=raw==null?1L:Math.max(1L,raw);totalGift+=v;score.put(n,score.containsKey(n)?score.get(n)+v:v);}
+1710:         int roomLv=(int)Math.min(99,1+(activity/12)+(totalGift/25000));int heartLv=(int)Math.min(99,1+(totalGift/10000));String compact=shortId();if(compact.length()>2)compact=compact.substring(compact.length()-2);
+1713:         if(list.isEmpty()){supporterLabel.setText("🏆 Top supporters • waiting for gifts");return;}
+1716:     private String giftIconFor(String gift){
+1717:         if(gift==null)return "🎁";for(int i=0;i<giftNames.length;i++)if(gift.equals(giftNames[i]))return giftIcons[i];return "🎁";
+1731:             body.addView(tv("Games",15,Color.WHITE,true),new LinearLayout.LayoutParams(-1,dp(42)));
+1732:             addActivityTiles(body,new String[]{"🎲","⚔️","🔫","🔥","🎯","🐑","🎨","🧩"},new String[]{"Dominoes Chat Room","Mobile Legends","PUBG Mobile","Free Fire","Ludo Chat Room","SHEEP & PUZZLES","Draw & Guess","Bingo"},true);
+1736:             addActivityTiles(body,new String[]{"💗","🎁"},new String[]{"Couple","Gift Wall"},false);
+1739:         dialog.setOnShowListener(v->{android.view.Window w=dialog.getWindow();if(w!=null){w.setLayout(-1,(int)(getResources().getDisplayMetrics().heightPixels*.52f));w.clearFlags(android.view.WindowManager.LayoutParams.FLAG_DIM_BEHIND);w.setGravity(Gravity.BOTTOM);w.setBackgroundDrawable(bg(0xff242333,24));}});
+1768:         if("Draw & Guess".equals(name)){guessItPanel();return;}
+1769:         if("Bingo".equals(name)||name.contains("Ludo")||name.contains("Dominoes")||name.contains("SHEEP")){openRoomGames740();return;}
+1770:         if(name.contains("Mobile Legends")||name.contains("PUBG")||name.contains("Free Fire")){openRoomGames740();return;}
+1771:         new AlertDialog.Builder(this).setTitle(name).setMessage("Template is active in this room. Members can chat, take seats, send gifts and join room activities.").setPositiveButton("OK",null).show();
+1794:         if("Candy Legend".equals(name)){simplePrizeEvent("🍬 Candy Legend",new String[]{"🍬 Sweet win","🍭 Bonus round","⭐ Star candy","🎁 Candy gift challenge"});return;}
+1796:         if("Gift Wall".equals(name)){giftHistoryDialog();return;}
+1804:         new AlertDialog.Builder(this).setTitle("💞 Relationship").setItems(labels.toArray(new String[0]),(d,w)->{String n=labels.get(w),uid=ids.get(w);addEvent("relationship",safeName()+" sent a relationship invite to "+n+" 💞");new AlertDialog.Builder(this).setTitle("Invite sent").setMessage("A room event was posted for "+n+". You can continue in private chat or send a gift.").setPositiveButton("Private chat",(x,y)->openPrivateChat(uid,n)).setNeutralButton("Send Gift",(x,y)->giftDialogFor(uid,n))
+1826:         for(String text:q){TextView chip=tv(text,11,0xff403a46,true);chip.setGravity(Gravity.CENTER);chip.setBackground(bg(0xfff7f7fb,18));chip.setOnClickListener(v->{if(composerBox!=null){composerBox.setText(text);sendMessage(composerBox);}});LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(-2,dp(34));lp.setMargins(dp(3),dp(2),dp(3),dp(2));row.addView(chip,lp);}
+1841:         AlertDialog d=new AlertDialog.Builder(this).setView(root).create();d.setOnShowListener(v->{android.view.Window w=d.getWindow();if(w!=null){w.clearFlags(android.view.WindowManager.LayoutParams.FLAG_DIM_BEHIND);w.setGravity(Gravity.BOTTOM);w.setBackgroundDrawable(bg(0xff242333,22));}});d.show();
+1849:     private void giftSendingCounterDialog(){
+1850:         if(!cloudRoom||db==null){new AlertDialog.Builder(this).setTitle("Gift sending counter").setMessage("Live gift counting starts in a Firebase room.").setPositiveButton("OK",null).show();return;}
+1853:             for(DocumentSnapshot d:snap.getDocuments())if("gift".equals(d.getString("type"))){Long val=d.getLong("giftValue");long v=val==null?0:val;String target=d.getString("targetUid");if(user!=null&&user.getUid().equals(target))charisma+=Math.max(1,v/10);String actor=str(d,"actorName","User");senders.put(actor,senders.containsKey(actor)?senders.get(actor)+1:1);}
+1854:             List<Map.Entry<String,Integer>> rank=new ArrayList<>(senders.entrySet());java.util.Collections.sort(rank,(a,b)->b.getValue()-a.getValue());StringBuilder out=new StringBuilder("Charisma: ").append(charisma).append("\n\nGift senders\n");int i=0;for(Map.Entry<String,Integer> e:rank){out.append(++i).append(". ").append(e.getKey()).append(" • ").append(e.getValue()).append(" gifts\n");if(i>=8)break;}if(rank.isEmpty())out.append("No gifts yet\n");
+1855:             new AlertDialog.Builder(this).setTitle("Gift sending counter").setMessage(out.toString()).setPositiveButton("Start Game",(d,w)->addEvent("counter",safeName()+" started Gift sending counter ⭐")).setNeutralButton("Gift Shop",(d,w)->giftShopPanel()).setNegativeButton("Close",null).show();
+1905:     private GradientDrawable premiumRoomBackground(){
+1909:         else if("Game".equals(roomTheme)){a=0xff078d70;b=0xff0aaf93;c=0xff073a37;}
+1915:         GradientDrawable g=new GradientDrawable(GradientDrawable.Orientation.TL_BR,new int[]{a,b,c});g.setGradientType(GradientDrawable.LINEAR_GRADIENT);return g;
+1919:         View glow=new View(this);GradientDrawable gd=new GradientDrawable();gd.setShape(GradientDrawable.OVAL);gd.setColors(new int[]{0x33ffffff,0x00ffffff});glow.setBackground(gd);glow.setAlpha(.45f);FrameLayout.LayoutParams gp=new FrameLayout.LayoutParams(dp(290),dp(290));gp.gravity=Gravity.TOP|Gravity.RIGHT;gp.topMargin=dp(90);gp.rightMargin=-dp(130);shell.addView(glow,gp);
+1920:         View glow2=new View(this);GradientDrawable gd2=new GradientDrawable();gd2.setShape(GradientDrawable.OVAL);gd2.setColors(new int[]{0x22ffe179,0x00ffffff});glow2.setBackground(gd2);FrameLayout.LayoutParams g2=new FrameLayout.LayoutParams(dp(250),dp(250));g2.gravity=Gravity.BOTTOM|Gravity.LEFT;g2.bottomMargin=dp(120);g2.leftMargin=-dp(130);shell.addView(glow2,g2);
+1923:     private void weeklyGiftCardDialog(){ weeklyGiftCardDialog(prefs.getString("weekly_preview_tier","Silver")); }
+1924:     private void weeklyGiftCardDialog(String tier){
+1927:         TextView title=tv("WEEKLY GIFT\nCARD",29,Color.WHITE,true);title.setGravity(Gravity.CENTER);root.addView(title,new LinearLayout.LayoutParams(-1,dp(86)));
+1929:         LinearLayout tabs=new LinearLayout(this);tabs.setGravity(Gravity.CENTER);AlertDialog[] holder=new AlertDialog[1];TextView silver=pill("Silver Card",gold?0xff7148b9:0xffffde73,()->{if(holder[0]!=null)holder[0].dismiss();weeklyGiftCardDialog("Silver");});silver.setTextColor(gold?Color.WHITE:0xff5a3a08);tabs.addView(silver,new LinearLayout.LayoutParams(0,dp(46),1));TextView goldTab=pill("Gold Card",gold?0xffffde73:0xff7148b9,()->{if(holder[0]!=null)holder[0].dismiss();weeklyGiftCardDialog("
+1935:         if(localCoins<price){toast("Need "+price+" TEST coins");return;}localCoins-=price;prefs.edit().putInt("coins",localCoins).putLong("weekly_"+tier+"_activated",System.currentTimeMillis()).putString("weekly_"+tier+"_claimed","").apply();toast(tier+" Weekly Gift Card activated in TEST mode");weeklyGiftCardDialog(tier);
+1941:         localCoins+=reward;prefs.edit().putInt("coins",localCoins).putString(key,claimed+token).apply();addEvent("weekly",safeName()+" claimed "+tier+" Weekly Card Day "+day+" reward 🎁");toast("Claimed "+reward+" TEST coins • balance "+localCoins);weeklyGiftCardDialog(tier);
+2083:         items.add("ℹ Room info"); items.add("👤 Host profile"); items.add("💬 Private chat"); items.add("🎯 Templates & Events"); items.add("🎟 Weekly Gift Card");
+2086:         items.add("👥 Members"); items.add("🏆 Room ranking"); items.add("🎁 Gift history"); items.add("🕘 Recent activity");
+2087:         items.add("🎮 Games"); items.add("⚔ PK battle"); items.add("🧭 Full feature center");
+2089:         items.add("🎁 Lucky Gift"); items.add("💫 Gift Wish"); items.add("🔎 Find room user"); items.add("📢 Notice center");
+2090:         items.add("💫 Interactive Emoji"); items.add("🎧 Audio PK"); items.add("🎁 Gift Wall"); items.add("🔍 Online User Search");
+2107:         holder[0]=new AlertDialog.Builder(this).setView(scroll).create();holder[0].setOnShowListener(v->{android.view.Window w=holder[0].getWindow();if(w!=null){w.setBackgroundDrawable(bg(Color.WHITE,18));w.setGravity(Gravity.CENTER);w.setLayout((int)(getResources().getDisplayMetrics().widthPixels*.90f),(int)(getResources().getDisplayMetrics().heightPixels*.88f));}});holder[0].show();
+2114:         else if(x.contains("Weekly Gift Card"))weeklyGiftCardDialog();
+2126:         else if(x.contains("Gift history"))giftHistoryDialog();
+2133:         else if(x.contains("Games"))openDeepFlow810("game_center");
+2139:         else if(x.contains("Lucky Gift"))luckyGiftPanel();
+2140:         else if(x.contains("Gift Wish"))giftWishPanel();
+2143:         else if(x.contains("Interactive Emoji"))showLiveEmojiPanelV530();
+2145:         else if(x.contains("Gift Wall"))giftWall620();
+2194:         final long[] giftValue={0};final int[] gifts={0};final int[] events={0};
+2196:             events[0]=es.size();for(DocumentSnapshot e:es.getDocuments())if("gift".equals(e.getString("type"))){gifts[0]++;Long v=e.getLong("giftValue");if(v!=null)giftValue[0]+=Math.max(0,v);}
+2198:                 String text="Online members: "+liveMemberCount+"\nOccupied seats: "+seatNames.size()+"/"+maxSeats+"\nRecent messages: "+ms.size()+"\nRecent room events: "+events[0]+"\nGift events: "+gifts[0]+"\nGift value: 💎"+compactNumber(giftValue[0])+"\nCategory: "+roomCategory+"\nTheme: "+roomTheme;
+2199:                 new AlertDialog.Builder(this).setTitle("📊 Party Data").setMessage(text).setPositiveButton("Ranking",(d,w)->roomRankingDialog()).setNeutralButton("Gift history",(d,w)->giftHistoryDialog()).setNegativeButton("Close",null).show();
+2221:     private void luckyGiftPanel(){
+2224:         String text=safeName()+" opened Lucky Gift • "+picked;
+2225:         addEvent("lucky_gift",text);showReactionEffect(picked.substring(0,picked.indexOf(' ')));
+2226:         new AlertDialog.Builder(this).setTitle("🎁 Lucky Gift").setMessage("You opened: "+picked+"\n\nThis room event does not charge or credit real money/diamonds.").setPositiveButton("Send a gift",(d,w)->giftShopPanel()).setNeutralButton("Open again",(d,w)->luckyGiftPanel()).setNegativeButton("Close",null).show();
+2229:     private void giftWishPanel(){
+2231:         new AlertDialog.Builder(this).setTitle("💫 Gift Wish").setMessage("Choose a gift you wish to receive in this room").setItems(wishes,(d,w)->{String wish=wishes[w];addEvent("gift_wish",safeName()+" wishes for "+wish);toast("Gift wish posted: "+wish);}).setNeutralButton("Gift Shop",(d,w)->giftShopPanel()).setNegativeButton("Close",null).show();
+2259:         new AlertDialog.Builder(this).setTitle("📚 Party Master Help").setMessage("Host / Co-host controls\n\n• Lock or unlock seats\n• Approve seat requests\n• Mute or unmute members\n• Kick / ban users\n• Manage room privacy and password\n• Edit room notice\n• View Party Data, ranking and gift history\n• Use KTV, Radio Mic, PK, Games and Interactive Emoji\n\nAll moderation actions use the current KING Plus room/Firebase flow.").setPositiveButton("Open Party Master",(d,w)->partyMasterPanel()).se
+2285:         if("Game".equalsIgnoreCase(selected))return "Game".equalsIgnoreCase(category)||"PK".equalsIgnoreCase(category)||"Pick Me".equalsIgnoreCase(category);
+2293:         if("Game".equals(roomTheme))return 0xff16382f;
+2323:         List<String> items=new ArrayList<>(); items.add("💬 Private chat"); items.add("🎁 Send gift"); items.add("＋ Follow"); items.add("⚑ Report");
+2333:             else if(x.contains("Gift"))giftDialogFor(uid==null?"":uid,name);
+2382:         contributionStat.setOnClickListener(v->profileGiftWallDialog(uid,fallbackName));charismaStat.setOnClickListener(v->profileGiftWallDialog(uid,fallbackName));
+
+===== app/src/main/java/com/kingplus/social/AssetPackActivity.java =====
+6: import android.graphics.drawable.GradientDrawable;
+15:     private GradientDrawable bg(int c,int r){GradientDrawable d=new GradientDrawable();d.setColor(c);d.setCornerRadius(dp(r));return d;}
+17:     @Override public void onCreate(Bundle b){super.onCreate(b);ScrollView sc=new ScrollView(this);LinearLayout root=new LinearLayout(this);root.setOrientation(LinearLayout.VERTICAL);root.setPadding(dp(16),dp(20),dp(16),dp(30));root.setBackgroundColor(0xfff7f5fb);TextView back=t("‹  KING Plus Asset Pack",24,true);back.setOnClickListener(v->finish());root.addView(back);root.addView(t("Original bundled visuals and sounds used by KING Plus. No copied Bolo Hi assets.",13,false));add(root,"🎁 Gift Coll
+
+===== app/src/main/java/com/kingplus/social/GiftBurstView.java =====
+15: /** Original KING Plus full-screen gift animation. */
+16: public class GiftBurstView extends View {
+30:     public GiftBurstView(Context context, String icon, String title, String subtitle, int accent) {
+33:         this.title = title == null ? "Gift" : title;
+53:                 if (GiftBurstView.this.endAction != null) GiftBurstView.this.endAction.run();
+64:     @Override protected void onDraw(Canvas c) {
+65:         super.onDraw(c);
+76:         c.drawCircle(cx, cy, Math.max(w,h)*.52f, glow);
+84:         c.drawText(icon, cx, cy, paint);
+88:         c.drawText(title, cx, cy + Math.min(w,h)*.13f, paint);
+92:         c.drawText(subtitle, cx, cy + Math.min(w,h)*.19f, paint);
+102:             c.drawCircle(x,y,r,paint);
+
+===== app/src/main/java/com/kingplus/social/SocialActivity.java =====
+9: import android.graphics.drawable.GradientDrawable;
+61:     private GradientDrawable bg(int color, int radius) { GradientDrawable d = new GradientDrawable(); d.setColor(color); d.setCornerRadius(dp(radius)); return d; }
+90:         String bio = p.getString("bio", "Love music, games and new friends ✨");
+91:         String tags = p.getString("tags", "Music, Games");
+
+===== app/src/main/java/com/kingplus/social/MainActivity.java =====
+12: import android.graphics.drawable.GradientDrawable;
+80:     private int giftCount = 0;
+81:     private int receivedGiftCount = 0;
+87:     private boolean giftEffectsEnabled = true;
+99:         giftCount = getPreferences(0).getInt("gift_count", 0);
+100:         receivedGiftCount = getPreferences(0).getInt("received_gifts", 0);
+101:         giftEffectsEnabled = getPreferences(0).getBoolean("gift_effects", true);
+133:             if (openTab == 1) games();
+151:         if (tab == 1) games();
+171:     private GradientDrawable background(int color, int radius) {
+172:         GradientDrawable d = new GradientDrawable(); d.setColor(color); d.setCornerRadius(dp(radius)); return d;
+214:         root.setBackgroundResource(R.drawable.login_background);
+216:         diamonds.setImageResource(R.drawable.diamond_art);
+233:         logo.setImageResource(R.drawable.king_logo);
+260:         text("Use KING Plus respectfully. Do not post illegal, abusive, deceptive or harmful content. Test coins, gifts, ranks and rewards have no cash value.", 15, MUTED, false);
+350:                     coinBalance, giftCount, receivedGiftCount,
+488:         String bio = getPreferences(0).getString("bio","Love music, games and new friends ✨");
+489:         String tags = getPreferences(0).getString("tags","Music, Games");
+682:         LinearLayout controls=new LinearLayout(this); controls.setGravity(Gravity.CENTER); controls.setPadding(dp(7),dp(5),dp(7),dp(10)); String[] icons={"💬\nChat","🎤\nMic","🎁\nGift","🎮\nGame","🚪\nLeave"};
+683:         for(int i=0;i<icons.length;i++){ TextView x=new TextView(this); x.setText(icons[i]); x.setTextColor(Color.WHITE); x.setTextSize(11); x.setGravity(Gravity.CENTER); x.setBackground(background(i==2?0xff8a49ed:0xff3a2856,18)); final int k=i; x.setOnClickListener(v->{if(k==0)chatDialog(chat);else if(k==1){if(muteAllSeats){Toast.makeText(this,"Host has muted all seats",Toast.LENGTH_SHORT).show();return;}if(recording){stopMic();meter.setText("Mic off");}else requestMic();}else if(k==2)giftDialo
+696:     private void giftDialog(LinearLayout chat){
+697:         String[] gifts={"🌹 Rose  1","❤️ Heart  5","🍭 Candy  10","🎂 Cake  50","💎 Diamond  100","🚗 Sports Car  500","👑 Crown  999","🎆 Fireworks  1999"};
+699:         new AlertDialog.Builder(this).setTitle("🎁 Gift Store • Balance "+coinBalance).setItems(gifts,(d,w)->{
+701:             final int giftIndex=w; String[] targets={"🌟 Whole room","🎵 Lily","🎮 Alex","💜 Mia","✨ DJ Max"};
+702:             new AlertDialog.Builder(this).setTitle("Send "+gifts[giftIndex]+" to…").setItems(targets,(d2,t)->sendGift(chat,gifts[giftIndex],prices[giftIndex],targets[t])).setNegativeButton("Cancel",null).show();
+706:     private void roomGames(){
+707:         final String[] gameNames={"🎲 Ludo Master","🐑 Sheep Fight","🐺 Werewolf","🕵 Spy Game","🎨 Draw & Guess","🎱 Bingo","🦁 Crazy Zoo"};
+708:         new AlertDialog.Builder(this).setTitle("🎮 Room Games").setItems(gameNames,(d,w)->{
+709:             String raw=gameNames[w]; String game=raw.substring(raw.indexOf(' ')+1);
+710:             kingGameModes(game);
+713:     private void playMiniGame(String game){
+715:         if(game.contains("Dart")){int score=60+(int)(Math.random()*41);result="Score: "+score+" / 100";reward=score>=90?20:5;}
+716:         else if(game.contains("Draw")){reward=10+(int)(Math.random()*91);result="Reward: "+reward+" coins";}
+717:         else if(game.contains("Racing")){int pos=1+(int)(Math.random()*4);result="Finished #"+pos;reward=pos==1?30:5;}
+718:         else if(game.contains("Snake")){int score=100+(int)(Math.random()*901);result="Battle score: "+score;reward=score>700?25:5;}
+719:         else {result="Ludo table created • Waiting for players";reward=5;}
+720:         if(reward>0){coinBalance=getPreferences(0).getInt("coins",2500)+reward;getPreferences(0).edit().putInt("coins",coinBalance).apply();appendTransaction("+"+reward+" coins • Game reward");addXp(3);}
+721:         final int won=reward; new AlertDialog.Builder(this).setTitle(game).setMessage(result+(won>0?"\n+"+won+" coins added":"")).setPositiveButton("Play again",(d,w)->playMiniGame(game)).setNegativeButton("Back",null).show();
+724:     private void giftEffect(String gift){ final Toast t=Toast.makeText(this,"✨  "+gift+"  ✨",Toast.LENGTH_LONG); t.setGravity(Gravity.CENTER,0,0); t.show(); }
+763:         String[] channels={"🔥 Hot Party","🎵 Music Live","💜 Friends Forever","🎮 Game Talk","🌙 Late Night Talk","✨ New Friends"};
+767:         final String[] settings={"🔒 Room lock: "+(roomLocked?"ON":"OFF"),"🎤 Everyone can use mic: "+(getPreferences(0).getBoolean("room_mic_anyone_"+safeKey(currentRoom),true)?"ON":"OFF"),"🎁 Gift effects: "+(giftEffectsEnabled?"ON":"OFF"),"👥 Change my seat","📢 Edit announcement","🧹 Clear local chat"};
+771:             else if(w==2){giftEffectsEnabled=!giftEffectsEnabled;getPreferences(0).edit().putBoolean("gift_effects",giftEffectsEnabled).apply();Toast.makeText(this,giftEffectsEnabled?"Gift effects enabled":"Gift effects disabled",Toast.LENGTH_SHORT).show();}
+855:         LinearLayout nav=new LinearLayout(this); nav.setGravity(Gravity.CENTER); nav.setBackgroundColor(Color.WHITE); String[] ni={"⌂\nParty","♟\nGame","◇\nDiscover","✉\nMessages","●\nMe"};
+856:         for(int i=0;i<ni.length;i++){TextView n=new TextView(this);n.setText(ni[i]);n.setTextSize(12);n.setGravity(Gravity.CENTER);n.setTextColor(i==selected?0xffd2b100:0xff777777);final int k=i;n.setOnClickListener(v->{if(k==0)openPartyActivity();else if(k==1)games();else if(k==2)discover();else if(k==3)messages();else profile();});nav.addView(n,new LinearLayout.LayoutParams(0,dp(62),1));} root.addView(nav);
+859:     private void games(){
+860:         incrementMission("mission_game",1);
+861:         renderGamesCategory("Hot");
+864:     private void renderGamesCategory(String selected){
+865:         screen="games"; stopMic();
+869:         TextView gameTitle=new TextView(this);gameTitle.setText("Game");gameTitle.setTextSize(25);gameTitle.setTextColor(0xff171717);gameTitle.setTypeface(null,Typeface.BOLD);head.addView(gameTitle,new LinearLayout.LayoutParams(0,dp(54),1));
+870:         TextView search=new TextView(this);search.setText("⌕");search.setTextSize(28);search.setGravity(Gravity.CENTER);search.setOnClickListener(v->showGameSearch());head.addView(search,new LinearLayout.LayoutParams(dp(46),dp(50)));
+871:         TextView stats=new TextView(this);stats.setText("🔥");stats.setTextSize(23);stats.setGravity(Gravity.CENTER);stats.setOnClickListener(v->kingGameStats());head.addView(stats,new LinearLayout.LayoutParams(dp(44),dp(50)));root.addView(head);
+873:         LinearLayout tabs=new LinearLayout(this);tabs.setPadding(dp(12),dp(3),dp(12),dp(8));String[] names={"Hot","LUDO","Party","Team"};
+874:         for(String n:names){boolean active=n.equalsIgnoreCase(selected);TextView t=new TextView(this);t.setText(n);t.setTextSize(13);t.setTypeface(null,active?Typeface.BOLD:Typeface.NORMAL);t.setGravity(Gravity.CENTER);t.setTextColor(active?0xff19151e:0xff6c6671);t.setBackground(background(active?0xffffec00:0xfff7f7f7,14));t.setOnClickListener(v->renderGamesCategory(n));LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(0,dp(34),1);lp.setMargins(dp(3),0,dp(3),0);tabs.addView(t,lp);}root.
+878:         addLudoHeroV600(list);
+879:         if("LUDO".equalsIgnoreCase(selected)){
+880:             addGameGridRow(list,new String[][]{{"🎲","Ludo Master","Classic • Quick Match","🎲 Ludo Master"},{"👥","Ludo Team","Team room • Friends","🎲 Ludo Master"}});
+882:             addGameGridRow(list,new String[][]{{"🐺","Werewolf","Voice role game","🐺 Werewolf"},{"🕵","Spy Game","Find the hidden spy","🕵 Spy Game"}});
+883:             addGameGridRow(list,new String[][]{{"🎨","Draw & Guess","Draw • Guess • Laugh","🎨 Draw & Guess"},{"🎱","Bingo","Fast party rounds","🎱 Bingo"},{"🁣","Domino","Match the chain","🁣 Domino"}});
+885:             addGameGridRow(list,new String[][]{{"🐑","Sheep Fight","1v1 • Team battle","🐑 Sheep Fight"},{"🦁","Crazy Zoo","Collect • Team fun","🦁 Crazy Zoo"}});
+886:             cardLine(list,"🎤 Voice Game Room","Create or join a real Firebase room",()->kingOpenGameRoom("Game Room"));
+888:             addGameGridRow(list,new String[][]{{"🎲","Ludo Master","Quick match","🎲 Ludo Master"},{"🐑","Sheep Fight","Battle","🐑 Sheep Fight"},{"🐺","Werewolf","Voice roles","🐺 Werewolf"}});
+889:             addGameGridRow(list,new String[][]{{"🎨","Draw & Guess","Drawing","🎨 Draw & Guess"},{"🎱","Bingo","Number rounds","🎱 Bingo"},{"🕵","Spy Game","Secret clues","🕵 Spy Game"}});
+890:             TextView featured=new TextView(this);featured.setText("Featured Games");featured.setTextSize(15);featured.setTypeface(null,Typeface.BOLD);featured.setTextColor(0xff222222);featured.setPadding(dp(5),dp(12),0,dp(8));list.addView(featured);
+891:             addGameGridRow(list,new String[][]{{"🦁","Crazy Zoo","Collect & play","🦁 Crazy Zoo"},{"🁣","Domino","Playable matching","🁣 Domino"},{"🎤","Voice Room","Play & talk","Game Room"}});
+894:         addGameShortcut(shortcuts,"📜\nHistory",this::kingGameHistory);addGameShortcut(shortcuts,"⭐\nStats",this::kingGameStats);addGameShortcut(shortcuts,"🎤\nRoom",()->kingOpenGameRoom("Game Room"));list.addView(shortcuts,new LinearLayout.LayoutParams(-1,dp(72)));
+898:     private void addLudoHeroV600(LinearLayout host){
+899:         LinearLayout hero=new LinearLayout(this);hero.setOrientation(LinearLayout.VERTICAL);hero.setPadding(dp(16),dp(14),dp(16),dp(12));hero.setBackground(background(0xffdff4ff,16));hero.setOnClickListener(v->openPlayableGame("ludo"));TextView title=new TextView(this);title.setText("🎲  LUDO LORD");title.setTextSize(28);title.setTypeface(null,Typeface.BOLD);title.setTextColor(0xfff0a400);title.setGravity(Gravity.CENTER);hero.addView(title,new LinearLayout.LayoutParams(-1,dp(46)));TextView sub=ne
+902:     private void addGameHero(LinearLayout host,String selected){
+904:         TextView a=new TextView(this);a.setText("🎮  KING Plus Games");a.setTextSize(21);a.setTextColor(Color.WHITE);a.setTypeface(null,Typeface.BOLD);hero.addView(a);
+909:     private void addGameGridRow(LinearLayout host,String[][] games){
+911:         for(String[] g:games)addGameGridCard(row,g[0],g[1],g[2],g[3]);
+915:     private void addGameGridCard(LinearLayout row,String icon,String title,String sub,String game){
+917:         TextView art=new TextView(this);art.setText(icon);art.setTextSize(43);art.setGravity(Gravity.CENTER);int[] palette={0xff39a7d8,0xffab5ed9,0xffed7b6b,0xff54b9a7,0xffd4a447};int tint=palette[(title.hashCode()&0x7fffffff)%palette.length];android.graphics.drawable.GradientDrawable artBg=new android.graphics.drawable.GradientDrawable(android.graphics.drawable.GradientDrawable.Orientation.TL_BR,new int[]{tint,0xfff2dffc});artBg.setCornerRadius(dp(14));art.setBackground(artBg);card.addView(art,
+920:         card.setOnClickListener(v->{if("Game Room".equals(game))kingOpenGameRoom(game);else openPlayableGame(playableCode730(game));});LinearLayout.LayoutParams cp=new LinearLayout.LayoutParams(0,-1,1);cp.setMargins(dp(4),0,dp(4),0);row.addView(card,cp);
+923:     private void addGameShortcut(LinearLayout host,String text,Runnable action){TextView x=new TextView(this);x.setText(text);x.setTextSize(12);x.setTextColor(0xff5f5866);x.setGravity(Gravity.CENTER);x.setBackground(background(0xfff0eef3,15));x.setOnClickListener(v->action.run());LinearLayout.LayoutParams p=new LinearLayout.LayoutParams(0,dp(58),1);p.setMargins(dp(4),0,dp(4),0);host.addView(x,p);}
+925:     private void showGameSearch(){
+926:         String[] games={"🎲 Ludo","🎰 Lucky Slot","🪙 Coin Toss","✊ Rock Paper Scissors","🎲 Dice Duel","🔢 Guess Number","🧠 Memory Match","⚡ Reaction Tap","🃏 High / Low","🎡 Lucky Wheel","🐑 Sheep Fight","🐺 Werewolf","🕵 Spy Game","🎨 Draw & Guess","🎱 Bingo","🦁 Crazy Zoo","🁣 Domino","🎤 Voice Game Room"};
+927:         new AlertDialog.Builder(this).setTitle("Playable Games").setItems(games,(d,w)->{if(w==games.length-1)kingOpenGameRoom("Game Room");else openPlayableGame(new String[]{"ludo","slot","coin","rps","dice","guess","memory","reaction","highlow","wheel","sheep","werewolf","spy","draw","bingo","zoo","domino"}[w]);}).setNegativeButton("Close",null).show();
+929:     private void openPlayableGame(String game){if("ludo".equalsIgnoreCase(game)){startActivity(new Intent(this,OnlineLudoActivity.class));return;}Intent i=new Intent(this,GamePlayActivity.class);i.putExtra("game",game);startActivity(i);}
+930:     private String playableCode730(String game){String g=game==null?"":game.toLowerCase(java.util.Locale.US);if(g.contains("ludo"))return "ludo";if(g.contains("sheep"))return "sheep";if(g.contains("werewolf"))return "werewolf";if(g.contains("spy"))return "spy";if(g.contains("draw"))return "draw";if(g.contains("bingo"))return "bingo";if(g.contains("zoo"))return "zoo";if(g.contains("domino"))return "domino";if(g.contains("slot"))return "slot";return "dice";}
+933:     private void kingGameCard(LinearLayout host,String title,String sub,String game){
+934:         cardLine(host,title,sub,()->openPlayableGame(playableCode730(game)));
+937:     private void kingGameModes(String game){
+938:         final String[] modes={"⚡ Quick Match","⚔ 1 vs 1","👥 Team Match","🔗 Play with Friends","🎤 Voice Game Room","📜 Rules"};
+939:         new AlertDialog.Builder(this).setTitle(game).setItems(modes,(d,w)->{
+940:             if(w==0)kingStartGame(game,"Quick Match");
+941:             else if(w==1)kingStartGame(game,"1 vs 1");
+942:             else if(w==2)kingStartGame(game,"Team Match");
+943:             else if(w==3)kingInviteGame(game);
+944:             else if(w==4)kingOpenGameRoom(game);
+945:             else kingGameRules(game);
+949:     private void kingStartGame(String game,String mode){
+951:         if(game.contains("Ludo")){
+954:         } else if(game.contains("Sheep")){
+957:         } else if(game.contains("Werewolf")){
+958:             String[] roles={"Villager","Werewolf","Seer","Doctor"}; String role=roles[(int)(Math.random()*roles.length)]; win=Math.random()>.45; points=win?22:8;
+960:         } else if(game.contains("Spy")){
+962:             result="Secret clue: "+word+" • "+(win?"Spy round cleared":"Spy escaped");
+963:         } else if(game.contains("Draw")){
+965:             result="Draw this word: "+word+" • Share clues with friends";
+966:         } else if(game.contains("Bingo")){
+968:             result="Draw: "+a+", "+b+", "+c+" • "+(win?"BINGO!":"Keep playing");
+969:         } else if(game.contains("Zoo")){
+975:         kingRecordGame(game,mode,result,points,win);
+977:         new AlertDialog.Builder(this).setTitle(game+" • "+mode)
+978:             .setMessage(finalResult+"\n\n+"+finalPoints+" Game Points\nNo real-money purchase or billing is used.")
+979:             .setPositiveButton("Play Again",(d,w)->kingStartGame(game,mode))
+980:             .setNeutralButton("Voice Room",(d,w)->kingOpenGameRoom(game))
+984:     private void kingRecordGame(String game,String mode,String result,int points,boolean win){
+986:         int matches=p.getInt("king_game_matches",0)+1;
+987:         int wins=p.getInt("king_game_wins",0)+(win?1:0);
+988:         int total=p.getInt("king_game_points",0)+Math.max(0,points);
+989:         String old=p.getString("king_game_history","");
+990:         String row="#"+matches+" • "+game+" • "+mode+" • "+result+" • +"+points+" GP";
+993:         p.edit().putInt("king_game_matches",matches).putInt("king_game_wins",wins).putInt("king_game_points",total).putString("king_game_history",history).apply();
+996:     private void kingGameHistory(){
+997:         screen="game_history"; base("Game History","KING Plus local/test match history");
+998:         String history=getPreferences(0).getString("king_game_history","");
+1004:         button("Back to Games",PURPLE,this::games);
+1007:     private void kingGameStats(){
+1008:         screen="game_stats"; base("Game Stats","KING Plus no-billing game progress");
+1009:         SharedPreferences p=getPreferences(0); int matches=p.getInt("king_game_matches",0), wins=p.getInt("king_game_wins",0), points=p.getInt("king_game_points",0);
+1013:         text("⭐ Game Points: "+points,20,0xffffd768,true);
+1014:         text("Game Points are local/test progression only and are not purchased coins or cash value.",13,MUTED,false);
+1015:         button("Match History",CARD,this::kingGameHistory);
+1016:         button("Back to Games",PURPLE,this::games);
+1019:     private void kingGameRules(String game){
+1021:         if(game.contains("Ludo"))rules="Roll the dice and race your pieces toward the finish. KING Plus test rounds use a compact dice challenge; live friends can coordinate in a voice room.";
+1022:         else if(game.contains("Sheep"))rules="Choose quick, 1v1 or team play. Higher battle power wins the compact test round.";
+1023:         else if(game.contains("Werewolf"))rules="Players receive hidden roles. Villagers find the werewolf while special roles help the village. Use a voice room for group discussion.";
+1024:         else if(game.contains("Spy"))rules="Most players share a location clue while one player is the spy. Ask questions and identify the spy before the round ends.";
+1025:         else if(game.contains("Draw"))rules="One player gets a word to draw while friends try to guess it. Use Play with Friends or a voice game room for a group round.";
+1026:         else if(game.contains("Bingo"))rules="Mark called numbers. Complete the target pattern before the other players.";
+1027:         else if(game.contains("Zoo"))rules="Collect animals through casual rounds and build your local test collection.";
+1028:         else rules="Use KING Plus voice rooms to coordinate with your team. Third-party game software is not embedded in KING Plus.";
+1029:         new AlertDialog.Builder(this).setTitle(game+" • Rules").setMessage(rules).setPositiveButton("OK",null).show();
+1032:     private void kingInviteGame(String game){
+1034:         share.putExtra(Intent.EXTRA_TEXT,"Join me in KING Plus • "+game+" • open the Game tab and choose Play with Friends.");
+1038:     private void kingOpenGameRoom(String game){
+1039:         Intent i=new Intent(this,PartyActivity.class); i.putExtra("displayName",displayName); i.putExtra("requestedGame",game); startActivity(i);
+1040:         Toast.makeText(this,"Party center opened • create/join a Game room for "+game,Toast.LENGTH_LONG).show();
+1045:         int gameScore=Math.max(0,getPreferences(0).getInt("king_game_points",0)+getPreferences(0).getInt("king_game_wins",0)*50+getPreferences(0).getInt("king_game_matches",0)*20);
+1047:         int eventScore=Math.max(0,getMissionValue("mission_room")*25+getMissionValue("mission_profile")*5+giftCount*10+receivedGiftCount*10);
+1049:         i.putExtra("displayName",displayName);i.putExtra("gameScore",gameScore);i.putExtra("chatScore",chatScore);i.putExtra("eventScore",eventScore);
+1085:         LinearLayout details=new LinearLayout(this);details.setOrientation(LinearLayout.VERTICAL);details.setPadding(dp(18),dp(12),dp(18),dp(10));profileInfoRowV600(details,"▣","Love music, games and new friends ✨");profileInfoRowV600(details,"▢","2000-01-01  Capricorn");profileInfoRowV600(details,"⌂","Add your hometown");profileInfoRowV600(details,"♡","Choose tags that fit you");body.addView(details);
+1114:         ScrollView scroll=new ScrollView(this);LinearLayout drawer=new LinearLayout(this);drawer.setOrientation(LinearLayout.VERTICAL);drawer.setPadding(dp(14),dp(20),dp(10),dp(20));drawer.setBackgroundColor(Color.WHITE);scroll.addView(drawer);
+1116:         for(int i=0;i<items.length;i++){final int k=i;TextView row=new TextView(this);row.setText(items[i]);int icon=getResources().getIdentifier("ref_me_drawer_icon_"+icons[i],"drawable",getPackageName());if(icon!=0){android.graphics.drawable.Drawable art=getDrawable(icon);art.setBounds(0,0,dp(25),dp(25));row.setCompoundDrawables(art,null,null,null);row.setCompoundDrawablePadding(dp(16));}row.setTextSize(15);row.setTextColor(0xff222222);row.setGravity(Gravity.CENTER_VERTICAL);row.setPadding(dp(
+1117:         dialog.setOnShowListener(v->{android.view.Window w=dialog.getWindow();if(w!=null){w.setBackgroundDrawableResource(android.R.color.transparent);w.setGravity(Gravity.LEFT|Gravity.TOP);w.setLayout((int)(getResources().getDisplayMetrics().widthPixels*.82f),-1);}});dialog.show();
+1129:         final EditText name=profileInputV600(body,"Nickname",displayName);final EditText bio=profileInputV600(body,"Bio",getPreferences(0).getString("bio","Love music, games and new friends ✨"));final EditText birthday=profileInputV600(body,"Birthday",getPreferences(0).getString("birthday","2000-01-01"));final EditText hometown=profileInputV600(body,"Hometown",getPreferences(0).getString("hometown",""));final EditText tags=profileInputV600(body,"Labels",getPreferences(0).getString("tags","Music,
+1141:         button("☁ Sync profile + TEST wallet snapshot",PURPLE,()->CloudSync.syncProfileAndTestWallet(this,getPreferences(0),displayName,coinBalance,giftCount,receivedGiftCount,(ok,message)->runOnUiThread(()->Toast.makeText(this,message,Toast.LENGTH_LONG).show())));
+1208:         text("🔐 Server wallet & gifts",19,Color.WHITE,true);
+1209:         text("Production wallet writes stay blocked from normal clients. Gifts use trusted Cloud Functions, idempotent operation IDs and server ledger entries.",13,MUTED,false);
+1211:         text("FCM supports gift, room invite, live-room message, direct-message and follow notification paths once Cloud Functions are deployed.",13,MUTED,false);
+1227:         button("Open Gift Catalog",PURPLE,this::giftCatalogPage);
+1229:         button("📜 Server transaction history",CARD,()->Toast.makeText(this,"Server wallet history is shown after verified gift/recharge ledger entries are available.",Toast.LENGTH_LONG).show());
+1233:     private void giftCatalogPage(){
+1234:         screen="gift_catalog"; base("Gift Center","Choose gifts for voice rooms");
+1237:         for(int i=0;i<names.length;i++){ final int k=i; button(names[i]+"   •   "+prices[i]+" coins",CARD,()->new AlertDialog.Builder(this).setTitle(names[k]).setMessage("Gift price: "+prices[k]+" coins\n\nSend gifts from inside a voice room so a recipient/room is selected.").setPositiveButton("OK",null).show()); }
+1242:         text("Gift Activity",18,Color.WHITE,true);text("🎁 Sent gifts   ×"+giftCount,17,Color.WHITE,false);text("📥 Received gifts   ×"+receivedGiftCount,17,Color.WHITE,false);
+1244:         text("ID Frames & Entrance Effects",18,Color.WHITE,true);text(KingCosmetics.frameEmoji(frame)+"  ID frame: "+frame,15,MUTED,false);text(KingCosmetics.effectEmoji(effect)+"  Entry effect: "+effect,15,MUTED,false);button("🖼 Choose ID / Profile Frame",CARD,()->selectCosmetic730(true));button("✨ Choose Room Entry Effect",CARD,()->selectCosmetic730(false));
+1253:         text("Achievements",18,Color.WHITE,true);text("🎤 Voice Explorer  "+(getMissionValue("mission_room")>0?"✓":"○"),16,Color.WHITE,false);text("🎁 Gift Supporter  "+(giftCount>0?"✓":"○"),16,Color.WHITE,false);text("💬 Room messages today  "+getMissionValue("mission_chat"),16,MUTED,false);
+1297:         button("🎁 Allow room gifts: "+(getPreferences(0).getBoolean("privacy_gifts",true)?"ON":"OFF"),CARD,()->toggleSetting("privacy_gifts","Room gifts",this::privacySafetyPage));
+1325:         TextView id=new TextView(this);id.setText(KingCosmetics.frameEmoji(equippedFrame730)+"  ID: "+uid+"  "+KingCosmetics.frameEmoji(equippedFrame730));id.setTextSize(11);id.setTextColor(0xff3d3348);id.setGravity(Gravity.CENTER_VERTICAL);id.setPadding(dp(10),0,dp(10),0);id.setBackground(KingCosmetics.idFrame(this,equippedFrame730));info.addView(id,new LinearLayout.LayoutParams(-1,dp(28)));
+1456:         String bio=getPreferences(0).getString("bio","Love music, games and new friends ✨");
+1459:         String tags=getPreferences(0).getString("tags","Music, Games");
+1544:         text("Open Party to view the real Room Ranking, Gift Senders, Gift History and live room activity generated by signed-in members.",14,Color.WHITE,false);
+1553:         LinearLayout root=new LinearLayout(this);root.setOrientation(LinearLayout.VERTICAL);root.setPadding(dp(16),dp(8),dp(16),dp(12));root.setBackground(new android.graphics.drawable.GradientDrawable(android.graphics.drawable.GradientDrawable.Orientation.TOP_BOTTOM,new int[]{accent,0xff081413,Color.BLACK}));
+1554:         LinearLayout head=new LinearLayout(this);head.setGravity(Gravity.CENTER_VERTICAL);TextView back=vipText540("‹",30,Color.WHITE);back.setOnClickListener(v->profile());head.addView(back,new LinearLayout.LayoutParams(dp(44),dp(48)));TextView title=vipText540("VIP / Noble",21,Color.WHITE);head.addView(title,new LinearLayout.LayoutParams(0,dp(48),1));TextView rules=vipText540("ⓘ",23,Color.WHITE);rules.setOnClickListener(v->new AlertDialog.Builder(this).setTitle("VIP Rules").setMessage("VIP poi
+1557:         body.addView(vipText540("VIP privileges",18,Color.WHITE),new LinearLayout.LayoutParams(-1,dp(58)));String[] icons={"💎","👑","✨","🖼","🎤","🎁"};String[] labels={"VIP identity","Profile badge","Entrance effect","Profile frame","Room badge","Gift support"};int[] unlock={1,2,3,4,6,8};for(int r=0;r<2;r++){LinearLayout row=new LinearLayout(this);for(int c=0;c<3;c++){int i=r*3+c;boolean ok=pr.vipLevel>=unlock[i];TextView tile=vipText540((ok?icons[i]:"🔒")+"\n"+labels[i]+"\nVIP "+unlock[i],12,ok?Col
+1558:         TextView note=vipText540("Gift in rooms or private chat to grow VIP points • no real billing",12,0xffe0e0e0);body.addView(note,new LinearLayout.LayoutParams(-1,dp(48)));TextView collection=vipText540("🎒 Open Collection & Medals",15,Color.WHITE);collection.setBackground(background(0x24ffffff,14));collection.setOnClickListener(v->openCommunityHub700("Collection"));body.addView(collection,new LinearLayout.LayoutParams(-1,dp(52)));setSafeContentView(root);
+1590:         missionButton("mission_gift","🎁 Send a gift",getMissionValue("mission_gift"),1,50);
+1592:         missionButton("mission_game","🎮 Open Game Center",getMissionValue("mission_game"),1,35);
+1602:         if("Game".equals(category))return new String[][]{{"🎮","Game Talk","8"},{"🎲","Ludo Friends","6"},{"🎯","Challenge Room","9"},{"🏁","Racing Fans","5"},{"🃏","Card Club","7"},{"🏆","Winner Zone","11"}};
+1603:         if("Event".equals(category))return new String[][]{{"🎉","Weekend Party","12"},{"🎁","Gift Festival","10"},{"👑","KING Night","11"},{"✨","New Star Event","8"},{"🎤","Singer Contest","9"},{"🏅","Room Championship","6"}};
+1605:         return new String[][]{{"🎤","Music & Friends","11"},{"👑","KING Lounge","12"},{"🎮","Game Talk","8"},{"💜","Friends Forever","6"},{"🎵","Night Music","9"},{"✨","New Friends","7"},{"🌙","Late Night Talk","5"},{"🎧","DJ Party","10"}};
+1615:     private void sendGift(LinearLayout chat,String gift,int price,String target){if(!getPreferences(0).getBoolean("privacy_gifts",true)){Toast.makeText(this,"Room gifts are disabled in Privacy",Toast.LENGTH_SHORT).show();return;}if(coinBalance<price){Toast.makeText(this,"Not enough coins",Toast.LENGTH_SHORT).show();return;}coinBalance-=price;giftCount++;getPreferences(0).edit().putInt("coins",coinBalance).putInt("gift_count",giftCount).apply();String msg="sent "+gift+" to "+target;addChat(chat,d
+1637:         if ("game_history".equals(screen) || "game_stats".equals(screen)) { games(); return; }
+1642:                 || "missions".equals(screen) || "wallet".equals(screen) || "gift_catalog".equals(screen)
+1657:             text("KING Plus no longer inserts sample follows, gifts, invites or live-room notifications.",13,MUTED,false);
+
+===== app/src/main/java/com/kingplus/social/ChatActivity.java =====
+11: import android.graphics.drawable.GradientDrawable;
+77:     private final String[] giftNames620 = {"Rose","Love Heart","Crown","Firework","Lucky Fish","Couple Ring","Magic Star","Royal Castle","Super Car","Lionheart","Parcel Box","Party Star"};
+78:     private final String[] giftIcons620 = {"🌹","💗","👑","🎆","🐠","💍","🌟","🏰","🏎️","🦁","📦","⭐"};
+79:     private final int[] giftCosts620 = {50,100,500,800,1200,1800,2200,5000,8800,12800,999,1680};
+97:     private GradientDrawable bg(int color, int radius) { GradientDrawable d = new GradientDrawable(); d.setColor(color); d.setCornerRadius(dp(radius)); return d; }
+115:         LinearLayout emoji = new LinearLayout(this); emoji.setPadding(dp(10), dp(4), dp(10), dp(4)); String[] es = {"❤️","😂","👍","🎁","🔥","👑"};
+116:         for (String e : es) { TextView x = label(e, 22, DARK, false); x.setGravity(Gravity.CENTER); x.setOnClickListener(v -> sendText(((TextView)v).getText().toString())); emoji.addView(x, new LinearLayout.LayoutParams(0, dp(42), 1)); }
+117:         root.addView(emoji);
+120:         addTool(tools, "🎁 Gift", this::directGiftPanel620); addTool(tools, "😊 Emoji", this::directEmojiPanel620); addTool(tools, "📷 Photo", this::pickPhoto); addTool(tools, "🎤 Voice", this::toggleVoice); addTool(tools, "🔗 Room", this::shareRoom);
+159:         if ("gift".equals(type)) {
+160:             String icon=clean(doc.getString("giftIcon"),"🎁"), name=clean(doc.getString("giftName"),"Gift"); Long q=doc.getLong("giftQty"), value=doc.getLong("giftValue");
+251:         LinearLayout bubble = new LinearLayout(this); bubble.setOrientation(LinearLayout.VERTICAL); bubble.setPadding(dp(12), dp(8), dp(12), dp(7)); bubble.setBackground(bg("gift".equals(type)?0xfffff2c7:(mine ? PURPLE : Color.WHITE), 18));
+252:         if("gift".equals(type)){ TextView giftTitle=label("🎁  GIFT",11,0xff8c6515,true); bubble.addView(giftTitle); TextView body=label(text,18,0xff3d2d12,true); body.setPadding(0,dp(5),0,dp(3)); bubble.addView(body); TextView sub=label("Sent in KING Plus chat • TEST/no billing",10,0xff8a7756,false); bubble.addView(sub); }
+255:         String meta = DateFormat.getTimeInstance(DateFormat.SHORT).format(when) + (mine ? (seen ? "  ✓✓" : "  ✓") : ""); TextView time = label(meta, 10, "gift".equals(type)?0xff8a7756:(mine ? 0xffe4dcff : 0xff96909f), false); time.setGravity(Gravity.END); bubble.addView(time);
+277:     private void directEmojiPanel620() {
+281:         TextView title=label("Emoji & Stickers",18,DARK,true);root.addView(title,new LinearLayout.LayoutParams(-1,dp(42)));
+290:     private void directGiftPanel620() {
+293:         LinearLayout head=new LinearLayout(this);head.setGravity(Gravity.CENTER_VERTICAL);TextView title=label("Gift • "+peerName,18,Color.WHITE,true);head.addView(title,new LinearLayout.LayoutParams(0,dp(44),1));TextView bal=label("💎 "+testCoins,13,0xffffdf6b,true);bal.setGravity(Gravity.CENTER);head.addView(bal,new LinearLayout.LayoutParams(dp(100),dp(40)));root.addView(head);
+294:         TextView selection=label(giftIcons620[0]+" "+giftNames620[0]+" ×1",13,0xffffdf6b,true);root.addView(selection,new LinearLayout.LayoutParams(-1,dp(34)));
+295:         LinearLayout grid=new LinearLayout(this);grid.setOrientation(LinearLayout.VERTICAL);for(int i=0;i<giftNames620.length;i+=4){LinearLayout row=new LinearLayout(this);for(int c=0;c<4;c++){if(i+c>=giftNames620.length){row.addView(new View(this),new LinearLayout.LayoutParams(0,dp(88),1));continue;}final int idx=i+c;LinearLayout card=new LinearLayout(this);card.setOrientation(LinearLayout.VERTICAL);card.setGravity(Gravity.CENTER);card.setBackground(bg(0xff292735,12));TextView ic=label(giftIcon
+296:         LinearLayout amounts=new LinearLayout(this);int[] qs={1,9,49,99};for(int q:qs){TextView b=label("×"+q,12,Color.WHITE,true);b.setGravity(Gravity.CENTER);b.setBackground(bg(0xff343143,12));b.setOnClickListener(v->{qty[0]=q;selection.setText(giftIcons620[selected[0]]+" "+giftNames620[selected[0]]+" ×"+q);});LinearLayout.LayoutParams ap=new LinearLayout.LayoutParams(0,dp(42),1);ap.setMargins(dp(3),dp(2),dp(3),0);amounts.addView(b,ap);}root.addView(amounts);
+297:         AlertDialog dialog=new AlertDialog.Builder(this).setView(root).setNegativeButton("Close",null).setPositiveButton("Send",null).create();dialog.setOnShowListener(v->{dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener(x->{int total=giftCosts620[selected[0]]*qty[0];if(sendDirectGift620(giftNames620[selected[0]],giftIcons620[selected[0]],giftCosts620[selected[0]],qty[0],total)){bal.setText("💎 "+testCoins);dialog.dismiss();}});});dialog.show();
+300:     private boolean sendDirectGift620(String name,String icon,int unit,int qty,int total) {
+301:         if(isBlocked()){Toast.makeText(this,"Unblock this user before sending a gift",Toast.LENGTH_SHORT).show();return false;}
+302:         if(total>100000){Toast.makeText(this,"Gift total is limited to 100000 TEST coins",Toast.LENGTH_SHORT).show();return false;}
+304:         testCoins-=total;mainPrefs().edit().putInt("coins",testCoins).apply();String text=icon+" "+name+"  ×"+qty+"  •  💎"+total;LevelSystem.Snapshot before700=LevelSystem.read(this),progress700=LevelSystem.gift(this,total);syncDirectProgress700(progress700);if(progress700.level>before700.level)Toast.makeText(this,"⭐ Level up • Lv."+progress700.level,Toast.LENGTH_SHORT).show();if(progress700.vipLevel>before700.vipLevel)Toast.makeText(this,"💎 VIP up • VIP "+progress700.vipLevel,Toast.LENGTH_SHORT
+305:         if(!cloudMode){saveLocal(text,"gift","",true);Toast.makeText(this,"Gift sent • TEST balance "+testCoins,Toast.LENGTH_SHORT).show();return true;}
+307:         db.collection("direct_threads").document(chatId).set(thread,SetOptions.merge()).addOnSuccessListener(v->{Map<String,Object> msg=new HashMap<>();msg.put("senderUid",me.getUid());msg.put("recipientUid",peerUid);msg.put("senderName",myName);msg.put("senderLevel",progress700.level);msg.put("senderVip",progress700.vipLevel);msg.put("text",text);msg.put("type","gift");msg.put("giftName",name);msg.put("giftIcon",icon);msg.put("giftQty",qty);msg.put("giftUnitCost",unit);msg.put("giftValue",total
+308:         Toast.makeText(this,"Gift sent • TEST balance "+testCoins,Toast.LENGTH_SHORT).show();return true;
+314:     private void directGiftHistory620() {
+315:         if(!cloudMode){new AlertDialog.Builder(this).setTitle("🎁 Gift history").setMessage("Gift cards sent in this local chat are shown in the conversation.").setPositiveButton("OK",null).show();return;}
+316:         db.collection("direct_threads").document(chatId).collection("messages").orderBy("createdAt",Query.Direction.DESCENDING).limit(100).get().addOnSuccessListener(snap->{List<String> rows=new ArrayList<>();for(DocumentSnapshot d:snap.getDocuments())if("gift".equals(d.getString("type")))rows.add(clean(d.getString("text"),"🎁 Gift"));if(rows.isEmpty())rows.add("No gifts in this chat yet");new AlertDialog.Builder(this).setTitle("🎁 Gift history").setItems(rows.toArray(new String[0]),null).setNegat
+320:         String[] a={"↩ Reply","🎁 Send gift","😊 Send emoji","🔗 Share room"};new AlertDialog.Builder(this).setTitle(peerName).setItems(a,(d,w)->{if(w==0){replyName=peerName;replyPreview=text;replyBar.setText("↩ Replying to "+peerName+" • "+shortReply620(text)+"   ✕");replyBar.setVisibility(View.VISIBLE);composer.requestFocus();}else if(w==1)directGiftPanel620();else if(w==2)directEmojiPanel620();else shareRoom();}).show();
+326:         boolean blocked = isBlocked(); String[] opts = {"🎁 Send gift","🎁 Gift history","😊 Emoji & stickers", blocked ? "✅ Unblock user" : "🚫 Block user", "⚑ Report user", "🗑 Clear local chat" };
+327:         new AlertDialog.Builder(this).setTitle(peerName).setItems(opts,(d,which)->{ if(which==0) directGiftPanel620(); else if(which==1) directGiftHistory620(); else if(which==2) directEmojiPanel620(); else if(which==3) toggleBlock(); else if(which==4) report(); else clearLocal(); }).show();
+
+===== app/src/main/java/com/kingplus/social/KingPublicProfileActivity.java =====
+8: import android.graphics.drawable.GradientDrawable;
+31:     private GradientDrawable bg(int c,int r){GradientDrawable d=new GradientDrawable();d.setColor(c);d.setCornerRadius(dp(r));return d;}
+38:         LinearLayout actions=new LinearLayout(this);actions.setGravity(Gravity.CENTER);followBtn=action("＋ Follow");followBtn.setOnClickListener(v->toggleFollow());actions.addView(followBtn,new LinearLayout.LayoutParams(0,dp(50),1));TextView msg=action("✉ Message");msg.setOnClickListener(v->openChat());actions.addView(msg,new LinearLayout.LayoutParams(0,dp(50),1));TextView gift=action("🎁 Gift");gift.setOnClickListener(v->openGift());actions.addView(gift,new LinearLayout.LayoutParams(0,dp(50),1))
+39:         section("Profile");row("⭐ Level & VIP","XP "+(xp==null?0:xp)+" • VIP benefits and cosmetics",()->openDeep("vip"));row("🎁 Gift history","Secure sent/received gift ledger",this::openGift);row("💞 Relationship","CP / relationship center",()->openCommunity("Relationship"));row("🏠 Family","Family square and party",()->openCommunity("Family"));section("Safety");row("↗ Share KING ID","Share this profile",this::share);row("⚑ Report","Report this user",this::report);row("🚫 Block / Unblock","Keep t
+47:     private void openGift(){Intent i=new Intent(this,KingGiftCenterActivity.class);i.putExtra("targetUid",uid);i.putExtra("targetName",name);startActivity(i);}    
+
+===== app/src/main/java/com/kingplus/social/KingSoundFx.java =====
+9:     private static int gift, join, level, win;
+13:         AudioAttributes a = new AudioAttributes.Builder().setUsage(AudioAttributes.USAGE_GAME).setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION).build();
+15:         gift = pool.load(c, R.raw.king_gift, 1);
+20:     private static void play(Context c, int which) { try { ensure(c.getApplicationContext()); int id=which==1?gift:which==2?join:which==3?level:win; if(id!=0)pool.play(id,1f,1f,1,0,1f); } catch (Throwable ignored) {} }
+21:     public static void gift(Context c){ play(c,1); }
+
+===== app/src/main/java/com/kingplus/social/RoomGameActivity.java =====
+8: import android.graphics.drawable.GradientDrawable;
+40: public class RoomGameActivity extends Activity {
+54:         if(me!=null&&db!=null&&!roomId.isEmpty())try{room().collection("game_ready").document(me.getUid()).delete();}catch(Exception ignored){}
+58:     private GradientDrawable bg(int c,int r){GradientDrawable d=new GradientDrawable();d.setColor(c);d.setCornerRadius(dp(r));return d;}
+73:     private DocumentReference room(){return db.collection("live_rooms").document(roomId);} private DocumentReference state(){return room().collection("game_state").document("current");}
+76:     private void attach(){if(stateListener!=null)stateListener.remove();stateListener=state().addSnapshotListener((d,e)->{if(e!=null){stateText.setText("Game state error: "+e.getMessage());return;}if(d==null||!d.exists()){roundId=0;type="";prompt="";result="";status="closed";}else{Long r=d.getLong("roundId");roundId=r==null?0:r;type=s(d.getString("type"));prompt=s(d.getString("prompt"));result=s(d.getString("result"));status=s(d.getString("status"));}renderState();listenMoves();renderControls();
+77:     private void listenMoves(){if(movesListener!=null)movesListener.remove();movesListener=room().collection("game_moves").addSnapshotListener((q,e)->{currentMoves.clear();if(e!=null){movesBox.removeAllViews();movesBox.addView(tv("Unable to load moves: "+e.getMessage(),13,MUTED,false));return;}if(q!=null)for(DocumentSnapshot d:q.getDocuments()){Long r=d.getLong("roundId");if(r!=null&&r==roundId)currentMoves.add(d);}renderMoves();renderControls();});}
+78:     private void renderState(){if(roundId==0||!"active".equals(status)){stateText.setText(result.isEmpty()?"No active multiplayer round":"Last result\n"+result);return;}stateText.setText(gameIcon(type)+"  "+prompt+(result.isEmpty()?"":"\n"+result));}
+79:     private String gameIcon(String t){if("rps".equals(t))return "✊";if("dice".equals(t))return "🎲";if("number".equals(t))return "🔢";if("coin".equals(t))return "🪙";if("wheel".equals(t))return "🎡";if("bingo".equals(t))return "🎯";return "🎮";}
+86:         Button ludo=button("🎲 Online Ludo");ludo.setOnClickListener(v->startActivity(new Intent(this,OnlineLudoActivity.class)));LinearLayout.LayoutParams ludoLp=new LinearLayout.LayoutParams(-1,dp(52));ludoLp.setMargins(0,dp(6),0,dp(4));controls.addView(ludo,ludoLp);
+89:             String[] n={"✊ RPS","🎲 Dice Duel","🔢 Pick Number","🪙 Coin Pick","🎡 Lucky Wheel","🎯 Number Pick 1–9"};String[] t={"rps","dice","number","coin","wheel","bingo"};
+95:             if(!hasMyMove()){if("rps".equals(type))rpsControls();else if("dice".equals(type))diceControls();else if("number".equals(type))numberControls();else if("coin".equals(type))coinControls();else if("wheel".equals(type))wheelControls();else if("bingo".equals(type))bingoControls();}
+105:     private void bingoControls(){LinearLayout row=new LinearLayout(this);for(int n=1;n<=9;n++){if(n==4||n==7){controls.addView(row);row=new LinearLayout(this);}final int x=n;Button b=button(String.valueOf(n));b.setOnClickListener(v->submit("Pick "+x,x));row.addView(b,new LinearLayout.LayoutParams(0,dp(48),1));}controls.addView(row);}
+109:     private void startRound(String game){
+111:         room().collection("game_ready").get().addOnSuccessListener(q->{
+114:             startRoundNow750(game);
+117:     private void startRoundNow750(String game){
+120:         room().collection("game_moves").get().addOnSuccessListener(old->{
+122:             String p="rps".equals(game)?"Choose Rock, Paper or Scissors":"dice".equals(game)?"Roll once • highest roll wins":"number".equals(game)?"Pick 1–30 • closest to a shared draw wins":"coin".equals(game)?"Pick Heads or Tails":"wheel".equals(game)?"Spin once • highest score wins":"Pick 1–9 • closest to a shared draw wins";
+124:             value.put("actorUid",me.getUid());value.put("actorName",displayName);value.put("type",game);value.put("prompt",p);value.put("result","");value.put("status","active");value.put("roundId",next);value.put("updatedAt",FieldValue.serverTimestamp());
+130:             }).addOnSuccessListener(v->postGameEvent750("🎮 "+displayName+" started "+game.toUpperCase()+" round"))
+134:     private void postGameEvent750(String text){Map<String,Object>e=new HashMap<>();e.put("actorUid",me.getUid());e.put("actorName",displayName);e.put("type","play");e.put("text",text);e.put("createdAt",FieldValue.serverTimestamp());room().collection("events").add(e);}
+135:     private void clearOldMoves(long keep){room().collection("game_moves").get().addOnSuccessListener(q->{for(DocumentSnapshot d:q.getDocuments()){Long r=d.getLong("roundId");if(r==null||r!=keep)d.getReference().delete();}});}
+140:         DocumentReference mine=room().collection("game_moves").document(me.getUid());
+152:         readyListener=room().collection("game_ready").addSnapshotListener((q,e)->{
+162:         DocumentReference r=room().collection("game_ready").document(me.getUid());
+170:         room().collection("game_ready").get().addOnSuccessListener(q->{for(DocumentSnapshot d:q.getDocuments())d.getReference().delete();toast("Ready list cleared");});
+174:         String game=type.isEmpty()?"rps":type;
+175:         startRound(game);
+179:     private void finishRound(){if(!moderator||roundId==0||!"active".equals(status))return;final long expected=roundId;room().collection("game_moves").get().addOnSuccessListener(q->{List<DocumentSnapshot> a=new ArrayList<>();for(DocumentSnapshot d:q.getDocuments()){Long r=d.getLong("roundId");if(r!=null&&r==roundId)a.add(d);}if(expected!=roundId||!"active".equals(status)){toast("Round changed");return;}if(a.size()<2){toast("At least two players must submit");return;}String out=resultFor(a);if(out
+180:     private String resultFor(List<DocumentSnapshot>a){if("dice".equals(type)||"wheel".equals(type)){int best=-1;List<String>w=new ArrayList<>();for(DocumentSnapshot d:a){Long n=d.getLong("score");int v=n==null?0:n.intValue();if(v>best){best=v;w.clear();w.add(s(d.getString("name")));}else if(v==best)w.add(s(d.getString("name")));}return ("wheel".equals(type)?"🎡 Highest spin: ":"🎲 Highest roll: ")+best+"\n🏆 "+join(w);}if("number".equals(type)||"bingo".equals(type)){int cap="bingo".equals(type)?9:3
+
+===== app/src/main/java/com/kingplus/social/LiveEmojiView.java =====
+14: public final class LiveEmojiView extends View {
+21:     public LiveEmojiView(Context context,int expression,long duration){super(context);this.expression=Math.max(0,Math.min(11,expression));this.duration=duration;setContentDescription("Animated "+LABELS[this.expression]);setLayerType(View.LAYER_TYPE_SOFTWARE,null);}
+27:     private void oval(Canvas c,float l,float t,float r,float b,int color){color(color);c.drawOval(l,t,r,b,paint);}
+28:     private void arc(Canvas c,float l,float t,float r,float b,float start,float sweep,int color,float stroke){color(color);paint.setStyle(Paint.Style.STROKE);paint.setStrokeWidth(stroke);paint.setStrokeCap(Paint.Cap.ROUND);c.drawArc(l,t,r,b,start,sweep,false,paint);paint.setStyle(Paint.Style.FILL);}
+29:     private void heart(Canvas c,float x,float y,float size){color(0xfff34570);Path p=new Path();p.moveTo(x,y+size*.8f);p.cubicTo(x-size*1.3f,y,x-size*.65f,y-size,x,y-size*.35f);p.cubicTo(x+size*.65f,y-size,x+size*1.3f,y,x,y+size*.8f);c.drawPath(p,paint);}
+30:     @Override protected void onDraw(Canvas c){
+31:         super.onDraw(c);long elapsed=SystemClock.uptimeMillis()-started;boolean running=duration==0||elapsed<duration;float t=running?elapsed/1000f:0f;float wave=(float)Math.sin(t*6.2);float blink=(t%3.2f>2.95f)?0.12f:1f;
+33:         paint.setStyle(Paint.Style.FILL);paint.setShader(new RadialGradient(35,28,66,new int[]{0xfffff3a0,0xffffce3c,0xffe89408},null,Shader.TileMode.CLAMP));c.drawCircle(50,49,37,paint);paint.setShader(null);
+36:         else if(expression==8){oval(c,23,32,47,48,0xff252635);oval(c,53,32,77,48,0xff252635);color(dark);paint.setStrokeWidth(4);c.drawLine(44,37,56,37,paint);}
+39:         if(expression==5){color(dark);paint.setStrokeWidth(4);c.drawLine(27,25,43,30,paint);c.drawLine(57,30,73,25,paint);arc(c,36,56,64,72,195,150,dark,3);}
+43:         else if(expression==1){oval(c,31,52,69,76+wave*2,dark);oval(c,38,66,63,77+wave*2,0xfff47577);color(Color.WHITE);c.drawRoundRect(35,53,65,59,2,2,paint);}
+46:         if(expression==10){for(int i=0;i<9;i++){float f=(t*.6f+i*.12f)%1;color(i%2==0?0xfffa61a7:0xff57caff);c.drawRect(7+i*10,5+f*85,10+i*10,10+f*85,paint);}}
+47:         if(expression==9){color(0xff727ad5);paint.setTextSize(14);paint.setFakeBoldText(true);c.drawText("Z",75,25-wave*4,paint);paint.setFakeBoldText(false);}
+
+===== app/src/main/java/com/kingplus/social/KingCosmetics.java =====
+6: import android.graphics.drawable.GradientDrawable;
+72:     public static String frameEmoji(String name){
+80:     public static String effectEmoji(String name){
+88:     public static GradientDrawable avatarFrame(Context c,String name,boolean host){
+89:         int[] colors=colors(name);GradientDrawable d=new GradientDrawable(GradientDrawable.Orientation.TL_BR,colors);d.setShape(GradientDrawable.OVAL);d.setStroke(dp(c,host?4:3),host?0xffffe27a:stroke(name));return d;
+91:     public static GradientDrawable idFrame(Context c,String name){
+92:         GradientDrawable d=new GradientDrawable(GradientDrawable.Orientation.LEFT_RIGHT,colors(name));d.setCornerRadius(dp(c,14));d.setStroke(dp(c,1),stroke(name));return d;
+
+===== app/src/main/java/com/kingplus/social/KingDeepFlowActivity.java =====
+9: import android.graphics.drawable.GradientDrawable;
+37:  * while delegating live/social/game work to the real activities that own it.
+50:     private GradientDrawable bg(int c,int r){GradientDrawable d=new GradientDrawable();d.setColor(c);d.setCornerRadius(dp(r));return d;}
+53:     private boolean dark(){return route.startsWith("party_")||route.startsWith("gift_")||route.startsWith("game_")||route.startsWith("vip")||route.startsWith("noble")||route.startsWith("music_")||route.startsWith("video_");}
+69:             case "gift_center":giftCenter();break;case "gift_wall":giftWall();break;case "gift_history":giftHistory();break;case "gift_wish":giftWish();break;case "gift_lucky":giftLucky();break;
+70:             case "game_center":gameCenter();break;case "game_hot":gameHot();break;case "game_party":gameParty();break;case "game_team":gameTeam();break;
+76:         if(r.equals("profile_menu"))return "KING Plus";if(r.startsWith("vip"))return "VIP Center";if(r.startsWith("noble"))return "Noble Center";if(r.startsWith("gift"))return "Gift Center";if(r.startsWith("game"))return "Game";if(r.startsWith("party"))return roomName; if(r.startsWith("music"))return "Music / KTV";if(r.startsWith("video"))return "Voice & Video";if(r.startsWith("settings"))return "Settings";if(r.startsWith("wallet"))return "Wallet";if(r.startsWith("profile"))return "Profile";if(r
+87:     private void profileMenu(){LevelSystem.Snapshot s=LevelSystem.read(this);hero("👤  "+safe(mainPrefs.getString("name","KING User"),"KING User"),"VIP "+s.vipLevel+" • Lv."+s.level+" • KING Plus identity");section("Account");row("▣","Square","Moments, posts and activity","social_center");row("🎁","Privilege Pack","Frames, entrances, bubbles and badges","privilege_pack");row("🛍","Privilege Shop","Equip KING Plus cosmetics","privilege_shop");row("💎","VIP Level","VIP 0–50 progression and privileges"
+90:     private void privilegeShop(){hero("🛍 Privilege Shop","Equip unlocked KING Plus cosmetics. Selection persists on this device and cloud profile.");String[] frames={"Minimal Frame","Music Frame","Heart Frame","Royal Frame","Galaxy Frame","Crown Frame"};section("ID Frames");for(String f:frames)row(KingCosmetics.frameEmoji(f),f,"Required: "+KingCosmetics.requirementFrame(f),()->equipFrame(f));section("Entrance Effects");String[] eff={"Welcome Sparkle","Crown Drop","Rose Shower","Galaxy Portal","R
+95:     private void vipCenter(){LevelSystem.Snapshot s=LevelSystem.read(this);hero("💎 VIP "+s.vipLevel+" / "+LevelSystem.MAX_VIP,LevelSystem.vipName(s.vipLevel)+" • "+s.vipPoints+" VIP points");long from=LevelSystem.vipThreshold(s.vipLevel),to=s.nextVipPoints();int pc=s.vipLevel>=LevelSystem.MAX_VIP?100:(int)Math.max(0,Math.min(100,(s.vipPoints-from)*100/Math.max(1,to-from)));ProgressBar p=new ProgressBar(this,null,android.R.attr.progressBarStyleHorizontal);p.setMax(100);p.setProgress(pc);body.addV
+97:     private void vipRules(){hero("VIP Rules","KING Plus VIP progression is tied to supported activity and gifting in the current no-billing/test build.");section("Progression");chip("VIP 0–12 keeps the original early thresholds",()->{});chip("VIP 13–50 uses progressive KING tiers",()->{});chip("VIP does not decrease automatically in this build",()->{});section("Unlock path");row("💎","VIP 1–9","Identity, starter frames, stickers","detail_vip_1_9");row("👑","VIP 10–19","Royal frames, entrance effec
+100:     private void wallet(){int coins=mainPrefs.getInt("coins",0);hero("💳 My Wallet","TEST / no-billing balance • 💎 "+coins);row("💎","Diamonds","Gift and room test balance","detail_diamonds");row("🫘","Beans / Income","Room contribution and gift income","detail_income");row("🧾","Transaction History","Local and room activity records","wallet_history");row("🎁","Gift Inventory","Backpack and free gifts","gift_center");row("🔐","Wallet Safety","Server-authoritative wallet guidance","detail_wallet_securi
+106:     private void settingsNotifications(){toggle("Messages","notify_messages",true);toggle("Room invitations","notify_room_invites",true);toggle("Gifts and VIP","notify_gifts",true);toggle("Followers / Friends","notify_social",true);toggle("Game invitations","notify_games",true);row("⚙","Android notification settings","Open system settings",()->{try{Intent i=new Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS);i.putExtra(Settings.EXTRA_APP_PACKAGE,getPackageName());startActivity(i);}catch(Except
+107:     private void settingsNetwork(){toggle("Auto reconnect voice/video","auto_reconnect",true);toggle("Low-data voice mode","low_data_voice",false);toggle("Auto-play gift effects","autoplay_gifts",true);toggle("Auto-play entrance effects","autoplay_entrance",true);row("🎙","Voice diagnostics","Open voice room test","video_center");row("📹","Video diagnostics","Open video room test","video_center");}
+110:     private void help(){section("Help topics");row("🔑","Login / OTP","Google login, test mobile OTP and account setup","detail_help_login");row("🎤","Party Room","Seats, mic, host, co-host and room controls","detail_help_party");row("🎁","Gifts","Recipients, quantity, history, wall and VIP unlocks","detail_help_gift");row("🎮","Games","Local and realtime room multiplayer","detail_help_games");row("💎","VIP / Levels","VIP 0–50 and Normal Level 1–99","vip_rules");row("⚑","Safety","Block, report and mo
+111:     private void rules(){hero("📜 Rules & Policies","KING Plus community safety and platform rules");row("🛡","Community Rules","Respect, harassment, spam and safety","detail_rules_community");row("🔐","Privacy Policy","Profile, messages and account data","detail_rules_privacy");row("📄","Terms of Service","Account and service terms","detail_rules_terms");row("🎮","Game Fair Play","Room game conduct and abuse prevention","detail_rules_games");}
+113:     private void partyPlay(){hero("🎮 Play Center","Bolo-style nested Party activity flow using original KING Plus implementation.");row("▦","Templates","Interaction, game and themed room templates","party_templates");row("🎪","Events","Relationship, game events and privileges","party_events");row("🛠","Tools","Room event, private chat, music, atmosphere and family","party_tools");row("🎮","Realtime Room Games","Ready / Start / result / rematch","game_team");}
+114:     private void partyTemplates(){section("Interaction");row("💬","Chat Room","General conversation template",()->applyTemplate("Chat Room"));row("💘","Pick Me!","Random member interaction",()->applyTemplate("Pick Me!"));row("💞","Coupling","Relationship interaction",()->applyTemplate("Coupling"));row("🎊","Ceremony","Celebration room template",()->applyTemplate("Ceremony"));section("Games");String[] n={"Dominoes Chat Room","Mobile Legends","PUBG Mobile","Free Fire","Ludo Chat Room","SHEEP & PUZZLES
+115:     private void partyEvents(){String[][] e={{"💞","Relationship","relationship"},{"🍒","Crazy Fruits","slot"},{"🐔","Chicken Run","reaction"},{"🐯","Animal PK","zoo"},{"🪄","Magic Lamp","wheel"},{"🏎","Forza Motorsport","highlow"},{"🍬","Candy Legend","memory"},{"🎰","Lucky Slot","slot"}};for(String[] x:e)row(x[0],x[1],"Open interactive KING Plus equivalent",()->{if("relationship".equals(x[2]))openCommunity("Relationship");else openGame(x[2]);});section("Privileges");row("💗","Couple","Relationship / CP
+116:     private void partyTools(){row("📅","Events","Room events and activity","event_center");row("🪑","Room seat","Mic seat and ready status","game_team");row("👥","Enable group","Channel / group tools","detail_group");row("💬","Private chat","Open Messages",()->KingNav.openRoot(this,3));row("🎵","Music","KTV library, queue and audio settings","music_center");row("🎆","Atmosphere","Room effects and entrance display","detail_atmosphere");row("💰","Income","Gift contribution and room data","detail_room_inc
+118:     private void partyManagement(){row("✏","Room name","Rename and room identity","detail_room_name");row("🗂","Category","Chat, Games, KTV, Radio, Dating","detail_room_category");row("🎨","Theme","Default, Royal, Galaxy and event themes","detail_room_theme");row("🪑","Mic seats","8 / 10 / 12 seat layouts","detail_room_seats");row("🔐","Privacy","Public / private / password","detail_room_privacy");row("📢","Announcement","Room notice and welcome text","detail_billboard");row("⛔","Close room","Host-on
+119:     private void partyAdmin(){row("👑","Host","Owner room permissions","detail_host_role");row("🛡","Co-hosts","Administrator permissions","detail_cohosts");row("📥","Seat requests","Approve / reject mic requests","game_team");row("🚫","Banned users","Kick / ban management","detail_banned");row("🔇","Mute controls","Mute all / individual seat","detail_mute");}
+122:     private void giftCenter(){hero("🎁 Gift Center","Recipients, quantity, VIP unlocks, wall, wish, lucky gift and history.");row("🎁","Send Gift","Open full-screen gift catalog",this::openGiftCenter);row("🧱","Gift Wall","Received gift collection","gift_wall");row("💫","Gift Wish","Wish progress and thanks","gift_wish");row("🍀","Lucky Gift","Lucky reward / gift event","gift_lucky");row("👜","Gift Bag / Backpack","Free gifts and inventory",()->openCommunity("Collection"));row("🏆","Contribution Rankin
+123:     private void giftWall(){hero("🧱 Gift Wall","Room/profile gift collection");if(db==null||roomId.isEmpty()){chip("Open this from a live Party room to load real room gift events.",()->KingNav.openRoot(this,0));return;}db.collection("live_rooms").document(roomId).collection("events").orderBy("createdAt",com.google.firebase.firestore.Query.Direction.DESCENDING).limit(100).get().addOnSuccessListener(q->{Map<String,Long> c=new HashMap<>();for(DocumentSnapshot d:q.getDocuments())if("gift".equals(d.g
+124:     private void giftHistory(){hero("🕘 Gift History","Latest room gift events");if(db==null||roomId.isEmpty()){chip("Open from a live room for cloud history.",()->KingNav.openRoot(this,0));return;}db.collection("live_rooms").document(roomId).collection("events").orderBy("createdAt",com.google.firebase.firestore.Query.Direction.DESCENDING).limit(80).get().addOnSuccessListener(q->{int[] n={0};for(DocumentSnapshot d:q.getDocuments())if("gift".equals(d.getString("type"))){n[0]++;chip("🎁 "+safe(d.get
+125:     private void giftWish(){String k="gift_wish";String cur=prefs.getString(k,"Royal Castle");hero("💫 Gift Wish","Current wish: "+cur);String[] a={"Royal Castle","Galaxy Ship","King Dragon","VIP Crown","Diamond Rain"};for(String x:a)row("🎁",x,x.equals(cur)?"Selected":"Set as my wish",()->{prefs.edit().putString(k,x).apply();render();});}
+126:     private void giftLucky(){int streak=prefs.getInt("lucky_streak",0);hero("🍀 Lucky Gift","Daily lucky streak: "+streak);chip("Open lucky draw",()->{int win=1+(int)(Math.random()*100);prefs.edit().putInt("lucky_streak",streak+1).apply();new AlertDialog.Builder(this).setTitle("🍀 Lucky Gift").setMessage(win>=90?"Jackpot! 🎁 Royal reward":"Lucky score: "+win+"\nKeep playing room activities.").setPositiveButton("OK",(d,w)->render()).show();});}
+128:     private void gameCenter(){hero("🎮 Game","Playable local games + realtime room multiplayer");row("🔥","Hot","Quick playable games","game_hot");row("🎲","LUDO","Ludo and board games",()->openGame("ludo"));row("🎉","Party","Sheep, Werewolf, Spy, Draw, Bingo and more","game_party");row("👥","Team / Live Room","Realtime ready/start/result/rematch","game_team");}
+129:     private void gameHot(){String[][] g={{"🎰","Slot","slot"},{"🪙","Coin Toss","coin"},{"✊","RPS","rps"},{"🎲","Dice","dice"},{"🔢","Guess","guess"},{"🧠","Memory","memory"},{"⚡","Reaction","reaction"},{"🃏","High / Low","highlow"},{"🎡","Lucky Wheel","wheel"},{"⭕","Tic Tac Toe","tic_tac_toe"}};for(String[] x:g)row(x[0],x[1],"Play now",()->openGame(x[2]));}
+130:     private void gameParty(){String[][] g={{"🐑","Sheep Fight","sheep"},{"🐺","Werewolf","werewolf"},{"🕵","Spy Game","spy"},{"🎨","Draw & Guess","draw"},{"🎯","Bingo","bingo"},{"🦁","Crazy Zoo","zoo"},{"🀄","Domino","domino"}};for(String[] x:g)row(x[0],x[1],"Play now",()->openGame(x[2]));}
+131:     private void gameTeam(){hero("👥 Realtime Room Games","Players join the same Firebase room, tap Ready, host starts a round, results are shared and Rematch starts the next round.");row("✊","Room RPS","Realtime synchronized round",this::openRoomGame);row("🎲","Dice Duel","Realtime synchronized round",this::openRoomGame);row("🔢","Pick Number","Realtime synchronized round",this::openRoomGame);row("🪙","Coin Pick","Realtime synchronized round",this::openRoomGame);row("🎡","Lucky Wheel","Realtime sync
+132:     private void openGame(String code){Intent i=new Intent(this,GamePlayActivity.class);i.putExtra("game",code);startActivity(i);}
+133:     private void openRoomGame(){if(roomId.isEmpty()){toast("Join a live Party room first");KingNav.openRoot(this,0);return;}Intent i=new Intent(this,RoomGameActivity.class);i.putExtra("roomId",roomId);i.putExtra("roomName",roomName);startActivity(i);}
+138:     private void taskCenter(){hero("✅ Tasks","Progress actions that reward XP/collection status in KING Plus.");dailyTask("Join a Party room","task_party",5);dailyTask("Send a room message","task_chat",5);dailyTask("Play a game","task_game",10);dailyTask("Send a gift","task_gift",20);dailyTask("Visit Community","task_social",5);}
+140:     private void eventCenter(){row("🎪","Room Activity","Templates and live room events","party_events");row("⚔","Audio PK","Party PK / score flow",()->KingNav.openRoot(this,0));row("🏆","Ranking Events","Discover rankings","discover_center");row("🎁","Gift Events","Lucky Gift, Wish and Wall","gift_center");row("💞","Relationship Events","CP and Family activities",()->openCommunity("Relationship"));}
+141:     private void profileCenter(){row("✏","Edit Profile","Name, bio, birthday and tags","detail_edit_profile");row("🖼","My Gallery","Photos and Moments",()->openCommunity("Moments"));row("⭐","Level & Achievements","Normal Level 1–99","level_center");row("💎","VIP","VIP 0–50","vip");row("🏅","Medals & Influence","Achievements and contribution","medal_center");row("👀","Visitors","Recent profile visitors",()->openCommunity("Visitors"));row("🎁","Profile Gift Wall","Gift collection","gift_wall");row("🛡"
+142:     private void levelCenter(){LevelSystem.Snapshot s=LevelSystem.read(this);hero("🏆 Level "+s.level+" / "+LevelSystem.MAX_LEVEL,LevelSystem.levelTier(s.level)+" • XP "+s.xp+" / "+s.nextLevelXp());row("🏅","Achievements","Voice, games, gifts and social milestones","medal_center");row("🎮","Game Master","Play games to build activity","game_center");row("🎤","Voice Explorer","Join Party / voice room",()->KingNav.openRoot(this,0));row("👥","Friends","Community and followers","social_center");}
+143:     private void medalCenter(){LevelSystem.Snapshot s=LevelSystem.read(this);hero("🏅 Medals & Influence","Unlocked from levels, VIP, social and room activity");String[] n={"Rising Star","Elite Voice","Game Master","VIP Supporter","Royal Patron","KING Supreme"};int[] need={10,30,20,3,20,50};for(int i=0;i<n.length;i++){boolean vip=i>=3;int cur=vip?s.vipLevel:s.level;row(cur>=need[i]?"🏅":"🔒",n[i],(vip?"VIP ":"Level ")+need[i],()->{});}}
+144:     private void socialCenter(){row("▣","Square / Moments","Posts and activity",()->openCommunity("Moments"));row("👤","People Search","KING ID and profiles",()->openCommunity("Search"));row("👥","Friends / Followers","Follow and private chat",()->{Intent i=new Intent(this,SocialActivity.class);startActivity(i);});row("🏠","Family","Family square and members",()->openCommunity("Family"));row("💞","Relationship / CP","Pairing and gifts",()->openCommunity("Relationship"));row("💬","Messages","Chats and
+145:     private void discoverCenter(){row("🏆","Contribution Ranking","Discover room/user rankings",()->startActivity(new Intent(this,DiscoverActivity.class)));row("✨","Charisma Ranking","Profiles and contribution",()->startActivity(new Intent(this,DiscoverActivity.class)));row("🎪","Activity Recommendation","Rooms and events",()->startActivity(new Intent(this,DiscoverActivity.class)));row("🎮","Game Master","Game discovery","game_center");row("📍","Nearby / Recommended","People and rooms",()->openCommu
+147:     private void openGiftCenter(){Intent i=new Intent(this,KingGiftCenterActivity.class);startActivity(i);}
+
+===== app/src/main/java/com/kingplus/social/CommunityHubActivity.java =====
+9: import android.graphics.drawable.GradientDrawable;
+47:     private GradientDrawable bg(int c,int r){GradientDrawable d=new GradientDrawable();d.setColor(c);d.setCornerRadius(dp(r));return d;}
+60:     private void userActions(String uid,String name){String[] a={"Follow / Unfollow","Private Chat","Relationship / CP","Gift in Chat","Share KING ID"};new AlertDialog.Builder(this).setTitle(name).setItems(a,(d,w)->{if(w==0)toggleFollow(uid,name);else if(w==1||w==3)openChat(uid,name);else if(w==2){targetUid=uid;targetName=name;render("Relationship");}else shareId(uid,name);}).show();}
+102:     private void collection(){LevelSystem.Snapshot s=LevelSystem.read(this);body.addView(tv("Collection Center",21,DARK,true));body.addView(tv("⭐ Normal Level  "+s.level+" / "+LevelSystem.MAX_LEVEL+"  • "+LevelSystem.levelTier(s.level)+"\nXP "+s.xp+" / "+s.nextLevelXp()+"\n\n💎 VIP "+s.vipLevel+" / "+LevelSystem.MAX_VIP+" • "+LevelSystem.vipName(s.vipLevel)+"\nVIP Points "+s.vipPoints+" / "+s.nextVipPoints(),15,DARK,true));body.addView(tv("Medals",16,DARK,true));String medals=(s.level>=10?"🏅 Risi
+103:     private void claimDaily(SharedPreferences bp){long day=System.currentTimeMillis()/86400000L,last=bp.getLong("claim_day",-1);if(day==last){toast("Daily gift already claimed");return;}String[] keys={"rose","heart","star","firework"};String key=keys[(int)(day%keys.length)];bp.edit().putLong("claim_day",day).putInt(key,bp.getInt(key,0)+1).apply();toast("Daily gift added to Backpack");render("Collection");}
+
+===== app/src/main/java/com/kingplus/social/InboxActivity.java =====
+8: import android.graphics.drawable.GradientDrawable;
+65:     private GradientDrawable bg(int color, int radius) {
+66:         GradientDrawable d = new GradientDrawable(); d.setColor(color); d.setCornerRadius(dp(radius)); return d;
+191:         String[] items={"Follow activity","Likes & gifts","Room invitations","KING Plus updates"};
+205:         LinearLayout nav=new LinearLayout(this);nav.setGravity(Gravity.CENTER);nav.setBackgroundColor(Color.WHITE);String[] ni={"⌂\nParty","♟\nGame","◇\nDiscover","✉\nMessages","●\nMe"};
+
+===== app/src/main/java/com/kingplus/social/LevelSystem.java =====
+6: /** KING Plus progression used by profile, rooms, chat and gifting. */
+38:     public static Snapshot gift(Context c,long giftValue){
+39:         if(giftValue<=0)return add(c,2,0);
+40:         long xp=Math.max(5,Math.min(5000,giftValue/5+5));
+41:         return add(c,xp,giftValue);
+
+===== app/src/main/java/com/kingplus/social/CloudBackend.java =====
+18:     public static void sendGift(String targetUid, String giftName, int cost, Callback callback) {
+21:         data.put("giftName", giftName);
+24:         call("sendGift", data, callback);
+
+===== app/src/main/java/com/kingplus/social/CloudSync.java =====
+29:             int giftCount,
+30:             int receivedGiftCount,
+52:         wallet.put("giftsSent", giftCount);
+53:         wallet.put("giftsReceived", receivedGiftCount);
+
+===== app/src/main/java/com/kingplus/social/OnlineLudoActivity.java =====
+8: import android.graphics.drawable.GradientDrawable;
+41: /** Realtime 2/4-player Ludo backed by /ludo_matches/{code}. */
+42: public class OnlineLudoActivity extends Activity {
+50:     private OnlineLudoBoardView board;
+54:     @Override public void onCreate(Bundle b){super.onCreate(b);try{db=FirebaseFirestore.getInstance();me=FirebaseAuth.getInstance().getCurrentUser();}catch(Exception e){db=null;me=null;}build();if(db==null||me==null){status("Sign in with Google / phone first to play Online Ludo.",0xffffa6a6);setLobbyEnabled(false);return;}String incoming=cleanCode(getIntent().getStringExtra("ludoCode"));if(!incoming.isEmpty()){codeInput.setText(incoming);joinMatch(incoming);}else {String saved=getPreferences(MOD
+57:     private GradientDrawable bg(int color,int radius){GradientDrawable d=new GradientDrawable();d.setColor(color);d.setCornerRadius(dp(radius));return d;}
+62:     private void build(){LinearLayout root=new LinearLayout(this);root.setOrientation(LinearLayout.VERTICAL);root.setBackgroundColor(BG);ScrollView sc=new ScrollView(this);page=new LinearLayout(this);page.setOrientation(LinearLayout.VERTICAL);page.setPadding(dp(14),dp(8),dp(14),dp(30));sc.addView(page);root.addView(sc,new LinearLayout.LayoutParams(-1,-1));LinearLayout head=new LinearLayout(this);head.setGravity(Gravity.CENTER_VERTICAL);TextView back=tv("‹",34,Color.WHITE,true);back.setGravity(Gr
+65:         LinearLayout matchHead=new LinearLayout(this);matchHead.setGravity(Gravity.CENTER_VERTICAL);codeText=tv("Room —",17,GOLD,true);matchHead.addView(codeText,new LinearLayout.LayoutParams(0,dp(50),1));Button share=btn("Share");share.setOnClickListener(v->shareCode());matchHead.addView(share,new LinearLayout.LayoutParams(dp(92),dp(44)));LinearLayout.LayoutParams mhp=new LinearLayout.LayoutParams(-1,dp(54));mhp.setMargins(0,dp(10),0,0);page.addView(matchHead,mhp);turnText=tv("Waiting for match
+69:     private String name(){String n=me==null?"":s(me.getDisplayName());if(n.isEmpty()&&me!=null&&!s(me.getEmail()).isEmpty())n=s(me.getEmail()).split("@")[0];if(n.isEmpty())n="KING Player";if(n.length()>80)n=n.substring(0,80);return n;} private DocumentReference ref(){return db.collection("ludo_matches").document(code);}
+71:     private void createMatch(int capacity){if(me==null||!KingNetwork.online(this)){toast("Internet connection required");return;}status("Creating secure online match…",GOLD);createTry(capacity,0);} private void createTry(int capacity,int tries){if(tries>5){status("Could not create room. Try again.",0xffffa6a6);return;}String c=newCode();DocumentReference r=db.collection("ludo_matches").document(c);db.runTransaction(tx->{DocumentSnapshot d=tx.get(r);if(d.exists())throw new IllegalStateException("
+73:     private void joinMatch(String c){if(c.length()!=6){toast("Enter a valid 6-character room code");return;}if(me==null||!KingNetwork.online(this)){toast("Internet connection required");return;}DocumentReference r=db.collection("ludo_matches").document(c);status("Joining "+c+"…",GOLD);db.runTransaction(tx->{DocumentSnapshot d=tx.get(r);if(!d.exists())throw new IllegalStateException("Room not found");Map<String,Object> o=d.getData();if(o==null)throw new IllegalStateException("Room unavailable");L
+88:     private void confirmCancel(){new AlertDialog.Builder(this).setTitle("End Online Ludo?").setMessage("The current round will be cancelled for all players.").setPositiveButton("End",(d,w)->transaction("cancel",o->{o.put("phase","cancelled");action(o,"cancel",-1);})).setNegativeButton("Keep playing",null).show();}
+93:     private void shareCode(){if(code.isEmpty()){toast("Create or join a room first");return;}Intent i=new Intent(Intent.ACTION_SEND);i.setType("text/plain");i.putExtra(Intent.EXTRA_TEXT,"Join my KING Plus Online Ludo room: "+code);startActivity(Intent.createChooser(i,"Share Ludo code"));}
+
+===== app/src/main/java/com/kingplus/social/KingDrawPadView.java =====
+11: public class KingDrawPadView extends View {
+14:     public KingDrawPadView(Context c){super(c);paint.setColor(Color.WHITE);paint.setStyle(Paint.Style.STROKE);paint.setStrokeWidth(dp(5));paint.setStrokeCap(Paint.Cap.ROUND);paint.setStrokeJoin(Paint.Join.ROUND);setBackgroundColor(0xff2a173f);}
+17:     @Override protected void onDraw(Canvas c){super.onDraw(c);c.drawPath(path,paint);}
+
+===== app/src/main/java/com/kingplus/social/KingGiftCenterActivity.java =====
+6: import android.graphics.drawable.GradientDrawable;
+23: public class KingGiftCenterActivity extends Activity {
+30:     private int dp(int n){return(int)(n*getResources().getDisplayMetrics().density+.5f);} private GradientDrawable bg(int c,int r){GradientDrawable d=new GradientDrawable();d.setColor(c);d.setCornerRadius(dp(r));return d;} private TextView tv(String s,int z,int c,boolean b){TextView t=new TextView(this);t.setText(s);t.setTextSize(z);t.setTextColor(c);if(b)t.setTypeface(null,Typeface.BOLD);t.setPadding(dp(12),dp(5),dp(12),dp(5));t.setGravity(Gravity.CENTER_VERTICAL);return t;} private void toast(
+32:     private void render(){LinearLayout root=new LinearLayout(this);root.setOrientation(LinearLayout.VERTICAL);root.setBackgroundColor(BG);LinearLayout head=new LinearLayout(this);head.setGravity(Gravity.CENTER_VERTICAL);TextView back=tv("‹",38,Color.WHITE,false);back.setGravity(Gravity.CENTER);back.setOnClickListener(v->finish());head.addView(back,new LinearLayout.LayoutParams(dp(50),dp(56)));TextView title=tv("Gift Center",20,Color.WHITE,true);head.addView(title,new LinearLayout.LayoutParams(0,
+33:     private void drawCatalog(){LevelSystem.Snapshot s=LevelSystem.read(this);for(int i=0;i<names.length;i++){final int k=i;LinearLayout r=new LinearLayout(this);r.setGravity(Gravity.CENTER_VERTICAL);r.setPadding(dp(10),dp(5),dp(8),dp(5));r.setBackground(bg(CARD,14));TextView icon=tv(icons[i],28,Color.WHITE,false);icon.setGravity(Gravity.CENTER);r.addView(icon,new LinearLayout.LayoutParams(dp(54),dp(62)));LinearLayout tx=new LinearLayout(this);tx.setOrientation(LinearLayout.VERTICAL);tx.addView(t
+35:     private void send(int k,int qty,int total){if(me==null){int local=getSharedPreferences("PartyActivity",MODE_PRIVATE).getInt("coins",100000);if(local<total){toast("Not enough TEST coins");return;}getSharedPreferences("PartyActivity",MODE_PRIVATE).edit().putInt("coins",local-total).apply();LevelSystem.gift(this,total);toast(icons[k]+" "+names[k]+" x"+qty+" sent in TEST mode");refreshBalance();return;}if(targetUid.isEmpty()||targetUid.equals(me.getUid())){toast("Choose another user");return;}Cl
+37:     private void loadHistory(){if(history==null)return;history.removeAllViews();if(me==null||db==null){history.addView(tv("Sign in to view secure sent/received gift history",13,MUTED,false));return;}List<DocumentSnapshot> all=new ArrayList<>();final int[] done={0};java.util.function.Consumer<List<DocumentSnapshot>> add=list->{all.addAll(list);done[0]++;if(done[0]==2)renderHistory(all);};db.collection("wallet_ledger").whereEqualTo("senderUid",me.getUid()).limit(30).get().addOnSuccessListener(q->a
+38:     private void renderHistory(List<DocumentSnapshot> rows){history.removeAllViews();java.util.Collections.sort(rows,(a,b)->{com.google.firebase.Timestamp ta=a.getTimestamp("createdAt"),tb=b.getTimestamp("createdAt");long aa=ta==null?0:ta.toDate().getTime(),bb=tb==null?0:tb.toDate().getTime();return Long.compare(bb,aa);});int shown=0;for(DocumentSnapshot d:rows){String s=d.getString("senderUid"),t=d.getString("targetUid");if(!targetUid.isEmpty()&&!targetUid.equals(s)&&!targetUid.equals(t))contin
+
+===== ci/v851/OnlineLudoActivity.java =====
+8: import android.graphics.drawable.GradientDrawable;
+41: /** Realtime 2/4-player Ludo backed by /ludo_matches/{code}. */
+42: public class OnlineLudoActivity extends Activity {
+52:     @Override public void onCreate(Bundle b){super.onCreate(b);try{db=FirebaseFirestore.getInstance();me=FirebaseAuth.getInstance().getCurrentUser();}catch(Exception e){db=null;me=null;}build();if(db==null||me==null){status("Sign in with Google / phone first to play Online Ludo.",0xffffa6a6);setLobbyEnabled(false);return;}String incoming=cleanCode(getIntent().getStringExtra("ludoCode"));if(!incoming.isEmpty()){codeInput.setText(incoming);joinMatch(incoming);}}
+55:     private GradientDrawable bg(int color,int radius){GradientDrawable d=new GradientDrawable();d.setColor(color);d.setCornerRadius(dp(radius));return d;}
+60:     private void build(){LinearLayout root=new LinearLayout(this);root.setOrientation(LinearLayout.VERTICAL);root.setBackgroundColor(BG);ScrollView sc=new ScrollView(this);page=new LinearLayout(this);page.setOrientation(LinearLayout.VERTICAL);page.setPadding(dp(14),dp(8),dp(14),dp(30));sc.addView(page);root.addView(sc,new LinearLayout.LayoutParams(-1,-1));LinearLayout head=new LinearLayout(this);head.setGravity(Gravity.CENTER_VERTICAL);TextView back=tv("‹",34,Color.WHITE,true);back.setGravity(Gr
+67:     private String name(){String n=me==null?"":s(me.getDisplayName());if(n.isEmpty()&&me!=null&&!s(me.getEmail()).isEmpty())n=s(me.getEmail()).split("@")[0];if(n.isEmpty())n="KING Player";if(n.length()>80)n=n.substring(0,80);return n;} private DocumentReference ref(){return db.collection("ludo_matches").document(code);}
+69:     private void createMatch(int capacity){if(me==null)return;status("Creating secure online match…",GOLD);createTry(capacity,0);} private void createTry(int capacity,int tries){if(tries>5){status("Could not create room. Try again.",0xffffa6a6);return;}String c=newCode();DocumentReference r=db.collection("ludo_matches").document(c);db.runTransaction(tx->{DocumentSnapshot d=tx.get(r);if(d.exists())throw new IllegalStateException("code collision");tx.set(r,fresh(c,capacity));return null;}).addOnSu
+86:     private void confirmCancel(){new AlertDialog.Builder(this).setTitle("End Online Ludo?").setMessage("The current round will be cancelled for all players.").setPositiveButton("End",(d,w)->transaction("cancel",o->{o.put("phase","cancelled");action(o,"cancel",-1);})).setNegativeButton("Keep playing",null).show();}
+91:     private void shareCode(){if(code.isEmpty()){toast("Create or join a room first");return;}Intent i=new Intent(Intent.ACTION_SEND);i.setType("text/plain");i.putExtra(Intent.EXTRA_TEXT,"Join my KING Plus Online Ludo room: "+code);startActivity(Intent.createChooser(i,"Share Ludo code"));}
+92:     private void showError(String where,Exception e){String msg=e==null?"Unknown error":s(e.getMessage());String low=msg.toLowerCase(Locale.US);if(low.contains("permission")||low.contains("denied"))status("Online Ludo server rules are not live yet • Firebase Rules permission required",0xffffa6a6);else status(where+": "+msg,0xffffa6a6);}
