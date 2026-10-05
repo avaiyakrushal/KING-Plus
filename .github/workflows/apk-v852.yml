@@ -28,6 +28,7 @@ jobs:
           unzip -q /tmp/base/KING-Plus-v8.5.1-online-ludo-source.zip -d /tmp/src
           cat ci/v852/update.part* | base64 -d > /tmp/update.zip
           unzip -qo /tmp/update.zip -d /tmp/src
+          python3 ci/v852/fix_seat.py
       - name: Build Android APK
         working-directory: /tmp/src
         run: gradle :app:assembleDebug --no-daemon
