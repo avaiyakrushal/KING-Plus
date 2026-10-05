@@ -1,0 +1,229 @@
+--- a/app/src/main/java/com/kingplus/social/PartyActivity.java
++++ b/app/src/main/java/com/kingplus/social/PartyActivity.java
+@@ -155,6 +155,7 @@
+     private LinearLayout giftGridBox;
+     private TextView giftSelectionLabel;
+     private TextView giftBalanceLabel;
++    private LinearLayout giftCategoryBar867;
+     private TextView supporterLabel;
+     private final Set<String> processedEventIds = new HashSet<>();
+     private boolean eventSnapshotReady;
+@@ -815,7 +816,7 @@
+     private void showLiveEmojiPanelV530() {
+         final LinearLayout sheet=new LinearLayout(this);sheet.setOrientation(LinearLayout.VERTICAL);sheet.setBackgroundColor(Color.WHITE);
+         LinearLayout bar=new LinearLayout(this);bar.setGravity(Gravity.CENTER_VERTICAL);bar.setPadding(dp(8),0,dp(4),0);
+-        TextView title=tv("Emoji & Stickers",15,0xff333333,true);bar.addView(title,new LinearLayout.LayoutParams(0,dp(44),1));
++        TextView title=tv("Live Emoji • 50  |  Stickers",15,0xff333333,true);bar.addView(title,new LinearLayout.LayoutParams(0,dp(44),1));
+         TextView close=tv("×",27,0xff666666,false);close.setGravity(Gravity.CENTER);bar.addView(close,new LinearLayout.LayoutParams(dp(48),dp(44)));sheet.addView(bar);
+ 
+         ScrollView scroll=new ScrollView(this);LinearLayout grid=new LinearLayout(this);grid.setOrientation(LinearLayout.VERTICAL);grid.setPadding(dp(6),dp(4),dp(6),dp(4));scroll.addView(grid);sheet.addView(scroll,new LinearLayout.LayoutParams(-1,0,1));
+@@ -833,7 +834,7 @@
+             final int k=i;TextView tab=tv(labels[i],12,0xff555555,true);tab.setGravity(Gravity.CENTER);tabs.addView(tab,new LinearLayout.LayoutParams(0,dp(50),1));
+             tab.setOnClickListener(v->{
+                 String[] pack=k==0?live:(k==1?reference:(k==2?stickerPack550(0,67):(k==3?faces:favouriteEmojiPack610())));
+-                fillEmojiGrid610(grid,pack,k==2||k==3?6:4,k<2);
++                fillEmojiGrid610(grid,pack,k==2||k==3?6:5,k<2);
+                 for(int n=0;n<tabs.getChildCount();n++){View t=tabs.getChildAt(n);t.setBackgroundColor(n==k?0xfffff4a3:Color.WHITE);}
+             });
+         }
+@@ -847,7 +848,7 @@
+         if(emojis==null||emojis.length==0){TextView empty=tv("No favourites yet\nLong-press any Face or Expression to add it here.",14,0xff777777,false);empty.setGravity(Gravity.CENTER);grid.addView(empty,new LinearLayout.LayoutParams(-1,dp(150)));return;}
+         LinearLayout row=null;
+         for(int i=0;i<emojis.length;i++){
+-            if(i%columns==0){row=new LinearLayout(this);row.setGravity(Gravity.CENTER);grid.addView(row,new LinearLayout.LayoutParams(-1,dp(columns==6?58:78)));}
++            if(i%columns==0){row=new LinearLayout(this);row.setGravity(Gravity.CENTER);grid.addView(row,new LinearLayout.LayoutParams(-1,dp(columns==6?58:(columns==5?70:78))));}
+             final String token=emojis[i];int live=LiveEmojiView.parse(token);View cell;
+             if(ReferenceEmojiView.parse(token)>=0){cell=new ReferenceEmojiView(this,ReferenceEmojiView.parse(token),true);}
+             else if(stickerResource550(token)!=0){android.widget.ImageView im=new android.widget.ImageView(this);im.setImageResource(stickerResource550(token));im.setScaleType(android.widget.ImageView.ScaleType.FIT_CENTER);im.setContentDescription("Sticker "+token);cell=im;}
+@@ -1336,6 +1337,12 @@
+     private void giftDialogFor(String targetUid,String targetLabel) {
+         giftTargetUid=targetUid==null?"":targetUid; giftTargetName=targetLabel==null?"Host":targetLabel; giftShopPanel();
+     }
++    private String giftSelectionText867(){
++        int i=Math.max(0,Math.min(giftNames.length-1,giftSelectedIndex));
++        long total=(long)giftCosts[i]*Math.max(1,giftQuantity);
++        return giftIcons[i]+"  "+giftNames[i]+"  •  x"+Math.max(1,giftQuantity)+"  •  💎"+compactNumber(total)+"\nTo: "+giftTargetName;
++    }
++    private void refreshGiftSelection867(){if(giftSelectionLabel!=null)giftSelectionLabel.setText(giftSelectionText867());}
+     private void giftShopPanel(){
+         if(ownerName==null)ownerName="KING Host";
+         if(giftTargetName==null||giftTargetName.isEmpty()){giftTargetName="👑 "+ownerName;giftTargetUid=ownerUid==null?"":ownerUid;}
+@@ -1343,32 +1350,38 @@
+         LinearLayout root=new LinearLayout(this);root.setOrientation(LinearLayout.VERTICAL);root.setPadding(dp(10),dp(8),dp(10),dp(10));root.setBackgroundColor(0xff181824);
+         LinearLayout banner=new LinearLayout(this);banner.setGravity(Gravity.CENTER_VERTICAL);banner.setPadding(dp(10),dp(4),dp(8),dp(4));banner.setBackground(bg(0xff7d36d6,14));
+         TextView wt=tv("🎟  Weekly Gift Card",16,Color.WHITE,true);banner.addView(wt,new LinearLayout.LayoutParams(0,dp(42),1));TextView arrow=tv("›",28,Color.WHITE,true);arrow.setGravity(Gravity.CENTER);banner.addView(arrow,new LinearLayout.LayoutParams(dp(40),dp(42)));banner.setOnClickListener(v->{if(giftShopDialog!=null)giftShopDialog.dismiss();weeklyGiftCardDialog();});root.addView(banner,new LinearLayout.LayoutParams(-1,dp(40)));
+-        LinearLayout top=new LinearLayout(this);top.setGravity(Gravity.CENTER_VERTICAL);TextView title=tv("Gift",19,Color.WHITE,true);top.addView(title,new LinearLayout.LayoutParams(0,dp(42),1));giftBalanceLabel=pill("💎 "+localCoins,0xff302d40,null);top.addView(giftBalanceLabel,new LinearLayout.LayoutParams(dp(104),dp(38)));root.addView(top);
+-        giftSelectionLabel=tv("To: "+giftTargetName+"  •  "+giftNames[giftSelectedIndex]+" x"+giftQuantity,12,0xffffdf6b,true);root.addView(giftSelectionLabel);
++        LinearLayout top=new LinearLayout(this);top.setGravity(Gravity.CENTER_VERTICAL);TextView title=tv("Gift Shop • 64 gifts",19,Color.WHITE,true);top.addView(title,new LinearLayout.LayoutParams(0,dp(42),1));giftBalanceLabel=pill("💎 "+localCoins,0xff302d40,null);top.addView(giftBalanceLabel,new LinearLayout.LayoutParams(dp(110),dp(38)));root.addView(top);
++        giftSelectionLabel=tv(giftSelectionText867(),13,0xffffe38a,true);giftSelectionLabel.setGravity(Gravity.CENTER_VERTICAL);giftSelectionLabel.setBackground(bg(0xff2a233a,14));LinearLayout.LayoutParams selLp=new LinearLayout.LayoutParams(-1,dp(58));selLp.setMargins(0,0,0,dp(5));root.addView(giftSelectionLabel,selLp);
+         HorizontalScrollView peopleScroll=new HorizontalScrollView(this);peopleScroll.setHorizontalScrollBarEnabled(false);LinearLayout people=new LinearLayout(this);people.setGravity(Gravity.CENTER_VERTICAL);people.setPadding(0,dp(3),0,dp(5));addGiftRecipientChip(people,"👑 "+ownerName,ownerUid==null?"":ownerUid);for(int no=1;no<=maxSeats;no++){String n=seatNames.get(no);if(n==null||n.equals(displayName))continue;addGiftRecipientChip(people,no+" • "+n,seatUids.get(no)==null?"":seatUids.get(no));}peopleScroll.addView(people);root.addView(peopleScroll,new LinearLayout.LayoutParams(-1,dp(50)));
+-        HorizontalScrollView catScroll=new HorizontalScrollView(this);catScroll.setHorizontalScrollBarEnabled(false);LinearLayout cats=new LinearLayout(this);String[] cs={"All","Relationship","Activity","Classic","Flying","Fame","Privilege","Filters","Parcel"};for(String c:cs){TextView t=tv(c,12,c.equals(giftCategory)?Color.WHITE:0xff9d98a6,c.equals(giftCategory));t.setGravity(Gravity.CENTER);t.setOnClickListener(v->{giftCategory=c;rebuildGiftGrid();});LinearLayout.LayoutParams cp=new LinearLayout.LayoutParams(dp(76),dp(38));cp.setMargins(dp(2),0,dp(2),0);cats.addView(t,cp);}catScroll.addView(cats);root.addView(catScroll,new LinearLayout.LayoutParams(-1,dp(42)));
++        HorizontalScrollView catScroll=new HorizontalScrollView(this);catScroll.setHorizontalScrollBarEnabled(false);giftCategoryBar867=new LinearLayout(this);giftCategoryBar867.setGravity(Gravity.CENTER_VERTICAL);catScroll.addView(giftCategoryBar867);root.addView(catScroll,new LinearLayout.LayoutParams(-1,dp(44)));rebuildGiftCategories867();
+         ScrollView giftsScroll=new ScrollView(this);giftGridBox=new LinearLayout(this);giftGridBox.setOrientation(LinearLayout.VERTICAL);giftsScroll.addView(giftGridBox);root.addView(giftsScroll,new LinearLayout.LayoutParams(-1,0,1));rebuildGiftGrid();
+-        LinearLayout qty=new LinearLayout(this);qty.setGravity(Gravity.CENTER);int[] qs={1,9,49,99,499};for(int q:qs){TextView b=pill(String.valueOf(q),q==1?0xff776a00:0xff343143,()->{giftQuantity=q;giftSelectionLabel.setText("To: "+giftTargetName+"  •  "+giftNames[giftSelectedIndex]+" x"+giftQuantity);});if(q==1)b.setBackground(bg(0xff5d5520,10));LinearLayout.LayoutParams qp=new LinearLayout.LayoutParams(0,dp(44),1);qp.setMargins(dp(3),0,dp(3),0);qty.addView(b,qp);}TextView send=pill("Send",0xffffea00,()->{int total=giftCosts[giftSelectedIndex]*giftQuantity;sendGiftQuantity(giftTargetUid,giftTargetName,giftNames[giftSelectedIndex],giftIcons[giftSelectedIndex],giftCosts[giftSelectedIndex],giftQuantity,total);if(giftBalanceLabel!=null)giftBalanceLabel.setText("💎 "+localCoins);});send.setTextColor(Color.BLACK);LinearLayout.LayoutParams sp=new LinearLayout.LayoutParams(dp(68),dp(44));sp.setMargins(dp(5),0,0,0);qty.addView(send,sp);root.addView(qty);
++        LinearLayout qty=new LinearLayout(this);qty.setGravity(Gravity.CENTER);int[] qs={1,9,49,99,499};for(int q:qs){TextView b=pill(String.valueOf(q),q==1?0xff776a00:0xff343143,()->{giftQuantity=q;refreshGiftSelection867();});LinearLayout.LayoutParams qp=new LinearLayout.LayoutParams(0,dp(44),1);qp.setMargins(dp(3),0,dp(3),0);qty.addView(b,qp);}TextView send=pill("SEND",0xffffd92e,()->{int total=giftCosts[giftSelectedIndex]*giftQuantity;sendGiftQuantity(giftTargetUid,giftTargetName,giftNames[giftSelectedIndex],giftIcons[giftSelectedIndex],giftCosts[giftSelectedIndex],giftQuantity,total);if(giftBalanceLabel!=null)giftBalanceLabel.setText("💎 "+localCoins);});send.setTextColor(Color.BLACK);send.setTextSize(13);LinearLayout.LayoutParams sp=new LinearLayout.LayoutParams(dp(78),dp(44));sp.setMargins(dp(5),0,0,0);qty.addView(send,sp);root.addView(qty);
+         giftShopDialog=new AlertDialog.Builder(this).setView(root).create();
+-        giftShopDialog.setOnShowListener(v->{android.view.Window w=giftShopDialog.getWindow();if(w!=null){w.setBackgroundDrawableResource(android.R.color.transparent);w.clearFlags(android.view.WindowManager.LayoutParams.FLAG_DIM_BEHIND);w.setGravity(Gravity.BOTTOM);w.setLayout(-1,(int)(getResources().getDisplayMetrics().heightPixels*.62f));}});giftShopDialog.show();
++        giftShopDialog.setOnShowListener(v->{android.view.Window w=giftShopDialog.getWindow();if(w!=null){w.setBackgroundDrawableResource(android.R.color.transparent);w.clearFlags(android.view.WindowManager.LayoutParams.FLAG_DIM_BEHIND);w.setGravity(Gravity.BOTTOM);w.setLayout(-1,(int)(getResources().getDisplayMetrics().heightPixels*.68f));}});giftShopDialog.show();
+     }
++    private void rebuildGiftCategories867(){
++        if(giftCategoryBar867==null)return;giftCategoryBar867.removeAllViews();String[] cs={"All","Relationship","Activity","Classic","Flying","Fame","Privilege","Filters","Parcel"};
++        for(String c:cs){boolean selected=c.equals(giftCategory);TextView t=tv(c,12,selected?Color.BLACK:0xffd0cad8,true);t.setGravity(Gravity.CENTER);t.setBackground(bg(selected?0xffffd92e:0xff2a2938,12));t.setOnClickListener(v->{giftCategory=c;rebuildGiftCategories867();rebuildGiftGrid();});LinearLayout.LayoutParams cp=new LinearLayout.LayoutParams(dp(88),dp(36));cp.setMargins(dp(2),dp(2),dp(2),dp(2));giftCategoryBar867.addView(t,cp);}
++    }
+     private void addGiftRecipientChip(LinearLayout row,String label,String uid){
+-        TextView chip=pill(label,0xff343143,()->{giftTargetName=label;giftTargetUid=uid==null?"":uid;if(giftSelectionLabel!=null)giftSelectionLabel.setText("To: "+giftTargetName+" • "+giftNames[giftSelectedIndex]+" x"+giftQuantity);});
+-        LinearLayout.LayoutParams p=new LinearLayout.LayoutParams(dp(130),dp(42));p.setMargins(dp(2),0,dp(2),0);row.addView(chip,p);
++        TextView chip=pill(label,0xff343143,()->{giftTargetName=label;giftTargetUid=uid==null?"":uid;refreshGiftSelection867();});
++        LinearLayout.LayoutParams p=new LinearLayout.LayoutParams(dp(132),dp(42));p.setMargins(dp(2),0,dp(2),0);row.addView(chip,p);
+     }
+     private void rebuildGiftGrid(){
+-        if(giftGridBox==null)return;giftGridBox.removeAllViews();LinearLayout row=null;int col=0;boolean chosen=false;
++        if(giftGridBox==null)return;giftGridBox.removeAllViews();
++        int first=-1;boolean selectedVisible=false;for(int i=0;i<giftNames.length;i++){if("All".equals(giftCategory)||giftCategory.equals(giftCategories[i])){if(first<0)first=i;if(i==giftSelectedIndex)selectedVisible=true;}}
++        if(first<0){giftGridBox.addView(tv("No gifts in this category yet",13,MUTED,false));return;}if(!selectedVisible)giftSelectedIndex=first;refreshGiftSelection867();
++        LinearLayout row=null;int col=0;int myVip=LevelSystem.read(this).vipLevel;
+         for(int i=0;i<giftNames.length;i++){
+-            if(!"All".equals(giftCategory)&&!giftCategory.equals(giftCategories[i]))continue;if(!chosen){giftSelectedIndex=i;chosen=true;if(giftSelectionLabel!=null)giftSelectionLabel.setText("To: "+giftTargetName+"  •  "+giftNames[giftSelectedIndex]+" x"+giftQuantity);}
+-            if(row==null||col==4){row=new LinearLayout(this);row.setGravity(Gravity.CENTER);giftGridBox.addView(row,new LinearLayout.LayoutParams(-1,dp(108)));col=0;}
+-            final int idx=i;final int vipNeed=giftVipRequired[i];final int myVip=LevelSystem.read(this).vipLevel;final boolean unlocked=myVip>=vipNeed;LinearLayout card=new LinearLayout(this);card.setOrientation(LinearLayout.VERTICAL);card.setGravity(Gravity.CENTER);card.setBackground(bg(unlocked?0xff20202d:0xff171720,12));card.setPadding(dp(2),dp(4),dp(2),dp(2));
+-            TextView nw=tv(vipNeed>0?(unlocked?"VIP ✓":"VIP "+vipNeed):"",9,unlocked?0xff68e89d:0xffffb04f,true);nw.setGravity(Gravity.RIGHT);card.addView(nw,new LinearLayout.LayoutParams(-1,dp(16)));
+-            TextView icon=tv(unlocked?giftIcons[i]:"🔒",34,unlocked?Color.WHITE:0xff77727e,false);icon.setGravity(Gravity.CENTER);card.addView(icon,new LinearLayout.LayoutParams(-1,dp(42)));
++            if(!"All".equals(giftCategory)&&!giftCategory.equals(giftCategories[i]))continue;
++            if(row==null||col==4){row=new LinearLayout(this);row.setGravity(Gravity.CENTER);giftGridBox.addView(row,new LinearLayout.LayoutParams(-1,dp(116)));col=0;}
++            final int idx=i;final int vipNeed=giftVipRequired[i];final boolean unlocked=myVip>=vipNeed;final boolean selected=idx==giftSelectedIndex;LinearLayout card=new LinearLayout(this);card.setOrientation(LinearLayout.VERTICAL);card.setGravity(Gravity.CENTER);card.setBackground(bg(selected?0xff47336c:(unlocked?0xff232231:0xff171720),14));card.setPadding(dp(2),dp(3),dp(2),dp(2));card.setAlpha(unlocked?1f:.62f);
++            TextView nw=tv(selected?"✓ SELECTED":(vipNeed>0?(unlocked?"VIP ✓":"VIP "+vipNeed):""),9,selected?0xffffd92e:(unlocked?0xff68e89d:0xffffb04f),true);nw.setGravity(Gravity.CENTER);card.addView(nw,new LinearLayout.LayoutParams(-1,dp(18)));
++            TextView icon=tv(unlocked?giftIcons[i]:"🔒",36,unlocked?Color.WHITE:0xff77727e,false);icon.setGravity(Gravity.CENTER);card.addView(icon,new LinearLayout.LayoutParams(-1,dp(45)));
+             TextView name=tv(giftNames[i],9,unlocked?0xfff5f2f7:0xff817b88,true);name.setGravity(Gravity.CENTER);card.addView(name,new LinearLayout.LayoutParams(-1,dp(22)));
+-            TextView cost=tv("◇ "+giftCosts[i],9,0xff9a97a5,false);cost.setGravity(Gravity.CENTER);card.addView(cost,new LinearLayout.LayoutParams(-1,dp(20)));
+-            card.setOnClickListener(v->{if(!unlocked){toast("Unlocks at VIP "+vipNeed);return;}giftSelectedIndex=idx;if(giftSelectionLabel!=null)giftSelectionLabel.setText("To: "+giftTargetName+"  •  "+giftNames[giftSelectedIndex]+" x"+giftQuantity);});LinearLayout.LayoutParams cp=new LinearLayout.LayoutParams(0,dp(102),1);cp.setMargins(dp(3),dp(3),dp(3),dp(3));row.addView(card,cp);col++;
++            TextView cost=tv("💎 "+giftCosts[i],9,selected?0xffffd92e:0xffaaa5b4,true);cost.setGravity(Gravity.CENTER);card.addView(cost,new LinearLayout.LayoutParams(-1,dp(20)));
++            card.setOnClickListener(v->{if(!unlocked){toast("Unlocks at VIP "+vipNeed);return;}giftSelectedIndex=idx;refreshGiftSelection867();rebuildGiftGrid();});LinearLayout.LayoutParams cp=new LinearLayout.LayoutParams(0,dp(110),1);cp.setMargins(dp(3),dp(3),dp(3),dp(3));row.addView(card,cp);col++;
+         }
+-        if(!chosen){TextView none=tv("No gifts in this category yet",13,MUTED,false);giftGridBox.addView(none);}
+     }
+     private void sendGift(String gift,int cost) { sendGiftTo(ownerUid==null?"":ownerUid,ownerName,gift,cost); }
+     private void sendGiftTo(String targetUid,String targetName,String gift,int cost) {
+--- a/app/src/main/java/com/kingplus/social/GiftBurstView.java
++++ b/app/src/main/java/com/kingplus/social/GiftBurstView.java
+@@ -7,104 +7,38 @@
+ import android.graphics.Paint;
+ import android.graphics.RadialGradient;
+ import android.graphics.Shader;
++import android.graphics.Typeface;
+ import android.view.View;
+ import android.view.animation.DecelerateInterpolator;
+ 
+ import java.util.Random;
+ 
+-/** Original KING Plus full-screen gift animation. */
++/** Original KING Plus full-screen gift animation with tiered presentation. */
+ public class GiftBurstView extends View {
+     private final Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG);
+     private final Paint glow = new Paint(Paint.ANTI_ALIAS_FLAG);
+-    private final String icon;
+-    private final String title;
+-    private final String subtitle;
++    private final String icon, title, subtitle;
+     private final int accent;
+-    private final float[] px = new float[28];
+-    private final float[] py = new float[28];
+-    private final float[] ps = new float[28];
++    private final float[] px = new float[42], py = new float[42], ps = new float[42];
+     private float progress;
+     private Runnable endAction;
+     private ValueAnimator animator;
+ 
+     public GiftBurstView(Context context, String icon, String title, String subtitle, int accent) {
+-        super(context);
+-        this.icon = icon == null || icon.isEmpty() ? "🎁" : icon;
+-        this.title = title == null ? "Gift" : title;
+-        this.subtitle = subtitle == null ? "" : subtitle;
+-        this.accent = accent;
+-        setLayerType(View.LAYER_TYPE_SOFTWARE, null);
+-        Random r = new Random((this.title + this.subtitle).hashCode());
+-        for (int i = 0; i < px.length; i++) {
+-            px[i] = r.nextFloat();
+-            py[i] = r.nextFloat();
+-            ps[i] = .55f + r.nextFloat() * 1.25f;
+-        }
++        super(context); this.icon=icon==null||icon.isEmpty()?"🎁":icon; this.title=title==null?"Gift":title; this.subtitle=subtitle==null?"":subtitle; this.accent=accent;
++        setLayerType(View.LAYER_TYPE_SOFTWARE,null); Random r=new Random((this.title+this.subtitle).hashCode());
++        for(int i=0;i<px.length;i++){px[i]=r.nextFloat();py[i]=r.nextFloat();ps[i]=.55f+r.nextFloat()*1.35f;}
+     }
+-
+-    public void start(Runnable endAction, long durationMs) {
+-        this.endAction = endAction;
+-        animator = ValueAnimator.ofFloat(0f, 1f);
+-        animator.setDuration(Math.max(1800, durationMs));
+-        animator.setInterpolator(new DecelerateInterpolator());
+-        animator.addUpdateListener(a -> { progress = (float)a.getAnimatedValue(); invalidate(); });
+-        animator.addListener(new android.animation.AnimatorListenerAdapter() {
+-            @Override public void onAnimationEnd(android.animation.Animator animation) {
+-                if (GiftBurstView.this.endAction != null) GiftBurstView.this.endAction.run();
+-            }
+-        });
+-        animator.start();
+-    }
+-
+-    @Override protected void onDetachedFromWindow() {
+-        if (animator != null) animator.cancel();
+-        super.onDetachedFromWindow();
+-    }
+-
+-    @Override protected void onDraw(Canvas c) {
+-        super.onDraw(c);
+-        int w = getWidth(), h = getHeight();
+-        if (w <= 0 || h <= 0) return;
+-        float fadeIn = Math.min(1f, progress / .16f);
+-        float fadeOut = progress > .78f ? Math.max(0f, (1f-progress)/.22f) : 1f;
+-        float alpha = fadeIn * fadeOut;
+-        float cx = w * .5f, cy = h * .44f;
+-
+-        int baseA = (int)(145 * alpha);
+-        glow.setShader(new RadialGradient(cx, cy, Math.max(w,h)*.52f,
+-                new int[]{withAlpha(accent, baseA), Color.TRANSPARENT}, null, Shader.TileMode.CLAMP));
+-        c.drawCircle(cx, cy, Math.max(w,h)*.52f, glow);
+-        glow.setShader(null);
+-
+-        paint.setTextAlign(Paint.Align.CENTER);
+-        paint.setColor(Color.WHITE);
+-        paint.setAlpha((int)(255*alpha));
+-        float pop = progress < .28f ? .55f + (progress/.28f)*.55f : 1.10f - Math.min(.10f,(progress-.28f)*.12f);
+-        paint.setTextSize(Math.min(w,h) * .19f * pop);
+-        c.drawText(icon, cx, cy, paint);
+-
+-        paint.setTypeface(android.graphics.Typeface.DEFAULT_BOLD);
+-        paint.setTextSize(Math.max(30f, w*.055f));
+-        c.drawText(title, cx, cy + Math.min(w,h)*.13f, paint);
+-        paint.setTypeface(android.graphics.Typeface.DEFAULT);
+-        paint.setTextSize(Math.max(20f, w*.036f));
+-        paint.setColor(0xfffff0b0);
+-        c.drawText(subtitle, cx, cy + Math.min(w,h)*.19f, paint);
+-
+-        paint.setColor(Color.WHITE);
+-        for (int i=0;i<px.length;i++) {
+-            float angle = (float)(Math.PI*2*px[i]);
+-            float dist = (Math.min(w,h)*.10f) + progress * (Math.min(w,h)*.45f) * ps[i];
+-            float x = cx + (float)Math.cos(angle)*dist;
+-            float y = cy + (float)Math.sin(angle)*dist - progress*h*.08f + (py[i]-.5f)*h*.08f;
+-            paint.setAlpha((int)(210*alpha*(1f-progress*.45f)));
+-            float r = 2.5f + 7f*ps[i]*(1f-progress*.35f);
+-            c.drawCircle(x,y,r,paint);
+-        }
+-        paint.setAlpha(255);
+-    }
+-
+-    private static int withAlpha(int color, int alpha) {
+-        return (color & 0x00ffffff) | (Math.max(0,Math.min(255,alpha)) << 24);
++    public void start(Runnable endAction,long durationMs){this.endAction=endAction;animator=ValueAnimator.ofFloat(0f,1f);animator.setDuration(Math.max(2000,durationMs));animator.setInterpolator(new DecelerateInterpolator());animator.addUpdateListener(a->{progress=(float)a.getAnimatedValue();invalidate();});animator.addListener(new android.animation.AnimatorListenerAdapter(){@Override public void onAnimationEnd(android.animation.Animator animation){if(GiftBurstView.this.endAction!=null)GiftBurstView.this.endAction.run();}});animator.start();}
++    @Override protected void onDetachedFromWindow(){if(animator!=null)animator.cancel();super.onDetachedFromWindow();}
++    @Override protected void onDraw(Canvas c){super.onDraw(c);int w=getWidth(),h=getHeight();if(w<=0||h<=0)return;float in=Math.min(1f,progress/.15f),out=progress>.80f?Math.max(0f,(1f-progress)/.20f):1f,a=in*out;float cx=w*.5f,cy=h*.43f,min=Math.min(w,h);
++        glow.setShader(new RadialGradient(cx,cy,Math.max(w,h)*.58f,new int[]{alpha(accent,(int)(165*a)),Color.TRANSPARENT},null,Shader.TileMode.CLAMP));c.drawCircle(cx,cy,Math.max(w,h)*.58f,glow);glow.setShader(null);
++        paint.setTextAlign(Paint.Align.CENTER);paint.setAlpha((int)(255*a));paint.setColor(Color.WHITE);float pop=progress<.26f?.45f+(progress/.26f)*.70f:1.15f-Math.min(.15f,(progress-.26f)*.20f);paint.setTextSize(min*.23f*pop);c.drawText(icon,cx,cy,paint);
++        paint.setTextSize(min*.075f);for(int i=0;i<6;i++){double ang=i*Math.PI/3+progress*5.5;float rr=min*(.23f+.06f*(float)Math.sin(progress*8+i));float x=cx+(float)Math.cos(ang)*rr,y=cy+(float)Math.sin(ang)*rr;paint.setAlpha((int)(210*a));c.drawText(icon,x,y,paint);}paint.setAlpha((int)(255*a));
++        paint.setTypeface(Typeface.DEFAULT_BOLD);paint.setTextSize(Math.max(28f,w*.050f));paint.setColor(Color.WHITE);c.drawText(title,cx,cy+min*.16f,paint);paint.setTypeface(Typeface.DEFAULT);paint.setTextSize(Math.max(18f,w*.032f));paint.setColor(0xffffefad);c.drawText(subtitle,cx,cy+min*.215f,paint);
++        paint.setColor(Color.WHITE);for(int i=0;i<px.length;i++){float ang=(float)(Math.PI*2*px[i]+progress*.9f);float dist=min*(.10f+progress*.50f*ps[i]);float x=cx+(float)Math.cos(ang)*dist,y=cy+(float)Math.sin(ang)*dist-progress*h*.10f+(py[i]-.5f)*h*.10f;paint.setAlpha((int)(220*a*(1f-progress*.42f)));float r=2.3f+7.5f*ps[i]*(1f-progress*.32f);c.drawCircle(x,y,r,paint);}paint.setAlpha(255);
++        if(title.startsWith("MYTHIC")||title.startsWith("ROYAL")){paint.setTextSize(min*.055f);paint.setTypeface(Typeface.DEFAULT_BOLD);paint.setColor(alpha(0xffffe17a,(int)(255*a)));c.drawText(title.startsWith("MYTHIC")?"✦ KING PLUS MYTHIC GIFT ✦":"♛ KING PLUS ROYAL GIFT ♛",cx,h*.20f,paint);paint.setTypeface(Typeface.DEFAULT);}
+     }
++    private static int alpha(int color,int alpha){return (color&0x00ffffff)|(Math.max(0,Math.min(255,alpha))<<24);}
+ }
