@@ -32,12 +32,12 @@ jobs:
           mkdir -p /tmp/base /tmp/src
           gh run download 37335068445 -n KING-Plus-v8.6.6-APK-and-source -D /tmp/base
           unzip -q /tmp/base/KING-Plus-v8.6.6-source.zip -d /tmp/src
-          cd /tmp/src
-          patch -p1 < "$GITHUB_WORKSPACE/ci/v867/gift_live_polish.patch"
-          cp "$GITHUB_WORKSPACE/ci/v867/RELEASE-NOTES.md" RELEASE-NOTES-v8.6.7.md
+          python3 ci/v867/patch_party_v867.py /tmp/src
+          cp ci/v867/GiftBurstView.java /tmp/src/app/src/main/java/com/kingplus/social/GiftBurstView.java
+          cp ci/v867/RELEASE-NOTES.md /tmp/src/RELEASE-NOTES-v8.6.7.md
           python3 - <<'PY'
           from pathlib import Path
-          p=Path('app/build.gradle')
+          p=Path('/tmp/src/app/build.gradle')
           s=p.read_text()
           old="versionCode 125; versionName '8.6.6'"
           if old not in s:
