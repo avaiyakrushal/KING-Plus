@@ -41,6 +41,7 @@ jobs:
           python3 ci/v860/patch_fullscreen_live.py /tmp/src
           cp ci/v860/LiveEmojiView.java /tmp/src/app/src/main/java/com/kingplus/social/LiveEmojiView.java
           python3 ci/v861/patch_party_ui.py /tmp/src
+          python3 ci/v861/fix_send_newline.py /tmp/src
           cp ci/v860/RELEASE-NOTES.md /tmp/src/RELEASE-NOTES-v8.6.0.md
           cp ci/v861/RELEASE-NOTES.md /tmp/src/RELEASE-NOTES-v8.6.1.md
           python3 - <<'PY'
@@ -59,6 +60,7 @@ jobs:
           grep -F 'SOFT_INPUT_ADJUST_RESIZE' "$P"
           grep -F 'safeRoomMessageTextSize861' "$P"
           grep -F 'new FrameLayout.LayoutParams(-1,dp(74))' "$P"
+          grep -F 'shortChatPreview620(pendingReplyText620)+"\n"+text' "$P"
           grep -F 'versionName' /tmp/src/app/build.gradle
       - name: Build Android APK
         working-directory: /tmp/src
