@@ -1,0 +1,82 @@
+name: Build KING Plus v8.6.7 Gift Live Polish
+on:
+  push:
+    branches: ['build/v8.6.7-gift-live-polish']
+    paths:
+      - '.github/workflows/apk-v867-gift-live-polish.yml'
+      - 'ci/v867/**'
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: build/v8.6.7-gift-live-polish
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+      - name: Recover v8.6.6 and apply gift/live polish
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          rm -rf /tmp/base /tmp/src /tmp/release
+          mkdir -p /tmp/base /tmp/src
+          gh run download 37335068445 -n KING-Plus-v8.6.6-APK-and-source -D /tmp/base
+          unzip -q /tmp/base/KING-Plus-v8.6.6-source.zip -d /tmp/src
+          cd /tmp/src
+          patch -p1 < "$GITHUB_WORKSPACE/ci/v867/gift_live_polish.patch"
+          cp "$GITHUB_WORKSPACE/ci/v867/RELEASE-NOTES.md" RELEASE-NOTES-v8.6.7.md
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('app/build.gradle')
+          s=p.read_text()
+          old="versionCode 125; versionName '8.6.6'"
+          if old not in s:
+              raise SystemExit('Expected v8.6.6 version line was not found')
+          p.write_text(s.replace(old,"versionCode 126; versionName '8.6.7'",1))
+          PY
+      - name: Verify v8.6.7 markers
+        run: |
+          set -euo pipefail
+          P=/tmp/src/app/src/main/java/com/kingplus/social/PartyActivity.java
+          G=/tmp/src/app/src/main/java/com/kingplus/social/GiftBurstView.java
+          grep -F 'Gift Shop • 64 gifts' "$P"
+          grep -F 'rebuildGiftCategories867' "$P"
+          grep -F 'Live Emoji • 50' "$P"
+          grep -F 'KING PLUS MYTHIC GIFT' "$G"
+          grep -F "versionName '8.6.7'" /tmp/src/app/build.gradle
+      - name: Build Android APK
+        working-directory: /tmp/src
+        run: gradle :app:assembleDebug --no-daemon
+      - name: Package APK and source
+        working-directory: /tmp/src
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          import shutil,zipfile,hashlib
+          out=Path('/tmp/release');out.mkdir(parents=True,exist_ok=True)
+          apk=out/'KING-Plus-v8.6.7-gift-live-polish.apk'
+          shutil.copy2('app/build/outputs/apk/debug/app-debug.apk',apk)
+          (out/'SHA256.txt').write_text(hashlib.sha256(apk.read_bytes()).hexdigest()+'  '+apk.name+'\n')
+          with zipfile.ZipFile(out/'KING-Plus-v8.6.7-source.zip','w',zipfile.ZIP_DEFLATED) as z:
+              for p in Path('.').rglob('*'):
+                  if not p.is_file() or any(v in p.parts for v in ['.git','.gradle','build','node_modules']): continue
+                  if p.suffix in ['.apk','.zip','.log']: continue
+                  z.write(p,p)
+          shutil.copy2('RELEASE-NOTES-v8.6.7.md',out)
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: KING-Plus-v8.6.7-APK-and-source
+          path: /tmp/release/*
+          if-no-files-found: error
