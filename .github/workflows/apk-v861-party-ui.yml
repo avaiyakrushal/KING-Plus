@@ -1,0 +1,88 @@
+name: Build KING Plus v8.6.1 Party UI fix
+on:
+  push:
+    branches: ['build/v8.6.1-party-ui-fix']
+    paths:
+      - '.github/workflows/apk-v861-party-ui.yml'
+      - 'ci/v861/**'
+      - 'ci/v860/patch_v860.py'
+      - 'ci/v860/patch_game_codes.py'
+      - 'ci/v860/patch_fullscreen_live.py'
+      - 'ci/v860/LiveEmojiView.java'
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: build/v8.6.1-party-ui-fix
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+      - name: Recover v8.5.3 and apply v8.6.0 plus v8.6.1 fixes
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          rm -rf /tmp/base /tmp/src /tmp/release
+          mkdir -p /tmp/base /tmp/src
+          gh run download 37252755854 -n KING-Plus-v8.5.3-APK-and-source -D /tmp/base
+          unzip -q /tmp/base/KING-Plus-v8.5.3-source.zip -d /tmp/src
+          python3 ci/v860/patch_v860.py /tmp/src
+          python3 ci/v860/patch_game_codes.py /tmp/src
+          python3 ci/v860/patch_fullscreen_live.py /tmp/src
+          cp ci/v860/LiveEmojiView.java /tmp/src/app/src/main/java/com/kingplus/social/LiveEmojiView.java
+          python3 ci/v861/patch_party_ui.py /tmp/src
+          cp ci/v860/RELEASE-NOTES.md /tmp/src/RELEASE-NOTES-v8.6.0.md
+          cp ci/v861/RELEASE-NOTES.md /tmp/src/RELEASE-NOTES-v8.6.1.md
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('/tmp/src/app/build.gradle')
+          s=p.read_text()
+          old="versionCode 118; versionName '8.5.3'"
+          if old not in s:
+              raise SystemExit('Expected v8.5.3 version line was not found')
+          p.write_text(s.replace(old,"versionCode 120; versionName '8.6.1'",1))
+          PY
+      - name: Verify Party UI patch markers
+        run: |
+          set -euo pipefail
+          P=/tmp/src/app/src/main/java/com/kingplus/social/PartyActivity.java
+          grep -F 'SOFT_INPUT_ADJUST_RESIZE' "$P"
+          grep -F 'safeRoomMessageTextSize861' "$P"
+          grep -F 'new FrameLayout.LayoutParams(-1,dp(74))' "$P"
+          grep -F 'versionName' /tmp/src/app/build.gradle
+      - name: Build Android APK
+        working-directory: /tmp/src
+        run: gradle :app:assembleDebug --no-daemon
+      - name: Package APK and source
+        working-directory: /tmp/src
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          import shutil,zipfile,hashlib
+          out=Path('/tmp/release');out.mkdir(parents=True,exist_ok=True)
+          apk=out/'KING-Plus-v8.6.1-party-ui-fix.apk'
+          shutil.copy2('app/build/outputs/apk/debug/app-debug.apk',apk)
+          (out/'SHA256.txt').write_text(hashlib.sha256(apk.read_bytes()).hexdigest()+'  '+apk.name+'\n')
+          with zipfile.ZipFile(out/'KING-Plus-v8.6.1-source.zip','w',zipfile.ZIP_DEFLATED) as z:
+              for p in Path('.').rglob('*'):
+                  if not p.is_file() or any(v in p.parts for v in ['.git','.gradle','build','node_modules']):continue
+                  if p.suffix in ['.apk','.zip','.log']:continue
+                  z.write(p,p)
+          shutil.copy2('RELEASE-NOTES-v8.6.1.md',out)
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: KING-Plus-v8.6.1-APK-and-source
+          path: /tmp/release/*
+          if-no-files-found: error
