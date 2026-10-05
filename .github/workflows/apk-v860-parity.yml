@@ -6,6 +6,7 @@ on:
       - '.github/workflows/apk-v860-parity.yml'
       - 'ci/v860/patch_v860.py'
       - 'ci/v860/patch_game_codes.py'
+      - 'ci/v860/patch_fullscreen_live.py'
       - 'ci/v860/LiveEmojiView.java'
       - 'ci/v860/RELEASE-NOTES.md'
   workflow_dispatch:
@@ -37,6 +38,7 @@ jobs:
           unzip -q /tmp/base/KING-Plus-v8.5.3-source.zip -d /tmp/src
           python3 ci/v860/patch_v860.py /tmp/src
           python3 ci/v860/patch_game_codes.py /tmp/src
+          python3 ci/v860/patch_fullscreen_live.py /tmp/src
           cp ci/v860/LiveEmojiView.java /tmp/src/app/src/main/java/com/kingplus/social/LiveEmojiView.java
           cp ci/v860/RELEASE-NOTES.md /tmp/src/RELEASE-NOTES-v8.6.0.md
           python3 - <<'PY'
