@@ -1,0 +1,71 @@
+ayout.LayoutParams lp=new LinearLayout.LayoutParams(-1,dp(56));lp.setMargins(0,dp(10),0,0);page.addView(guess,lp);
+    }
+    private void showMemory(){
+        base("Memory Match","Find all four pairs");
+        String[] vals={"👑","💎","🦁","🌹","👑","💎","🦁","🌹"};
+        for(int i=vals.length-1;i>0;i--){int j=random.nextInt(i+1);String q=vals[i];vals[i]=vals[j];vals[j]=q;}
+        LinearLayout grid=new LinearLayout(this);grid.setOrientation(LinearLayout.VERTICAL);final int[] first={-1};final boolean[] done=new boolean[8];final Button[] bs=new Button[8];final int[] pairs={0};final boolean[] comparing={false};
+        for(int r=0;r<2;r++){LinearLayout row=new LinearLayout(this);for(int c=0;c<4;c++){int k=r*4+c;Button b=action("?");b.setTextSize(26);bs[k]=b;b.setOnClickListener(v->{if(done[k]||comparing[0])return;b.setText(vals[k]);if(first[0]<0){first[0]=k;return;}int f=first[0];if(f==k)return;if(vals[f].equals(vals[k])){done[f]=done[k]=true;pairs[0]++;first[0]=-1;if(pairs[0]==4){Toast.makeText(this,"Memory cleared 👑",Toast.LENGTH_SHORT).show();KingSoundFx.win(this);}}else{comparing[0]=true;b.postDelayed(()->{bs[f].setText("?");bs[k].setText("?");first[0]=-1;comparing[0]=false;},650);}});LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(0,dp(74),1);lp.setMargins(dp(3),dp(3),dp(3),dp(3));row.addView(b,lp);}grid.addView(row);}page.addView(grid);
+    }
+
+
+    private void showReactionTap(){
+        base("Reaction Tap","Tap only when GO appears");
+        final TextView roundStatus=label("Wait…",28,0xffffd768,true);
+        roundStatus.setGravity(Gravity.CENTER);page.addView(roundStatus,new LinearLayout.LayoutParams(-1,dp(120)));
+        Button tap=action("TAP");final long[] go={0};final boolean[] ended={false};
+        final Runnable signal=()->{if(!ended[0]&&!isFinishing()&&!isDestroyed()){roundStatus.setText("GO! ⚡");go[0]=android.os.SystemClock.elapsedRealtime();}};
+        tap.setOnClickListener(v->{if(ended[0])return;ended[0]=true;roundStatus.removeCallbacks(signal);tap.setEnabled(false);if(go[0]==0){roundStatus.setText("Too early • try again");return;}long ms=android.os.SystemClock.elapsedRealtime()-go[0];roundStatus.setText(ms+" ms"+(ms<350?" • FAST 👑":" • Keep trying"));});
+        page.addView(tap,new LinearLayout.LayoutParams(-1,dp(70)));
+        Button retry=action("Try again");retry.setOnClickListener(v->{ended[0]=true;roundStatus.removeCallbacks(signal);showReactionTap();});page.addView(retry,new LinearLayout.LayoutParams(-1,dp(54)));
+        roundStatus.postDelayed(signal,1200+random.nextInt(2200));
+    }
+
+    private void showHighLow(){
+        base("High / Low","Guess the next card");final int[] cur={1+random.nextInt(13)};status=label("Card: "+cur[0],28,0xffffd768,true);status.setGravity(Gravity.CENTER);page.addView(status,new LinearLayout.LayoutParams(-1,dp(110)));LinearLayout row=new LinearLayout(this);Button high=action("⬆ Higher"),low=action("⬇ Lower");high.setOnClickListener(v->highLow(cur,true));low.setOnClickListener(v->highLow(cur,false));row.addView(high,new LinearLayout.LayoutParams(0,dp(60),1));LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(0,dp(60),1);lp.setMargins(dp(8),0,0,0);row.addView(low,lp);page.addView(row);
+    }
+    private void highLow(int[] cur,boolean higher){int next=1+random.nextInt(13);boolean win=higher?next>=cur[0]:next<=cur[0];status.setText("Next: "+next+" • "+(win?"You win 👑":"Try again"));if(win)KingSoundFx.win(this);cur[0]=next;}
+
+    private void showWheel(){
+        base("Lucky Wheel","Free game • no money");status=label("🎡 Ready",30,0xffffd768,true);status.setGravity(Gravity.CENTER);page.addView(status,new LinearLayout.LayoutParams(-1,dp(120)));Button spin=action("SPIN");spin.setOnClickListener(v->{String[] r={"🌹 Rose","⭐ Star","👑 Crown","🎉 Party","💎 Diamond","🦁 Lion"};String x=r[random.nextInt(r.length)];status.setText("🎡  "+x);KingSoundFx.win(this);});page.addView(spin,new LinearLayout.LayoutParams(-1,dp(64)));
+    }
+
+    private void showSheepFight(){
+        base("Sheep Fight","Train your sheep, then battle KING Bot");
+        final int[] power={45};status=label("🐑 Power: "+power[0]+"\nTrain before battle",22,0xffffd768,true);status.setGravity(Gravity.CENTER);page.addView(status,new LinearLayout.LayoutParams(-1,dp(120)));
+        Button train=action("🏋 Train +5 to +15");train.setOnClickListener(v->{int gain=5+random.nextInt(11);power[0]=Math.min(100,power[0]+gain);status.setText("🐑 Power: "+power[0]+"\n+"+gain+" training");});page.addView(train,new LinearLayout.LayoutParams(-1,dp(58)));
+        Button fight=action("⚔ Battle");LinearLayout.LayoutParams fp=new LinearLayout.LayoutParams(-1,dp(60));fp.setMargins(0,dp(8),0,0);fight.setOnClickListener(v->{int bot=45+random.nextInt(56);boolean win=power[0]>=bot;status.setText("YOU "+power[0]+"  vs  BOT "+bot+"\n"+(win?"🏆 YOU WIN":"Bot wins • train more"));if(win)KingSoundFx.win(this);power[0]=45;});page.addView(fight,fp);
+    }
+
+    private void showWerewolf(){
+        base("Werewolf","Single-player deduction round");
+        final String[] names={"Asha","Ravi","Mira","Kabir"};final int wolf=random.nextInt(names.length);final int[] turns={2};
+        status=label("A werewolf is hiding. You have 2 investigations.",18,0xffffd768,true);status.setGravity(Gravity.CENTER);page.addView(status,new LinearLayout.LayoutParams(-1,dp(90)));
+        for(int i=0;i<names.length;i++){final int k=i;Button b=action("🔍 Investigate "+names[i]);LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(-1,dp(54));lp.setMargins(0,dp(5),0,0);b.setOnClickListener(v->{if(turns[0]<=0)return;turns[0]--;boolean suspicious=k==wolf||random.nextBoolean();status.setText(names[k]+(suspicious?" looks suspicious 🐺":" seems calm 🙂")+"\nInvestigations left: "+turns[0]);});page.addView(b,lp);}
+        Button vote=action("🗳 Vote for Werewolf");LinearLayout.LayoutParams vp=new LinearLayout.LayoutParams(-1,dp(58));vp.setMargins(0,dp(10),0,0);vote.setOnClickListener(v->new android.app.AlertDialog.Builder(this).setTitle("Final Vote").setItems(names,(d,w)->{boolean win=w==wolf;status.setText((win?"🏆 Correct! ":"Wrong vote • ")+names[wolf]+" was the Werewolf");if(win)KingSoundFx.win(this);}).show());page.addView(vote,vp);
+    }
+
+    private void showSpy(){
+        base("Spy Game","Find the spy from secret clues");
+        final String[] people={"Player 1","Player 2","Player 3","Player 4"};final int spy=random.nextInt(4);final String[] locations={"Airport","Beach","School","Cinema","Market"};final String loc=locations[random.nextInt(locations.length)];
+        status=label("Location: "+loc+"\nOne player has no location clue.",18,0xffffd768,true);status.setGravity(Gravity.CENTER);page.addView(status,new LinearLayout.LayoutParams(-1,dp(100)));
+        for(int i=0;i<4;i++){final int k=i;Button b=action("💬 Ask "+people[i]);b.setOnClickListener(v->{String clue=k==spy?new String[]{"Maybe crowded?","I saw people","Hard to say"}[random.nextInt(3)]:spyClue(loc);status.setText(people[k]+": \""+clue+"\"\nWho is the spy?");});LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(-1,dp(52));lp.setMargins(0,dp(5),0,0);page.addView(b,lp);}
+        Button vote=action("🕵 Identify Spy");LinearLayout.LayoutParams vp=new LinearLayout.LayoutParams(-1,dp(58));vp.setMargins(0,dp(9),0,0);vote.setOnClickListener(v->new android.app.AlertDialog.Builder(this).setTitle("Choose Spy").setItems(people,(d,w)->{boolean win=w==spy;status.setText(win?"🏆 Spy found!":"Spy escaped • it was "+people[spy]);if(win)KingSoundFx.win(this);}).show());page.addView(vote,vp);
+    }
+    private String spyClue(String loc){if("Airport".equals(loc))return "Flights and luggage";if("Beach".equals(loc))return "Sand and waves";if("School".equals(loc))return "Books and classes";if("Cinema".equals(loc))return "Big screen and popcorn";return "Shops and bargaining";}
+
+    private void showDrawGuess(){
+        base("Draw & Guess","Draw the shown word • pass phone to a friend to guess");
+        final String[] words={"Crown","Tiger","Diamond","Guitar","Rocket","Mango","Flower","House"};final String[] target={words[random.nextInt(words.length)]};
+        status=label("DRAW: "+target[0],19,0xffffd768,true);status.setGravity(Gravity.CENTER);page.addView(status,new LinearLayout.LayoutParams(-1,dp(54)));
+        KingDrawPadView pad=new KingDrawPadView(this);page.addView(pad,new LinearLayout.LayoutParams(-1,dp(260)));
+        LinearLayout row=new LinearLayout(this);Button clear=action("Clear"),newWord=action("New Word");clear.setOnClickListener(v->pad.clear());newWord.setOnClickListener(v->{target[0]=words[random.nextInt(words.length)];status.setText("DRAW: "+target[0]);pad.clear();});row.addView(clear,new LinearLayout.LayoutParams(0,dp(54),1));LinearLayout.LayoutParams np=new LinearLayout.LayoutParams(0,dp(54),1);np.setMargins(dp(8),0,0,0);row.addView(newWord,np);page.addView(row);
+        Button guessed=action("✅ Friend Guessed It");LinearLayout.LayoutParams gp=new LinearLayout.LayoutParams(-1,dp(56));gp.setMargins(0,dp(8),0,0);guessed.setOnClickListener(v->{status.setText("🏆 Correct: "+target[0]);KingSoundFx.win(this);});page.addView(guessed,gp);
+    }
+
+    private void showBingo(){
+        base("Bingo","Tap CALL, then mark matching numbers • complete a row");
+        final int[] nums=new int[25];java.util.ArrayList<Integer> pool=new java.util.ArrayList<>();for(int i=1;i<=75;i++)pool.add(i);java.util.Collections.shuffle(pool);for(int i=0;i<25;i++)nums[i]=pool.get(i);
+        final java.util.HashSet<Integer> called=new java.util.HashSet<>();final boolean[] won={false};final boolean[] marked=new boolean[25];final Button[] bs=new Button[25];status=label("Press CALL to draw a number",17,0xffffd768,true);status.setGravity(Gravity.CENTER);page.addView(status,new LinearLayout.LayoutParams(-1,dp(55)));
+        LinearLayout grid=new LinearLayout(this);grid.setOrientation(LinearLayout.VERTICAL);for(int r=0;r<5;r++){LinearLayout row=new LinearLayout(this);for(int c=0;c<5;c++){int k=r*5+c;Button b=action(String.valueOf(nums[k]));b.setTextSize(12);bs[k]=b;b.setOnClickListener(v->{if(won[0]||!called.contains(nums[k]))return;marked[k]=!marked[k];b.setText(marked[k]?"✓"+nums[k]:String.valueOf(nums[k]));if(bingoWin(marked)){won[0]=true;status.setText("BINGO! 🏆");KingSoundFx.win(this);}});LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(0,dp(52),1);lp.setMargins(dp(2),dp(2),dp(2),dp(2));row.addView(b,lp);}grid.addView(row);}page.addView(grid);
+        final java.util.ArrayList<Integer> draws=new java.util.ArrayList<>();for(int n=1;n<=75;n++)draws.add(n);java.util.Collections.shuffle(draws);Button call=action("🎱 CALL NUMBER");LinearLayout.LayoutParams cp=new LinearLayout.LayoutParams(-1,dp(58));cp.setMargins(0,dp(8),0,0);call.setOnClickListener(v->{if(won[0]||draws.isEmpty()){call.setEnabled(false);return;}int n=draws.remove(draws.size()-1);called.add(n);for(int k=0;k<25;k++)if(nums[k]==n)bs[k].setBackground(bg(0xff775626,12));status.setText("CALLED: "+n+" • "

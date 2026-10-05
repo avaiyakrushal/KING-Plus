@@ -1,0 +1,17 @@
++called.size()+"/75 • mark highlighted numbers");if(draws.isEmpty())call.setEnabled(false);});page.addView(call,cp);
+    }
+    private boolean bingoWin(boolean[] m){for(int r=0;r<5;r++){boolean ok=true;for(int c=0;c<5;c++)ok&=m[r*5+c];if(ok)return true;}for(int c=0;c<5;c++){boolean ok=true;for(int r=0;r<5;r++)ok&=m[r*5+c];if(ok)return true;}boolean a=true,b=true;for(int i=0;i<5;i++){a&=m[i*5+i];b&=m[i*5+4-i];}return a||b;}
+
+    private void showZoo(){
+        base("Crazy Zoo","Explore until you collect all animals");
+        final String[] animals={"🦁 Lion","🐼 Panda","🐘 Elephant","🐯 Tiger","🦊 Fox","🦚 Peacock"};final java.util.HashSet<String> found=new java.util.HashSet<>();status=label("Collection 0/6",21,0xffffd768,true);status.setGravity(Gravity.CENTER);page.addView(status,new LinearLayout.LayoutParams(-1,dp(100)));Button explore=action("🌿 Explore Zoo");explore.setOnClickListener(v->{String a=animals[random.nextInt(animals.length)];boolean fresh=found.add(a);status.setText(a+(fresh?" collected!":" already found")+"\nCollection "+found.size()+"/6");if(found.size()==animals.length){status.setText("🏆 ZOO COMPLETE!\nAll 6 animals collected");KingSoundFx.win(this);}});page.addView(explore,new LinearLayout.LayoutParams(-1,dp(64)));
+    }
+
+    private void showDomino(){
+        base("Domino Match","Match the left number to the chain");
+        final int[] end={random.nextInt(7)};final int[] score={0};status=label("Chain end: "+end[0]+" • Score 0",21,0xffffd768,true);status.setGravity(Gravity.CENTER);page.addView(status,new LinearLayout.LayoutParams(-1,dp(90)));
+        for(int i=0;i<3;i++){Button b=action("Draw Tile");b.setOnClickListener(v->{int a=random.nextInt(7),z=random.nextInt(7);new android.app.AlertDialog.Builder(this).setTitle("Tile "+a+" | "+z).setMessage("Chain end is "+end[0]).setPositiveButton("Play",(d,w)->{if(a==end[0]||z==end[0]){end[0]=a==end[0]?z:a;score[0]++;status.setText("Matched! • Chain end: "+end[0]+" • Score "+score[0]);if(score[0]>=5){status.setText("🏆 DOMINO WIN • Score "+score[0]);KingSoundFx.win(this);}}else status.setText("No match • Chain end: "+end[0]+" • Score "+score[0]);}).setNegativeButton("Pass",null).show();});LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(-1,dp(56));lp.setMargins(0,dp(7),0,0);page.addView(b,lp);}
+    }
+
+}
+

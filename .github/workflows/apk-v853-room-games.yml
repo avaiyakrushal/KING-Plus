@@ -1,0 +1,64 @@
+name: Build KING Plus v8.5.3 room game fixes
+on:
+  push:
+    branches: ['build/v8.5.3-room-games']
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+      - name: Recover latest source and apply game fixes
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/base /tmp/src
+          gh run download 37251882373 -n KING-Plus-v8.5.2 -D /tmp/base
+          unzip -q /tmp/base/KING-Plus-v8.5.2-source.zip -d /tmp/src
+          cat ci/v853/RoomGameActivity.java.part* > /tmp/src/app/src/main/java/com/kingplus/social/RoomGameActivity.java
+          cat ci/v853/GamePlayActivity.java.part* > /tmp/src/app/src/main/java/com/kingplus/social/GamePlayActivity.java
+          cp ci/v853/RELEASE-NOTES.md /tmp/src/RELEASE-NOTES-v8.5.3.md
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('/tmp/src/app/build.gradle')
+          s=p.read_text()
+          assert "versionCode 117; versionName '8.5.2'" in s
+          p.write_text(s.replace("versionCode 117; versionName '8.5.2'","versionCode 118; versionName '8.5.3'"))
+          PY
+      - name: Build Android APK
+        working-directory: /tmp/src
+        run: gradle :app:assembleDebug --no-daemon
+      - name: Package APK and source
+        working-directory: /tmp/src
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          import shutil,zipfile,hashlib
+          out=Path('/tmp/release');out.mkdir()
+          apk=out/'KING-Plus-v8.5.3-room-games.apk'
+          shutil.copy2('app/build/outputs/apk/debug/app-debug.apk',apk)
+          (out/'SHA256.txt').write_text(hashlib.sha256(apk.read_bytes()).hexdigest()+'  '+apk.name+'\n')
+          with zipfile.ZipFile(out/'KING-Plus-v8.5.3-source.zip','w',zipfile.ZIP_DEFLATED) as z:
+              for p in Path('.').rglob('*'):
+                  if not p.is_file() or any(v in p.parts for v in ['.git','.gradle','build','node_modules']):continue
+                  if any(v.startswith('release') for v in p.parts) or p.suffix in ['.apk','.zip','.log']:continue
+                  z.write(p,p)
+          shutil.copy2('RELEASE-NOTES-v8.5.3.md',out)
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: KING-Plus-v8.5.3-APK-and-source
+          path: /tmp/release/*
+          if-no-files-found: error

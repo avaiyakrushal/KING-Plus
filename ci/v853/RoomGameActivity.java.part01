@@ -1,0 +1,81 @@
+private void rpsControls(){LinearLayout row=new LinearLayout(this);String[] m={"Rock","Paper","Scissors"},e={"✊","✋","✌"};for(int i=0;i<3;i++){final String x=m[i];Button b=button(e[i]+" "+x);b.setOnClickListener(v->submit(x,0));LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(0,dp(52),1);lp.setMargins(dp(2),0,dp(2),0);row.addView(b,lp);}controls.addView(row);}
+    private void diceControls(){Button b=button("🎲 Roll my dice");b.setOnClickListener(v->{int n=1+(int)(Math.random()*6);submit("Rolled "+n,n);});controls.addView(b,new LinearLayout.LayoutParams(-1,dp(54)));}
+    private void numberControls(){LinearLayout row=new LinearLayout(this);EditText in=new EditText(this);in.setHint("1–30");in.setTextColor(Color.WHITE);in.setHintTextColor(0xff9e94ad);in.setInputType(android.text.InputType.TYPE_CLASS_NUMBER);in.setSingleLine(true);in.setBackground(bg(CARD,14));in.setPadding(dp(14),0,dp(14),0);row.addView(in,new LinearLayout.LayoutParams(0,dp(52),1));Button b=button("Submit");b.setOnClickListener(v->{try{int n=Integer.parseInt(in.getText().toString().trim());if(n<1||n>30){toast("Choose 1–30");return;}submit(String.valueOf(n),n);}catch(Exception e){toast("Choose 1–30");}});LinearLayout.LayoutParams bp=new LinearLayout.LayoutParams(dp(100),dp(52));bp.setMargins(dp(8),0,0,0);row.addView(b,bp);controls.addView(row);}
+    private void coinControls(){LinearLayout row=new LinearLayout(this);Button h=button("🪙 Heads");h.setOnClickListener(v->submit("Heads",1));Button t=button("🪙 Tails");t.setOnClickListener(v->submit("Tails",0));LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(0,dp(52),1);lp.setMargins(dp(2),0,dp(2),0);row.addView(h,lp);row.addView(t,lp);controls.addView(row);}
+    private void wheelControls(){Button b=button("🎡 Spin my wheel");b.setOnClickListener(v->{int n=1+(int)(Math.random()*100);submit("Spin "+n,n);});controls.addView(b,new LinearLayout.LayoutParams(-1,dp(54)));}
+    private void bingoControls(){LinearLayout row=new LinearLayout(this);for(int n=1;n<=9;n++){if(n==4||n==7){controls.addView(row);row=new LinearLayout(this);}final int x=n;Button b=button(String.valueOf(n));b.setOnClickListener(v->submit("Pick "+x,x));row.addView(b,new LinearLayout.LayoutParams(0,dp(48),1));}controls.addView(row);}
+
+
+
+    private void startRound(String game){
+        if(!moderator||!"closed".equals(status)){toast("Finish the current round first");return;}
+        room().collection("game_ready").get().addOnSuccessListener(q->{
+            if(q.size()<2){toast("At least two players must tap Ready");return;}
+            if(q.size()>12){toast("This round supports up to 12 ready players");return;}
+            startRoundNow750(game);
+        }).addOnFailureListener(e->toast("Ready check failed: "+e.getMessage()));
+    }
+    private void startRoundNow750(String game){
+        if(!moderator)return;
+        final long previous=roundId;
+        room().collection("game_moves").get().addOnSuccessListener(old->{
+            long next=Math.max(System.currentTimeMillis(),previous+1);
+            String p="rps".equals(game)?"Choose Rock, Paper or Scissors":"dice".equals(game)?"Roll once • highest roll wins":"number".equals(game)?"Pick 1–30 • closest to a shared draw wins":"coin".equals(game)?"Pick Heads or Tails":"wheel".equals(game)?"Spin once • highest score wins":"Pick 1–9 • closest to a shared draw wins";
+            Map<String,Object> value=new HashMap<>();
+            value.put("actorUid",me.getUid());value.put("actorName",displayName);value.put("type",game);value.put("prompt",p);value.put("result","");value.put("status","active");value.put("roundId",next);value.put("updatedAt",FieldValue.serverTimestamp());
+            db.runTransaction(tx->{
+                DocumentSnapshot current=tx.get(state());
+                if(current.exists()&&("active".equals(current.getString("status"))||current.getLong("roundId")!=previous))throw new IllegalStateException("Round changed. Reopen the controls.");
+                for(DocumentSnapshot move:old.getDocuments())tx.delete(move.getReference());
+                tx.set(state(),value);return null;
+            }).addOnSuccessListener(v->postGameEvent750("🎮 "+displayName+" started "+game.toUpperCase()+" round"))
+              .addOnFailureListener(e->toast("Start failed: "+e.getMessage()));
+        }).addOnFailureListener(e->toast("Round preparation failed: "+e.getMessage()));
+    }
+    private void postGameEvent750(String text){Map<String,Object>e=new HashMap<>();e.put("actorUid",me.getUid());e.put("actorName",displayName);e.put("type","play");e.put("text",text);e.put("createdAt",FieldValue.serverTimestamp());room().collection("events").add(e);}
+    private void clearOldMoves(long keep){room().collection("game_moves").get().addOnSuccessListener(q->{for(DocumentSnapshot d:q.getDocuments()){Long r=d.getLong("roundId");if(r==null||r!=keep)d.getReference().delete();}});}
+
+    private void submit(String move,int score){
+        if(roundId==0||!"active".equals(status)||me==null||!KingNetwork.online(this)){toast("An active round and internet connection are required");return;}
+        final long expected=roundId;final String expectedType=type;
+        DocumentReference mine=room().collection("game_moves").document(me.getUid());
+        db.runTransaction(tx->{
+            DocumentSnapshot active=tx.get(state()),existing=tx.get(mine);
+            if(!active.exists()||!"active".equals(active.getString("status"))||active.getLong("roundId")!=expected||!expectedType.equals(active.getString("type")))throw new IllegalStateException("Round changed");
+            if(existing.exists())throw new IllegalStateException("Your move is already locked");
+            Map<String,Object> d=new HashMap<>();d.put("uid",me.getUid());d.put("name",displayName.length()>80?displayName.substring(0,80):displayName);d.put("roundId",expected);d.put("type",expectedType);d.put("move",move);d.put("score",score);d.put("updatedAt",FieldValue.serverTimestamp());
+            tx.set(mine,d);return null;
+        }).addOnSuccessListener(v->toast("Move locked ✓")).addOnFailureListener(e->toast("Move failed: "+e.getMessage()));
+    }
+
+    private void listenReady750(){
+        if(readyListener!=null)readyListener.remove();
+        readyListener=room().collection("game_ready").addSnapshotListener((q,e)->{
+            readyBox.removeAllViews();
+            if(e!=null){readyBox.addView(tv("Ready list unavailable",13,MUTED,false));return;}
+            List<DocumentSnapshot> docs=q==null?new ArrayList<>():new ArrayList<>(q.getDocuments());
+            Collections.sort(docs,(a,b)->s(a.getString("name")).compareToIgnoreCase(s(b.getString("name"))));
+            if(docs.isEmpty()){readyBox.addView(tv("Nobody is ready yet",13,MUTED,false));return;}
+            for(DocumentSnapshot d:docs){String name=s(d.getString("name"));TextView row=tv("✅ "+(name.isEmpty()?"Player":name),14,Color.WHITE,true);row.setBackground(bg(CARD,12));LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(-1,dp(44));lp.setMargins(0,dp(3),0,dp(3));readyBox.addView(row,lp);}
+        });
+    }
+    private void toggleReady750(){
+        DocumentReference r=room().collection("game_ready").document(me.getUid());
+        r.get().addOnSuccessListener(d->{
+            if(d.exists())r.delete().addOnSuccessListener(v->toast("Not ready"));
+            else{Map<String,Object> m=new HashMap<>();m.put("uid",me.getUid());m.put("name",displayName);m.put("ready",true);m.put("updatedAt",FieldValue.serverTimestamp());r.set(m).addOnSuccessListener(v->toast("Ready ✓")).addOnFailureListener(e->toast("Ready failed: "+e.getMessage()));}
+        }).addOnFailureListener(e->toast("Ready failed: "+e.getMessage()));
+    }
+    private void clearReady750(){
+        if(!moderator)return;
+        room().collection("game_ready").get().addOnSuccessListener(q->{for(DocumentSnapshot d:q.getDocuments())d.getReference().delete();toast("Ready list cleared");});
+    }
+    private void rematch750(){
+        if(!moderator)return;
+        String game=type.isEmpty()?"rps":type;
+        startRound(game);
+    }
+
+    private void renderMoves(){movesBox.removeAllViews();if(currentMoves.isEmpty()){movesBox.addView(tv("Waiting for players…",13,MUTED,false));return;}List<DocumentSnapshot> sorted=new ArrayList<>(currentMoves);Collections.sort(sorted,(a,b)->s(a.getString("name")).compareToIgnoreCase(s(b.getString("name"))));for(DocumentSnapshot d:sorted){String name=s(d.getString("name")),move=s(d.getString("move"));TextView row=tv("👤 "+(name.isEmpty()?"Player":name)+"  •  "+("rps".equals(type)?"move locked ✓":move),14,Color.WHITE,true);row.setBackground(bg(CARD,12));LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(-1,dp(46));lp.setMargins(0,dp(3),0,dp(3));movesBox.addView(row,lp);}}
+    private void finishRound(){if(!moderator||roundId==0||!"active".equals(status))return;final long expected=roundId;room().collection("game_moves").get().addOnSuccessListener(q->{List<DocumentSnapshot> a=new ArrayList<>();for(DocumentSnapshot d:q.getDocuments()){Long r=d.getLong("roundId");if(r!=null&&r==roundId)a.add(d);}if(expected!=roundId||!"active".equals(status)){toast("Round changed");return;}if(a.size()<2){toast("At least two players must submit");return;}String out=resultFor(a);if(out.length()>300)out=out.substring(0,297)+"...";final String finalResult=out;Map<String,Object>u=new HashMap<>();u.put("actorUid",me.getUid());u.put("result",out);u.put("status","closed");u.put("updatedAt",FieldValue.serverTimestamp());db.runTransaction(tx->{DocumentSnapshot latest=tx.get(state());if(!latest.exists()||latest.getLong("roundId")!=expected||!"active".equals(latest.getString("status")))throw new IllegalStateException("Round already finished");tx.update(state(),u);return null;}).addOnSuccessListener(v->{postGameEvent750("🏁 "+finalResult.replace("\n"," • "));new AlertDialog.Builder(this).setTitle("🏁 Round result").setMessage(finalResult).setPositiveButton("Rematch",(d,w)->rematch750()).setNegativeButton("Close",null).show();}).addOnFailureListener(e->toast("Finish failed: "+e.getMessage()));}).addOnFailureListener(e->toast("Could not load round moves: "+e.getMessage()));}
+    private String resultFor(List<DocumentSnapshot>a){if("dice".equals(type)||"wheel".equals(type)){int best=-1;List<String>w=new ArrayList<>();for(DocumentSnapshot d:a){Long n=d.getLong("score");int v=n==null?0:n.intValue();if(v>best){best=v;w.clear();w.add(s(d.getString("name")));}else if(v==best)w.add(s(d.getString("name")));}return ("wheel".equals(type)?"🎡 Highest spin: ":"🎲 Highest roll: ")+best+"\n🏆 "+join(w);}if("number".equals(type)||"bingo".equals(type)){int cap="bingo".equals(type)?9:30,target=1+new java.security.SecureRandom().nextInt(cap),best=999;List<String>w=new ArrayList<>();for(DocumentSnapshot d:a){Long n=d.getLong("score");int v=n==null?0:n.intValue(),diff=Math.abs(v-target);if(diff<best){best=diff;w.clear();w.add(s(d.getString("name"))+" ("+v+")");}else if(diff==best)w.add(s(d.getString("name"))+" ("+v+")");}r

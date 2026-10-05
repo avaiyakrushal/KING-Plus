@@ -1,0 +1,116 @@
+package com.kingplus.social;
+
+import android.app.Activity;
+import android.graphics.Color;
+import android.graphics.Typeface;
+import android.graphics.drawable.GradientDrawable;
+import android.os.Bundle;
+import android.view.Gravity;
+import android.view.View;
+import android.widget.Button;
+import android.widget.EditText;
+import android.widget.LinearLayout;
+import android.widget.TextView;
+import android.widget.Toast;
+
+import androidx.core.graphics.Insets;
+import androidx.core.view.ViewCompat;
+import androidx.core.view.WindowInsetsCompat;
+
+import java.util.Random;
+
+public class GamePlayActivity extends Activity {
+    private static final int PURPLE=0xff8a49ed, BG=0xff130a25, CARD=0xff33204f, MUTED=0xffcfc4df;
+    private final Random random=new Random();
+    private LinearLayout page;
+    private final Button[] cells=new Button[9];
+    private final char[] board=new char[9];
+    private boolean finished;
+    private TextView status;
+    private int ludoYou=0,ludoBot=0;
+
+    @Override public void onCreate(Bundle state){
+        super.onCreate(state);
+        String game=getIntent().getStringExtra("game");
+        if(game==null)game="tic_tac_toe";
+        if("rps".equals(game))showRps();
+        else if("dice".equals(game))showDice();
+        else if("guess".equals(game))showGuess();
+        else if("ludo".equals(game)){startActivity(new android.content.Intent(this,OnlineLudoActivity.class));finish();}
+        else if("slot".equals(game))showSlot();
+        else if("coin".equals(game))showCoin();
+        else if("memory".equals(game))showMemory();
+        else if("reaction".equals(game))showReactionTap();
+        else if("highlow".equals(game))showHighLow();
+        else if("wheel".equals(game))showWheel();
+        else if("sheep".equals(game))showSheepFight();
+        else if("werewolf".equals(game))showWerewolf();
+        else if("spy".equals(game))showSpy();
+        else if("draw".equals(game))showDrawGuess();
+        else if("bingo".equals(game))showBingo();
+        else if("zoo".equals(game))showZoo();
+        else if("domino".equals(game))showDomino();
+        else showTicTacToe();
+    }
+
+    private int dp(int n){return (int)(n*getResources().getDisplayMetrics().density+.5f);}
+    private GradientDrawable bg(int color,int radius){GradientDrawable d=new GradientDrawable();d.setColor(color);d.setCornerRadius(dp(radius));return d;}
+    private TextView label(String text,int size,int color,boolean bold){TextView v=new TextView(this);v.setText(text);v.setTextSize(size);v.setTextColor(color);if(bold)v.setTypeface(null,Typeface.BOLD);v.setPadding(dp(8),dp(8),dp(8),dp(8));return v;}
+    private Button action(String text){Button b=new Button(this);b.setText(text);b.setTextColor(Color.WHITE);b.setTextSize(15);b.setAllCaps(false);b.setBackground(bg(PURPLE,16));return b;}
+    private void base(String title,String sub){
+        LinearLayout root=new LinearLayout(this);root.setOrientation(LinearLayout.VERTICAL);root.setBackgroundColor(BG);
+        page=new LinearLayout(this);page.setOrientation(LinearLayout.VERTICAL);page.setPadding(dp(18),dp(18),dp(18),dp(24));android.widget.ScrollView scroll=new android.widget.ScrollView(this);scroll.setFillViewport(true);scroll.addView(page);root.addView(scroll,new LinearLayout.LayoutParams(-1,-1));
+        LinearLayout head=new LinearLayout(this);head.setGravity(Gravity.CENTER_VERTICAL);
+        TextView back=label("‹",34,Color.WHITE,true);back.setGravity(Gravity.CENTER);back.setOnClickListener(v->finish());head.addView(back,new LinearLayout.LayoutParams(dp(52),dp(52)));
+        LinearLayout info=new LinearLayout(this);info.setOrientation(LinearLayout.VERTICAL);info.addView(label(title,24,Color.WHITE,true));info.addView(label(sub,12,MUTED,false));head.addView(info,new LinearLayout.LayoutParams(0,dp(62),1));page.addView(head);
+        setSafe(root);
+    }
+    private void setSafe(View root){setContentView(root);final int l=root.getPaddingLeft(),t=root.getPaddingTop(),r=root.getPaddingRight(),b=root.getPaddingBottom();ViewCompat.setOnApplyWindowInsetsListener(root,(v,in)->{Insets bars=in.getInsets(WindowInsetsCompat.Type.systemBars());v.setPadding(l,t+bars.top,r,b+bars.bottom);return in;});ViewCompat.requestApplyInsets(root);}
+
+    private void showTicTacToe(){
+        finished=false;
+        base("Tic Tac Toe","Real playable game • You are X");
+        for(int i=0;i<9;i++)board[i]=' ';
+        status=label("Your turn",17,0xffffd768,true);status.setGravity(Gravity.CENTER);page.addView(status,new LinearLayout.LayoutParams(-1,dp(48)));
+        LinearLayout grid=new LinearLayout(this);grid.setOrientation(LinearLayout.VERTICAL);grid.setPadding(dp(8),dp(8),dp(8),dp(8));grid.setBackground(bg(CARD,18));
+        for(int r=0;r<3;r++){LinearLayout row=new LinearLayout(this);for(int c=0;c<3;c++){int idx=r*3+c;Button b=action("");b.setTextSize(30);b.setBackground(bg(0xff4a3268,12));b.setOnClickListener(v->playCell(idx));cells[idx]=b;LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(0,dp(86),1);lp.setMargins(dp(3),dp(3),dp(3),dp(3));row.addView(b,lp);}grid.addView(row);}page.addView(grid,new LinearLayout.LayoutParams(-1,-2));
+        Button again=action("New Game");again.setOnClickListener(v->showTicTacToe());LinearLayout.LayoutParams ap=new LinearLayout.LayoutParams(-1,dp(52));ap.setMargins(0,dp(14),0,0);page.addView(again,ap);
+    }
+    private void playCell(int idx){if(finished||board[idx]!=' ')return;board[idx]='X';cells[idx].setText("X");if(check('X')){finishTtt("You win 👑");return;}if(full()){finishTtt("Draw");return;}int bot;do{bot=random.nextInt(9);}while(board[bot]!=' ');board[bot]='O';cells[bot].setText("O");if(check('O'))finishTtt("KING Bot wins");else if(full())finishTtt("Draw");else status.setText("Your turn");}
+    private boolean full(){for(char c:board)if(c==' ')return false;return true;}
+    private boolean check(char p){int[][] w={{0,1,2},{3,4,5},{6,7,8},{0,3,6},{1,4,7},{2,5,8},{0,4,8},{2,4,6}};for(int[] a:w)if(board[a[0]]==p&&board[a[1]]==p&&board[a[2]]==p)return true;return false;}
+    private void finishTtt(String msg){finished=true;status.setText(msg);}
+
+    private void showLudo(){
+        base("Ludo Race","Playable KING Plus quick race • first to 30");ludoYou=0;ludoBot=0;status=label(ludoBoard(),18,0xffffd768,true);status.setGravity(Gravity.CENTER);page.addView(status,new LinearLayout.LayoutParams(-1,dp(150)));Button roll=action("🎲 Roll & Move");roll.setOnClickListener(v->ludoRoll());page.addView(roll,new LinearLayout.LayoutParams(-1,dp(60)));
+    }
+    private String raceBar(int n){int filled=Math.min(10,n/3);StringBuilder b=new StringBuilder();for(int i=0;i<10;i++)b.append(i<filled?"■":"□");return b.toString();}
+    private String ludoBoard(){return "YOU  "+raceBar(ludoYou)+"  "+ludoYou+"/30\n\nBOT  "+raceBar(ludoBot)+"  "+ludoBot+"/30";}
+    private void ludoRoll(){if(ludoYou>=30||ludoBot>=30)return;int you=1+random.nextInt(6),bot=1+random.nextInt(6);ludoYou=Math.min(30,ludoYou+you);ludoBot=Math.min(30,ludoBot+bot);status.setText(ludoBoard()+"\n\nYou rolled "+you+" • Bot "+bot+(ludoYou>=30?"\n🏆 YOU WIN":ludoBot>=30?"\nKING Bot wins":""));}
+
+    private void showSlot(){
+        base("Lucky Slot","Playable test-only party slot • no real money");status=label("🍒  ⭐  💎",34,0xffffd768,true);status.setGravity(Gravity.CENTER);page.addView(status,new LinearLayout.LayoutParams(-1,dp(120)));Button spin=action("Spin FREE");spin.setOnClickListener(v->{String[] a={"🍒","⭐","💎","👑","🍋"};String x=a[random.nextInt(a.length)],y=a[random.nextInt(a.length)],z=a[random.nextInt(a.length)];status.setText(x+"  "+y+"  "+z+"\n\n"+(x.equals(y)&&y.equals(z)?"JACKPOT ✨":"Try again"));});page.addView(spin,new LinearLayout.LayoutParams(-1,dp(60)));
+    }
+
+    private void showCoin(){
+        base("Coin Toss","Playable quick challenge");status=label("Choose Heads or Tails",22,0xffffd768,true);status.setGravity(Gravity.CENTER);page.addView(status,new LinearLayout.LayoutParams(-1,dp(100)));LinearLayout row=new LinearLayout(this);Button h=action("👑 Heads"),t=action("⭐ Tails");h.setOnClickListener(v->coinPick(true));t.setOnClickListener(v->coinPick(false));row.addView(h,new LinearLayout.LayoutParams(0,dp(58),1));LinearLayout.LayoutParams p=new LinearLayout.LayoutParams(0,dp(58),1);p.setMargins(dp(8),0,0,0);row.addView(t,p);page.addView(row);
+    }
+    private void coinPick(boolean heads){boolean result=random.nextBoolean();status.setText((result?"👑 HEADS":"⭐ TAILS")+"\n"+(result==heads?"You win ✨":"KING Bot wins"));}
+
+    private void showRps(){
+        base("Rock Paper Scissors","Real playable quick round");
+        status=label("Choose your move",19,0xffffd768,true);status.setGravity(Gravity.CENTER);page.addView(status,new LinearLayout.LayoutParams(-1,dp(58)));
+        String[] names={"✊ Rock","✋ Paper","✌ Scissors"};for(int i=0;i<3;i++){final int pick=i;Button b=action(names[i]);b.setOnClickListener(v->playRps(pick));LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(-1,dp(58));lp.setMargins(0,dp(7),0,0);page.addView(b,lp);}    }
+    private void playRps(int you){int bot=random.nextInt(3);String[] n={"Rock","Paper","Scissors"};String result=you==bot?"Draw":((you-bot+3)%3==1?"You win 👑":"KING Bot wins");status.setText("You: "+n[you]+" • Bot: "+n[bot]+"\n"+result);}
+
+    private void showDice(){
+        base("Dice Duel","Real playable dice challenge");
+        status=label("Tap Roll Dice",20,0xffffd768,true);status.setGravity(Gravity.CENTER);page.addView(status,new LinearLayout.LayoutParams(-1,dp(86)));
+        Button roll=action("🎲 Roll Dice");roll.setOnClickListener(v->{int you=1+random.nextInt(6),bot=1+random.nextInt(6);String r=you==bot?"Draw":you>bot?"You win 👑":"KING Bot wins";status.setText("You rolled "+you+" • Bot "+bot+"\n"+r);});page.addView(roll,new LinearLayout.LayoutParams(-1,dp(60)));
+    }
+
+    private void showGuess(){
+        base("Guess the Number","Real playable puzzle • 1 to 20");
+        final int target=1+random.nextInt(20);final boolean[] solved={false};status=label("I picked a number from 1 to 20",18,0xffffd768,true);page.addView(status,new LinearLayout.LayoutParams(-1,dp(58)));
+        EditText input=new EditText(this);input.setHint("Enter guess");input.setTextColor(Color.WHITE);input.setHintTextColor(0xff998eaa);input.setSingleLine(true);input.setInputType(android.text.InputType.TYPE_CLASS_NUMBER);input.setBackground(bg(CARD,16));input.setPadding(dp(14),0,dp(14),0);page.addView(input,new LinearLayout.LayoutParams(-1,dp(54)));
+        Button guess=action("Guess");guess.setOnClickListener(v->{try{if(solved[0])return;int g=Integer.parseInt(input.getText().toString().trim());if(g<1||g>20){Toast.makeText(this,"Enter a number 1–20",Toast.LENGTH_SHORT).show();return;}if(g==target){solved[0]=true;input.setEnabled(false);status.setText("Correct! 👑 Number was "+target);}else status.setText(g<target?"Too low • try higher":"Too high • try lower");}catch(Exception e){Toast.makeText(this,"Enter a number 1–20",Toast.LENGTH_SHORT).show();}});LinearL
