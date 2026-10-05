@@ -1,0 +1,82 @@
+name: Build KING Plus v8.6.6 Social Games
+on:
+  push:
+    branches: ['build/v8.6.6-social-games']
+    paths:
+      - '.github/workflows/apk-v866-social-games.yml'
+      - 'ci/v866/**'
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: build/v8.6.6-social-games
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+      - name: Recover v8.6.5 and apply synchronized social games
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          rm -rf /tmp/base /tmp/src /tmp/release /tmp/patch_social_games.py
+          mkdir -p /tmp/base /tmp/src
+          gh run download 37333275159 -n KING-Plus-v8.6.5-APK-and-source -D /tmp/base
+          unzip -q /tmp/base/KING-Plus-v8.6.5-source.zip -d /tmp/src
+          base64 -d ci/v866/patch_social_games.py.gz.b64 | gzip -d > /tmp/patch_social_games.py
+          python3 /tmp/patch_social_games.py /tmp/src
+          cp ci/v866/RELEASE-NOTES.md /tmp/src/RELEASE-NOTES-v8.6.6.md
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('/tmp/src/app/build.gradle')
+          s=p.read_text()
+          old="versionCode 124; versionName '8.6.5'"
+          if old not in s:
+              raise SystemExit('Expected v8.6.5 version line was not found')
+          p.write_text(s.replace(old,"versionCode 125; versionName '8.6.6'",1))
+          PY
+      - name: Verify v8.6.6 social-game markers
+        run: |
+          set -euo pipefail
+          R=/tmp/src/app/src/main/java/com/kingplus/social/RoomGameActivity.java
+          grep -F 'hiddenRoleControls866' "$R"
+          grep -F 'startSocialRound866' "$R"
+          grep -F 'DrawPad866' "$R"
+          grep -F 'Werewolf needs at least 4 ready players' "$R"
+          grep -F 'Spy Game needs at least 3 ready players' "$R"
+          grep -F "versionName '8.6.6'" /tmp/src/app/build.gradle
+      - name: Build Android APK
+        working-directory: /tmp/src
+        run: gradle :app:assembleDebug --no-daemon
+      - name: Package APK and source
+        working-directory: /tmp/src
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          import shutil,zipfile,hashlib
+          out=Path('/tmp/release');out.mkdir(parents=True,exist_ok=True)
+          apk=out/'KING-Plus-v8.6.6-social-games.apk'
+          shutil.copy2('app/build/outputs/apk/debug/app-debug.apk',apk)
+          (out/'SHA256.txt').write_text(hashlib.sha256(apk.read_bytes()).hexdigest()+'  '+apk.name+'\n')
+          with zipfile.ZipFile(out/'KING-Plus-v8.6.6-source.zip','w',zipfile.ZIP_DEFLATED) as z:
+              for p in Path('.').rglob('*'):
+                  if not p.is_file() or any(v in p.parts for v in ['.git','.gradle','build','node_modules']):continue
+                  if p.suffix in ['.apk','.zip','.log']:continue
+                  z.write(p,p)
+          shutil.copy2('RELEASE-NOTES-v8.6.6.md',out)
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: KING-Plus-v8.6.6-APK-and-source
+          path: /tmp/release/*
+          if-no-files-found: error
