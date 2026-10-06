@@ -48,11 +48,11 @@ new='''    private void heartbeat900(){
 assert old in s
 s=s.replace(old,new,1)
 
-old='''        new AlertDialog.Builder(this).setTitle(title).setMessage(detail+"\n\n"+hint)
+old='''        new AlertDialog.Builder(this).setTitle(title).setMessage(detail+"\\n\\n"+hint)
             .setPositiveButton("OK",null).setNeutralButton("Try Room Code",(d,w)->joinRoomByCode891()).show();
 '''
 new='''        KingStability.nonFatal(this,"party-join",e);
-        new AlertDialog.Builder(this).setTitle(title).setMessage(detail+"\n\n"+hint)
+        new AlertDialog.Builder(this).setTitle(title).setMessage(detail+"\\n\\n"+hint)
             .setPositiveButton("OK",null).setNeutralButton("Try Room Code",(d,w)->joinRoomByCode891()).show();
 '''
 assert old in s
