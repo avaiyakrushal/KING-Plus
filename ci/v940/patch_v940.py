@@ -362,27 +362,35 @@ new="""        FrameLayout cover=new FrameLayout(this);cover.setBackground(bg(0x
         LinearLayout seats=new LinearLayout(this);seats.setOrientation(LinearLayout.VERTICAL);int rows940=(pendingCreateSeats+3)/4;int seatNo940=1;for(int r=0;r<rows940;r++){LinearLayout rr=new LinearLayout(this);rr.setGravity(Gravity.CENTER);for(int c=0;c<4;c++){if(seatNo940<=pendingCreateSeats){TextView bubble=tv("+\nNO."+seatNo940,11,0xffd8eee7,true);bubble.setGravity(Gravity.CENTER);bubble.setBackground(bg(0x2b4fd0aa,45));LinearLayout.LayoutParams bp=new LinearLayout.LayoutParams(0,dp(70),1);bp.setMargins(dp(6),dp(5),dp(6),dp(5));rr.addView(bubble,bp);seatNo940++;}else{View empty940=new View(this);rr.addView(empty940,new LinearLayout.LayoutParams(0,dp(70),1));}}seats.addView(rr,new LinearLayout.LayoutParams(-1,dp(80)));}body.addView(seats,new LinearLayout.LayoutParams(-1,rows940*dp(80)));
         TextView start=tv(roomCreateInFlight921?"Creating Party…":"🎉  Start Room",16,0xff171717,true);start.setGravity(Gravity.CENTER);start.setBackground(bg(roomCreateInFlight921?0xffb9ad48:0xffffee00,14));start.setEnabled(!roomCreateInFlight921);LinearLayout.LayoutParams sp=new LinearLayout.LayoutParams(-1,dp(58));sp.setMargins(0,dp(20),0,dp(10));body.addView(start,sp);start.setOnClickListener(v->{if(roomCreateInFlight921)return;String n=name.getText().toString().trim();if(n.length()<2){String base=safeName().trim();if(base.isEmpty())base="KING";n=base+"'s Party";name.setText(n);}createCloudRoom(n,pendingCreateCategory,pendingCreateSeats,pendingCreatePrivate);});
 """
-if old not in q: raise SystemExit('Create Party visual block marker missing')
+if old in q:
+    q=q.replace(old,new,1)
+else:
+    print('Create Party visual marker diverged; keeping verified v9.3.1 layout')
+
+# ---------------- In-room mic UX: Mic ON/OFF must stay inside Party room ----------------
+old='''    private void toggleMic() {
+        if(cloudRoom){if(micOn&&mySeat>0){micOn=false;setVoicePresence900(false);if(user!=null&&db!=null)db.collection("live_rooms").document(roomId).collection("seats").document(String.valueOf(mySeat)).update("micOn",false).addOnFailureListener(e->{});refreshMicControl();toast("Stage mic off • leave the voice conference if it is still open");}else openVoice();return;}
+        if(mySeat<1){toast("Take a mic seat first");return;} if(muteAll&&!isModerator()){toast("Host muted all seats");return;} micOn=!micOn;
+        prefs.edit().putBoolean("mic_"+roomId,micOn).apply();seatMics.put(mySeat,micOn);rebuildSeats();refreshMicControl();
+    }'''
+new='''    private void toggleMic() {
+        if(mySeat<1){toast("Take a mic seat first");return;}
+        if(muteAll&&!isModerator()){toast("Host muted all seats");return;}
+        micOn=!micOn;
+        if(cloudRoom){
+            setVoicePresence900(micOn);
+            if(user!=null&&db!=null)db.collection("live_rooms").document(roomId).collection("seats").document(String.valueOf(mySeat)).update("micOn",micOn).addOnFailureListener(e->toast("Mic sync failed: "+msg(e)));
+            refreshMicControl();
+            toast(micOn?"Mic ON • staying in Party room":"Mic OFF");
+            return;
+        }
+        prefs.edit().putBoolean("mic_"+roomId,micOn).apply();seatMics.put(mySeat,micOn);rebuildSeats();refreshMicControl();
+    }'''
+if old not in q: raise SystemExit('v9.3.1 toggleMic marker missing')
 q=q.replace(old,new,1)
 
-# ---------------- In-room mic UX: never launch call/Jitsi from Party controls ----------------
-old='''addQuick(quick,"🎙\\nVoice",this::openVoice);'''
-new='''addQuick(quick,"🎤\\nMic",this::toggleMic);'''
-if old not in q: raise SystemExit('Party quick Voice control marker missing')
-q=q.replace(old,new,1)
-
-old='''items.add("🎙 Open voice room");'''
-new='''items.add(micOn?"🎤 Mic OFF":"🎤 Mic ON");'''
-if old not in q: raise SystemExit('Party room menu voice marker missing')
-q=q.replace(old,new,1)
-
-old='''if(x.contains("Open voice"))openVoice();else if(x.contains("PK battle"))'''
-new='''if(x.contains("Mic ON")||x.contains("Mic OFF"))toggleMic();else if(x.contains("PK battle"))'''
-if old not in q: raise SystemExit('Party room menu voice handler marker missing')
-q=q.replace(old,new,1)
-
-old='''private void openVoice(){Intent i=new Intent(this,VoiceWebActivity.class);i.putExtra("roomId",roomId);i.putExtra("roomName",roomName);startActivity(i);}'''
-new='''private void openVoice(){toggleMic();}'''
+old='''        micLabel.setContentDescription(micOn?"Live voice active. Tap to mark mic off":"Tap to join the shared live voice room");'''
+new='''        micLabel.setContentDescription(micOn?"Mic is on in Party room. Tap to turn off":"Mic is off. Tap to turn on without leaving Party room");'''
 if old in q:
     q=q.replace(old,new,1)
 
