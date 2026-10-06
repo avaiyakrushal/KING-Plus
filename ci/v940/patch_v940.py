@@ -3,7 +3,7 @@ import sys
 root=Path(sys.argv[1])
 pkg=root/'app/src/main/java/com/kingplus/social'
 (pkg/'KingLudoLobbyActivity.java').write_text(Path(__file__).with_name('KingLudoLobbyActivity.java').read_text())
-(pkg/'KingVipVisualActivity.java').write_text(Path(__file__).with_name('KingVipVisualActivity.java').read_text())
+(pkg/'KingVipVisualActivity.java').write_text(Path(__file__).with_name('KingVipVisualActivity.java').read_text())\n(pkg/'KingGiftArtView.java').write_text(Path(__file__).with_name('KingGiftArtView.java').read_text())
 
 manifest=root/'app/src/main/AndroidManifest.xml'
 m=manifest.read_text()
@@ -52,4 +52,25 @@ gp=pkg/'GamePlayActivity.java'
 s=gp.read_text()
 s=s.replace('''else if("ludo".equals(game)){startActivity(new android.content.Intent(this,OnlineLudoActivity.class));finish();}''','''else if("ludo".equals(game)){startActivity(new android.content.Intent(this,KingLudoLobbyActivity.class));finish();}''',1)
 gp.write_text(s)
+
+party=pkg/'PartyActivity.java'
+s=party.read_text()
+old='''            TextView icon=tv(unlocked?giftIcons[i]:"🔒",36,unlocked?Color.WHITE:0xff77727e,false);icon.setGravity(Gravity.CENTER);card.addView(icon,new LinearLayout.LayoutParams(-1,dp(45)));
+'''
+new='''            View icon;if(unlocked){icon=new KingGiftArtView(this,idx,giftNames[i]);}else{TextView locked=tv("🔒",31,0xff77727e,false);locked.setGravity(Gravity.CENTER);icon=locked;}card.addView(icon,new LinearLayout.LayoutParams(-1,dp(45)));
+'''
+if old not in s: raise SystemExit('gift icon marker missing')
+s=s.replace(old,new,1)
+
+old='''                fillEmojiGrid610(grid,pack,k==2||k==3?6:5,k<2);
+                for(int n=0;n<tabs.getChildCount();n++){View t=tabs.getChildAt(n);t.setBackgroundColor(n==k?0xfffff4a3:Color.WHITE);}
+'''
+new='''                fillEmojiGrid610(grid,pack,k==2||k==3?6:5,k<2);
+                if(k==1||k==2){TextView vipPack=tv("👑 VIP Exclusive Stickers  •  KING original pack",12,0xff765d00,true);vipPack.setGravity(Gravity.CENTER_VERTICAL);vipPack.setPadding(dp(10),0,dp(10),0);vipPack.setBackground(bg(0xfffff3c4,10));grid.addView(vipPack,0,new LinearLayout.LayoutParams(-1,dp(42)));}
+                for(int n=0;n<tabs.getChildCount();n++){View t=tabs.getChildAt(n);t.setBackgroundColor(n==k?0xfffff4a3:Color.WHITE);}
+'''
+if old not in s: raise SystemExit('emoji tab marker missing')
+s=s.replace(old,new,1)
+party.write_text(s)
+
 print('v9.4.0 parity batch 1 applied')
