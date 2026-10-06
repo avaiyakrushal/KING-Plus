@@ -301,4 +301,20 @@ if old not in q: raise SystemExit('wallet method marker missing')
 q=q.replace(old,new,1)
 deep.write_text(q)
 
+
+# ---------------- Public profile visual parity ----------------
+pub=pkg/'KingPublicProfileActivity.java'
+q=pub.read_text()
+old='''String frame=safe(p.getString("equippedFrame"),"Minimal Frame"),effect=safe(p.getString("entranceEffect"),"Welcome Sparkle"),bio=safe(p.getString("bio"),"KING Plus member"),tags=safe(p.getString("tags"),"");TextView hero=tv("👤  "+n+"\\nKING ID: "+publicId(uid)+"   •   Lv."+(lv==null?1:lv)+"   •   VIP "+(vip==null?0:vip),19,INK,true);hero.setBackground(bg(0xfffff0a5,18));hero.setPadding(dp(18),dp(14),dp(18),dp(14));body.addView(hero,new LinearLayout.LayoutParams(-1,dp(102)));'''
+new='''String frame=safe(p.getString("equippedFrame"),"Minimal Frame"),effect=safe(p.getString("entranceEffect"),"Welcome Sparkle"),bio=safe(p.getString("bio"),"KING Plus member"),tags=safe(p.getString("tags"),"");String photo=safe(p.getString("photoUrl"),"");LinearLayout profileHead=new LinearLayout(this);profileHead.setGravity(Gravity.CENTER_VERTICAL);profileHead.setPadding(dp(12),dp(10),dp(12),dp(10));profileHead.setBackground(bg(Color.WHITE,18));android.widget.FrameLayout avatar=new android.widget.FrameLayout(this);TextView fallback=tv(n.isEmpty()?"K":n.substring(0,1).toUpperCase(),28,Color.WHITE,true);fallback.setGravity(Gravity.CENTER);fallback.setBackground(bg(0xff8a63db,40));avatar.addView(fallback,new android.widget.FrameLayout.LayoutParams(-1,-1));android.widget.ImageView image=new android.widget.ImageView(this);image.setScaleType(android.widget.ImageView.ScaleType.CENTER_CROP);avatar.addView(image,new android.widget.FrameLayout.LayoutParams(-1,-1));if(!photo.isEmpty())loadProfilePhoto940(image,fallback,photo);profileHead.addView(avatar,new LinearLayout.LayoutParams(dp(82),dp(82)));LinearLayout idBlock=new LinearLayout(this);idBlock.setOrientation(LinearLayout.VERTICAL);idBlock.setPadding(dp(12),0,0,0);TextView nm=tv(n,20,INK,true);idBlock.addView(nm,new LinearLayout.LayoutParams(-1,dp(34)));TextView pid=tv("◇ ID: "+publicId(uid)+" ◇",12,MUTED,true);pid.setBackground(bg(0xfff2eff6,14));idBlock.addView(pid,new LinearLayout.LayoutParams(-1,dp(34)));TextView lvLine=tv("VIP "+(vip==null?0:vip)+"     Lv."+(lv==null?1:lv),12,PURPLE,true);idBlock.addView(lvLine,new LinearLayout.LayoutParams(-1,dp(30)));profileHead.addView(idBlock,new LinearLayout.LayoutParams(0,dp(88),1));body.addView(profileHead,new LinearLayout.LayoutParams(-1,dp(106)));TextView hero=tv("KING Plus profile • "+LevelSystem.levelTier((int)(long)(lv==null?1L:lv)),13,MUTED,true);hero.setGravity(Gravity.CENTER);hero.setBackground(bg(0xfffff0a5,14));body.addView(hero,new LinearLayout.LayoutParams(-1,dp(44)));'''
+if old not in q: raise SystemExit('public profile hero marker missing')
+q=q.replace(old,new,1)
+
+marker='''    private TextView action(String s){'''
+helpers='''    private void loadProfilePhoto940(android.widget.ImageView image,TextView fallback,String url){final String source=url;image.setTag(source);new Thread(()->{try{java.net.URLConnection c=new java.net.URL(source).openConnection();c.setConnectTimeout(7000);c.setReadTimeout(7000);try(java.io.InputStream in=c.getInputStream()){android.graphics.Bitmap bm=android.graphics.BitmapFactory.decodeStream(in);if(bm!=null)runOnUiThread(()->{if(!isFinishing()&&source.equals(image.getTag())){image.setImageBitmap(bm);fallback.setVisibility(android.view.View.GONE);}});}}catch(Exception ignored){}}).start();}
+'''
+if marker not in q: raise SystemExit('public profile action marker missing')
+q=q.replace(marker,helpers+marker,1)
+pub.write_text(q)
+
 print('v9.4.0 parity batch 1 applied')
