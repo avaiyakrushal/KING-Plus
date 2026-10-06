@@ -36,11 +36,9 @@ jobs:
           cp ci/v920/RELEASE-NOTES.md /tmp/src/RELEASE-NOTES-v9.2.0.md
           python3 - <<'PY'
           from pathlib import Path
-          p=Path('/tmp/src/app/build.gradle')
-          s=p.read_text()
+          p=Path('/tmp/src/app/build.gradle');s=p.read_text()
           old="versionCode 134; versionName '9.1.0'"
-          if old not in s:
-              raise SystemExit('Expected v9.1.0 version line not found')
+          if old not in s: raise SystemExit('Expected v9.1.0 version line not found')
           p.write_text(s.replace(old,"versionCode 135; versionName '9.2.0'",1))
           PY
       - name: Verify v9.2.0 markers
@@ -63,24 +61,20 @@ jobs:
         working-directory: /tmp/src
         run: |
           set -euo pipefail
-          mkdir -p /tmp/release
-          cp app/build/outputs/apk/debug/app-debug.apk /tmp/release/KING-Plus-v9.2.0-final-validation.apk
-          sha256sum /tmp/release/KING-Plus-v9.2.0-final-validation.apk > /tmp/release/SHA256.txt
-          unzip -t /tmp/release/KING-Plus-v9.2.0-final-validation.apk >/dev/null
           python3 - <<'PY'
           from pathlib import Path
-          import zipfile
-          with zipfile.ZipFile('/tmp/release/KING-Plus-v9.2.0-source.zip','w',zipfile.ZIP_DEFLATED) as z:
+          import shutil,zipfile,hashlib
+          out=Path('/tmp/release');out.mkdir(parents=True,exist_ok=True)
+          apk=out/'KING-Plus-v9.2.0-final-validation.apk'
+          shutil.copy2('app/build/outputs/apk/debug/app-debug.apk',apk)
+          (out/'SHA256.txt').write_text(hashlib.sha256(apk.read_bytes()).hexdigest()+'  '+apk.name+'\n')
+          with zipfile.ZipFile(out/'KING-Plus-v9.2.0-source.zip','w',zipfile.ZIP_DEFLATED) as z:
               for p in Path('.').rglob('*'):
-                  if not p.is_file() or any(v in p.parts for v in ['.git','.gradle','build','node_modules']):
-                      continue
-                  if p.suffix in ['.apk','.zip','.log']:
-                      continue
+                  if not p.is_file() or any(v in p.parts for v in ['.git','.gradle','build','node_modules']): continue
+                  if p.suffix in ['.apk','.zip','.log']: continue
                   z.write(p,p)
+          shutil.copy2('RELEASE-NOTES-v9.2.0.md',out)
           PY
-          cp RELEASE-NOTES-v9.2.0.md /tmp/release/
-          printf '%s
-' '# KING Plus v9.2.0 Validation' 'Build: SUCCESS' 'APK integrity: PASS' 'Two-phone Production Test Center: INCLUDED' 'External IAM/provider/signing blockers remain outside APK source.' > /tmp/release/VALIDATION-REPORT-v9.2.0.md
       - uses: actions/upload-artifact@v4
         with:
           name: KING-Plus-v9.2.0-APK-and-source
