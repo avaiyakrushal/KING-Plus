@@ -1,0 +1,116 @@
+name: Build KING Plus v9.2.0 Final Validation
+on:
+  push:
+    branches: ['build/v9.2.0-final-validation']
+    paths:
+      - '.github/workflows/apk-v920-final-validation.yml'
+      - 'ci/v920/**'
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: build/v9.2.0-final-validation
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+      - name: Recover v9.1.0 and apply final validation
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          rm -rf /tmp/base /tmp/src /tmp/release
+          mkdir -p /tmp/base /tmp/src
+          gh run download 37474465726 -n KING-Plus-v9.1.0-APK-and-source -D /tmp/base
+          unzip -q /tmp/base/KING-Plus-v9.1.0-source.zip -d /tmp/src
+          python3 ci/v920/patch_v920.py /tmp/src
+          cp ci/v920/RELEASE-NOTES.md /tmp/src/RELEASE-NOTES-v9.2.0.md
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('/tmp/src/app/build.gradle');s=p.read_text()
+          old="versionCode 134; versionName '9.1.0'"
+          if old not in s: raise SystemExit('Expected v9.1.0 version line not found')
+          p.write_text(s.replace(old,"versionCode 135; versionName '9.2.0'",1))
+          PY
+      - name: Verify v9.2.0 markers
+        run: |
+          set -euo pipefail
+          P=/tmp/src/app/src/main/java/com/kingplus/social/PartyActivity.java
+          T=/tmp/src/app/src/main/java/com/kingplus/social/KingProductionTestActivity.java
+          M=/tmp/src/app/src/main/AndroidManifest.xml
+          grep -F 'Production Test' "$P"
+          grep -F 'ackSyncTest920' "$P"
+          grep -F 'class KingProductionTestActivity' "$T"
+          grep -F 'Two-phone Ping' "$T"
+          grep -F 'Test Gift' "$T"
+          grep -F '.KingProductionTestActivity' "$M"
+          grep -F "versionName '9.2.0'" /tmp/src/app/build.gradle
+      - name: Build Android APK
+        working-directory: /tmp/src
+        run: gradle :app:assembleDebug --no-daemon
+      - name: APK smoke validation
+        working-directory: /tmp/src
+        run: |
+          set -euo pipefail
+          APK=app/build/outputs/apk/debug/app-debug.apk
+          test -s "$APK"
+          unzip -t "$APK" >/dev/null
+          sha256sum "$APK"
+          echo "APK_SIZE_BYTES=$(stat -c%s "$APK")" >> "$GITHUB_ENV"
+      - name: Package APK source and validation report
+        working-directory: /tmp/src
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          import shutil,zipfile,hashlib,os
+          out=Path('/tmp/release');out.mkdir(parents=True,exist_ok=True)
+          apk=out/'KING-Plus-v9.2.0-final-validation.apk'
+          shutil.copy2('app/build/outputs/apk/debug/app-debug.apk',apk)
+          sha=hashlib.sha256(apk.read_bytes()).hexdigest()
+          (out/'SHA256.txt').write_text(sha+'  '+apk.name+'\n')
+          report=f"""# KING Plus v9.2.0 validation report
+
+Build: SUCCESS
+Version: 9.2.0 (135)
+APK bytes: {apk.stat().st_size}
+APK SHA256: {sha}
+ZIP integrity smoke test: PASS
+
+In-app verification:
+- Two-phone presence/device count
+- Firestore room/membership/chat visibility
+- Realtime sync ping + automatic second-phone acknowledgement
+- Voice presence count / same Room-ID Jitsi entry
+- Test Gift / Test Emoji event delivery
+- Game ready/shared-state visibility
+- Public profile cloud presence
+
+External blockers:
+- Firebase IAM for Security Rules deployment
+- Meta/Facebook provider credentials
+- WhatsApp OTP provider/backend
+- Production signing / Play Console credentials
+"""
+          (out/'VALIDATION-REPORT-v9.2.0.md').write_text(report)
+          with zipfile.ZipFile(out/'KING-Plus-v9.2.0-source.zip','w',zipfile.ZIP_DEFLATED) as z:
+              for p in Path('.').rglob('*'):
+                  if not p.is_file() or any(v in p.parts for v in ['.git','.gradle','build','node_modules']): continue
+                  if p.suffix in ['.apk','.zip','.log']: continue
+                  z.write(p,p)
+          shutil.copy2('RELEASE-NOTES-v9.2.0.md',out)
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: KING-Plus-v9.2.0-APK-and-source
+          path: /tmp/release/*
+          if-no-files-found: error
