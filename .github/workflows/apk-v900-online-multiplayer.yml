@@ -1,0 +1,84 @@
+name: Build KING Plus v9.0.0 Online Multi-User Completion
+on:
+  push:
+    branches: ['build/v9.0.0-online-multiplayer-completion']
+    paths:
+      - '.github/workflows/apk-v900-online-multiplayer.yml'
+      - 'ci/v900/**'
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: build/v9.0.0-online-multiplayer-completion
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+      - name: Recover v8.9.1 and apply v9.0.0 online completion
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          rm -rf /tmp/base /tmp/src /tmp/release
+          mkdir -p /tmp/base /tmp/src
+          gh run download 37431668573 -n KING-Plus-v8.9.1-APK-and-source -D /tmp/base
+          unzip -q /tmp/base/KING-Plus-v8.9.1-source.zip -d /tmp/src
+          python3 ci/v900/patch_v900.py /tmp/src
+          cp ci/v900/RELEASE-NOTES.md /tmp/src/RELEASE-NOTES-v9.0.0.md
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('/tmp/src/app/build.gradle')
+          s=p.read_text()
+          old="versionCode 132; versionName '8.9.1'"
+          if old not in s:
+              raise SystemExit('Expected v8.9.1 version line not found')
+          p.write_text(s.replace(old,"versionCode 133; versionName '9.0.0'",1))
+          PY
+      - name: Verify v9.0.0 markers
+        run: |
+          set -euo pipefail
+          P=/tmp/src/app/src/main/java/com/kingplus/social/PartyActivity.java
+          G=/tmp/src/app/src/main/java/com/kingplus/social/RoomGameActivity.java
+          M=/tmp/src/app/src/main/java/com/kingplus/social/MainActivity.java
+          grep -F 'onlineDiagnostics900' "$P"
+          grep -F 'startHeartbeat900' "$P"
+          grep -F 'NativeMeetBridge.launch(this,roomId,roomName,safeName(),false)' "$P"
+          grep -F 'TEST room gift synced' "$P"
+          grep -F 'ensureMembership900' "$G"
+          grep -F 'UserProfileChangeRequest.Builder().setDisplayName' "$M"
+          grep -F "versionName '9.0.0'" /tmp/src/app/build.gradle
+      - name: Build Android APK
+        working-directory: /tmp/src
+        run: gradle :app:assembleDebug --no-daemon
+      - name: Package APK and source
+        working-directory: /tmp/src
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          import shutil,zipfile,hashlib
+          out=Path('/tmp/release');out.mkdir(parents=True,exist_ok=True)
+          apk=out/'KING-Plus-v9.0.0-online-multiplayer.apk'
+          shutil.copy2('app/build/outputs/apk/debug/app-debug.apk',apk)
+          (out/'SHA256.txt').write_text(hashlib.sha256(apk.read_bytes()).hexdigest()+'  '+apk.name+'\n')
+          with zipfile.ZipFile(out/'KING-Plus-v9.0.0-source.zip','w',zipfile.ZIP_DEFLATED) as z:
+              for p in Path('.').rglob('*'):
+                  if not p.is_file() or any(v in p.parts for v in ['.git','.gradle','build','node_modules']): continue
+                  if p.suffix in ['.apk','.zip','.log']: continue
+                  z.write(p,p)
+          shutil.copy2('RELEASE-NOTES-v9.0.0.md',out)
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: KING-Plus-v9.0.0-APK-and-source
+          path: /tmp/release/*
+          if-no-files-found: error
