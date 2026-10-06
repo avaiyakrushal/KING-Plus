@@ -1,0 +1,90 @@
+name: Build KING Plus v9.1.0 Final Completion
+on:
+  push:
+    branches: ['build/v9.1.0-final-completion']
+    paths:
+      - '.github/workflows/apk-v910-final-completion.yml'
+      - 'ci/v910/**'
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: build/v9.1.0-final-completion
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+      - name: Recover v9.0.0 and apply final-completion patch
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          rm -rf /tmp/base /tmp/src /tmp/release
+          mkdir -p /tmp/base /tmp/src
+          gh run download 37434088601 -n KING-Plus-v9.0.0-APK-and-source -D /tmp/base
+          unzip -q /tmp/base/KING-Plus-v9.0.0-source.zip -d /tmp/src
+          cat ci/v910/patch.part00 ci/v910/patch.part01 ci/v910/patch.part02 | tr -d '\r\n' | base64 -d | gzip -dc > /tmp/patch_v910.py
+          test "$(sha256sum /tmp/patch_v910.py | cut -d' ' -f1)" = "0d63465dc919e3f4d770db91d397a5046135eff843bf49ee77b536ae9d6b2706"
+          python3 /tmp/patch_v910.py /tmp/src
+          cp ci/v910/RELEASE-NOTES.md /tmp/src/RELEASE-NOTES-v9.1.0.md
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('/tmp/src/app/build.gradle')
+          s=p.read_text()
+          old="versionCode 133; versionName '9.0.0'"
+          if old not in s:
+              raise SystemExit('Expected v9.0.0 version line not found')
+          p.write_text(s.replace(old,"versionCode 134; versionName '9.1.0'",1))
+          PY
+      - name: Verify v9.1.0 markers
+        run: |
+          set -euo pipefail
+          M=/tmp/src/app/src/main/java/com/kingplus/social/MainActivity.java
+          P=/tmp/src/app/src/main/java/com/kingplus/social/PartyActivity.java
+          G=/tmp/src/app/src/main/java/com/kingplus/social/RoomGameActivity.java
+          E=/tmp/src/app/src/main/java/com/kingplus/social/KingEcosystemProActivity.java
+          H=/tmp/src/app/src/main/java/com/kingplus/social/KingParityHubActivity.java
+          grep -F 'chooseOtpMode910' "$M"
+          grep -F 'facebookLogin910' "$M"
+          grep -F 'VOICE_PERMISSION_REQUEST_910' "$P"
+          grep -F 'Gift synced' "$P"
+          grep -F 'Multiplayer connected •' "$G"
+          grep -F 'ktv_done' "$E"
+          grep -F 'finishPkRound910' "$E"
+          grep -F 'matchSearch910' "$H"
+          grep -F "versionName '9.1.0'" /tmp/src/app/build.gradle
+      - name: Build Android APK
+        working-directory: /tmp/src
+        run: gradle :app:assembleDebug --no-daemon
+      - name: Package APK and source
+        working-directory: /tmp/src
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          import shutil,zipfile,hashlib
+          out=Path('/tmp/release');out.mkdir(parents=True,exist_ok=True)
+          apk=out/'KING-Plus-v9.1.0-final-completion.apk'
+          shutil.copy2('app/build/outputs/apk/debug/app-debug.apk',apk)
+          (out/'SHA256.txt').write_text(hashlib.sha256(apk.read_bytes()).hexdigest()+'  '+apk.name+'\n')
+          with zipfile.ZipFile(out/'KING-Plus-v9.1.0-source.zip','w',zipfile.ZIP_DEFLATED) as z:
+              for p in Path('.').rglob('*'):
+                  if not p.is_file() or any(v in p.parts for v in ['.git','.gradle','build','node_modules']): continue
+                  if p.suffix in ['.apk','.zip','.log']: continue
+                  z.write(p,p)
+          shutil.copy2('RELEASE-NOTES-v9.1.0.md',out)
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: KING-Plus-v9.1.0-APK-and-source
+          path: /tmp/release/*
+          if-no-files-found: error
