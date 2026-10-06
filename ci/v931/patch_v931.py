@@ -22,20 +22,15 @@ new='''        if(roomPrivate&&!isOwner()) tryPrivateEntry();
 if old not in s: raise SystemExit('openCloudRoom marker missing')
 s=s.replace(old,new,1)
 
-old='''            if(oldDevice!=null&&!oldDevice.isEmpty()&&!oldDevice.equals(now)){
-                new AlertDialog.Builder(this).setTitle("Same KING account on another phone")
-                    .setMessage("This Google/Firebase account is already present in the room from another device. Two phones using the same account count as one KING user. To appear as two different people, sign in with two different Google accounts.\n\nContinue as the same KING user?")
-                    .setNegativeButton("Cancel",(d,w)->renderLobby("Hot"))
-                    .setPositiveButton("Continue", (d,w)->write.run()).show();
-            }else if(oldDoc!=null&&oldDoc.exists()) write.run();
-'''
-new='''            if(oldDevice!=null&&!oldDevice.isEmpty()&&!oldDevice.equals(now)){
+same_start=s.index('            if(oldDevice!=null&&!oldDevice.isEmpty()&&!oldDevice.equals(now)){')
+same_end=s.index('            else checkCrowdCapacity930(write);',same_start)
+same_new='''            if(oldDevice!=null&&!oldDevice.isEmpty()&&!oldDevice.equals(now)){
                 toast("Same KING account • syncing this phone");
                 write.run();
             }else if(oldDoc!=null&&oldDoc.exists()) write.run();
 '''
-if old not in s: raise SystemExit('same-account dialog marker missing')
-s=s.replace(old,new,1)
+s=s[:same_start]+same_new+s[same_end:]
+
 
 old='''        Map<String,Object> full=new HashMap<>();full.put("name",name);full.put("ownerUid",user.getUid());full.put("ownerName",safeName());if(user.getPhotoUrl()!=null)full.put("ownerPhoto",user.getPhotoUrl().toString());full.put("category",category);'''
 new='''        Map<String,Object> full=new HashMap<>();full.put("name",name);full.put("ownerUid",user.getUid());full.put("ownerName",safeName());String ownerPhoto931=cloudProfilePhoto868();if(ownerPhoto931.isEmpty()&&user.getPhotoUrl()!=null)ownerPhoto931=user.getPhotoUrl().toString();if(!ownerPhoto931.isEmpty())full.put("ownerPhoto",ownerPhoto931);full.put("category",category);'''
