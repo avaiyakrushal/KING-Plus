@@ -151,7 +151,7 @@ new='''            name.setSingleLine(true);name.setEllipsize(android.text.TextU
         }
         // Keep incomplete rows at four equal columns so cards never stretch larger than the others.
         if(row!=null&&col>0&&col<4){
-            for(int i=col;i<4;i++){View spacer=new View(this);LinearLayout.LayoutParams sp=new LinearLayout.LayoutParams(0,dp(110),1);sp.setMargins(dp(3),dp(3),dp(3),dp(3));row.addView(sp,sp);}
+            for(int i=col;i<4;i++){View spacer=new View(this);LinearLayout.LayoutParams sp=new LinearLayout.LayoutParams(0,dp(110),1);sp.setMargins(dp(3),dp(3),dp(3),dp(3));row.addView(spacer,sp);}
         }
     }
 '''
