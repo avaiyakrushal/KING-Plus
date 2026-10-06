@@ -127,17 +127,12 @@ game.write_text(g)
 
 # Production Test Center: validate crowd size separately from mic seats.
 t=test.read_text()
-t=t.replace('''/** Final production verification dashboard for two-phone room testing. */''','''/** Production verification dashboard for two-phone and crowd-room testing. */''',1)
-old='''            state("Two-phone presence",two,"members="+memberCount+" • online<60s="+onlineCount+" • unique devices="+deviceCount+"\n"+names);
-            state("Voice presence",voiceCount>=2,"voiceJoined="+voiceCount+" • both phones should tap Mic/Voice");
-'''
-new='''            state("Two-phone presence",two,"members="+memberCount+" • online<60s="+onlineCount+" • unique devices="+deviceCount+"\n"+names);
-            state("Crowd room capacity",memberCount<=100,"joined members="+memberCount+" • target capacity=100");
-            state("Voice presence",voiceCount>=2,"voiceJoined="+voiceCount+" • joined members may open shared room voice");
-'''
-if old not in t: raise SystemExit('production member state marker missing')
-t=t.replace(old,new,1)
-t=t.replace('''state("Multiplayer game backend",true,"Ready players="+readyCount+" • open Room Games on both phones");''','''state("Multiplayer game backend",true,"Ready players="+readyCount+" • group rounds support up to 50 ready players");''',1)
+t=t.replace('/** Final production verification dashboard for two-phone room testing. */','/** Production verification dashboard for two-phone and crowd-room testing. */',1)
+voice_old='            state("Voice presence",voiceCount>=2,"voiceJoined="+voiceCount+" • both phones should tap Mic/Voice");'
+voice_new='            state("Crowd room capacity",memberCount<=100,"joined members="+memberCount+" • target capacity=100");\\n            state("Voice presence",voiceCount>=2,"voiceJoined="+voiceCount+" • joined members may open shared room voice");'
+if voice_old not in t: raise SystemExit('production voice-state marker missing')
+t=t.replace(voice_old,voice_new,1)
+t=t.replace('state("Multiplayer game backend",true,"Ready players="+readyCount+" • open Room Games on both phones");','state("Multiplayer game backend",true,"Ready players="+readyCount+" • group rounds support up to 50 ready players");',1)
 test.write_text(t)
 
 print('v9.3.0 crowd-room multiplayer patch applied')
