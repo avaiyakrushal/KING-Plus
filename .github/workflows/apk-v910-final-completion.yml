@@ -44,6 +44,15 @@ jobs:
           s=s.replace('the Firebase OAuth redirect URI added in the Meta app.\n\nPackage: "+getPackageName()+"\nFirebase project: "+project+"\n\nThis build does not create a fake Facebook account.',
                       'the Firebase OAuth redirect URI added in the Meta app.\\n\\nPackage: "+getPackageName()+"\\nFirebase project: "+project+"\\n\\nThis build does not create a fake Facebook account.')
           p.write_text(s)
+          e=Path('/tmp/src/app/src/main/java/com/kingplus/social/KingEcosystemProActivity.java')
+          x=e.read_text()
+          x=x.replace('String result=red==blue?"Draw":red>blue?"Red wins":"Blue wins";Map<String,Object>state',
+                      'String result=red==blue?"Draw":red>blue?"Red wins":"Blue wins";final long redFinal=red,blueFinal=blue;Map<String,Object>state')
+          x=x.replace('ev.put("text","PK result • "+result+" • Red "+red+" vs Blue "+blue);ev.put("redScore",red);ev.put("blueScore",blue);',
+                      'ev.put("text","PK result • "+result+" • Red "+redFinal+" vs Blue "+blueFinal);ev.put("redScore",redFinal);ev.put("blueScore",blueFinal);')
+          x=x.replace('setMessage("🔴 "+red+"   VS   "+blue+" 🔵\\n\\n🏆 "+result)',
+                      'setMessage("🔴 "+redFinal+"   VS   "+blueFinal+" 🔵\\n\\n🏆 "+result)')
+          e.write_text(x)
           PY
           cp ci/v910/RELEASE-NOTES.md /tmp/src/RELEASE-NOTES-v9.1.0.md
           python3 - <<'PY'
