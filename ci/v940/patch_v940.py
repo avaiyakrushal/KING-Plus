@@ -7,6 +7,7 @@ pkg=root/'app/src/main/java/com/kingplus/social'
 (pkg/'KingGiftArtView.java').write_text(Path(__file__).with_name('KingGiftArtView.java').read_text())
 (pkg/'KingRoomCoverView.java').write_text(Path(__file__).with_name('KingRoomCoverView.java').read_text())
 (pkg/'KingGameArtView.java').write_text(Path(__file__).with_name('KingGameArtView.java').read_text())
+(pkg/'KingLoginBackdropView.java').write_text(Path(__file__).with_name('KingLoginBackdropView.java').read_text())
 
 manifest=root/'app/src/main/AndroidManifest.xml'
 m=manifest.read_text()
@@ -243,6 +244,46 @@ old='''        TextView art=new TextView(this);art.setText(icon);art.setTextSize
 new='''        KingGameArtView art=new KingGameArtView(this,playableCode730(game),title);card.addView(art,new LinearLayout.LayoutParams(-1,dp(86)));
 '''
 if old not in q: raise SystemExit('game card art marker missing')
+q=q.replace(old,new,1)
+main.write_text(q)
+
+
+# ---------------- Login premium visual parity ----------------
+main=pkg/'MainActivity.java'
+q=main.read_text()
+old='''        root.setBackgroundResource(R.drawable.login_background);
+        ImageView diamonds = new ImageView(this);
+        diamonds.setImageResource(R.drawable.diamond_art);
+        diamonds.setAlpha(0.42f);
+        android.widget.FrameLayout.LayoutParams art = new android.widget.FrameLayout.LayoutParams(dp(320), dp(320), Gravity.TOP | Gravity.CENTER_HORIZONTAL);
+        art.topMargin = dp(78);
+        root.addView(diamonds, art);
+        View shade = new View(this);
+        shade.setBackgroundColor(0x55000015);
+        root.addView(shade, new android.widget.FrameLayout.LayoutParams(-1, -1));
+'''
+new='''        root.setBackgroundColor(0xff0b1026);
+        KingLoginBackdropView backdrop940=new KingLoginBackdropView(this);
+        root.addView(backdrop940,new android.widget.FrameLayout.LayoutParams(-1,-1));
+        View shade = new View(this);
+        shade.setBackgroundColor(0x22000015);
+        root.addView(shade, new android.widget.FrameLayout.LayoutParams(-1, -1));
+'''
+if old not in q: raise SystemExit('login backdrop marker missing')
+q=q.replace(old,new,1)
+old='''        TextView heading = text("KING Plus", 31, Color.WHITE, true);
+        heading.setGravity(Gravity.CENTER);
+        TextView subtitle = text("Login or create your account", 15, MUTED, false);
+        subtitle.setGravity(Gravity.CENTER);
+        text("Welcome", 23, Color.WHITE, true);
+        text("Choose a sign-in method", 14, MUTED, false);
+'''
+new='''        TextView heading = text("KING Plus", 32, Color.WHITE, true);heading.setGravity(Gravity.CENTER);
+        TextView subtitle = text("Voice • Party • Games • Friends", 14, 0xffe9dcff, true);subtitle.setGravity(Gravity.CENTER);
+        TextView welcome940=text("Welcome to KING", 21, Color.WHITE, true);welcome940.setGravity(Gravity.CENTER);
+        TextView choose940=text("Choose a secure sign-in method", 13, 0xffd6c8e4, false);choose940.setGravity(Gravity.CENTER);
+'''
+if old not in q: raise SystemExit('login heading marker missing')
 q=q.replace(old,new,1)
 main.write_text(q)
 
