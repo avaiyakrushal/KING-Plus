@@ -311,7 +311,28 @@ if old not in q: raise SystemExit('public profile hero marker missing')
 q=q.replace(old,new,1)
 
 marker='''    private TextView action(String s){'''
-helpers='''    private void loadProfilePhoto940(android.widget.ImageView image,TextView fallback,String url){final String source=url;image.setTag(source);new Thread(()->{try{java.net.URLConnection c=new java.net.URL(source).openConnection();c.setConnectTimeout(7000);c.setReadTimeout(7000);try(java.io.InputStream in=c.getInputStream()){android.graphics.Bitmap bm=android.graphics.BitmapFactory.decodeStream(in);if(bm!=null)runOnUiThread(()->{if(!isFinishing()&&source.equals(image.getTag())){image.setImageBitmap(bm);fallback.setVisibility(android.view.View.GONE);}});}}catch(Exception ignored){}}).start();}
+helpers='''    private void loadProfilePhoto940(android.widget.ImageView image,TextView fallback,String url){
+        final String source=url;
+        image.setTag(source);
+        new Thread(() -> {
+            try {
+                java.net.URLConnection c=new java.net.URL(source).openConnection();
+                c.setConnectTimeout(7000);
+                c.setReadTimeout(7000);
+                try(java.io.InputStream in=c.getInputStream()){
+                    android.graphics.Bitmap bm=android.graphics.BitmapFactory.decodeStream(in);
+                    if(bm!=null){
+                        runOnUiThread(() -> {
+                            if(!isFinishing()&&source.equals(image.getTag())){
+                                image.setImageBitmap(bm);
+                                fallback.setVisibility(android.view.View.GONE);
+                            }
+                        });
+                    }
+                }
+            } catch(Exception ignored) { }
+        }).start();
+    }
 '''
 if marker not in q: raise SystemExit('public profile action marker missing')
 q=q.replace(marker,helpers+marker,1)
