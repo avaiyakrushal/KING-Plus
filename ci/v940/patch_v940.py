@@ -192,4 +192,38 @@ if old not in q: raise SystemExit('room card cover marker missing')
 q=q.replace(old,new,1)
 party.write_text(q)
 
+
+# ---------------- KTV / PK / Family / Rank presentation parity ----------------
+parity=pkg/'KingParityHubActivity.java'
+q=parity.read_text()
+old='''    private void hero(String a,String b){TextView h=tv(a+"\\n"+b,18,Color.WHITE,true);h.setGravity(Gravity.CENTER_VERTICAL);h.setBackground(bg(CARD,18));h.setPadding(dp(18),dp(16),dp(18),dp(16));LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(-1,-2);lp.setMargins(0,0,0,dp(12));body.addView(h,lp);}
+'''
+new='''    private void hero(String a,String b){TextView h=tv(a+"\\n"+b,18,Color.WHITE,true);h.setGravity(Gravity.CENTER_VERTICAL);h.setBackground(bg(CARD,18));h.setPadding(dp(18),dp(16),dp(18),dp(16));LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(-1,-2);lp.setMargins(0,0,0,dp(8));body.addView(h,lp);KingPresentationView visual=new KingPresentationView(this,route);LinearLayout.LayoutParams vp=new LinearLayout.LayoutParams(-1,dp(158));vp.setMargins(0,0,0,dp(12));body.addView(visual,vp);}
+'''
+if old not in q: raise SystemExit('parity hero marker missing')
+q=q.replace(old,new,1)
+old='''    private void openFamily(){openPro880("family");}
+'''
+new='''    private void openFamily(){hero("👑 Family Square","Family level • treasury • members • activity • family voice");card("👑","Open Family Pro","Family progress, treasury, member list and daily activity",()->openPro880("family"));card("💬","Family Chat","Open family community chat",()->{Intent i=new Intent(this,CommunityHubActivity.class);i.putExtra("tab","Family");startActivity(i);});card("🎙","Family Voice","Open Family Pro voice controls",()->openPro880("family"));}
+'''
+if old not in q: raise SystemExit('parity family marker missing')
+q=q.replace(old,new,1)
+old='''    private void vip(){hero("💎 VIP & Rank","VIP remains progression-based in this no-billing build. Levels come from real KING Plus activity.");'''
+new='''    private void vip(){startActivity(new Intent(this,KingVipVisualActivity.class));finish();if(true)return;/* legacy parity fallback */} private void vipLegacy940(){hero("💎 VIP & Rank","VIP remains progression-based in this no-billing build. Levels come from real KING Plus activity.");'''
+if old not in q: raise SystemExit('parity vip marker missing')
+q=q.replace(old,new,1)
+parity.write_text(q)
+
+eco=pkg/'KingEcosystemProActivity.java'
+q=eco.read_text()
+old='''LinearLayout.LayoutParams vp=new LinearLayout.LayoutParams(-1,dp(126));vp.setMargins(0,0,0,dp(10));body.addView(visual,vp);'''
+new='''LinearLayout.LayoutParams vp=new LinearLayout.LayoutParams(-1,dp(172));vp.setMargins(0,0,0,dp(12));body.addView(visual,vp);'''
+if old not in q: raise SystemExit('ecosystem hero visual marker missing')
+q=q.replace(old,new,1)
+old='''private void rankRow(int n,String name,String score,String uid){boolean top=n<=3;String medal=n==1?"🥇":n==2?"🥈":n==3?"🥉":"#"+n;TextView r=tv(medal+"   "+name+"\\n      "+score,top?15:14,Color.WHITE,true);'''
+new='''private void rankRow(int n,String name,String score,String uid){boolean top=n<=3;String medal=n==1?"🥇":n==2?"🥈":n==3?"🥉":"#"+n;TextView r=tv(medal+"   "+name+"\\n      "+score,top?17:14,Color.WHITE,true);'''
+if old not in q: raise SystemExit('rank row marker missing')
+q=q.replace(old,new,1)
+eco.write_text(q)
+
 print('v9.4.0 parity batch 1 applied')
