@@ -110,11 +110,11 @@ new='''        if(cloudRoom){if(micOn&&mySeat>0){micOn=false;setVoicePresence900
 if old not in s: raise SystemExit('toggleMic cloud marker missing')
 s=s.replace(old,new,1)
 
-# Diagnostics: expose crowd model.
-old='''String text="Firebase project: "+project+"\nRoom ID: "+roomId+"\nRoom Code: "+shortId()+"\nSigned in: YES\nRoom readable: "+(rd!=null&&rd.exists()?"YES":"NO")+"\nMembership: "+(md!=null&&md.exists()?"YES":"NO")+"\nMessages readable: YES\nMembers seen: "+liveMemberCount+"\nSeat: "+(mySeat>0?mySeat:"none")+"\n\nIf the second phone shows permission denied, Firestore Security Rules are still not deployed.";'''
-new='''String text="Firebase project: "+project+"\nRoom ID: "+roomId+"\nRoom Code: "+shortId()+"\nSigned in: YES\nRoom readable: "+(rd!=null&&rd.exists()?"YES":"NO")+"\nMembership: "+(md!=null&&md.exists()?"YES":"NO")+"\nMessages readable: YES\nMembers seen: "+liveMemberCount+"/"+maxMembers930+"\nStage seats: "+seatNames.size()+"/"+maxSeats+"\nMy seat: "+(mySeat>0?mySeat:"audience")+"\n\nIf another phone shows permission denied, Firestore Security Rules are still not deployed.";'''
-if old not in s: raise SystemExit('diagnostics text marker missing')
-s=s.replace(old,new,1)
+# Diagnostics: expose crowd model with a small escaped-string replacement.
+diag_old='Members seen: "+liveMemberCount+"\\nSeat: "+(mySeat>0?mySeat:"none")'
+diag_new='Members seen: "+liveMemberCount+"/"+maxMembers930+"\\nStage seats: "+seatNames.size()+"/"+maxSeats+"\\nMy seat: "+(mySeat>0?mySeat:"audience")'
+if diag_old not in s: raise SystemExit('diagnostics count marker missing')
+s=s.replace(diag_old,diag_new,1)
 
 party.write_text(s)
 
