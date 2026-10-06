@@ -32,7 +32,7 @@ new='''        composerBox=new EditText(this); composerBox.setHint("Type message
 if old not in s: raise SystemExit('composer block missing')
 s=s.replace(old,new,1)
 
-old='''    private void sendMessage(EditText box) {
+old=r'''    private void sendMessage(EditText box) {
         if(box==null)return;
         String text=box.getText()==null?"":box.getText().toString().trim();
         if(text.isEmpty())return;
@@ -55,7 +55,7 @@ old='''    private void sendMessage(EditText box) {
         }
     }
 '''
-new='''    private void sendMessage(EditText box) {
+new=r'''    private void sendMessage(EditText box) {
         if(box==null)return;
         String text=box.getText()==null?"":box.getText().toString().trim();
         if(text.isEmpty())return;
