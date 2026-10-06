@@ -126,8 +126,29 @@ helpers='''    private void clearCrossAccountIdentity931(String uid){
         else if("profile".equals(screen))profile();
     }
     private void loadRemoteAvatar931(ImageView image,TextView fallback,String url){
-        if(url==null||url.trim().isEmpty())return;final String source=url.trim();image.setTag(source);
-        new Thread(()->{try{java.net.URLConnection c=new java.net.URL(source).openConnection();c.setConnectTimeout(8000);c.setReadTimeout(8000);try(java.io.InputStream in=c.getInputStream()){android.graphics.BitmapFactory.Options o=new android.graphics.BitmapFactory.Options();o.inSampleSize=2;android.graphics.Bitmap bm=android.graphics.BitmapFactory.decodeStream(in,null,o);if(bm!=null)runOnUiThread(()->{if(!isFinishing()&&source.equals(image.getTag())){image.setImageBitmap(bm);if(fallback!=null)fallback.setVisibility(View.GONE);}});}}}catch(Exception ignored){}}).start();
+        if(url==null||url.trim().isEmpty())return;
+        final String source=url.trim();
+        image.setTag(source);
+        new Thread(() -> {
+            try {
+                java.net.URLConnection c=new java.net.URL(source).openConnection();
+                c.setConnectTimeout(8000);
+                c.setReadTimeout(8000);
+                try(java.io.InputStream in=c.getInputStream()){
+                    android.graphics.BitmapFactory.Options o=new android.graphics.BitmapFactory.Options();
+                    o.inSampleSize=2;
+                    android.graphics.Bitmap bm=android.graphics.BitmapFactory.decodeStream(in,null,o);
+                    if(bm!=null){
+                        runOnUiThread(() -> {
+                            if(!isFinishing()&&source.equals(image.getTag())){
+                                image.setImageBitmap(bm);
+                                if(fallback!=null)fallback.setVisibility(View.GONE);
+                            }
+                        });
+                    }
+                }
+            } catch(Exception ignored) { }
+        }).start();
     }
     private View profileAvatarView931(String localPhoto,String remotePhoto){
         FrameLayout box=new FrameLayout(this);TextView fallback=new TextView(this);fallback.setText("👑");fallback.setTextSize(39);fallback.setGravity(Gravity.CENTER);fallback.setBackground(background(0xffffefd1,44));box.addView(fallback,new FrameLayout.LayoutParams(-1,-1));
