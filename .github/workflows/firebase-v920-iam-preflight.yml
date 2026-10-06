@@ -1,0 +1,47 @@
+name: KING Plus v9.2.0 Firebase IAM Preflight
+on:
+  push:
+    branches: ['build/v9.2.0-final-validation']
+    paths:
+      - '.github/workflows/firebase-v920-iam-preflight.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  iam-preflight:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate credential and show service account
+        env:
+          FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_JSON }}
+        run: |
+          set -euo pipefail
+          test -n "$FIREBASE_SERVICE_ACCOUNT_JSON" || (echo "Missing FIREBASE_SERVICE_ACCOUNT_JSON" && exit 1)
+          EMAIL=$(printf '%s' "$FIREBASE_SERVICE_ACCOUNT_JSON" | jq -r '.client_email')
+          PROJECT=$(printf '%s' "$FIREBASE_SERVICE_ACCOUNT_JSON" | jq -r '.project_id')
+          echo "Service account: $EMAIL"
+          echo "Credential project: $PROJECT"
+          test "$PROJECT" = "king-plus-2f365"
+      - uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_JSON }}
+      - uses: google-github-actions/setup-gcloud@v2
+      - name: Test required Google permissions
+        run: |
+          set -euo pipefail
+          TOKEN=$(gcloud auth print-access-token)
+          RESP=$(curl -sS -X POST             -H "Authorization: Bearer $TOKEN"             -H "Content-Type: application/json"             "https://cloudresourcemanager.googleapis.com/v1/projects/king-plus-2f365:testIamPermissions"             -d '{"permissions":["serviceusage.services.get","firebase.projects.get","firebaserules.rulesets.create","firebaserules.releases.create"]}')
+          echo "$RESP" | jq .
+          for P in serviceusage.services.get firebaserules.rulesets.create firebaserules.releases.create; do
+            echo "$RESP" | jq -e --arg p "$P" '.permissions // [] | index($p) != null' >/dev/null || {
+              echo "::error::Missing IAM permission: $P"
+              exit 1
+            }
+          done
+      - name: Explain required roles
+        if: failure()
+        run: |
+          echo "The GitHub Firebase service account still lacks required Google Cloud IAM."
+          echo "At minimum it needs permissions covering serviceusage.services.get plus Firebase Rules creation/release."
+          echo "A project owner/admin must grant appropriate roles in Google Cloud IAM before Firestore rules can be deployed."
