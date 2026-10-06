@@ -4,7 +4,7 @@ on:
     branches: ['build/v9.4.0-full-parity-overhaul']
     paths:
       - '.github/workflows/verify-v940-parity.yml'
-      - 'ci/v940/**'
+      - 'ci/v940/TRIGGER'
   workflow_dispatch:
 permissions:
   contents: read
