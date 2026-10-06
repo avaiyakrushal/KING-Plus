@@ -3,7 +3,8 @@ import sys
 root=Path(sys.argv[1])
 pkg=root/'app/src/main/java/com/kingplus/social'
 (pkg/'KingLudoLobbyActivity.java').write_text(Path(__file__).with_name('KingLudoLobbyActivity.java').read_text())
-(pkg/'KingVipVisualActivity.java').write_text(Path(__file__).with_name('KingVipVisualActivity.java').read_text())\n(pkg/'KingGiftArtView.java').write_text(Path(__file__).with_name('KingGiftArtView.java').read_text())
+(pkg/'KingVipVisualActivity.java').write_text(Path(__file__).with_name('KingVipVisualActivity.java').read_text())
+(pkg/'KingGiftArtView.java').write_text(Path(__file__).with_name('KingGiftArtView.java').read_text())
 
 manifest=root/'app/src/main/AndroidManifest.xml'
 m=manifest.read_text()
