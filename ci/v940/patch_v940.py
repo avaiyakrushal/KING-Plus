@@ -364,6 +364,28 @@ new="""        FrameLayout cover=new FrameLayout(this);cover.setBackground(bg(0x
 """
 if old not in q: raise SystemExit('Create Party visual block marker missing')
 q=q.replace(old,new,1)
+
+# ---------------- In-room mic UX: never launch call/Jitsi from Party controls ----------------
+old='''addQuick(quick,"🎙\\nVoice",this::openVoice);'''
+new='''addQuick(quick,"🎤\\nMic",this::toggleMic);'''
+if old not in q: raise SystemExit('Party quick Voice control marker missing')
+q=q.replace(old,new,1)
+
+old='''items.add("🎙 Open voice room");'''
+new='''items.add(micOn?"🎤 Mic OFF":"🎤 Mic ON");'''
+if old not in q: raise SystemExit('Party room menu voice marker missing')
+q=q.replace(old,new,1)
+
+old='''if(x.contains("Open voice"))openVoice();else if(x.contains("PK battle"))'''
+new='''if(x.contains("Mic ON")||x.contains("Mic OFF"))toggleMic();else if(x.contains("PK battle"))'''
+if old not in q: raise SystemExit('Party room menu voice handler marker missing')
+q=q.replace(old,new,1)
+
+old='''private void openVoice(){Intent i=new Intent(this,VoiceWebActivity.class);i.putExtra("roomId",roomId);i.putExtra("roomName",roomName);startActivity(i);}'''
+new='''private void openVoice(){toggleMic();}'''
+if old in q:
+    q=q.replace(old,new,1)
+
 party.write_text(q)
 
 print('v9.4.0 parity batch 1 applied')
