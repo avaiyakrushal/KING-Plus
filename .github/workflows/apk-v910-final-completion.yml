@@ -35,6 +35,16 @@ jobs:
           cat ci/v910/patch.part00 ci/v910/patch.part01 ci/v910/patch.part02 | tr -d '\r\n' | base64 -d | gzip -dc > /tmp/patch_v910.py
           test "$(sha256sum /tmp/patch_v910.py | cut -d' ' -f1)" = "0d63465dc919e3f4d770db91d397a5046135eff843bf49ee77b536ae9d6b2706"
           python3 /tmp/patch_v910.py /tmp/src
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('/tmp/src/app/src/main/java/com/kingplus/social/MainActivity.java')
+          s=p.read_text()
+          s=s.replace('KING Plus will not fake a WhatsApp OTP.\n\nNumber: "+number+"\nUse REAL SMS OTP now, or FREE TEST OTP for no-SMS testing.',
+                      'KING Plus will not fake a WhatsApp OTP.\\n\\nNumber: "+number+"\\nUse REAL SMS OTP now, or FREE TEST OTP for no-SMS testing.')
+          s=s.replace('the Firebase OAuth redirect URI added in the Meta app.\n\nPackage: "+getPackageName()+"\nFirebase project: "+project+"\n\nThis build does not create a fake Facebook account.',
+                      'the Firebase OAuth redirect URI added in the Meta app.\\n\\nPackage: "+getPackageName()+"\\nFirebase project: "+project+"\\n\\nThis build does not create a fake Facebook account.')
+          p.write_text(s)
+          PY
           cp ci/v910/RELEASE-NOTES.md /tmp/src/RELEASE-NOTES-v9.1.0.md
           python3 - <<'PY'
           from pathlib import Path
