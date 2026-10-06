@@ -23,12 +23,25 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '8.9'
-      - name: Copy branch source and apply parity batch
+      - name: Recover verified v9.3.1 source with retry and apply parity batch
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          rm -rf /tmp/src
-          mkdir -p /tmp/src
-          rsync -a --delete --exclude '.git' ./ /tmp/src/
+          rm -rf /tmp/base /tmp/src
+          mkdir -p /tmp/base /tmp/src
+          ok=0
+          for attempt in 1 2 3 4; do
+            rm -rf /tmp/base/* /tmp/src/*
+            if gh run download 37492062823 -n KING-Plus-v9.3.1-APK-and-source -D /tmp/base; then
+              ok=1
+              break
+            fi
+            echo "v9.3.1 artifact download attempt $attempt failed; waiting before retry"
+            sleep $((attempt*30))
+          done
+          test "$ok" = "1" || (echo "Verified base source temporarily unavailable due GitHub artifact egress" && exit 1)
+          unzip -q /tmp/base/KING-Plus-v9.3.1-source.zip -d /tmp/src
           python3 ci/v940/patch_v940.py /tmp/src
           cp ci/v940/PARITY-MATRIX.md /tmp/src/PARITY-MATRIX-v9.4.0.md
           python3 - <<'PY'
