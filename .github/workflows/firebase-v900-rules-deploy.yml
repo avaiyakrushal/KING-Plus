@@ -1,0 +1,58 @@
+name: Deploy KING Plus v9.0.0 Firestore Rules
+on:
+  push:
+    branches: ['build/v9.0.0-online-multiplayer-completion']
+    paths:
+      - '.github/workflows/firebase-v900-rules-deploy.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  deploy-rules:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: build/v9.0.0-online-multiplayer-completion
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Validate Firebase production credential
+        env:
+          FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_JSON }}
+        run: |
+          set -euo pipefail
+          test -n "$FIREBASE_SERVICE_ACCOUNT_JSON" || (echo "Missing FIREBASE_SERVICE_ACCOUNT_JSON" && exit 1)
+          printf '%s' "$FIREBASE_SERVICE_ACCOUNT_JSON" | jq -e '.type=="service_account" and .project_id=="king-plus-2f365"' >/dev/null
+      - name: Download verified v9.0.0 source
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/v900 /tmp/v900src
+          gh run download 37434088601 -n KING-Plus-v9.0.0-APK-and-source -D /tmp/v900
+          unzip -q /tmp/v900/KING-Plus-v9.0.0-source.zip -d /tmp/v900src
+          grep -F "versionName '9.0.0'" /tmp/v900src/app/build.gradle
+          grep -F 'match /live_rooms/{roomId}' /tmp/v900src/firestore.rules
+          grep -F 'request.resource.data.joinCode.size() == 6' /tmp/v900src/firestore.rules
+      - name: Install Firebase CLI
+        run: npm install --global firebase-tools
+      - name: Prepare service-account credential
+        env:
+          FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_JSON }}
+        run: |
+          printf '%s' "$FIREBASE_SERVICE_ACCOUNT_JSON" > "$RUNNER_TEMP/firebase-service-account.json"
+          echo "GOOGLE_APPLICATION_CREDENTIALS=$RUNNER_TEMP/firebase-service-account.json" >> "$GITHUB_ENV"
+      - name: Deploy v9.0.0 Firestore rules
+        working-directory: /tmp/v900src
+        run: firebase deploy --project king-plus-2f365 --only firestore:rules --non-interactive
+      - name: IAM guidance if deployment is blocked
+        if: failure()
+        run: |
+          echo "Firestore rules deployment was blocked by Google IAM."
+          echo "Grant the configured service account Firebase Rules Admin: roles/firebaserules.admin"
+          echo "Then rerun this workflow."
+      - name: Remove temporary credential
+        if: always()
+        run: rm -f "$RUNNER_TEMP/firebase-service-account.json"
