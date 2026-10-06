@@ -1,0 +1,87 @@
+name: Build KING Plus v9.1.0 Production Completion
+on:
+  push:
+    branches: ['build/v9.1.0-production-completion']
+    paths:
+      - '.github/workflows/apk-v910-production-completion.yml'
+      - 'ci/v910/**'
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: build/v9.1.0-production-completion
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+      - name: Recover v9.0.0 and apply production completion
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          rm -rf /tmp/base /tmp/src /tmp/release
+          mkdir -p /tmp/base /tmp/src
+          gh run download 37434088601 -n KING-Plus-v9.0.0-APK-and-source -D /tmp/base
+          unzip -q /tmp/base/KING-Plus-v9.0.0-source.zip -d /tmp/src
+          cp ci/v910/KingStability.java /tmp/src/app/src/main/java/com/kingplus/social/KingStability.java
+          python3 ci/v910/patch_auth_stability.py /tmp/src
+          python3 ci/v910/patch_ecosystem.py /tmp/src
+          python3 ci/v910/patch_party_match.py /tmp/src
+          cp ci/v910/RELEASE-NOTES.md /tmp/src/RELEASE-NOTES-v9.1.0.md
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('/tmp/src/app/build.gradle');s=p.read_text()
+          old="versionCode 133; versionName '9.0.0'"
+          if old not in s: raise SystemExit('Expected v9.0.0 version line not found')
+          p.write_text(s.replace(old,"versionCode 134; versionName '9.1.0'",1))
+          PY
+      - name: Verify v9.1.0 markers
+        run: |
+          set -euo pipefail
+          M=/tmp/src/app/src/main/java/com/kingplus/social/MainActivity.java
+          P=/tmp/src/app/src/main/java/com/kingplus/social/PartyActivity.java
+          E=/tmp/src/app/src/main/java/com/kingplus/social/KingEcosystemProActivity.java
+          K=/tmp/src/app/src/main/java/com/kingplus/social/KingParityHubActivity.java
+          grep -F 'Real SMS OTP (Firebase)' "$M"
+          grep -F 'authDiagnostics910' "$M"
+          grep -F 'KingStability.install' "$M"
+          grep -F 'cleanupStaleRoom910' "$P"
+          grep -F 'finishKtvSong910' "$E"
+          grep -F 'finishPkRound910' "$E"
+          grep -F 'matchSearch910' "$K"
+          grep -F "versionName '9.1.0'" /tmp/src/app/build.gradle
+      - name: Build Android APK
+        working-directory: /tmp/src
+        run: gradle :app:assembleDebug --no-daemon
+      - name: Package APK and source
+        working-directory: /tmp/src
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          import shutil,zipfile,hashlib
+          out=Path('/tmp/release');out.mkdir(parents=True,exist_ok=True)
+          apk=out/'KING-Plus-v9.1.0-production-completion.apk'
+          shutil.copy2('app/build/outputs/apk/debug/app-debug.apk',apk)
+          (out/'SHA256.txt').write_text(hashlib.sha256(apk.read_bytes()).hexdigest()+'  '+apk.name+'\n')
+          with zipfile.ZipFile(out/'KING-Plus-v9.1.0-source.zip','w',zipfile.ZIP_DEFLATED) as z:
+              for p in Path('.').rglob('*'):
+                  if not p.is_file() or any(v in p.parts for v in ['.git','.gradle','build','node_modules']): continue
+                  if p.suffix in ['.apk','.zip','.log']: continue
+                  z.write(p,p)
+          shutil.copy2('RELEASE-NOTES-v9.1.0.md',out)
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: KING-Plus-v9.1.0-APK-and-source
+          path: /tmp/release/*
+          if-no-files-found: error
