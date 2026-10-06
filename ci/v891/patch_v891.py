@@ -88,7 +88,7 @@ helpers='''    private String deviceId891(){
             String now=deviceId891();
             if(oldDevice!=null&&!oldDevice.isEmpty()&&!oldDevice.equals(now)){
                 new AlertDialog.Builder(this).setTitle("Same KING account on another phone")
-                    .setMessage("This Google/Firebase account is already present in the room from another device. Two phones using the same account count as one KING user. To appear as two different people, sign in with two different Google accounts.\n\nContinue as the same KING user?")
+                    .setMessage("This Google/Firebase account is already present in the room from another device. Two phones using the same account count as one KING user. To appear as two different people, sign in with two different Google accounts.\\n\\nContinue as the same KING user?")
                     .setNegativeButton("Cancel",(d,w)->renderLobby("Hot"))
                     .setPositiveButton("Continue", (d,w)->write.run()).show();
             }else write.run();
@@ -99,7 +99,7 @@ helpers='''    private String deviceId891(){
         String hint=(lower.contains("permission")||lower.contains("denied"))
             ?"Firebase backend permission denied. The latest Firestore rules must be deployed to project king-plus-2f365."
             :"Check internet, sign-in and that both phones use the same KING Plus Firebase project.";
-        new AlertDialog.Builder(this).setTitle(title).setMessage(detail+"\n\n"+hint)
+        new AlertDialog.Builder(this).setTitle(title).setMessage(detail+"\\n\\n"+hint)
             .setPositiveButton("OK",null).setNeutralButton("Try Room Code",(d,w)->joinRoomByCode891()).show();
     }
     private void joinRoomByCode891(){
@@ -154,7 +154,7 @@ s=s.replace(old,new,1)
 
 old='''    private void shareRoom(){Intent s=new Intent(Intent.ACTION_SEND);s.setType("text/plain");s.putExtra(Intent.EXTRA_TEXT,"Join my KING Plus Party: "+roomName+" • Room ID "+shortId());startActivity(Intent.createChooser(s,"Share Party"));}
 '''
-new='''    private void shareRoom(){Intent s=new Intent(Intent.ACTION_SEND);s.setType("text/plain");String full=roomId==null?"":roomId;s.putExtra(Intent.EXTRA_TEXT,"Join my KING Plus Party: "+roomName+"\nRoom Code: "+shortId()+"\nKINGROOM:"+full+"\n\nOpen KING Plus → Party → menu → Join by Room ID / Code. Use a different Google account on each phone if you want two separate people.");startActivity(Intent.createChooser(s,"Share Party"));}
+new='''    private void shareRoom(){Intent s=new Intent(Intent.ACTION_SEND);s.setType("text/plain");String full=roomId==null?"":roomId;s.putExtra(Intent.EXTRA_TEXT,"Join my KING Plus Party: "+roomName+"\\nRoom Code: "+shortId()+"\\nKINGROOM:"+full+"\\n\\nOpen KING Plus → Party → menu → Join by Room ID / Code. Use a different Google account on each phone if you want two separate people.");startActivity(Intent.createChooser(s,"Share Party"));}
 '''
 if old not in s: raise SystemExit('shareRoom block missing')
 s=s.replace(old,new,1)
