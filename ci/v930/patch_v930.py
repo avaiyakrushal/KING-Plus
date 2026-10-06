@@ -129,7 +129,7 @@ game.write_text(g)
 t=test.read_text()
 t=t.replace('/** Final production verification dashboard for two-phone room testing. */','/** Production verification dashboard for two-phone and crowd-room testing. */',1)
 voice_old='            state("Voice presence",voiceCount>=2,"voiceJoined="+voiceCount+" • both phones should tap Mic/Voice");'
-voice_new='            state("Crowd room capacity",memberCount<=100,"joined members="+memberCount+" • target capacity=100");\\n            state("Voice presence",voiceCount>=2,"voiceJoined="+voiceCount+" • joined members may open shared room voice");'
+voice_new='            state("Crowd room capacity",memberCount<=100,"joined members="+memberCount+" • target capacity=100");\n            state("Voice presence",voiceCount>=2,"voiceJoined="+voiceCount+" • joined members may open shared room voice");'
 if voice_old not in t: raise SystemExit('production voice-state marker missing')
 t=t.replace(voice_old,voice_new,1)
 t=t.replace('state("Multiplayer game backend",true,"Ready players="+readyCount+" • open Room Games on both phones");','state("Multiplayer game backend",true,"Ready players="+readyCount+" • group rounds support up to 50 ready players");',1)
