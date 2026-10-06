@@ -23,17 +23,12 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '8.9'
-      - name: Recover verified v9.3.1 and apply parity batch
-        env:
-          GH_TOKEN: ${{ github.token }}
+      - name: Copy branch source and apply parity batch
         run: |
           set -euo pipefail
-          rm -rf /tmp/base /tmp/src
-          mkdir -p /tmp/base /tmp/src
-          gh run download 37492062823 -n KING-Plus-v9.3.1-APK-and-source -D /tmp/base
-          unzip -q /tmp/base/KING-Plus-v9.3.1-source.zip -d /tmp/src
-          cp ci/v940/KingLudoLobbyActivity.java /tmp/src/app/src/main/java/com/kingplus/social/
-          cp ci/v940/KingVipVisualActivity.java /tmp/src/app/src/main/java/com/kingplus/social/
+          rm -rf /tmp/src
+          mkdir -p /tmp/src
+          rsync -a --delete --exclude '.git' ./ /tmp/src/
           python3 ci/v940/patch_v940.py /tmp/src
           cp ci/v940/PARITY-MATRIX.md /tmp/src/PARITY-MATRIX-v9.4.0.md
           python3 - <<'PY'
