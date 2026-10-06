@@ -8,6 +8,7 @@ pkg=root/'app/src/main/java/com/kingplus/social'
 (pkg/'KingRoomCoverView.java').write_text(Path(__file__).with_name('KingRoomCoverView.java').read_text())
 (pkg/'KingGameArtView.java').write_text(Path(__file__).with_name('KingGameArtView.java').read_text())
 (pkg/'KingLoginBackdropView.java').write_text(Path(__file__).with_name('KingLoginBackdropView.java').read_text())
+(pkg/'KingWalletVisualActivity.java').write_text(Path(__file__).with_name('KingWalletVisualActivity.java').read_text())
 
 manifest=root/'app/src/main/AndroidManifest.xml'
 m=manifest.read_text()
@@ -16,6 +17,7 @@ needle='''        <activity android:name=".OnlineLudoActivity" android:exported=
 if needle not in m: raise SystemExit('manifest Ludo marker missing')
 m=m.replace(needle,'''        <activity android:name=".KingLudoLobbyActivity" android:exported="false" />
         <activity android:name=".KingVipVisualActivity" android:exported="false" />
+        <activity android:name=".KingWalletVisualActivity" android:exported="false" />
 '''+needle,1)
 manifest.write_text(m)
 
@@ -286,5 +288,17 @@ new='''        TextView heading = text("KING Plus", 32, Color.WHITE, true);headi
 if old not in q: raise SystemExit('login heading marker missing')
 q=q.replace(old,new,1)
 main.write_text(q)
+
+
+# ---------------- Wallet visual parity while retaining no-billing ----------------
+deep=pkg/'KingDeepFlowActivity.java'
+q=deep.read_text()
+old="""    private void wallet(){int coins=mainPrefs.getInt("coins",0);hero("💳 My Wallet","TEST / no-billing balance • 💎 "+coins);row("💎","Diamonds","Gift and room test balance","detail_diamonds");row("🫘","Beans / Income","Room contribution and gift income","detail_income");row("🧾","Transaction History","Local and room activity records","wallet_history");row("🎁","Gift Inventory","Backpack and free gifts","gift_center");row("🔐","Wallet Safety","Server-authoritative wallet guidance","detail_wallet_security");}
+"""
+new="""    private void wallet(){startActivity(new Intent(this,KingWalletVisualActivity.class));finish();}
+"""
+if old not in q: raise SystemExit('wallet method marker missing')
+q=q.replace(old,new,1)
+deep.write_text(q)
 
 print('v9.4.0 parity batch 1 applied')
