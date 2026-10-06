@@ -5,6 +5,7 @@ pkg=root/'app/src/main/java/com/kingplus/social'
 (pkg/'KingLudoLobbyActivity.java').write_text(Path(__file__).with_name('KingLudoLobbyActivity.java').read_text())
 (pkg/'KingVipVisualActivity.java').write_text(Path(__file__).with_name('KingVipVisualActivity.java').read_text())
 (pkg/'KingGiftArtView.java').write_text(Path(__file__).with_name('KingGiftArtView.java').read_text())
+(pkg/'KingRoomCoverView.java').write_text(Path(__file__).with_name('KingRoomCoverView.java').read_text())
 
 manifest=root/'app/src/main/AndroidManifest.xml'
 m=manifest.read_text()
@@ -171,5 +172,24 @@ helpers='''    private View recentFriends940(){
 if marker not in d: raise SystemExit('inbox helper marker missing')
 d=d.replace(marker,helpers+marker,1)
 inbox.write_text(d)
+
+
+# ---------------- Party lobby room-card visual parity ----------------
+party=pkg/'PartyActivity.java'
+q=party.read_text()
+old='''        FrameLayout cover=new FrameLayout(this);cover.setBackground(bg(cardColor,10));
+        ImageView img=new ImageView(this);img.setScaleType(ImageView.ScaleType.CENTER_CROP);cover.addView(img,new FrameLayout.LayoutParams(-1,-1));
+        TextView initial=tv(roomAvatarText(hostName,category),34,0xff4f3f4e,true);initial.setGravity(Gravity.CENTER);initial.setBackground(bg(0x33ffffff,0));cover.addView(initial,new FrameLayout.LayoutParams(-1,-1));
+        if(photoUrl!=null&&!photoUrl.trim().isEmpty())loadProfilePhoto(img,initial,photoUrl.trim());
+'''
+new='''        FrameLayout cover=new FrameLayout(this);cover.setBackground(bg(cardColor,10));
+        KingRoomCoverView art940=new KingRoomCoverView(this,category,name);cover.addView(art940,new FrameLayout.LayoutParams(-1,-1));
+        ImageView img=new ImageView(this);img.setScaleType(ImageView.ScaleType.CENTER_CROP);cover.addView(img,new FrameLayout.LayoutParams(-1,-1));
+        TextView initial=tv("",1,Color.TRANSPARENT,false);initial.setVisibility(View.GONE);cover.addView(initial,new FrameLayout.LayoutParams(1,1));
+        if(photoUrl!=null&&!photoUrl.trim().isEmpty())loadProfilePhoto(img,initial,photoUrl.trim());
+'''
+if old not in q: raise SystemExit('room card cover marker missing')
+q=q.replace(old,new,1)
+party.write_text(q)
 
 print('v9.4.0 parity batch 1 applied')
