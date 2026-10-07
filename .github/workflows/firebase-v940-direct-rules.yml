@@ -1,0 +1,96 @@
+name: Deploy KING Plus v9.4 Realtime Rules
+
+on:
+  push:
+    branches: ['build/v9.4.0-full-parity-overhaul']
+    paths:
+      - '.github/workflows/firebase-v940-direct-rules.yml'
+      - 'firestore.rules'
+      - 'storage.rules'
+      - 'ci/v940/FIREBASE_TRIGGER'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  deploy-rules:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: build/v9.4.0-full-parity-overhaul
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Validate production Firebase credential
+        env:
+          FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_JSON }}
+        run: |
+          set -euo pipefail
+          test -n "$FIREBASE_SERVICE_ACCOUNT_JSON" || (echo "Missing FIREBASE_SERVICE_ACCOUNT_JSON" && exit 1)
+          printf '%s' "$FIREBASE_SERVICE_ACCOUNT_JSON" | jq -e '.type=="service_account" and .project_id=="king-plus-2f365"' >/dev/null
+
+      - name: Verify v9.4 realtime rule markers
+        run: |
+          set -euo pipefail
+          grep -F 'match /ludo_matches/{matchCode}' firestore.rules
+          grep -F 'match /game_state/{stateId}' firestore.rules
+          grep -F 'match /game_ready/{playerUid}' firestore.rules
+          grep -F 'match /game_moves/{playerUid}' firestore.rules
+          grep -F 'match /game_votes/{playerUid}' firestore.rules
+          grep -F 'match /music_state/{stateId}' firestore.rules
+          grep -F 'match /public_profiles/{uid}' firestore.rules
+          grep -F 'match /families/{familyCode}' firestore.rules
+          grep -F 'match /relationships/{relationshipId}' firestore.rules
+          grep -F 'match /moments/{momentId}' firestore.rules
+          grep -F 'match /chat_media/{ownerUid}/{threadId}/{fileName}' storage.rules
+
+      - name: Install Admin SDK dependencies
+        run: npm install --prefix functions
+
+      - name: Prepare service-account credential
+        env:
+          FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_JSON }}
+        run: |
+          printf '%s' "$FIREBASE_SERVICE_ACCOUNT_JSON" > "$RUNNER_TEMP/firebase-service-account.json"
+          echo "GOOGLE_APPLICATION_CREDENTIALS=$RUNNER_TEMP/firebase-service-account.json" >> "$GITHUB_ENV"
+
+      - name: Release Firestore and Storage rules with Admin SDK
+        working-directory: functions
+        run: |
+          node <<'NODE'
+          const fs = require('fs');
+          const { initializeApp, applicationDefault } = require('firebase-admin/app');
+          const { getSecurityRules } = require('firebase-admin/security-rules');
+
+          initializeApp({
+            credential: applicationDefault(),
+            projectId: 'king-plus-2f365',
+            storageBucket: 'king-plus-2f365.firebasestorage.app'
+          });
+
+          (async () => {
+            const rules = getSecurityRules();
+            const firestore = fs.readFileSync('../firestore.rules', 'utf8');
+            const storage = fs.readFileSync('../storage.rules', 'utf8');
+
+            const firestoreRelease = await rules.releaseFirestoreRulesetFromSource(firestore);
+            console.log('Firestore rules released:', firestoreRelease.name);
+
+            const storageRelease = await rules.releaseStorageRulesetFromSource(
+              storage,
+              'king-plus-2f365.firebasestorage.app'
+            );
+            console.log('Storage rules released:', storageRelease.name);
+          })().catch(err => {
+            console.error(err);
+            process.exit(1);
+          });
+          NODE
+
+      - name: Remove temporary credential
+        if: always()
+        run: rm -f "$RUNNER_TEMP/firebase-service-account.json"
