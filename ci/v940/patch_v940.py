@@ -692,4 +692,47 @@ q=q.replace('''        else if(x.contains("KTV Stage"))openParity870("ktv");
 party.write_text(q)
 print('v9.4.0 functional Party feature routing applied')
 
+# Synced timed Audio PK state: same timer/scores for all room members.
+party=pkg/'PartyActivity.java'
+q=party.read_text()
+old='''    private void audioPkPanel700(){if(!cloudRoom||db==null){toast("Live room required");return;}db.collection("live_rooms").document(roomId).collection("events").orderBy("createdAt",Query.Direction.DESCENDING).limit(200).get().addOnSuccessListener(q->{long red=0,blue=0;int gifts=0;for(DocumentSnapshot e:q.getDocuments()){if(!"gift".equals(e.getString("type")))continue;Long raw=e.getLong("giftValue");long score=raw==null?0:Math.max(0,raw);String actor=e.getString("actorUid");Integer seat=null;if(actor!=null)for(Map.Entry<Integer,String>x:seatUids.entrySet())if(actor.equals(x.getValue())){seat=x.getKey();break;}if(seat!=null&&seat%2==0)red+=score;else if(seat!=null)blue+=score;else if((gifts%2)==0)red+=score;else blue+=score;gifts++;}String msg="🔴 Red "+compactNumber(red)+"\\n\\n🔵 Blue "+compactNumber(blue)+"\\n\\n"+(red==blue?"🤝 Draw":red>blue?"🏆 Red leads":"🏆 Blue leads");AlertDialog.Builder b=new AlertDialog.Builder(this).setTitle("⚔️ Audio PK").setMessage(msg).setPositiveButton("Refresh",(d,w)->audioPkPanel700()).setNegativeButton("Close",null);if(isModerator())b.setNeutralButton("Start PK",(d,w)->addEvent("audio_pk",safeName()+" started Audio PK ⚔️"));b.show();});}'''
+new='''    private void audioPkPanel700(){
+        if(!cloudRoom||db==null||roomId==null){toast("Live room required");return;}
+        DocumentReference state=db.collection("live_rooms").document(roomId).collection("game_state").document("audio_pk");
+        state.get().addOnSuccessListener(pk->{
+            boolean active=Boolean.TRUE.equals(pk.getBoolean("active"));
+            com.google.firebase.Timestamp started=pk.getTimestamp("startedAt");
+            Long durationRaw=pk.getLong("durationSec");long duration=durationRaw==null?180L:Math.max(30L,durationRaw);
+            long elapsed=started==null?0L:Math.max(0L,(System.currentTimeMillis()-started.toDate().getTime())/1000L);
+            long remain=Math.max(0L,duration-elapsed);
+            if(active&&remain<=0){active=false;if(isModerator())state.update("active",false,"endedAt",FieldValue.serverTimestamp()).addOnFailureListener(x->{});}
+            final boolean pkActive=active;final long pkRemain=remain;final com.google.firebase.Timestamp pkStarted=started;
+            db.collection("live_rooms").document(roomId).collection("events").orderBy("createdAt",Query.Direction.DESCENDING).limit(250).get().addOnSuccessListener(ev->{
+                long red=0,blue=0;int gifts=0;
+                for(DocumentSnapshot e:ev.getDocuments()){
+                    if(!"gift".equals(e.getString("type")))continue;
+                    com.google.firebase.Timestamp at=e.getTimestamp("createdAt");
+                    if(pkStarted!=null&&at!=null&&at.compareTo(pkStarted)<0)continue;
+                    Long raw=e.getLong("giftValue");long score=raw==null?0:Math.max(0,raw);
+                    String actor=e.getString("actorUid");Integer seat=null;
+                    if(actor!=null)for(Map.Entry<Integer,String>x:seatUids.entrySet())if(actor.equals(x.getValue())){seat=x.getKey();break;}
+                    if(seat!=null&&seat%2==0)red+=score;else if(seat!=null)blue+=score;else if((gifts%2)==0)red+=score;else blue+=score;gifts++;
+                }
+                String timer=pkActive?String.format(java.util.Locale.US,"%02d:%02d",pkRemain/60,pkRemain%60):"Not running";
+                String result=red==blue?"🤝 Draw":red>blue?"🏆 Red leads":"🏆 Blue leads";
+                String msg="⏱ "+timer+"\\n\\n🔴 Red  "+compactNumber(red)+"\\n\\n🔵 Blue  "+compactNumber(blue)+"\\n\\n"+result+"\\n\\nGifts in this PK: "+gifts;
+                AlertDialog.Builder b=new AlertDialog.Builder(this).setTitle("⚔️ Audio PK").setMessage(msg).setPositiveButton(pkActive?"Refresh":"Close",(d,w)->{if(pkActive)audioPkPanel700();}).setNegativeButton(pkActive?"Close":null,null);
+                if(isModerator()){
+                    if(pkActive)b.setNeutralButton("End PK",(d,w)->{Map<String,Object>end=new HashMap<>();end.put("active",false);end.put("endedAt",FieldValue.serverTimestamp());end.put("endedBy",user==null?"":user.getUid());state.set(end,SetOptions.merge()).addOnSuccessListener(v->{addEvent("audio_pk_end",safeName()+" ended Audio PK");audioPkPanel700();});});
+                    else b.setNeutralButton("Start 3 min PK",(d,w)->{Map<String,Object>start=new HashMap<>();start.put("active",true);start.put("durationSec",180);start.put("startedAt",FieldValue.serverTimestamp());start.put("startedBy",user==null?"":user.getUid());start.put("startedByName",safeName());state.set(start,SetOptions.merge()).addOnSuccessListener(v->{addEvent("audio_pk",safeName()+" started 3-minute Audio PK ⚔️");audioPkPanel700();}).addOnFailureListener(e->toast("PK start failed: "+msg(e)));});
+                }
+                b.show();
+            }).addOnFailureListener(e->toast("PK scores unavailable: "+msg(e)));
+        }).addOnFailureListener(e->toast("PK state unavailable: "+msg(e)));
+    }'''
+if old not in q: raise SystemExit('Audio PK base marker missing')
+q=q.replace(old,new,1)
+party.write_text(q)
+print('v9.4.0 synchronized timed Audio PK applied')
+
 print('v9.4.0 parity batch 1 applied')
