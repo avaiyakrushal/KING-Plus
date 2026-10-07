@@ -1948,7 +1948,7 @@ helpers='''    private void loadProfileVisitors940(String uid){
         firestore.collection("public_profiles").document(uid).collection("visitors").limit(100).get().addOnSuccessListener(s->{if(profileVisitorsChip940!=null)profileVisitorsChip940.setText("👣 Visitors "+s.size());}).addOnFailureListener(e->{if(profileVisitorsChip940!=null)profileVisitorsChip940.setText("👣 Visitors —");});
     }
     private void showProfileVisitors940(){
-        if(firestore==null||firebaseAuth==null||firebaseAuth.getCurrentUser()==null){toast("Sign in to view visitors");return;}
+        if(firestore==null||firebaseAuth==null||firebaseAuth.getCurrentUser()==null){Toast.makeText(this,"Sign in to view visitors",Toast.LENGTH_SHORT).show();return;}
         String uid=firebaseAuth.getCurrentUser().getUid();
         firestore.collection("public_profiles").document(uid).collection("visitors").orderBy("visitedAt",com.google.firebase.firestore.Query.Direction.DESCENDING).limit(50).get().addOnSuccessListener(snap->{
             if(snap.isEmpty()){new AlertDialog.Builder(this).setTitle("👣 Profile Visitors").setMessage("No profile visitors yet.").setPositiveButton("OK",null).show();return;}
