@@ -9,6 +9,7 @@ pkg=root/'app/src/main/java/com/kingplus/social'
 (pkg/'KingGameArtView.java').write_text(Path(__file__).with_name('KingGameArtView.java').read_text())
 (pkg/'KingLoginBackdropView.java').write_text(Path(__file__).with_name('KingLoginBackdropView.java').read_text())
 (pkg/'KingWalletVisualActivity.java').write_text(Path(__file__).with_name('KingWalletVisualActivity.java').read_text())
+(pkg/'KingWardrobeActivity.java').write_text(Path(__file__).with_name('KingWardrobeActivity.java').read_text())
 
 manifest=root/'app/src/main/AndroidManifest.xml'
 m=manifest.read_text()
@@ -18,6 +19,7 @@ if needle not in m: raise SystemExit('manifest Ludo marker missing')
 m=m.replace(needle,'''        <activity android:name=".KingLudoLobbyActivity" android:exported="false" />
         <activity android:name=".KingVipVisualActivity" android:exported="false" />
         <activity android:name=".KingWalletVisualActivity" android:exported="false" />
+        <activity android:name=".KingWardrobeActivity" android:exported="false" />
 '''+needle,1)
 manifest.write_text(m)
 
@@ -4822,5 +4824,16 @@ if marker not in q: raise SystemExit('Audio PK method marker missing for PK chal
 q=q.replace(marker,helper+marker,1)
 party.write_text(q)
 print('v9.4.0 secure cross-room PK challenge search applied')
+
+
+# Original KING Plus Wardrobe: expose cosmetics as a real equip flow from Collection.
+hub=pkg/'CommunityHubActivity.java'
+q=hub.read_text()
+old='''    private void collection(){LevelSystem.Snapshot s=LevelSystem.read(this);body.addView(tv("Collection Center",21,DARK,true));body.addView(tv("⭐ Normal Level  "+s.level+" / "+LevelSystem.MAX_LEVEL+"  • "+LevelSystem.levelTier(s.level)+"\nXP "+s.xp+" / "+s.nextLevelXp()+"\n\n💎 VIP "+s.vipLevel+" / "+LevelSystem.MAX_VIP+" • "+LevelSystem.vipName(s.vipLevel)+"\nVIP Points "+s.vipPoints+" / "+s.nextVipPoints(),15,DARK,true));body.addView(tv("Medals",16,DARK,true));String medals=(s.level>=10?"🏅 Rising Star  ":"")+(s.level>=30?"🎖 Elite Voice  ":"")+(s.vipLevel>=3?"💎 VIP Supporter  ":"")+(s.vipLevel>=8?"👑 Royal Patron":"");body.addView(tv(medals.isEmpty()?"Keep chatting, playing and gifting to unlock medals.":medals,14,MUTED,false));body.addView(tv("Backpack",16,DARK,true));SharedPreferences bp=getSharedPreferences("king_backpack",MODE_PRIVATE);String[] keys={"rose","heart","star","firework"},names={"Rose","Heart","Star","Firework"},icons={"🌹","💗","⭐","🎆"};for(int i=0;i<keys.length;i++)body.addView(tv(icons[i]+"  "+names[i]+"  ×"+bp.getInt(keys[i],0),14,DARK,true));TextView claim=button("🎁 Claim Daily Free Gift",()->claimDaily(bp));LinearLayout.LayoutParams cl=new LinearLayout.LayoutParams(-1,dp(48));cl.setMargins(0,dp(8),0,dp(8));body.addView(claim,cl);TextView party=button("Open Party • Use Backpack",()->KingNav.openRoot(this,0));body.addView(party,new LinearLayout.LayoutParams(-1,dp(48)));}'''
+new='''    private void collection(){LevelSystem.Snapshot s=LevelSystem.read(this);body.addView(tv("Collection Center",21,DARK,true));body.addView(tv("⭐ Normal Level  "+s.level+" / "+LevelSystem.MAX_LEVEL+"  • "+LevelSystem.levelTier(s.level)+"\nXP "+s.xp+" / "+s.nextLevelXp()+"\n\n💎 VIP "+s.vipLevel+" / "+LevelSystem.MAX_VIP+" • "+LevelSystem.vipName(s.vipLevel)+"\nVIP Points "+s.vipPoints+" / "+s.nextVipPoints(),15,DARK,true));TextView wardrobe=button("👗 Open Wardrobe • Frames & Entrance Effects",()->startActivity(new Intent(this,KingWardrobeActivity.class)));LinearLayout.LayoutParams wp=new LinearLayout.LayoutParams(-1,dp(50));wp.setMargins(0,dp(8),0,dp(6));body.addView(wardrobe,wp);body.addView(tv("Medals",16,DARK,true));String medals=(s.level>=10?"🏅 Rising Star  ":"")+(s.level>=30?"🎖 Elite Voice  ":"")+(s.vipLevel>=3?"💎 VIP Supporter  ":"")+(s.vipLevel>=8?"👑 Royal Patron":"");body.addView(tv(medals.isEmpty()?"Keep chatting, playing and gifting to unlock medals.":medals,14,MUTED,false));body.addView(tv("Backpack",16,DARK,true));SharedPreferences bp=getSharedPreferences("king_backpack",MODE_PRIVATE);String[] keys={"rose","heart","star","firework"},names={"Rose","Heart","Star","Firework"},icons={"🌹","💗","⭐","🎆"};for(int i=0;i<keys.length;i++)body.addView(tv(icons[i]+"  "+names[i]+"  ×"+bp.getInt(keys[i],0),14,DARK,true));TextView claim=button("🎁 Claim Daily Free Gift",()->claimDaily(bp));LinearLayout.LayoutParams cl=new LinearLayout.LayoutParams(-1,dp(48));cl.setMargins(0,dp(8),0,dp(8));body.addView(claim,cl);TextView party=button("Open Party • Use Backpack",()->KingNav.openRoot(this,0));body.addView(party,new LinearLayout.LayoutParams(-1,dp(48)));}'''
+if old not in q: raise SystemExit('Collection Center marker missing for Wardrobe')
+q=q.replace(old,new,1)
+hub.write_text(q)
+print('v9.4.0 Wardrobe equip flow wired')
 
 print('v9.4.0 parity batch 1 applied')
