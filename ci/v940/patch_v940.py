@@ -3289,4 +3289,43 @@ q=q.replace(marker,helper+marker,1)
 main.write_text(q)
 print('v9.4.0 global crash diagnostic surfacing applied')
 
+
+# App-wide synchronous UI action guards for the most-used Main and Party surfaces.
+main=pkg/'MainActivity.java'
+q=main.read_text()
+q=q.replace('''        page.addView(b, p); b.setOnClickListener(v -> action.run());''',
+'''        page.addView(b,p);b.setOnClickListener(v->safeUiAction940("main-button:"+title,action));''')
+q=q.replace('''        if(action!=null) card.setOnClickListener(v->action.run()); return a;''',
+'''        if(action!=null)card.setOnClickListener(v->safeUiAction940("main-card:"+title,action));return a;''')
+marker='''    private void button(String title, int color, Runnable action) {'''
+helper='''    private void safeUiAction940(String area,Runnable action){
+        try{if(action!=null)action.run();}
+        catch(Throwable e){KingStability.nonFatal(this,area,e);if(!isFinishing()&&!isDestroyed())Toast.makeText(this,"This action could not open safely. Please try again.",Toast.LENGTH_LONG).show();}
+    }
+'''
+if marker not in q: raise SystemExit('Main button marker missing for safe action helper')
+q=q.replace(marker,helper+marker,1)
+main.write_text(q)
+
+party=pkg/'PartyActivity.java'
+q=party.read_text()
+q=q.replace('''        if (action != null) v.setOnClickListener(x -> action.run()); return v;''',
+'''        if(action!=null)v.setOnClickListener(x->safePartyAction940("party-pill:"+text,action));return v;''')
+q=q.replace('''        card.setOnClickListener(v -> action.run()); LinearLayout.LayoutParams p = new LinearLayout.LayoutParams(-1,dp(72)); p.setMargins(0,dp(5),0,dp(5)); host.addView(card,p);''',
+'''        card.setOnClickListener(v->safePartyAction940("party-room-card:"+title,action));LinearLayout.LayoutParams p=new LinearLayout.LayoutParams(-1,dp(72));p.setMargins(0,dp(5),0,dp(5));host.addView(card,p);''')
+q=q.replace('''        card.setOnClickListener(v -> action.run());''',
+'''        card.setOnClickListener(v->safePartyAction940("party-card:"+title,action));''',1)
+q=q.replace('''        v.setOnClickListener(x->action.run());''',
+'''        v.setOnClickListener(x->safePartyAction940("party-quick:"+text,action));''')
+marker='''    private TextView pill(String text, int color, Runnable action) {'''
+helper='''    private void safePartyAction940(String area,Runnable action){
+        try{if(action!=null)action.run();}
+        catch(Throwable e){KingStability.nonFatal(this,area,e);if(!isFinishing()&&!isDestroyed())Toast.makeText(this,"Party action could not open safely. Try again.",Toast.LENGTH_LONG).show();}
+    }
+'''
+if marker not in q: raise SystemExit('Party pill marker missing for safe action helper')
+q=q.replace(marker,helper+marker,1)
+party.write_text(q)
+print('v9.4.0 Main and Party safe action guards applied')
+
 print('v9.4.0 parity batch 1 applied')
