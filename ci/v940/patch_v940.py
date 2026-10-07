@@ -3987,4 +3987,64 @@ q=q.replace(marker,helpers+marker,1)
 party.write_text(q)
 print('v9.4.0 persistent Channel profile parity applied')
 
+
+# Bolo-reference parity: real Chat Bubble cosmetics in Dress/Privilege Shop and chats.
+cos=pkg/'KingCosmetics.java'
+q=cos.read_text()
+old='''    public static final String[] EFFECTS={"None","Welcome Sparkle","Crown Drop","Rose Shower","Galaxy Portal","Royal Arrival"};'''
+new='''    public static final String[] EFFECTS={"None","Welcome Sparkle","Crown Drop","Rose Shower","Galaxy Portal","Royal Arrival"};
+    public static final String[] BUBBLES={"Classic Purple","Rose Bubble","Ocean Bubble","Royal Gold","Galaxy Bubble"};'''
+if old not in q: raise SystemExit('KingCosmetics effects marker missing for chat bubbles')
+q=q.replace(old,new,1)
+old='''    public static void setEffect(Context c,String v){p(c).edit().putString("effect",v).apply();if(c instanceof Activity)((Activity)c).getPreferences(0).edit().putString("equipped_effect",v).apply();}'''
+new='''    public static void setEffect(Context c,String v){p(c).edit().putString("effect",v).apply();if(c instanceof Activity)((Activity)c).getPreferences(0).edit().putString("equipped_effect",v).apply();}
+    public static String bubble(Context c){String v=p(c).getString("bubble","Classic Purple");return v==null||v.isEmpty()?"Classic Purple":v;}
+    public static void setBubble(Context c,String v){p(c).edit().putString("bubble",v).apply();}
+    public static boolean unlockedBubble(String name,LevelSystem.Snapshot s){if("Classic Purple".equals(name))return true;if("Rose Bubble".equals(name))return s.level>=5;if("Ocean Bubble".equals(name))return s.level>=10;if("Royal Gold".equals(name))return s.vipLevel>=4;if("Galaxy Bubble".equals(name))return s.vipLevel>=7;return false;}
+    public static String requirementBubble(String name){if("Classic Purple".equals(name))return "Free";if("Rose Bubble".equals(name))return "Lv.5";if("Ocean Bubble".equals(name))return "Lv.10";if("Royal Gold".equals(name))return "VIP 4";if("Galaxy Bubble".equals(name))return "VIP 7";return "Locked";}
+    public static int bubbleColor(String name){if("Rose Bubble".equals(name))return 0xffe75891;if("Ocean Bubble".equals(name))return 0xff2788b8;if("Royal Gold".equals(name))return 0xffc28a19;if("Galaxy Bubble".equals(name))return 0xff593996;return 0xff7146ec;}
+    public static int bubbleMetaColor(String name){if("Royal Gold".equals(name))return 0xfffff0c2;return 0xffeee7ff;}'''
+if old not in q: raise SystemExit('KingCosmetics setEffect marker missing for chat bubbles')
+q=q.replace(old,new,1)
+cos.write_text(q)
+
+deep=pkg/'KingDeepFlowActivity.java'
+q=deep.read_text()
+old='''for(String e:eff)row(KingCosmetics.effectEmoji(e),e,"Required: "+KingCosmetics.requirementEffect(e),()->equipEffect(e));}'''
+new='''for(String e:eff)row(KingCosmetics.effectEmoji(e),e,"Required: "+KingCosmetics.requirementEffect(e),()->equipEffect(e));section("Chat Bubbles");for(String b:KingCosmetics.BUBBLES)row("💬",b,"Required: "+KingCosmetics.requirementBubble(b),()->equipBubble940(b));}'''
+if old not in q: raise SystemExit('Privilege Shop entrance marker missing for chat bubbles')
+q=q.replace(old,new,1)
+marker='''    private void syncCosmetics(){'''
+helper='''    private void equipBubble940(String b){if(!KingCosmetics.unlockedBubble(b,LevelSystem.read(this))){toast("Locked • "+KingCosmetics.requirementBubble(b));return;}KingCosmetics.setBubble(this,b);syncCosmetics();toast(b+" chat bubble equipped");}
+'''
+if marker not in q: raise SystemExit('syncCosmetics marker missing for bubble helper')
+q=q.replace(marker,helper+marker,1)
+old='''m.put("entranceEffect",KingCosmetics.effect(this));m.put("updatedAt",FieldValue.serverTimestamp());'''
+new='''m.put("entranceEffect",KingCosmetics.effect(this));m.put("chatBubble",KingCosmetics.bubble(this));m.put("updatedAt",FieldValue.serverTimestamp());'''
+if old not in q: raise SystemExit('syncCosmetics fields marker missing for bubble')
+q=q.replace(old,new,1)
+deep.write_text(q)
+
+chat=pkg/'ChatActivity.java'
+q=chat.read_text()
+old='''        LinearLayout bubble = new LinearLayout(this); bubble.setOrientation(LinearLayout.VERTICAL); bubble.setPadding(dp(12), dp(8), dp(12), dp(7)); bubble.setBackground(bg("gift".equals(type)?0xfffff2c7:(mine ? PURPLE : Color.WHITE), 18));'''
+new='''        String ownBubble940=KingCosmetics.bubble(this);int ownBubbleColor940=KingCosmetics.bubbleColor(ownBubble940);
+        LinearLayout bubble = new LinearLayout(this); bubble.setOrientation(LinearLayout.VERTICAL); bubble.setPadding(dp(12), dp(8), dp(12), dp(7)); bubble.setBackground(bg("gift".equals(type)?0xfffff2c7:(mine ? ownBubbleColor940 : Color.WHITE), 18));'''
+if old not in q: raise SystemExit('Chat bubble background marker missing')
+q=q.replace(old,new,1)
+old='''String meta = DateFormat.getTimeInstance(DateFormat.SHORT).format(when) + (mine ? (seen ? "  ✓✓" : "  ✓") : ""); TextView time = label(meta, 10, "gift".equals(type)?0xff8a7756:(mine ? 0xffe4dcff : 0xff96909f), false);'''
+new='''String meta = DateFormat.getTimeInstance(DateFormat.SHORT).format(when) + (mine ? (seen ? "  ✓✓" : "  ✓") : ""); TextView time = label(meta, 10, "gift".equals(type)?0xff8a7756:(mine ? KingCosmetics.bubbleMetaColor(ownBubble940) : 0xff96909f), false);'''
+if old not in q: raise SystemExit('Chat bubble meta marker missing')
+q=q.replace(old,new,1)
+chat.write_text(q)
+
+party=pkg/'PartyActivity.java'
+q=party.read_text()
+old='''card.setPadding(dp(10),dp(6),dp(10),dp(7));boolean giftMessage=text!=null&&text.contains("🎁")&&(text.contains(" sent ")||text.contains("Gift"));card.setBackground(bg(giftMessage?0x55b78925:0x20ffffff,12));'''
+new='''card.setPadding(dp(10),dp(6),dp(10),dp(7));boolean giftMessage=text!=null&&text.contains("🎁")&&(text.contains(" sent ")||text.contains("Gift"));boolean mineBubble940=who!=null&&who.equals(safeName());int partyBubble940=mineBubble940?KingCosmetics.bubbleColor(KingCosmetics.bubble(this)):0x20ffffff;card.setBackground(bg(giftMessage?0x55b78925:partyBubble940,12));'''
+if old not in q: raise SystemExit('Party chat background marker missing for bubble cosmetic')
+q=q.replace(old,new,1)
+party.write_text(q)
+print('v9.4.0 real Chat Bubble cosmetic parity applied')
+
 print('v9.4.0 parity batch 1 applied')
