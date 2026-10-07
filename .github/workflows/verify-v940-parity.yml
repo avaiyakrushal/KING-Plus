@@ -150,3 +150,13 @@ jobs:
             fi
           done
           exit 1
+      - name: Prepare current test APK
+        run: |
+          cp /tmp/src/app/build/outputs/apk/debug/app-debug.apk /tmp/KING-Plus-v9.4.0-current-test.apk
+      - name: Upload current test APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: KING-Plus-v9.4.0-current-test
+          path: /tmp/KING-Plus-v9.4.0-current-test.apk
+          if-no-files-found: error
+          retention-days: 7
