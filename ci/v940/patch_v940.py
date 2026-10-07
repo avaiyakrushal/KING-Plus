@@ -3191,4 +3191,24 @@ q=q.replace(marker,helper+marker,1)
 main.write_text(q)
 print('v9.4.0 startup crash recovery hardening applied')
 
+
+# Startup service hardening: optional FCM/profile restore must never kill the launcher Activity.
+main=pkg/'MainActivity.java'
+q=main.read_text()
+
+old='''        PushNotifications.initialize(this);'''
+new='''        try{PushNotifications.initialize(this);}catch(Throwable pushInit940){KingStability.nonFatal(this,"push-init",pushInit940);}'''
+if old not in q: raise SystemExit('PushNotifications initialize marker missing')
+q=q.replace(old,new,1)
+
+old='''            PushNotifications.refreshToken();
+            restoreCanonicalGoogleProfile931(signedInUser, displayName, false);'''
+new='''            try{PushNotifications.refreshToken();}catch(Throwable pushToken940){KingStability.nonFatal(this,"push-token",pushToken940);}
+            try{restoreCanonicalGoogleProfile931(signedInUser,displayName,false);}catch(Throwable identity940){KingStability.nonFatal(this,"identity-restore",identity940);}'''
+if old not in q: raise SystemExit('startup push/profile restore marker missing')
+q=q.replace(old,new,1)
+
+main.write_text(q)
+print('v9.4.0 launcher service crash guards applied')
+
 print('v9.4.0 parity batch 1 applied')
