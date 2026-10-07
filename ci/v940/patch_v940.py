@@ -4454,7 +4454,7 @@ helper=r'''    private void pickMePanel940(){
             String picked=pool.get(new java.util.Random().nextInt(pool.size()));
             new AlertDialog.Builder(this).setTitle("💘 Pick Me!").setMessage("Selected: "+picked).setPositiveButton("Again",(d,w)->pickMePanel940()).setNegativeButton("Close",null).show();return;
         }
-        CollectionReference queue=db.collection("live_rooms").document(roomId).collection("game_ready");
+        com.google.firebase.firestore.CollectionReference queue=db.collection("live_rooms").document(roomId).collection("game_ready");
         queue.get().addOnSuccessListener(snap->{
             List<DocumentSnapshot> docs=new ArrayList<>();List<String> names=new ArrayList<>();boolean joined=false;
             for(DocumentSnapshot d:snap.getDocuments()){
@@ -4477,11 +4477,11 @@ helper=r'''    private void pickMePanel940(){
             }).setNegativeButton("Close",null).show();
         }).addOnFailureListener(e->toast("Pick Me queue unavailable: "+msg(e)));
     }
-    private void pickMeJoin940(CollectionReference queue){
+    private void pickMeJoin940(com.google.firebase.firestore.CollectionReference queue){
         Map<String,Object>d=new HashMap<>();d.put("uid",user.getUid());d.put("name",safeName());d.put("gameType","pick_me");d.put("ready",true);d.put("updatedAt",FieldValue.serverTimestamp());
         queue.document(user.getUid()).set(d).addOnSuccessListener(v->{addEvent("pick_me_join",safeName()+" joined Pick Me waiting queue 💘");toast("Joined Pick Me waiting queue");}).addOnFailureListener(e->toast("Could not join queue: "+msg(e)));
     }
-    private void pickMeLeave940(CollectionReference queue){
+    private void pickMeLeave940(com.google.firebase.firestore.CollectionReference queue){
         queue.document(user.getUid()).delete().addOnSuccessListener(v->{addEvent("pick_me_leave",safeName()+" left Pick Me waiting queue");toast("Left Pick Me waiting queue");}).addOnFailureListener(e->toast("Could not leave queue: "+msg(e)));
     }
     private void pickMeQueueList940(List<DocumentSnapshot> docs,List<String> names){
@@ -4489,7 +4489,7 @@ helper=r'''    private void pickMePanel940(){
         String[] rows=new String[names.size()];for(int i=0;i<names.size();i++)rows[i]=(i+1)+".  "+names.get(i);
         new AlertDialog.Builder(this).setTitle("💘 Waiting Queue • "+rows.length).setItems(rows,null).setNegativeButton("Close",null).show();
     }
-    private void pickMeSelect940(CollectionReference queue,List<DocumentSnapshot> docs,List<String> names){
+    private void pickMeSelect940(com.google.firebase.firestore.CollectionReference queue,List<DocumentSnapshot> docs,List<String> names){
         if(!isModerator()){toast("Host/co-host only");return;}
         if(docs.isEmpty()){toast("Waiting queue is empty");return;}
         int pick=new java.util.Random().nextInt(docs.size());DocumentSnapshot chosen=docs.get(pick);String uid=chosen.getString("uid"),name=names.get(pick);
@@ -4498,7 +4498,7 @@ helper=r'''    private void pickMePanel940(){
             .addOnSuccessListener(v->{chosen.getReference().delete().addOnFailureListener(e->{});addEvent("pick_me_result","💘 Pick Me selected "+name);new AlertDialog.Builder(this).setTitle("💘 Pick Me!").setMessage("Selected: "+name).setPositiveButton("Pick again",(d,w)->pickMePanel940()).setNegativeButton("Close",null).show();})
             .addOnFailureListener(e->toast("Pick Me selection failed: "+msg(e)));
     }
-    private void pickMeClear940(CollectionReference queue,List<DocumentSnapshot> docs){
+    private void pickMeClear940(com.google.firebase.firestore.CollectionReference queue,List<DocumentSnapshot> docs){
         if(!isModerator()){toast("Host/co-host only");return;}
         if(docs.isEmpty()){toast("Waiting queue is already empty");return;}
         WriteBatch batch=db.batch();for(DocumentSnapshot d:docs)batch.delete(d.getReference());
