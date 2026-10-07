@@ -2260,6 +2260,12 @@ helpers='''    private void openPlayableGame(String game){
         if("ludo".equals(g)){startActivity(new Intent(this,KingLudoLobbyActivity.class));return;}
         kingOpenGameRoom(game);
     }
+    private void kingOpenGameRoom(String game){
+        Intent i=new Intent(this,PartyActivity.class);
+        i.putExtra("requestedGame",game);
+        i.putExtra("displayName",displayName==null||displayName.trim().isEmpty()?"KING User":displayName);
+        startActivity(i);
+    }
     private void kingGameModes(String game){openPlayableGame(game);}
 
 '''
