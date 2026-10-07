@@ -3761,7 +3761,8 @@ print('v9.4.0 Party More actions grid parity applied')
 party=pkg/'PartyActivity.java'
 q=party.read_text()
 radio_start=q.find("    private void radioMicPanel(){")
-radio_end=q.find("    private void luckyGiftPanel()",radio_start)
+radio_end=q.find("    private void redPacketPanel940()",radio_start)
+if radio_end<0: radio_end=q.find("    private void luckyGiftPanel()",radio_start)
 if radio_start<0 or radio_end<0: raise SystemExit('Radio Mic method boundary missing')
 radio_method=r'''    private void radioMicPanel(){
         if(!cloudRoom||db==null||user==null){
