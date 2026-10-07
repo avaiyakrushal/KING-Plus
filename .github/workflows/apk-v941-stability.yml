@@ -1,0 +1,122 @@
+name: Build KING Plus v9.4.1 Stability
+
+on:
+  push:
+    branches: ['build/v9.4.1-stability']
+    paths:
+      - '.github/workflows/apk-v941-stability.yml'
+      - 'ci/v941/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: king-plus-v941-stability
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: build/v9.4.1-stability
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+
+      - name: Recover verified v9.4.0 generated source
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          rm -rf /tmp/v940 /tmp/src
+          mkdir -p /tmp/v940 /tmp/src
+          ok=0
+          for attempt in 1 2 3; do
+            rm -rf /tmp/v940/* /tmp/src/*
+            if gh run download 37652893238 -n KING-Plus-v9.4.0-generated-source -D /tmp/v940; then
+              ok=1
+              break
+            fi
+            sleep $((attempt*15))
+          done
+          test "$ok" = "1" || (echo "Could not recover verified v9.4.0 source" && exit 1)
+          test -f /tmp/v940/KING-Plus-v9.4.0-generated-source.zip
+          unzip -q /tmp/v940/KING-Plus-v9.4.0-generated-source.zip -d /tmp/src
+
+      - name: Apply v9.4.1 stability hardening
+        run: python3 ci/v941/patch_v941.py /tmp/src
+
+      - name: Stability source gates
+        working-directory: /tmp/src
+        run: |
+          set -euo pipefail
+          grep -F 'versionCode 140; versionName '\''9.4.1-stability'\''' app/build.gradle
+          grep -F 'KingSafe.run(activity,"root-nav-"+tab' app/src/main/java/com/kingplus/social/KingNav.java
+          grep -F 'main-on-new-intent' app/src/main/java/com/kingplus/social/MainActivity.java
+          grep -F 'drawer:"+items[k]' app/src/main/java/com/kingplus/social/MainActivity.java
+          grep -F 'catch(Throwable e)' app/src/main/java/com/kingplus/social/PartyActivity.java
+          grep -F 'android.net.Uri.encode(displayName)' app/src/main/java/com/kingplus/social/VoiceWebActivity.java
+          ! grep -F 'URLEncoder.encode(displayName,StandardCharsets.UTF_8)' app/src/main/java/com/kingplus/social/VoiceWebActivity.java
+
+      - name: Compile stability APK
+        working-directory: /tmp/src
+        run: gradle :app:assembleDebug --no-daemon
+
+      - name: Runtime navigation audit
+        working-directory: /tmp/src
+        run: |
+          python3 - <<'PY'
+          import pathlib,re,xml.etree.ElementTree as ET
+          root=pathlib.Path('app/src/main')
+          manifest=(root/'AndroidManifest.xml').read_text(errors='ignore')
+          declared=set(re.findall(r'<activity[^>]+android:name="\.([^"]+)"',manifest))
+          intents=set()
+          for p in (root/'java/com/kingplus/social').glob('*.java'):
+              t=p.read_text(errors='ignore')
+              intents.update(re.findall(r'new Intent\(this,\s*([A-Za-z0-9_]+)\.class\)',t))
+          missing=sorted(x for x in intents if x not in declared and x!='MainActivity')
+          print('Intent targets:',len(intents))
+          print('Missing manifest targets:',missing)
+          if missing: raise SystemExit('Missing Activity registrations: '+','.join(missing))
+          for name in ['CommunityHubActivity.java','KingEcosystemProActivity.java','KingParityHubActivity.java','KingProductionTestActivity.java','KingPublicProfileActivity.java']:
+              t=(root/'java/com/kingplus/social'/name).read_text(errors='ignore')
+              if 'v->r.run()' in t:
+                  raise SystemExit(name+' still has an unguarded common Runnable click helper')
+          print('Navigation/action stability audit passed')
+          PY
+
+      - name: Android lint crash-risk scan
+        working-directory: /tmp/src
+        continue-on-error: true
+        run: gradle :app:lintDebug --no-daemon
+
+      - name: Package APK and generated source
+        run: |
+          set -euo pipefail
+          cp /tmp/src/app/build/outputs/apk/debug/app-debug.apk /tmp/KING-Plus-v9.4.1-stability.apk
+          cd /tmp/src
+          zip -qr /tmp/KING-Plus-v9.4.1-stability-source.zip .
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: KING-Plus-v9.4.1-stability-APK
+          path: /tmp/KING-Plus-v9.4.1-stability.apk
+          if-no-files-found: error
+          retention-days: 7
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: KING-Plus-v9.4.1-stability-source
+          path: /tmp/KING-Plus-v9.4.1-stability-source.zip
+          if-no-files-found: error
+          retention-days: 7
