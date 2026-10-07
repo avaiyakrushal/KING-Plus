@@ -94,7 +94,8 @@ old='''        addRankingHero();
         addPeopleTabs();
         loadRecommended(false);
 '''
-new='''        addMatchTabs940();
+new='''        addDiscoverEntrances940();
+        addMatchTabs940();
         loadProfileGrid940();
         sectionTitle("Ranks & influence","More",()->showRankingPage("Chat Talent","chatScore"));
         addSmallRankingRow();
@@ -108,7 +109,23 @@ d=d.replace(old,new,1)
 
 marker='''    private void addRankingHero(){
 '''
-helpers='''    private void addMatchTabs940(){
+helpers='''    private void addDiscoverEntrances940(){
+        LinearLayout row=new LinearLayout(this);row.setGravity(Gravity.CENTER);
+        addDiscoverEntrance940(row,"🎤","Party","Live voice rooms",()->startActivity(new Intent(this,PartyActivity.class)));
+        addDiscoverEntrance940(row,"🎵","KTV","Sing & queue",()->startActivity(new Intent(this,PartyActivity.class)));
+        addDiscoverEntrance940(row,"🎮","Games","Realtime multiplayer",()->KingNav.openRoot(this,1));
+        addDiscoverEntrance940(row,"👑","Family","Family center",()->{Intent i=new Intent(this,CommunityHubActivity.class);i.putExtra("tab","Family");startActivity(i);});
+        LinearLayout.LayoutParams rp=new LinearLayout.LayoutParams(-1,dp(94));rp.setMargins(0,dp(2),0,dp(8));content.addView(row,rp);
+    }
+    private void addDiscoverEntrance940(LinearLayout row,String icon,String title,String sub,Runnable action){
+        LinearLayout card=new LinearLayout(this);card.setOrientation(LinearLayout.VERTICAL);card.setGravity(Gravity.CENTER);card.setPadding(dp(4),dp(6),dp(4),dp(4));card.setBackground(bg(0xfff7f4fb,14));
+        TextView av=tv(icon,25,DARK,false);av.setGravity(Gravity.CENTER);card.addView(av,new LinearLayout.LayoutParams(-1,dp(34)));
+        TextView t=tv(title,12,DARK,true);t.setGravity(Gravity.CENTER);card.addView(t,new LinearLayout.LayoutParams(-1,dp(23)));
+        TextView s=tv(sub,9,MUTED,false);s.setGravity(Gravity.CENTER);s.setSingleLine(true);card.addView(s,new LinearLayout.LayoutParams(-1,dp(20)));
+        card.setOnClickListener(v->action.run());LinearLayout.LayoutParams p=new LinearLayout.LayoutParams(0,dp(88),1);p.setMargins(dp(3),0,dp(3),0);row.addView(card,p);
+    }
+
+    private void addMatchTabs940(){
         LinearLayout tabs=new LinearLayout(this);tabs.setGravity(Gravity.CENTER_VERTICAL);tabs.setPadding(0,dp(2),0,dp(10));
         String[] n={"Hot","New","Nearby","Follow"};for(int i=0;i<n.length;i++){final String label=n[i];TextView t=tv(label,14,i==0?0xff111111:0xff77737d,true);t.setGravity(Gravity.CENTER);t.setBackground(bg(i==0?0xffffe91f:0xfff5f4f7,12));LinearLayout.LayoutParams p=new LinearLayout.LayoutParams(0,dp(44),1);p.setMargins(dp(3),0,dp(3),0);tabs.addView(t,p);t.setOnClickListener(v->{activePeopleTab=label;loadProfileGrid940();});}
         content.addView(tabs,new LinearLayout.LayoutParams(-1,dp(54)));
