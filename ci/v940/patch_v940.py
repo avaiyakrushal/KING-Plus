@@ -2821,4 +2821,13 @@ q=q.replace(old,new,1)
 ludo.write_text(q)
 print('v9.4.0 Ludo result/rematch presentation applied')
 
+
+# Production-rule compatibility: KTV and Audio PK use the already-established moderator room_settings path.
+party=pkg/'PartyActivity.java'
+q=party.read_text()
+q=q.replace('collection("game_state").document("audio_pk")','collection("room_settings").document("audio_pk")')
+q=q.replace('collection("game_state").document("ktv")','collection("room_settings").document("ktv")')
+party.write_text(q)
+print('v9.4.0 KTV and Audio PK production-rule compatibility applied')
+
 print('v9.4.0 parity batch 1 applied')
