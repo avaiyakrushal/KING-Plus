@@ -1140,4 +1140,28 @@ q=q.replace(old,new,1)
 main.write_text(q)
 print('v9.4.0 canonical profile re-login hardening applied')
 
+# Discover profile grid loading/offline/retry states.
+discover=pkg/'DiscoverActivity.java'
+q=discover.read_text()
+old='''    private void loadProfileGrid940(){
+        Object old=content.findViewWithTag("profile_grid_940");LinearLayout grid;if(old instanceof LinearLayout){grid=(LinearLayout)old;grid.removeAllViews();}else{grid=new LinearLayout(this);grid.setTag("profile_grid_940");grid.setOrientation(LinearLayout.VERTICAL);content.addView(grid,new LinearLayout.LayoutParams(-1,-2));}
+        if(me==null||db==null){grid.addView(emptyText("Sign in to discover KING profiles"),new LinearLayout.LayoutParams(-1,dp(90)));return;}
+        Query q=db.collection("public_profiles").limit(24);String city=getSharedPreferences("discover_public",MODE_PRIVATE).getString("city","");
+        if("Nearby".equals(activePeopleTab)&&!city.isEmpty())q=db.collection("public_profiles").whereEqualTo("hometown",city).limit(24);
+        q.get().addOnSuccessListener(snap->{grid.removeAllViews();LinearLayout row=null;int shown=0;for(DocumentSnapshot p:snap.getDocuments()){String uid=safe(p.getString("uid"),p.getId());if(uid.equals(me.getUid()))continue;if(shown%2==0){row=new LinearLayout(this);row.setGravity(Gravity.TOP);grid.addView(row,new LinearLayout.LayoutParams(-1,dp(222)));}addProfileCard940(row,p);shown++;if(shown>=8)break;}if(shown==0)grid.addView(emptyText("No matching KING profiles yet"),new LinearLayout.LayoutParams(-1,dp(90)));}).addOnFailureListener(e->{grid.removeAllViews();grid.addView(emptyText("Profile discovery unavailable"),new LinearLayout.LayoutParams(-1,dp(90)));});
+    }'''
+new='''    private void loadProfileGrid940(){
+        Object old=content.findViewWithTag("profile_grid_940");LinearLayout grid;if(old instanceof LinearLayout){grid=(LinearLayout)old;grid.removeAllViews();}else{grid=new LinearLayout(this);grid.setTag("profile_grid_940");grid.setOrientation(LinearLayout.VERTICAL);content.addView(grid,new LinearLayout.LayoutParams(-1,-2));}
+        if(me==null||db==null){TextView state=emptyText("Sign in to discover KING profiles");grid.addView(state,new LinearLayout.LayoutParams(-1,dp(90)));return;}
+        if(!KingNetwork.online(this)){TextView offline=emptyText("Offline • tap to retry Discover");offline.setOnClickListener(v->loadProfileGrid940());grid.addView(offline,new LinearLayout.LayoutParams(-1,dp(90)));return;}
+        TextView loading=emptyText("Loading KING profiles…");grid.addView(loading,new LinearLayout.LayoutParams(-1,dp(72)));
+        Query q=db.collection("public_profiles").limit(24);String city=getSharedPreferences("discover_public",MODE_PRIVATE).getString("city","");
+        if("Nearby".equals(activePeopleTab)&&!city.isEmpty())q=db.collection("public_profiles").whereEqualTo("hometown",city).limit(24);
+        q.get().addOnSuccessListener(snap->{grid.removeAllViews();LinearLayout row=null;int shown=0;for(DocumentSnapshot p:snap.getDocuments()){String uid=safe(p.getString("uid"),p.getId());if(uid.equals(me.getUid()))continue;if(shown%2==0){row=new LinearLayout(this);row.setGravity(Gravity.TOP);grid.addView(row,new LinearLayout.LayoutParams(-1,dp(222)));}addProfileCard940(row,p);shown++;if(shown>=8)break;}if(shown==0){TextView empty=emptyText("No matching KING profiles yet • tap to refresh");empty.setOnClickListener(v->loadProfileGrid940());grid.addView(empty,new LinearLayout.LayoutParams(-1,dp(90)));}}).addOnFailureListener(e->{grid.removeAllViews();TextView retry=emptyText("Discover unavailable • tap to retry");retry.setOnClickListener(v->loadProfileGrid940());grid.addView(retry,new LinearLayout.LayoutParams(-1,dp(90)));});
+    }'''
+if old not in q: raise SystemExit('Discover profile grid method marker missing')
+q=q.replace(old,new,1)
+discover.write_text(q)
+print('v9.4.0 Discover loading/offline states applied')
+
 print('v9.4.0 parity batch 1 applied')
