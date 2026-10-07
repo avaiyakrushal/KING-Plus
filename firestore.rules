@@ -544,7 +544,11 @@ service cloud.firestore {
 
     match /notifications/{uid}/items/{itemId} {
       allow read, delete: if owner(uid);
-      allow create, update: if false;
+      allow update: if owner(uid)
+        && resource.data.read == false
+        && request.resource.data.read == true
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['read']);
+      allow create: if false;
     }
   }
 }
