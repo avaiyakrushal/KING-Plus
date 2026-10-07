@@ -2357,7 +2357,7 @@ helpers='''    private int firstFreeMicSeat940(){
     private void reviewMicRequest940(DocumentSnapshot request){
         if(request==null||!isModerator())return;
         final String uid=request.getString("uid");final String name=str(request,"name","Guest");Long raw=request.getLong("seatNo");final int preferred=raw==null?-1:raw.intValue();
-        new AlertDialog.Builder(this).setTitle(name).setMessage("Requested mic seat "+(preferred>0?preferred:"")+"\n\nApprove to place this member on stage with mic OFF.")
+        new AlertDialog.Builder(this).setTitle(name).setMessage("Requested mic seat "+(preferred>0?preferred:"")+"\\n\\nApprove to place this member on stage with mic OFF.")
             .setPositiveButton("Approve",(d,w)->approveMicRequest940(request,uid,name,preferred))
             .setNeutralButton("Reject",(d,w)->request.getReference().delete().addOnSuccessListener(v->toast("Mic request rejected")).addOnFailureListener(e->toast("Reject failed: "+msg(e))))
             .setNegativeButton("Cancel",null).show();
