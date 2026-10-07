@@ -394,6 +394,159 @@ new='''        micLabel.setContentDescription(micOn?"Mic is on in Party room. Ta
 if old in q:
     q=q.replace(old,new,1)
 
+# ---------------- Inline audio-only RTC inside PartyActivity ----------------
+old='''public class PartyActivity extends Activity {'''
+new='''public class PartyActivity extends androidx.fragment.app.FragmentActivity implements org.jitsi.meet.sdk.JitsiMeetActivityInterface {'''
+if old not in q: raise SystemExit('PartyActivity class marker missing for inline RTC')
+q=q.replace(old,new,1)
+
+old='''    private boolean roomCreateInFlight921;'''
+new='''    private boolean roomCreateInFlight921;
+    private org.jitsi.meet.sdk.JitsiMeetView inRoomVoiceView940;
+    private boolean inRoomVoiceJoined940;
+    private String inRoomVoiceSlug940="";'''
+if old not in q: raise SystemExit('PartyActivity field marker missing for inline RTC')
+q=q.replace(old,new,1)
+
+old='''        setSafeContentView(shell);
+
+        // Full-screen transparent live emoji overlay must remain above the room UI.'''
+new='''        setSafeContentView(shell);
+        attachInRoomVoice940(shell);
+
+        // Full-screen transparent live emoji overlay must remain above the room UI.'''
+if old not in q: raise SystemExit('PartyActivity room shell marker missing for inline RTC')
+q=q.replace(old,new,1)
+
+old='''        super.onResume();
+        if(seatsBox!=null)rebuildSeats();'''
+new='''        super.onResume();
+        org.jitsi.meet.sdk.JitsiMeetActivityDelegate.onHostResume(this);
+        if(seatsBox!=null)rebuildSeats();'''
+if old not in q: raise SystemExit('PartyActivity onResume marker missing for inline RTC')
+q=q.replace(old,new,1)
+
+old='''        super.onActivityResult(requestCode,resultCode,data);'''
+new='''        super.onActivityResult(requestCode,resultCode,data);
+        org.jitsi.meet.sdk.JitsiMeetActivityDelegate.onActivityResult(this,requestCode,resultCode,data);'''
+if old not in q: raise SystemExit('PartyActivity onActivityResult marker missing for inline RTC')
+q=q.replace(old,new,1)
+
+old='''    private void openVoice(){
+        if(!cloudRoom||user==null||db==null||roomId==null){toast("Join a live Firebase Party room first");return;}
+        if(muteAll&&!isModerator()){toast("Host muted room voice");return;}
+        setVoicePresence900(true);
+        if(mySeat>0){micOn=true;refreshMicControl();db.collection("live_rooms").document(roomId).collection("seats").document(String.valueOf(mySeat)).update("micOn",true).addOnFailureListener(e->{});}
+        else toast("Joining shared room voice • mic seats remain stage controls");
+        voiceLaunched900=true;voiceLaunchAt900=System.currentTimeMillis();
+        NativeMeetBridge.launch(this,roomId,roomName,safeName(),false);
+    }'''
+new='''    private void openVoice(){
+        if(!cloudRoom||user==null||db==null||roomId==null){toast("Join a live Firebase Party room first");return;}
+        if(mySeat<1){toast("Take a mic seat first");return;}
+        if(!micOn)toggleMic();else toast("Mic is already ON in this Party room");
+    }'''
+if old not in q: raise SystemExit('PartyActivity openVoice marker missing for inline RTC')
+q=q.replace(old,new,1)
+
+old='''            refreshMicControl();
+            toast(micOn?"Mic ON • staying in Party room":"Mic OFF");
+            return;'''
+new='''            refreshMicControl();
+            setInlineAudioMuted940(!micOn);
+            toast(micOn?"Mic ON • live inside Party room":"Mic OFF");
+            return;'''
+if old not in q: raise SystemExit('PartyActivity mic cloud marker missing for inline RTC')
+q=q.replace(old,new,1)
+
+old='''    private boolean isOwner(){return cloudRoom?user!=null&&ownerUid!=null&&ownerUid.equals(user.getUid()):displayName.equals(ownerName);}'''
+helpers='''    private void attachInRoomVoice940(FrameLayout shell){
+        if(!cloudRoom||roomId==null||roomId.trim().isEmpty()||user==null||shell==null)return;
+        try{
+            stopInRoomVoice940(false);
+            org.jitsi.meet.sdk.JitsiMeet.instantiateReactNative(this);
+            inRoomVoiceView940=new org.jitsi.meet.sdk.JitsiMeetView(this);
+            inRoomVoiceView940.setAlpha(0.01f);
+            inRoomVoiceView940.setClickable(false);
+            inRoomVoiceView940.setFocusable(false);
+            String slug=("KINGPlus-"+roomId).replaceAll("[^A-Za-z0-9_-]","");
+            org.jitsi.meet.sdk.JitsiMeetUserInfo info940=new org.jitsi.meet.sdk.JitsiMeetUserInfo();
+            info940.setDisplayName(safeName());
+            org.jitsi.meet.sdk.JitsiMeetConferenceOptions options940=new org.jitsi.meet.sdk.JitsiMeetConferenceOptions.Builder()
+                .setServerURL(new java.net.URL("https://meet.jit.si"))
+                .setRoom(slug)
+                .setSubject(roomName==null||roomName.trim().isEmpty()?"KING Plus Party":roomName)
+                .setAudioMuted(!micOn)
+                .setVideoMuted(true)
+                .setLowBandwidthMode(true)
+                .setUserInfo(info940)
+                .setFeatureFlag("welcomepage.enabled",false)
+                .setFeatureFlag("prejoinpage.enabled",false)
+                .setFeatureFlag("toolbox.enabled",false)
+                .setFeatureFlag("filmstrip.enabled",false)
+                .setFeatureFlag("invite.enabled",false)
+                .setFeatureFlag("chat.enabled",false)
+                .setFeatureFlag("pip.enabled",false)
+                .setFeatureFlag("call-integration.enabled",false)
+                .setConfigOverride("disableSelfView",true)
+                .setConfigOverride("disableReactions",true)
+                .build();
+            FrameLayout.LayoutParams voiceLp940=new FrameLayout.LayoutParams(dp(2),dp(2));
+            voiceLp940.gravity=Gravity.TOP|Gravity.LEFT;
+            shell.addView(inRoomVoiceView940,voiceLp940);
+            inRoomVoiceView940.join(options940);
+            inRoomVoiceSlug940=slug;
+            inRoomVoiceJoined940=true;
+            setInlineAudioMuted940(!micOn);
+        }catch(Throwable voiceError940){
+            inRoomVoiceJoined940=false;
+            try{if(inRoomVoiceView940!=null)inRoomVoiceView940.dispose();}catch(Throwable ignored){}
+            inRoomVoiceView940=null;
+            android.util.Log.e("KINGPlusParty","Inline room voice failed",voiceError940);
+        }
+    }
+    private void setInlineAudioMuted940(boolean muted){
+        if(!inRoomVoiceJoined940)return;
+        try{
+            Intent voiceIntent940=org.jitsi.meet.sdk.BroadcastIntentHelper.buildSetAudioMutedIntent(muted);
+            androidx.localbroadcastmanager.content.LocalBroadcastManager.getInstance(getApplicationContext()).sendBroadcast(voiceIntent940);
+        }catch(Throwable ignored){}
+    }
+    private void stopInRoomVoice940(boolean hangup){
+        if(hangup&&inRoomVoiceJoined940){
+            try{
+                Intent hangup940=org.jitsi.meet.sdk.BroadcastIntentHelper.buildHangUpIntent();
+                androidx.localbroadcastmanager.content.LocalBroadcastManager.getInstance(getApplicationContext()).sendBroadcast(hangup940);
+            }catch(Throwable ignored){}
+        }
+        try{if(inRoomVoiceView940!=null)inRoomVoiceView940.dispose();}catch(Throwable ignored){}
+        try{if(inRoomVoiceView940!=null&&inRoomVoiceView940.getParent() instanceof android.view.ViewGroup)((android.view.ViewGroup)inRoomVoiceView940.getParent()).removeView(inRoomVoiceView940);}catch(Throwable ignored){}
+        inRoomVoiceView940=null;
+        inRoomVoiceJoined940=false;
+        inRoomVoiceSlug940="";
+    }
+
+    private boolean isOwner(){return cloudRoom?user!=null&&ownerUid!=null&&ownerUid.equals(user.getUid()):displayName.equals(ownerName);}'''
+if old not in q: raise SystemExit('PartyActivity owner marker missing for inline RTC helpers')
+q=q.replace(old,helpers,1)
+
+old='''    private void leaveRoom(){unregisterMember();clearListeners();renderLobby("Hot");}'''
+new='''    private void leaveRoom(){stopInRoomVoice940(true);unregisterMember();clearListeners();renderLobby("Hot");}'''
+if old not in q: raise SystemExit('PartyActivity leaveRoom marker missing for inline RTC')
+q=q.replace(old,new,1)
+
+old='''    @Override public void onBackPressed(){if(roomId!=null)leaveRoom();else KingNav.confirmExit(this);}
+    @Override protected void onDestroy(){unregisterMember();clearListeners();try{if(roomMusicPlayer!=null){roomMusicPlayer.release();roomMusicPlayer=null;}}catch(Exception ignored){}super.onDestroy();}'''
+new='''    @Override protected void onStop(){org.jitsi.meet.sdk.JitsiMeetActivityDelegate.onHostPause(this);super.onStop();}
+    @Override public void onNewIntent(Intent intent){super.onNewIntent(intent);org.jitsi.meet.sdk.JitsiMeetActivityDelegate.onNewIntent(intent);}
+    @Override public void requestPermissions(String[] permissions,int requestCode,com.facebook.react.modules.core.PermissionListener listener){org.jitsi.meet.sdk.JitsiMeetActivityDelegate.requestPermissions(this,permissions,requestCode,listener);}
+    @android.annotation.SuppressLint("MissingSuperCall")
+    @Override public void onRequestPermissionsResult(int requestCode,String[] permissions,int[] grantResults){org.jitsi.meet.sdk.JitsiMeetActivityDelegate.onRequestPermissionsResult(requestCode,permissions,grantResults);}
+    @Override public void onBackPressed(){if(roomId!=null)leaveRoom();else KingNav.confirmExit(this);}
+    @Override protected void onDestroy(){stopInRoomVoice940(true);unregisterMember();clearListeners();try{if(roomMusicPlayer!=null){roomMusicPlayer.release();roomMusicPlayer=null;}}catch(Exception ignored){}org.jitsi.meet.sdk.JitsiMeetActivityDelegate.onHostDestroy(this);super.onDestroy();}'''
+if old not in q: raise SystemExit('PartyActivity lifecycle tail marker missing for inline RTC')
+q=q.replace(old,new,1)
+
 party.write_text(q)
 
 print('v9.4.0 parity batch 1 applied')
