@@ -2346,7 +2346,7 @@ helpers='''    private int firstFreeMicSeat940(){
     private void openMicRequests940(){
         if(!cloudRoom||db==null||user==null){toast("Live Party room required");return;}
         if(!isModerator()){toast("Host/co-host only");return;}
-        CollectionReference requests=db.collection("live_rooms").document(roomId).collection("seat_requests");
+        com.google.firebase.firestore.CollectionReference requests=db.collection("live_rooms").document(roomId).collection("seat_requests");
         requests.orderBy("createdAt",Query.Direction.ASCENDING).limit(30).get().addOnSuccessListener(snap->{
             if(snap==null||snap.isEmpty()){new AlertDialog.Builder(this).setTitle("🎙 Mic requests").setMessage("No one is waiting for a mic seat.").setPositiveButton("OK",null).show();return;}
             List<DocumentSnapshot> docs=new ArrayList<>(snap.getDocuments());String[] rows=new String[docs.size()];
@@ -2508,7 +2508,7 @@ public class KingMultiVideoActivity extends androidx.fragment.app.FragmentActivi
     private void syncOwnSeat940(String key,boolean value){if(db==null||mySeat<1)return;db.collection("live_rooms").document(roomId).collection("video_seats").document(String.valueOf(mySeat)).update(key,value).addOnFailureListener(e->toast("Video seat sync failed"));}
     private void applyMedia940(){applyAudio940(mySeat<1||!micOn);applyVideo940(mySeat<1||!cameraOn);}
     private void applyAudio940(boolean muted){try{Intent i=org.jitsi.meet.sdk.BroadcastIntentHelper.buildSetAudioMutedIntent(muted);LocalBroadcastManager.getInstance(getApplicationContext()).sendBroadcast(i);}catch(Throwable ignored){}}
-    private void applyVideo940(boolean muted){try{Intent i=new Intent(org.jitsi.meet.sdk.BroadcastAction.Type.SET_VIDEO_MUTED.getAction());i.putExtra("muted",muted);LocalBroadcastManager.getInstance(getApplicationContext()).sendBroadcast(i);}catch(Throwable ignored){}}
+    private void applyVideo940(boolean muted){try{Intent i=org.jitsi.meet.sdk.BroadcastIntentHelper.buildSetVideoMutedIntent(muted);LocalBroadcastManager.getInstance(getApplicationContext()).sendBroadcast(i);}catch(Throwable ignored){}}
     private void refreshControls940(){
         if(stateText!=null)stateText.setText(mySeat>0?("📹 Video seat "+mySeat+(moderator?" • Host controls":"")):("📹 Multi Video • viewer mode"+(moderator?" • Host controls":"")));
         if(seatAction!=null)seatAction.setText(mySeat>0?"↥ Leave Seat":"＋ Sit Down");
