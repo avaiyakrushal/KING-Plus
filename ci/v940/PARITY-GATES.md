@@ -32,7 +32,9 @@ This branch is a development/parity branch. Do not treat it as final and do not 
 - [x] Google re-login preserves canonical/local KING name and photo even if the profile read is unavailable.
 - [ ] Compare every primary screen against the supplied reference APK and close remaining spacing/navigation/state gaps.
 - [ ] Profile photo/name persistence across Google re-login verified on a real account/device.
-- [ ] Empty/loading/error/offline states verified.
+- [x] Party, Discover, Messages, Direct Chat and Me have explicit loading/offline/error fallback states; primary social screens auto-recover after reconnect.
+- [x] Failed direct text messages are queued locally and retried with deterministic message IDs after reconnect.
+- [ ] Empty/loading/error/offline states verified end-to-end on real devices.
 
 ## Gate E — Final quality
 - [ ] Cold start, login, room create/join/leave, mic, games, gifts, chat, profile smoke test on at least two accounts.
