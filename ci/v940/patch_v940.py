@@ -3392,4 +3392,33 @@ for java in pkg.glob('*.java'):
     java.write_text(q)
 print('v9.4.0 shared UI action crash guard applied')
 
+
+# Lint/runtime fixes: back-handler annotations, permission super-calls and pre-33 URL encoding.
+party=pkg/'PartyActivity.java'
+q=party.read_text()
+q=q.replace('''    @Override public void onBackPressed(){if(roomId!=null)leaveRoom();else KingNav.confirmExit(this);}''',
+'''    @android.annotation.SuppressLint("MissingSuperCall")
+    @Override public void onBackPressed(){if(roomId!=null)leaveRoom();else KingNav.confirmExit(this);}''')
+q=q.replace('''    @Override public void onRequestPermissionsResult(int requestCode,String[] permissions,int[] grantResults){try{org.jitsi.meet.sdk.JitsiMeetActivityDelegate.onRequestPermissionsResult(requestCode,permissions,grantResults);}catch(Throwable e){KingStability.nonFatal(this,"party-jitsi-permission-result",e);}}''',
+'''    @Override public void onRequestPermissionsResult(int requestCode,String[] permissions,int[] grantResults){super.onRequestPermissionsResult(requestCode,permissions,grantResults);try{org.jitsi.meet.sdk.JitsiMeetActivityDelegate.onRequestPermissionsResult(requestCode,permissions,grantResults);}catch(Throwable e){KingStability.nonFatal(this,"party-jitsi-permission-result",e);}}''')
+party.write_text(q)
+
+multi=pkg/'KingMultiVideoActivity.java'
+if multi.exists():
+    q=multi.read_text()
+    q=q.replace('''    @Override public void onBackPressed(){leaveAndFinish940();}''',
+'''    @android.annotation.SuppressLint("MissingSuperCall")
+    @Override public void onBackPressed(){leaveAndFinish940();}''')
+    q=q.replace('''    @Override public void onRequestPermissionsResult(int requestCode,String[] permissions,int[] grantResults){try{org.jitsi.meet.sdk.JitsiMeetActivityDelegate.onRequestPermissionsResult(requestCode,permissions,grantResults);}catch(Throwable e){KingStability.nonFatal(this,"video-jitsi-permission-result",e);}}''',
+'''    @Override public void onRequestPermissionsResult(int requestCode,String[] permissions,int[] grantResults){super.onRequestPermissionsResult(requestCode,permissions,grantResults);try{org.jitsi.meet.sdk.JitsiMeetActivityDelegate.onRequestPermissionsResult(requestCode,permissions,grantResults);}catch(Throwable e){KingStability.nonFatal(this,"video-jitsi-permission-result",e);}}''')
+    multi.write_text(q)
+
+voice=pkg/'VoiceWebActivity.java'
+if voice.exists():
+    import re
+    q=voice.read_text()
+    q=re.sub(r'(?:(?:java\\.net\\.)?URLEncoder)\\.encode\\(([^,()\\n]+)\\)',r'android.net.Uri.encode(\\1)',q)
+    voice.write_text(q)
+print('v9.4.0 lint runtime compatibility fixes applied')
+
 print('v9.4.0 parity batch 1 applied')
