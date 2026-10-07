@@ -92,6 +92,8 @@ jobs:
           grep -F 'Offline • showing local fallback' /tmp/src/app/src/main/java/com/kingplus/social/ChatActivity.java
           grep -F 'Offline / sync unavailable • showing recent local conversations' /tmp/src/app/src/main/java/com/kingplus/social/InboxActivity.java
           grep -F 'showCloudNotifications940' /tmp/src/app/src/main/java/com/kingplus/social/InboxActivity.java
+          grep -F 'n.getReference().update("read",true)' /tmp/src/app/src/main/java/com/kingplus/social/InboxActivity.java
+          grep -F "affectedKeys().hasOnly(['read'])" /tmp/src/firestore.rules
           grep -F 'collection("notifications")' /tmp/src/app/src/main/java/com/kingplus/social/InboxActivity.java
           grep -F 'match /notifications/{uid}/items/{itemId}' /tmp/src/firestore.rules
           grep -F 'addDiscoverEntrances940' /tmp/src/app/src/main/java/com/kingplus/social/DiscoverActivity.java
