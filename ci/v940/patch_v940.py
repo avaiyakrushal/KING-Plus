@@ -2526,4 +2526,36 @@ public class KingMultiVideoActivity extends androidx.fragment.app.FragmentActivi
 }''')
 print('v9.4.0 realtime Multi Video seats and media controls applied')
 
+
+# Bolo-reference parity: Party game history/result panel backed by real room events.
+rg=pkg/'RoomGameActivity.java'
+q=rg.read_text()
+old='''        stateText=tv("Waiting for active round",18,GOLD,true);stateText.setGravity(Gravity.CENTER);stateText.setBackground(bg(CARD,18));LinearLayout.LayoutParams sp=new LinearLayout.LayoutParams(-1,-2);sp.setMargins(0,dp(8),0,dp(10));page.addView(stateText,sp);'''
+new='''        stateText=tv("Waiting for active round",18,GOLD,true);stateText.setGravity(Gravity.CENTER);stateText.setBackground(bg(CARD,18));LinearLayout.LayoutParams sp=new LinearLayout.LayoutParams(-1,-2);sp.setMargins(0,dp(8),0,dp(8));page.addView(stateText,sp);
+        Button history940=button("📜 Recent game results");history940.setOnClickListener(v->showGameHistory940());LinearLayout.LayoutParams hp940=new LinearLayout.LayoutParams(-1,dp(48));hp940.setMargins(0,0,0,dp(8));page.addView(history940,hp940);'''
+if old not in q: raise SystemExit('RoomGame state header marker missing for history')
+q=q.replace(old,new,1)
+
+marker='''    private void renderState(){'''
+helper='''    private void showGameHistory940(){
+        if(db==null||roomId.isEmpty()){toast("Open from a live Party room");return;}
+        room().collection("events").orderBy("createdAt",com.google.firebase.firestore.Query.Direction.DESCENDING).limit(120).get().addOnSuccessListener(snap->{
+            java.util.List<String> rows=new java.util.ArrayList<>();
+            for(DocumentSnapshot d:snap.getDocuments()){
+                String type=s(d.getString("type")),text=s(d.getString("text"));
+                if(!"play".equals(type)||text.isEmpty())continue;
+                if(text.startsWith("🏁")||text.contains(" wins")||text.contains(" Draw")||text.contains(" ended ")){rows.add(text);if(rows.size()>=20)break;}
+            }
+            if(rows.isEmpty()&&!result.isEmpty())rows.add("🏁 "+result.replace("\n"," • "));
+            if(rows.isEmpty()){new AlertDialog.Builder(this).setTitle("📜 Game History").setMessage("No finished Party game rounds yet.").setPositiveButton("OK",null).show();return;}
+            new AlertDialog.Builder(this).setTitle("📜 Recent game results").setItems(rows.toArray(new String[0]),(d,w)->new AlertDialog.Builder(this).setTitle("Round result").setMessage(rows.get(w).replace(" • ","\n")).setPositiveButton("OK",null).show()).setNegativeButton("Close",null).show();
+        }).addOnFailureListener(e->toast("Game history unavailable: "+e.getMessage()));
+    }
+
+'''
+if marker not in q: raise SystemExit('RoomGame renderState marker missing for history helper')
+q=q.replace(marker,helper+marker,1)
+rg.write_text(q)
+print('v9.4.0 Party game history/result panel applied')
+
 print('v9.4.0 parity batch 1 applied')
