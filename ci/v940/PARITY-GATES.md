@@ -12,21 +12,26 @@ This branch is a development/parity branch. Do not treat it as final and do not 
 ## Gate B — Games
 - [x] Realtime Firebase Online Ludo logic exists (2/4 players, ready/start, dice, moves, capture, winner/rematch).
 - [x] Party-room multiplayer game flow exists through RoomGameActivity.
+- [x] All exposed non-Ludo game entries route to synchronized Party multiplayer instead of local simulated matches.
 - [ ] Two-device Ludo full match verified from Party room.
-- [ ] Each exposed room game verified end-to-end; remove/disable any non-playable tile.
+- [ ] Each exposed room game verified end-to-end on real devices; remove/disable any failing tile.
 
 ## Gate C — Gifts / emoji / PK / KTV
 - [x] Live emoji/reaction panel and room event sync exist.
 - [x] Gift shop / gift wall / gift ranking flow exists.
-- [x] Audio PK and KTV queue/stage flows exist.
+- [x] Sender gift-effect de-duplication and bounded live-emoji replay protection are implemented.
+- [x] Audio PK uses synchronized timed room state and gift scoring.
+- [x] KTV uses synchronized queue/current-singer room state.
 - [ ] Two-device gift animation/event consistency verified.
-- [ ] Live emoji animation consistency and replay protection verified.
+- [ ] Live emoji animation consistency/replay protection verified on real devices.
 - [ ] PK/KTV real-device room sync verified.
 
 ## Gate D — Home / Discover / Messages / Profile
 - [x] v9.4 parity batch contains premium login, Discover/Messages, public profile and wallet visual work.
-- [ ] Compare every primary screen against the supplied reference APK and close spacing/navigation/state gaps.
-- [ ] Profile photo/name persistence across Google re-login verified.
+- [x] Create Party has the v9.4 cover/privacy/seat/type/start-room visual pass.
+- [x] Google re-login preserves canonical/local KING name and photo even if the profile read is unavailable.
+- [ ] Compare every primary screen against the supplied reference APK and close remaining spacing/navigation/state gaps.
+- [ ] Profile photo/name persistence across Google re-login verified on a real account/device.
 - [ ] Empty/loading/error/offline states verified.
 
 ## Gate E — Final quality
