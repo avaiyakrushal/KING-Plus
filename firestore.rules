@@ -179,6 +179,7 @@ service cloud.firestore {
               || (roomAccess(roomId) && resource.data.uid == request.auth.uid));
         allow create: if roomAccess(roomId)
           && roomMember(roomId)
+          && requestId == request.auth.uid
           && request.resource.data.uid == request.auth.uid
           && request.resource.data.name is string
           && request.resource.data.seatNo is int
@@ -196,7 +197,8 @@ service cloud.firestore {
           && (
             request.resource.data.uid == request.auth.uid
             || (roomModerator(roomId)
-                && request.resource.data.uid is string)
+                && request.resource.data.uid is string
+                && exists(/databases/$(database)/documents/live_rooms/$(roomId)/members/$(request.resource.data.uid)))
           );
         allow update: if roomAccess(roomId)
           && resource.data.uid == request.resource.data.uid
@@ -214,6 +216,7 @@ service cloud.firestore {
           && (recipientUid == request.auth.uid || roomModerator(roomId));
         allow create, update: if roomModerator(roomId)
           && request.resource.data.recipientUid == recipientUid
+          && exists(/databases/$(database)/documents/live_rooms/$(roomId)/members/$(recipientUid))
           && request.resource.data.seatNo is int
           && request.resource.data.seatNo >= 1
           && request.resource.data.seatNo <= 6;
