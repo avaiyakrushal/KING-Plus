@@ -1964,4 +1964,28 @@ q=q.replace(marker,helpers+marker,1)
 main.write_text(q)
 print('v9.4.0 Me profile visitor count and history applied')
 
+
+# Enforce KING Plus no-billing requirement: remove Play Billing code/dependency and all recharge launch UI.
+gradle=root/'app/build.gradle'
+q=gradle.read_text()
+q=q.replace("    implementation 'com.android.billingclient:billing:9.1.0'\n","")
+gradle.write_text(q)
+billing=pkg/'BillingManager.java'
+if billing.exists(): billing.unlink()
+
+main=pkg/'MainActivity.java'
+q=main.read_text()
+old='''        base("KING Plus v3.0","Security, notifications, billing and release readiness");'''
+new='''        base("KING Plus v9.4","Security, notifications and release readiness");'''
+if old in q:q=q.replace(old,new,1)
+old='''        text("💳 Google Play recharge",19,Color.WHITE,true);
+        text("Play Billing never credits coins locally. A completed purchase token is sent to the backend for Google Play verification before server wallet credit.",13,MUTED,false);
+        button("💳 Open Play Recharge",PURPLE,()->BillingManager.showRecharge(this));'''
+new='''        text("💳 No-billing mode",19,Color.WHITE,true);
+        text("KING Plus does not start Google Play purchases or charge real money in this build. Wallet, gifts and parity flows remain no-billing.",13,MUTED,false);'''
+if old not in q: raise SystemExit('Main Play Billing readiness marker missing')
+q=q.replace(old,new,1)
+main.write_text(q)
+print('v9.4.0 Play Billing code and dependency removed')
+
 print('v9.4.0 parity batch 1 applied')
