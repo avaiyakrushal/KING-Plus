@@ -1394,4 +1394,49 @@ q=q.replace(old,new,1)
 party.write_text(q)
 print('v9.4.0 Party lobby network auto-recovery applied')
 
+
+# Party member strip: real cloud avatars + equipped frames, not initials only.
+party=pkg/'PartyActivity.java'
+q=party.read_text()
+old='''    private void rebuildMemberStrip() {
+        if(memberStripBox==null)return;
+        memberStripBox.removeAllViews();
+        List<String> names=new ArrayList<>();
+        if(ownerName!=null&&!ownerName.trim().isEmpty())names.add(ownerName);
+        if(cloudRoom){for(String n:memberNames)if(n!=null&&!n.trim().isEmpty()&&!names.contains(n))names.add(n);}
+        if(names.isEmpty())names.add("Host");
+        int shown=0;
+        for(String n:names){
+            if(shown++>=6)break;
+            String initial=n.trim().isEmpty()?"?":n.trim().substring(0,1).toUpperCase();
+            TextView av=tv(initial,12,Color.WHITE,true); av.setGravity(Gravity.CENTER); av.setBackground(bg(0xff5b3a78,40));
+            LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(dp(34),dp(34)); lp.setMargins(0,0,dp(5),0); memberStripBox.addView(av,lp);
+        }
+        int extra=Math.max(0,names.size()-6);TextView label=tv(cloudRoom?("Members "+liveMemberCount+(extra>0?" • +"+extra:"")):"Host",11,MUTED,false); memberStripBox.addView(label,new LinearLayout.LayoutParams(0,dp(34),1));
+    }'''
+new='''    private void rebuildMemberStrip() {
+        if(memberStripBox==null)return;
+        memberStripBox.removeAllViews();
+        List<String> names=new ArrayList<>();List<String> uids=new ArrayList<>();
+        if(ownerName!=null&&!ownerName.trim().isEmpty()){names.add(ownerName);uids.add(ownerUid==null?"":ownerUid);}
+        if(cloudRoom){for(String n:memberNames){if(n==null||n.trim().isEmpty()||names.contains(n))continue;names.add(n);String uid=memberUids.get(n);uids.add(uid==null?"":uid);}}
+        if(names.isEmpty()){names.add("Host");uids.add("");}
+        int shown=0;
+        for(int i=0;i<names.size()&&shown<6;i++,shown++){
+            String n=names.get(i),uid=i<uids.size()?uids.get(i):"";
+            String initial=n.trim().isEmpty()?"?":n.trim().substring(0,1).toUpperCase();
+            TextView fallback=tv(initial,12,Color.WHITE,true);fallback.setGravity(Gravity.CENTER);fallback.setBackground(bg(0xff5b3a78,40));
+            FrameLayout frame=new FrameLayout(this);String equipped=memberFrame730.get(uid);if(equipped==null||equipped.trim().isEmpty())equipped="Minimal Frame";frame.setBackground(KingCosmetics.avatarFrame(this,equipped,uid!=null&&!uid.isEmpty()&&uid.equals(ownerUid)));frame.setPadding(dp(2),dp(2),dp(2),dp(2));
+            frame.addView(fallback,new FrameLayout.LayoutParams(-1,-1));ImageView photo=new ImageView(this);photo.setScaleType(ImageView.ScaleType.CENTER_CROP);frame.addView(photo,new FrameLayout.LayoutParams(-1,-1));
+            String photoUrl=memberPhotos540.get(uid);if(user!=null&&uid!=null&&uid.equals(user.getUid())){String own=cloudProfilePhoto868();if(own.isEmpty()&&user.getPhotoUrl()!=null)own=user.getPhotoUrl().toString();photoUrl=own;}if(photoUrl!=null&&!photoUrl.isEmpty())applyProfilePhoto868(photo,fallback,photoUrl);
+            final String tapUid=uid, tapName=n;frame.setOnClickListener(v->{if(tapUid!=null&&!tapUid.isEmpty())openMemberProfile(tapUid,tapName);});
+            LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(dp(36),dp(36));lp.setMargins(0,0,dp(5),0);memberStripBox.addView(frame,lp);
+        }
+        int extra=Math.max(0,names.size()-6);TextView label=tv(cloudRoom?("Members "+liveMemberCount+(extra>0?" • +"+extra:"")):"Host",11,MUTED,false);memberStripBox.addView(label,new LinearLayout.LayoutParams(0,dp(36),1));
+    }'''
+if old not in q: raise SystemExit('Party member strip marker missing')
+q=q.replace(old,new,1)
+party.write_text(q)
+print('v9.4.0 Party member strip cloud avatar parity applied')
+
 print('v9.4.0 parity batch 1 applied')
