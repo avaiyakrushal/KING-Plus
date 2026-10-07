@@ -422,6 +422,7 @@ old='''        super.onResume();
         if(seatsBox!=null)rebuildSeats();'''
 new='''        super.onResume();
         org.jitsi.meet.sdk.JitsiMeetActivityDelegate.onHostResume(this);
+        setInlineAudioMuted940(!(micOn&&mySeat>0));
         if(seatsBox!=null)rebuildSeats();'''
 if old not in q: raise SystemExit('PartyActivity onResume marker missing for inline RTC')
 q=q.replace(old,new,1)
@@ -463,13 +464,20 @@ old='''    private boolean isOwner(){return cloudRoom?user!=null&&ownerUid!=null
 helpers='''    private void attachInRoomVoice940(FrameLayout shell){
         if(!cloudRoom||roomId==null||roomId.trim().isEmpty()||user==null||shell==null)return;
         try{
+            String slug=("KINGPlus-"+roomId).replaceAll("[^A-Za-z0-9_-]","");
+            if(inRoomVoiceJoined940&&inRoomVoiceView940!=null&&slug.equals(inRoomVoiceSlug940)){
+                try{if(inRoomVoiceView940.getParent() instanceof android.view.ViewGroup)((android.view.ViewGroup)inRoomVoiceView940.getParent()).removeView(inRoomVoiceView940);}catch(Throwable ignored){}
+                FrameLayout.LayoutParams reusedVoiceLp940=new FrameLayout.LayoutParams(dp(2),dp(2));reusedVoiceLp940.gravity=Gravity.TOP|Gravity.LEFT;
+                shell.addView(inRoomVoiceView940,reusedVoiceLp940);
+                setInlineAudioMuted940(!(micOn&&mySeat>0));
+                return;
+            }
             stopInRoomVoice940(false);
             org.jitsi.meet.sdk.JitsiMeet.instantiateReactNative(this);
             inRoomVoiceView940=new org.jitsi.meet.sdk.JitsiMeetView(this);
             inRoomVoiceView940.setAlpha(0.01f);
             inRoomVoiceView940.setClickable(false);
             inRoomVoiceView940.setFocusable(false);
-            String slug=("KINGPlus-"+roomId).replaceAll("[^A-Za-z0-9_-]","");
             org.jitsi.meet.sdk.JitsiMeetUserInfo info940=new org.jitsi.meet.sdk.JitsiMeetUserInfo();
             info940.setDisplayName(safeName());
             org.jitsi.meet.sdk.JitsiMeetConferenceOptions options940=new org.jitsi.meet.sdk.JitsiMeetConferenceOptions.Builder()
