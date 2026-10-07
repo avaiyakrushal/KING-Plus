@@ -1749,4 +1749,30 @@ q=q.replace(old,new,1)
 party.write_text(q)
 print('v9.4.0 Multi Video lobby entrance applied')
 
+
+# Server Firestore triggers are the single source for direct-message/follow notifications.
+chat=pkg/'ChatActivity.java'
+q=chat.read_text()
+q=q.replace('''                    .addOnSuccessListener(r -> {status.setText("Realtime chat");CloudBackend.sendDirectMessageNotification(peerUid, myName, text, (ok,m)->{});})''','''                    .addOnSuccessListener(r -> {status.setText("Realtime chat");})''',1)
+q=q.replace('''db.collection("direct_threads").document(chatId).collection("messages").add(msg).addOnSuccessListener(r->CloudBackend.sendDirectMessageNotification(peerUid,myName,"🎁 "+name+" ×"+qty,(ok,m)->{})).addOnFailureListener''','''db.collection("direct_threads").document(chatId).collection("messages").add(msg).addOnSuccessListener(r->{}).addOnFailureListener''',1)
+q=q.replace('''removePendingHead940(a,p);CloudBackend.sendDirectMessageNotification(peerUid,myName,text,(ok,m)->{});flushPendingText940();''','''removePendingHead940(a,p);flushPendingText940();''',1)
+chat.write_text(q)
+
+social=pkg/'SocialActivity.java'
+q=social.read_text().replace('''            CloudBackend.sendFollowNotification(uid,myName,(ok,m)->{});\n''','',1)
+social.write_text(q)
+
+pub=pkg/'KingPublicProfileActivity.java'
+q=pub.read_text().replace('''CloudBackend.sendFollowNotification(uid,displayName(),(ok,msg)->{});''','',1)
+pub.write_text(q)
+
+discover=pkg/'DiscoverActivity.java'
+q=discover.read_text().replace('''CloudBackend.sendFollowNotification(uid,displayName,(ok,m)->{});''','',1)
+discover.write_text(q)
+
+party=pkg/'PartyActivity.java'
+q=party.read_text().replace('''CloudBackend.sendFollowNotification(uid,safeName(),(ok,m)->{});''','',1)
+party.write_text(q)
+print('v9.4.0 duplicate client push calls removed')
+
 print('v9.4.0 parity batch 1 applied')
