@@ -3963,7 +3963,7 @@ helpers=r'''    private void channelProfile940(){
             String code=shortId(roomId);
             String msg="👥 "+groupName+"\n\n"+description+"\n\nGroup code: "+code+"\nOnline members: "+liveMemberCount+"\nHost: "+(ownerName==null?"KING Host":ownerName);
             AlertDialog.Builder b=new AlertDialog.Builder(this).setTitle("Channel / Group Profile").setMessage(msg)
-                .setPositiveButton("Share",(d,w)->shareText("Join "+groupName+" on KING Plus • Room "+roomId))
+                .setPositiveButton("Share",(d,w)->shareRoom())
                 .setNegativeButton("Close",null);
             if(isModerator())b.setNeutralButton("Edit",(d,w)->editChannelProfile940(ref,groupName,description));
             b.show();
