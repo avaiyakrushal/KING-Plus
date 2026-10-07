@@ -82,4 +82,16 @@ jobs:
           grep -F 'game_votes' /tmp/src/app/src/main/java/com/kingplus/social/RoomGameActivity.java
       - name: Compile parity development build
         working-directory: /tmp/src
-        run: gradle :app:assembleDebug --no-daemon
+        run: |
+          set -euo pipefail
+          for attempt in 1 2 3; do
+            echo "Gradle compile attempt $attempt/3"
+            if gradle :app:assembleDebug --no-daemon; then
+              exit 0
+            fi
+            if [ "$attempt" -lt 3 ]; then
+              echo "Compile/dependency resolution failed; retrying after transient repository cooldown"
+              sleep $((attempt*25))
+            fi
+          done
+          exit 1
