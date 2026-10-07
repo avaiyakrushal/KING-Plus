@@ -2219,16 +2219,9 @@ print('v9.4.0 first-login profile completion applied')
 # Video-reference Me/Profile: Favorites/Status tabs + real Recommended for you list.
 main=pkg/'MainActivity.java'
 q=main.read_text()
-pstart=q.find("    private void profile()")
-pend=q.find("    private void rankingsPage()",pstart)
-if pstart<0 or pend<0: raise SystemExit('Main profile/rankings boundary missing for video parity')
-profile_block=q[pstart:pend]
-anchor940='sv.addView(list);'
-apos940=profile_block.find(anchor940)
-if apos940<0: raise SystemExit('Profile list anchor missing for video parity')
-insert_at940=apos940+len(anchor940)
-profile_block=profile_block[:insert_at940]+'''\n        addProfileVideoTabs940(list);\n        addProfileRecommendations940(list);'''+profile_block[insert_at940:]
-q=q[:pstart]+profile_block+q[pend:]
+profile_anchor940='''content.addView(hub,new LinearLayout.LayoutParams(-1,dp(52)));'''
+if profile_anchor940 not in q: raise SystemExit('Profile hub anchor missing for video parity')
+q=q.replace(profile_anchor940,profile_anchor940+'''\n        addProfileVideoTabs940(content);\n        addProfileRecommendations940(content);''',1)
 
 marker='''    private void rankingsPage(){'''
 helpers=r'''    private void addProfileVideoTabs940(LinearLayout list){
