@@ -825,4 +825,36 @@ q=q.replace(old,new,1)
 party.write_text(q)
 print('v9.4.0 synchronized KTV stage applied')
 
+# Route Party Family actions into the real Community/Family data flow.
+party=pkg/'PartyActivity.java'
+q=party.read_text()
+old='''    private void familyPartyPanel610(){
+        String[] actions={"🏠 Family room info","👥 Invite family/friends","🎉 Post family activity","📢 Family announcement"};
+        new AlertDialog.Builder(this).setTitle("💞 Family Party").setItems(actions,(d,w)->{
+            if(w==0)new AlertDialog.Builder(this).setTitle("Family Party").setMessage("Room: "+roomName+"\\nOnline: "+(cloudRoom?liveMemberCount:Math.max(1,memberNames.size()))+"\\nSeats: "+seatNames.size()+"/"+maxSeats).setPositiveButton("OK",null).show();
+            else if(w==1)shareRoom();
+            else if(w==2){addEvent("family_activity",safeName()+" started a Family Party activity");toast("Family activity posted to room");}
+            else roomNoticePanel();
+        }).setNegativeButton("Close",null).show();
+    }'''
+new='''    private void familyPartyPanel610(){
+        String[] actions={"👑 Open Family Center","🏠 Family room info","👥 Invite family/friends","🎉 Post family activity","📢 Family announcement"};
+        new AlertDialog.Builder(this).setTitle("💞 Family Party").setItems(actions,(d,w)->{
+            if(w==0)openCommunityHub700("Family");
+            else if(w==1)new AlertDialog.Builder(this).setTitle("Family Party").setMessage("Room: "+roomName+"\\nOnline: "+(cloudRoom?liveMemberCount:Math.max(1,memberNames.size()))+"\\nSeats: "+seatNames.size()+"/"+maxSeats).setPositiveButton("Family Center",(x,y)->openCommunityHub700("Family")).setNegativeButton("Close",null).show();
+            else if(w==2)shareRoom();
+            else if(w==3){addEvent("family_activity",safeName()+" started a Family Party activity");toast("Family activity posted to room");}
+            else roomNoticePanel();
+        }).setNegativeButton("Close",null).show();
+    }'''
+if old not in q: raise SystemExit('Family Party base marker missing')
+q=q.replace(old,new,1)
+
+old='''new AlertDialog.Builder(this).setTitle("👑 Family").setMessage("Current family: "+family+(code.isEmpty()?"":"\\nFamily code: "+code)).setPositiveButton("Open Me page",(d,w)->{Intent i=new Intent(this,MainActivity.class);i.putExtra("openTab",4);startActivity(i);}).setNeutralButton("Share Family",(d,w)->shareFamilyRoom()).setNegativeButton("Close",null).show();'''
+new='''new AlertDialog.Builder(this).setTitle("👑 Family").setMessage("Current family: "+family+(code.isEmpty()?"":"\\nFamily code: "+code)).setPositiveButton("Open Family Center",(d,w)->openCommunityHub700("Family")).setNeutralButton("Share Family",(d,w)->shareFamilyRoom()).setNegativeButton("Close",null).show();'''
+if old in q:q=q.replace(old,new,1)
+
+party.write_text(q)
+print('v9.4.0 real Family routing applied')
+
 print('v9.4.0 parity batch 1 applied')
