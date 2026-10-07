@@ -3211,4 +3211,44 @@ q=q.replace(old,new,1)
 main.write_text(q)
 print('v9.4.0 launcher service crash guards applied')
 
+
+# Runtime stability: guard Jitsi lifecycle/delegate calls so voice/video option failures stay non-fatal.
+party=pkg/'PartyActivity.java'
+q=party.read_text()
+q=q.replace('''    @Override protected void onStop(){org.jitsi.meet.sdk.JitsiMeetActivityDelegate.onHostPause(this);super.onStop();}''',
+'''    @Override protected void onStop(){try{org.jitsi.meet.sdk.JitsiMeetActivityDelegate.onHostPause(this);}catch(Throwable e){KingStability.nonFatal(this,"party-jitsi-pause",e);}super.onStop();}''')
+q=q.replace('''    @Override public void onNewIntent(Intent intent){super.onNewIntent(intent);org.jitsi.meet.sdk.JitsiMeetActivityDelegate.onNewIntent(intent);}''',
+'''    @Override public void onNewIntent(Intent intent){super.onNewIntent(intent);try{org.jitsi.meet.sdk.JitsiMeetActivityDelegate.onNewIntent(intent);}catch(Throwable e){KingStability.nonFatal(this,"party-jitsi-intent",e);}}''')
+q=q.replace('''    @Override public void requestPermissions(String[] permissions,int requestCode,com.facebook.react.modules.core.PermissionListener listener){org.jitsi.meet.sdk.JitsiMeetActivityDelegate.requestPermissions(this,permissions,requestCode,listener);}''',
+'''    @Override public void requestPermissions(String[] permissions,int requestCode,com.facebook.react.modules.core.PermissionListener listener){try{org.jitsi.meet.sdk.JitsiMeetActivityDelegate.requestPermissions(this,permissions,requestCode,listener);}catch(Throwable e){KingStability.nonFatal(this,"party-jitsi-permission-request",e);}}''')
+q=q.replace('''    @Override public void onRequestPermissionsResult(int requestCode,String[] permissions,int[] grantResults){org.jitsi.meet.sdk.JitsiMeetActivityDelegate.onRequestPermissionsResult(requestCode,permissions,grantResults);}''',
+'''    @Override public void onRequestPermissionsResult(int requestCode,String[] permissions,int[] grantResults){try{org.jitsi.meet.sdk.JitsiMeetActivityDelegate.onRequestPermissionsResult(requestCode,permissions,grantResults);}catch(Throwable e){KingStability.nonFatal(this,"party-jitsi-permission-result",e);}}''')
+q=q.replace('''org.jitsi.meet.sdk.JitsiMeetActivityDelegate.onHostDestroy(this);super.onDestroy();''',
+'''try{org.jitsi.meet.sdk.JitsiMeetActivityDelegate.onHostDestroy(this);}catch(Throwable e){KingStability.nonFatal(this,"party-jitsi-destroy",e);}super.onDestroy();''')
+q=q.replace('''        org.jitsi.meet.sdk.JitsiMeetActivityDelegate.onHostResume(this);''',
+'''        try{org.jitsi.meet.sdk.JitsiMeetActivityDelegate.onHostResume(this);}catch(Throwable e){KingStability.nonFatal(this,"party-jitsi-resume",e);}''')
+q=q.replace('''        org.jitsi.meet.sdk.JitsiMeetActivityDelegate.onActivityResult(this,requestCode,resultCode,data);''',
+'''        try{org.jitsi.meet.sdk.JitsiMeetActivityDelegate.onActivityResult(this,requestCode,resultCode,data);}catch(Throwable e){KingStability.nonFatal(this,"party-jitsi-result",e);}''')
+party.write_text(q)
+
+multi=pkg/'KingMultiVideoActivity.java'
+if multi.exists():
+    q=multi.read_text()
+    q=q.replace('''    @Override protected void onResume(){super.onResume();org.jitsi.meet.sdk.JitsiMeetActivityDelegate.onHostResume(this);}''',
+'''    @Override protected void onResume(){super.onResume();try{org.jitsi.meet.sdk.JitsiMeetActivityDelegate.onHostResume(this);}catch(Throwable e){KingStability.nonFatal(this,"video-jitsi-resume",e);}}''')
+    q=q.replace('''    @Override protected void onStop(){org.jitsi.meet.sdk.JitsiMeetActivityDelegate.onHostPause(this);super.onStop();}''',
+'''    @Override protected void onStop(){try{org.jitsi.meet.sdk.JitsiMeetActivityDelegate.onHostPause(this);}catch(Throwable e){KingStability.nonFatal(this,"video-jitsi-pause",e);}super.onStop();}''')
+    q=q.replace('''    @Override public void onNewIntent(Intent intent){super.onNewIntent(intent);org.jitsi.meet.sdk.JitsiMeetActivityDelegate.onNewIntent(intent);}''',
+'''    @Override public void onNewIntent(Intent intent){super.onNewIntent(intent);try{org.jitsi.meet.sdk.JitsiMeetActivityDelegate.onNewIntent(intent);}catch(Throwable e){KingStability.nonFatal(this,"video-jitsi-intent",e);}}''')
+    q=q.replace('''    @Override protected void onActivityResult(int requestCode,int resultCode,Intent data){super.onActivityResult(requestCode,resultCode,data);org.jitsi.meet.sdk.JitsiMeetActivityDelegate.onActivityResult(this,requestCode,resultCode,data);}''',
+'''    @Override protected void onActivityResult(int requestCode,int resultCode,Intent data){super.onActivityResult(requestCode,resultCode,data);try{org.jitsi.meet.sdk.JitsiMeetActivityDelegate.onActivityResult(this,requestCode,resultCode,data);}catch(Throwable e){KingStability.nonFatal(this,"video-jitsi-result",e);}}''')
+    q=q.replace('''    @Override public void requestPermissions(String[] permissions,int requestCode,com.facebook.react.modules.core.PermissionListener listener){org.jitsi.meet.sdk.JitsiMeetActivityDelegate.requestPermissions(this,permissions,requestCode,listener);}''',
+'''    @Override public void requestPermissions(String[] permissions,int requestCode,com.facebook.react.modules.core.PermissionListener listener){try{org.jitsi.meet.sdk.JitsiMeetActivityDelegate.requestPermissions(this,permissions,requestCode,listener);}catch(Throwable e){KingStability.nonFatal(this,"video-jitsi-permission-request",e);}}''')
+    q=q.replace('''    @Override public void onRequestPermissionsResult(int requestCode,String[] permissions,int[] grantResults){org.jitsi.meet.sdk.JitsiMeetActivityDelegate.onRequestPermissionsResult(requestCode,permissions,grantResults);}''',
+'''    @Override public void onRequestPermissionsResult(int requestCode,String[] permissions,int[] grantResults){try{org.jitsi.meet.sdk.JitsiMeetActivityDelegate.onRequestPermissionsResult(requestCode,permissions,grantResults);}catch(Throwable e){KingStability.nonFatal(this,"video-jitsi-permission-result",e);}}''')
+    q=q.replace('''org.jitsi.meet.sdk.JitsiMeetActivityDelegate.onHostDestroy(this);super.onDestroy();''',
+'''try{org.jitsi.meet.sdk.JitsiMeetActivityDelegate.onHostDestroy(this);}catch(Throwable e){KingStability.nonFatal(this,"video-jitsi-destroy",e);}super.onDestroy();''')
+    multi.write_text(q)
+print('v9.4.0 Jitsi lifecycle crash guards applied')
+
 print('v9.4.0 parity batch 1 applied')
