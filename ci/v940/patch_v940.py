@@ -3328,4 +3328,26 @@ q=q.replace(marker,helper+marker,1)
 party.write_text(q)
 print('v9.4.0 Main and Party safe action guards applied')
 
+
+# Mic runtime hardening: re-check permission at the exact AudioRecord call site.
+main=pkg/'MainActivity.java'
+q=main.read_text()
+old='''    private void startMic() {
+        stopMic();
+        int rate = 16000;'''
+new='''    private void startMic() {
+        stopMic();
+        if(android.os.Build.VERSION.SDK_INT>=23&&checkSelfPermission(Manifest.permission.RECORD_AUDIO)!=PackageManager.PERMISSION_GRANTED){
+            try{requestPermissions(new String[]{Manifest.permission.RECORD_AUDIO},MIC_REQUEST);}catch(Throwable e){KingStability.nonFatal(this,"mic-permission-request",e);Toast.makeText(this,"Microphone permission is required",Toast.LENGTH_LONG).show();}
+            return;
+        }
+        int rate = 16000;'''
+if old not in q: raise SystemExit('Main startMic marker missing')
+q=q.replace(old,new,1)
+q=q.replace('''        } catch (Exception ex) { stopMic(); Toast.makeText(this, "માઇક શરૂ થઈ શક્યો નથી", Toast.LENGTH_SHORT).show(); }''',
+'''        }catch(SecurityException ex){stopMic();KingStability.nonFatal(this,"mic-security",ex);Toast.makeText(this,"Microphone permission was blocked",Toast.LENGTH_LONG).show();}
+        catch(Exception ex){stopMic();KingStability.nonFatal(this,"mic-start",ex);Toast.makeText(this,"માઇક શરૂ થઈ શક્યો નથી",Toast.LENGTH_SHORT).show();}''',1)
+main.write_text(q)
+print('v9.4.0 mic permission runtime hardening applied')
+
 print('v9.4.0 parity batch 1 applied')
