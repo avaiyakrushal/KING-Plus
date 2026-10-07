@@ -4964,4 +4964,51 @@ q=q.replace(marker,helper+marker,1)
 deep.write_text(q)
 print('v9.4.0 Party nested detail routes wired to working panels')
 
+
+# Route more room-management detail pages to the real Party controls.
+party=pkg/'PartyActivity.java'
+q=party.read_text()
+old='''        else if("games".equals(panel))openRoomGames740();
+    }'''
+new='''        else if("games".equals(panel))openRoomGames740();
+        else if("billboard".equals(panel))roomBillboardDialog();
+        else if("admins".equals(panel))administratorDialog();
+        else if("banned".equals(panel))banListDialog();
+        else if("rename".equals(panel))renameRoomDialog();
+        else if("category".equals(panel))changeCategoryDialog();
+        else if("privacy".equals(panel))roomSettingsPanel();
+        else if("data".equals(panel))partyDataPanel();
+        else if("atmosphere".equals(panel))atmospherePanel();
+        else if("host".equals(panel))hostProfileDialog();
+        else if("channel".equals(panel))channelPanel();
+        else if("ranking".equals(panel))roomRankingDialog();
+        else if("broadcast".equals(panel))friendBroadcast610();
+    }'''
+if old not in q: raise SystemExit('Requested panel switch marker missing for room-management routes')
+q=q.replace(old,new,1)
+party.write_text(q)
+
+deep=pkg/'KingDeepFlowActivity.java'
+q=deep.read_text()
+old='''            case "detail_room_seats": case "detail_vip_seat": openPartyPanel940("seats");break;
+            default:detail(route);break;'''
+new='''            case "detail_room_seats": case "detail_vip_seat": openPartyPanel940("seats");break;
+            case "detail_billboard": openPartyPanel940("billboard");break;
+            case "detail_cohosts": openPartyPanel940("admins");break;
+            case "detail_banned": openPartyPanel940("banned");break;
+            case "detail_room_name": openPartyPanel940("rename");break;
+            case "detail_room_category": openPartyPanel940("category");break;
+            case "detail_room_privacy": case "detail_room_password": case "detail_mute": case "detail_close_room": openPartyPanel940("privacy");break;
+            case "detail_room_income": openPartyPanel940("data");break;
+            case "detail_atmosphere": openPartyPanel940("atmosphere");break;
+            case "detail_host_role": openPartyPanel940("host");break;
+            case "detail_group": openPartyPanel940("channel");break;
+            case "detail_gift_ranking": openPartyPanel940("ranking");break;
+            case "detail_friend_broadcast": openPartyPanel940("broadcast");break;
+            default:detail(route);break;'''
+if old not in q: raise SystemExit('DeepFlow live panel route marker missing for room-management routes')
+q=q.replace(old,new,1)
+deep.write_text(q)
+print('v9.4.0 room-management detail routes wired to working Party controls')
+
 print('v9.4.0 parity batch 1 applied')
