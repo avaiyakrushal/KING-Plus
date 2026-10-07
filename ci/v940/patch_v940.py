@@ -3251,4 +3251,45 @@ if multi.exists():
     multi.write_text(q)
 print('v9.4.0 Jitsi lifecycle crash guards applied')
 
+
+# Surface crashes captured by KingApplication from any Activity on next launch.
+main=pkg/'MainActivity.java'
+q=main.read_text()
+old='''        KingStability.install(this);
+        installCrashReport();'''
+new='''        KingStability.install(this);
+        installCrashReport();
+        new android.os.Handler(android.os.Looper.getMainLooper()).postDelayed(this::showGlobalCrashDiagnostic940,900L);'''
+if old not in q: raise SystemExit('Main stability install marker missing')
+q=q.replace(old,new,1)
+
+marker='''    private void installCrashReport() {'''
+helper=r'''    private void showGlobalCrashDiagnostic940(){
+        try{
+            if(isFinishing()||isDestroyed())return;
+            SharedPreferences p=getSharedPreferences("king_stability",MODE_PRIVATE);
+            String crash=p.getString("lastCrash","");
+            if(crash==null||crash.trim().isEmpty())return;
+            long at=p.getLong("lastCrashAt",0L);
+            String device=p.getString("device","");
+            if(crash.length()>2200)crash=crash.substring(0,2200);
+            final String message=(at>0?new java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss",java.util.Locale.US).format(new java.util.Date(at))+"
+":"")+(device==null?"":device+"
+
+")+crash;
+            p.edit().remove("lastCrash").remove("lastCrashAt").remove("lastCrashThread").apply();
+            new AlertDialog.Builder(this).setTitle("KING Plus previous crash")
+                .setMessage(message)
+                .setPositiveButton("Continue",null)
+                .setNeutralButton("Copy details",(d,w)->{try{android.content.ClipboardManager cm=(android.content.ClipboardManager)getSystemService(CLIPBOARD_SERVICE);cm.setPrimaryClip(android.content.ClipData.newPlainText("KING Plus crash",message));Toast.makeText(this,"Crash details copied",Toast.LENGTH_SHORT).show();}catch(Exception ignored){}})
+                .show();
+        }catch(Throwable e){KingStability.nonFatal(this,"show-global-crash",e);}
+    }
+
+'''
+if marker not in q: raise SystemExit('installCrashReport marker missing for global diagnostic helper')
+q=q.replace(marker,helper+marker,1)
+main.write_text(q)
+print('v9.4.0 global crash diagnostic surfacing applied')
+
 print('v9.4.0 parity batch 1 applied')
