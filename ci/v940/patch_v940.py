@@ -1775,4 +1775,59 @@ q=party.read_text().replace('''CloudBackend.sendFollowNotification(uid,safeName(
 party.write_text(q)
 print('v9.4.0 duplicate client push calls removed')
 
+
+# Direct chat header parity: real peer avatar, canonical name and VIP/level.
+chat=pkg/'ChatActivity.java'
+q=chat.read_text()
+old='''    private TextView status;'''
+new='''    private TextView status;
+    private TextView peerNameView940;
+    private TextView peerAvatarFallback940;
+    private android.widget.ImageView peerAvatarImage940;'''
+if old not in q: raise SystemExit('Chat status field marker missing for profile header')
+q=q.replace(old,new,1)
+
+old='''        render();
+        if (cloudMode) listenCloud(); else loadLocal();'''
+new='''        render();
+        loadPeerHeader940();
+        if (cloudMode) listenCloud(); else loadLocal();'''
+if old not in q: raise SystemExit('Chat render marker missing for peer header')
+q=q.replace(old,new,1)
+
+old='''        TextView avatar = label("●", 26, PURPLE, true); avatar.setGravity(Gravity.CENTER); avatar.setBackground(bg(0xffefe8ff, 28)); head.addView(avatar, new LinearLayout.LayoutParams(dp(50), dp(50)));
+        LinearLayout info = new LinearLayout(this); info.setOrientation(LinearLayout.VERTICAL); info.setPadding(dp(10), 0, 0, 0);
+        TextView n = label(peerName, 17, DARK, true); info.addView(n); status = label(cloudMode ? "Connecting…" : "Local / test chat", 12, 0xff777186, false); info.addView(status);
+        head.addView(info, new LinearLayout.LayoutParams(0, dp(54), 1));'''
+new='''        android.widget.FrameLayout avatarBox940=new android.widget.FrameLayout(this);peerAvatarFallback940=label(peerName==null||peerName.trim().isEmpty()?"K":peerName.trim().substring(0,1).toUpperCase(Locale.US),20,Color.WHITE,true);peerAvatarFallback940.setGravity(Gravity.CENTER);peerAvatarFallback940.setBackground(bg(PURPLE,28));avatarBox940.addView(peerAvatarFallback940,new android.widget.FrameLayout.LayoutParams(-1,-1));peerAvatarImage940=new android.widget.ImageView(this);peerAvatarImage940.setScaleType(android.widget.ImageView.ScaleType.CENTER_CROP);avatarBox940.addView(peerAvatarImage940,new android.widget.FrameLayout.LayoutParams(-1,-1));avatarBox940.setOnClickListener(v->openPeerProfile940());head.addView(avatarBox940,new LinearLayout.LayoutParams(dp(50),dp(50)));
+        LinearLayout info = new LinearLayout(this); info.setOrientation(LinearLayout.VERTICAL); info.setPadding(dp(10), 0, 0, 0);info.setOnClickListener(v->openPeerProfile940());
+        peerNameView940 = label(peerName, 17, DARK, true); info.addView(peerNameView940); status = label(cloudMode ? "Connecting…" : "Local / test chat", 12, 0xff777186, false); info.addView(status);
+        head.addView(info, new LinearLayout.LayoutParams(0, dp(54), 1));'''
+if old not in q: raise SystemExit('Chat header avatar marker missing')
+q=q.replace(old,new,1)
+
+marker='''    private void addTool(LinearLayout row, String text, Runnable action) {'''
+helpers='''    private void openPeerProfile940(){
+        if(peerUid==null||peerUid.trim().isEmpty())return;
+        Intent i=new Intent(this,KingPublicProfileActivity.class);i.putExtra("uid",peerUid);i.putExtra("name",peerName);startActivity(i);
+    }
+    private void loadPeerHeader940(){
+        if(!cloudMode||db==null||peerUid==null||peerUid.isEmpty())return;
+        db.collection("public_profiles").document(peerUid).get().addOnSuccessListener(p->{
+            if(p==null||!p.exists())return;
+            String cloudName=clean(p.getString("displayName"),peerName);if(!cloudName.isEmpty()){peerName=cloudName;if(peerNameView940!=null)peerNameView940.setText(cloudName);}
+            Long vip=p.getLong("vipLevel"),lv=p.getLong("level");if(peerNameView940!=null&&(vip!=null||lv!=null))peerNameView940.setText(cloudName+"   VIP "+(vip==null?0:vip)+" · Lv."+(lv==null?1:lv));
+            String photo=clean(p.getString("photoUrl"),"");if(!photo.isEmpty()&&peerAvatarImage940!=null&&peerAvatarFallback940!=null)loadPeerPhoto940(photo);
+        }).addOnFailureListener(e->{});
+    }
+    private void loadPeerPhoto940(String url){
+        final String source=url;peerAvatarImage940.setTag(source);new Thread(()->{try{java.net.URLConnection c=new java.net.URL(source).openConnection();c.setConnectTimeout(7000);c.setReadTimeout(7000);try(java.io.InputStream in=c.getInputStream()){android.graphics.Bitmap bm=android.graphics.BitmapFactory.decodeStream(in);if(bm!=null)runOnUiThread(()->{if(!isFinishing()&&peerAvatarImage940!=null&&source.equals(peerAvatarImage940.getTag())){peerAvatarImage940.setImageBitmap(bm);if(peerAvatarFallback940!=null)peerAvatarFallback940.setVisibility(View.GONE);}});}}catch(Exception ignored){}}).start();
+    }
+
+'''
+if marker not in q: raise SystemExit('Chat addTool marker missing for peer header helpers')
+q=q.replace(marker,helpers+marker,1)
+chat.write_text(q)
+print('v9.4.0 real direct-chat peer header applied')
+
 print('v9.4.0 parity batch 1 applied')
