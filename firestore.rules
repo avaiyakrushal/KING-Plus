@@ -106,7 +106,8 @@ service cloud.firestore {
         );
         allow update: if roomAccess(roomId) && (
           (resource.data.uid == request.auth.uid
-            && request.resource.data.uid == request.auth.uid)
+            && request.resource.data.uid == request.auth.uid
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['micOn']))
           || (roomModerator(roomId)
             && request.resource.data.uid == resource.data.uid
             && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['micOn']))
