@@ -43,6 +43,16 @@ service cloud.firestore {
       return exists(/databases/$(database)/documents/live_rooms/$(roomId)/seat_locks/$(seatId))
         && get(/databases/$(database)/documents/live_rooms/$(roomId)/seat_locks/$(seatId)).data.locked == true;
     }
+    function familyData(familyCode) {
+      return get(/databases/$(database)/documents/families/$(familyCode)).data;
+    }
+    function familyOwner(familyCode) {
+      return activeUser() && familyData(familyCode).ownerUid == request.auth.uid;
+    }
+    function familyMember(familyCode) {
+      return activeUser()
+        && exists(/databases/$(database)/documents/families/$(familyCode)/members/$(request.auth.uid));
+    }
 
     match /users/{uid} {
       allow read: if owner(uid) || admin();
@@ -345,6 +355,112 @@ service cloud.firestore {
         );
       allow delete: if activeUser()
         && resource.data.ownerUid == request.auth.uid;
+    }
+
+    match /moments/{momentId} {
+      allow read: if signedIn();
+      allow create: if activeUser()
+        && request.resource.data.uid == request.auth.uid
+        && request.resource.data.text is string
+        && request.resource.data.text.size() > 0
+        && request.resource.data.text.size() <= 1000;
+      allow update: if signedIn()
+        && resource.data.uid == request.auth.uid
+        && request.resource.data.uid == request.auth.uid;
+      allow delete: if signedIn()
+        && resource.data.uid == request.auth.uid;
+
+      match /likes/{uid} {
+        allow read: if signedIn();
+        allow create, update: if activeUser()
+          && uid == request.auth.uid
+          && request.resource.data.uid == request.auth.uid;
+        allow delete: if signedIn() && uid == request.auth.uid;
+      }
+    }
+
+    match /relationships/{relationshipId} {
+      allow read: if signedIn()
+        && (resource.data.uidA == request.auth.uid
+            || resource.data.uidB == request.auth.uid);
+      allow create: if activeUser()
+        && request.resource.data.uidA is string
+        && request.resource.data.uidB is string
+        && request.resource.data.uidA != request.resource.data.uidB
+        && (request.resource.data.uidA == request.auth.uid
+            || request.resource.data.uidB == request.auth.uid)
+        && request.resource.data.initiatorUid == request.auth.uid
+        && request.resource.data.status == 'pending';
+      allow update: if activeUser()
+        && (resource.data.uidA == request.auth.uid
+            || resource.data.uidB == request.auth.uid)
+        && request.resource.data.uidA == resource.data.uidA
+        && request.resource.data.uidB == resource.data.uidB
+        && request.resource.data.initiatorUid == resource.data.initiatorUid
+        && request.resource.data.diff(resource.data).affectedKeys()
+             .hasOnly(['status', 'updatedAt']);
+      allow delete: if signedIn()
+        && (resource.data.uidA == request.auth.uid
+            || resource.data.uidB == request.auth.uid);
+    }
+
+    match /families/{familyCode} {
+      allow read: if activeUser();
+      allow create: if activeUser()
+        && request.resource.data.ownerUid == request.auth.uid
+        && request.resource.data.code == familyCode
+        && request.resource.data.name is string
+        && request.resource.data.name.size() > 0
+        && request.resource.data.name.size() <= 120;
+      allow update, delete: if familyOwner(familyCode);
+
+      match /members/{memberUid} {
+        allow read: if familyMember(familyCode) || familyOwner(familyCode);
+        allow create: if activeUser()
+          && memberUid == request.auth.uid
+          && request.resource.data.uid == request.auth.uid
+          && (
+            request.resource.data.role == 'member'
+            || (request.resource.data.role == 'owner' && familyOwner(familyCode))
+          );
+        allow update: if activeUser()
+          && (memberUid == request.auth.uid || familyOwner(familyCode))
+          && request.resource.data.uid == memberUid;
+        allow delete: if signedIn()
+          && (memberUid == request.auth.uid || familyOwner(familyCode));
+      }
+
+      match /messages/{messageId} {
+        allow read: if familyMember(familyCode);
+        allow create: if familyMember(familyCode)
+          && request.resource.data.uid == request.auth.uid
+          && request.resource.data.text is string
+          && request.resource.data.text.size() > 0
+          && request.resource.data.text.size() <= 1000;
+        allow update: if false;
+        allow delete: if signedIn()
+          && (resource.data.uid == request.auth.uid || familyOwner(familyCode));
+      }
+
+      match /treasury/{entryId} {
+        allow read: if familyMember(familyCode);
+        allow create: if familyMember(familyCode)
+          && request.resource.data.uid == request.auth.uid
+          && request.resource.data.amount is int
+          && request.resource.data.amount > 0
+          && request.resource.data.amount <= 10000;
+        allow update: if false;
+        allow delete: if familyOwner(familyCode);
+      }
+
+      match /activities/{activityId} {
+        allow read: if familyMember(familyCode);
+        allow create, update: if familyMember(familyCode)
+          && request.resource.data.uid == request.auth.uid
+          && request.resource.data.type is string;
+        allow delete: if signedIn()
+          && (resource.data.uid == request.auth.uid || familyOwner(familyCode));
+      }
     }
 
     match /direct_threads/{threadId} {
