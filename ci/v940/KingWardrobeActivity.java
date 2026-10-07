@@ -90,7 +90,7 @@ public class KingWardrobeActivity extends Activity {
     private void addBubble(String name){
         boolean unlocked=KingCosmetics.unlockedBubble(name,progress),equipped=name.equals(KingCosmetics.bubble(this));
         TextView row=tv((equipped?"✓  ":unlocked?"💬  ":"🔒  ")+KingCosmetics.bubbleEmoji(name)+"  "+name+"\n"+(equipped?"Equipped":unlocked?"Tap to equip":"Unlock at "+KingCosmetics.requirementBubble(name)),15,equipped?Color.WHITE:INK,true);
-        row.setBackground(bg(equipped?KingCosmetics.bubbleColor(this):Color.WHITE,14));
+        row.setBackground(bg(equipped?KingCosmetics.bubbleColor(name):Color.WHITE,14));
         row.setOnClickListener(v->{if(!unlocked){toast("Locked • "+KingCosmetics.requirementBubble(name));return;}KingCosmetics.setBubble(this,name);syncCloud();toast(name+" equipped");render();});
         LinearLayout.LayoutParams p=new LinearLayout.LayoutParams(-1,dp(68));p.setMargins(0,dp(4),0,dp(4));body.addView(row,p);
     }
