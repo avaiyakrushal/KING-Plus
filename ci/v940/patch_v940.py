@@ -1358,4 +1358,40 @@ q=q.replace(old,new,1)
 social.write_text(q)
 print('v9.4.0 real social profile card visuals applied')
 
+# Party lobby network auto-recovery after connectivity returns.
+party=pkg/'PartyActivity.java'
+q=party.read_text()
+old='''    private String requestedGame940="";'''
+new='''    private String requestedGame940="";
+    private android.net.ConnectivityManager.NetworkCallback partyNetworkCallback940;
+    private boolean partyLastOnline940;
+    private String currentLobbyTab940="Hot";'''
+if old not in q: raise SystemExit('Party requestedGame field marker missing for network recovery')
+q=q.replace(old,new,1)
+
+old='''        localCoins = prefs.getInt("coins", 2500);'''
+new='''        localCoins = prefs.getInt("coins", 2500);
+        partyLastOnline940=KingNetwork.online(this);
+        partyNetworkCallback940=KingNetwork.watch(this,online->runOnUiThread(()->{
+            boolean recovered=online&&!partyLastOnline940;partyLastOnline940=online;
+            if(recovered&&roomId==null&&!isFinishing()&&!isDestroyed())renderLobby(currentLobbyTab940);
+        }));'''
+if old not in q: raise SystemExit('Party localCoins marker missing for network recovery')
+q=q.replace(old,new,1)
+
+old='''    private void renderLobby(String selected) {
+        clearListeners(); unregisterMember(); roomId = null; cloudRoom = false;'''
+new='''    private void renderLobby(String selected) {
+        currentLobbyTab940=selected==null||selected.trim().isEmpty()?"Hot":selected;
+        clearListeners(); unregisterMember(); roomId = null; cloudRoom = false;'''
+if old not in q: raise SystemExit('Party renderLobby marker missing for network recovery')
+q=q.replace(old,new,1)
+
+old='''    @Override protected void onDestroy(){stopInRoomVoice940(true);unregisterMember();clearListeners();try{if(roomMusicPlayer!=null){roomMusicPlayer.release();roomMusicPlayer=null;}}catch(Exception ignored){}org.jitsi.meet.sdk.JitsiMeetActivityDelegate.onHostDestroy(this);super.onDestroy();}'''
+new='''    @Override protected void onDestroy(){KingNetwork.unwatch(this,partyNetworkCallback940);partyNetworkCallback940=null;stopInRoomVoice940(true);unregisterMember();clearListeners();try{if(roomMusicPlayer!=null){roomMusicPlayer.release();roomMusicPlayer=null;}}catch(Exception ignored){}org.jitsi.meet.sdk.JitsiMeetActivityDelegate.onHostDestroy(this);super.onDestroy();}'''
+if old not in q: raise SystemExit('Party onDestroy marker missing for network recovery')
+q=q.replace(old,new,1)
+party.write_text(q)
+print('v9.4.0 Party lobby network auto-recovery applied')
+
 print('v9.4.0 parity batch 1 applied')
