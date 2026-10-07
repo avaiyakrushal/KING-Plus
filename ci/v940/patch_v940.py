@@ -2784,4 +2784,30 @@ q=q[:ktv_start]+ktv_method+"\n\n"+q[ktv_end:]
 party.write_text(q)
 print('v9.4.0 visual synchronized KTV stage applied')
 
+
+# Multi Video lifecycle: release owned seat on explicit leave/back so no ghost seats remain.
+multi=pkg/'KingMultiVideoActivity.java'
+q=multi.read_text()
+q=q.replace('''back.setOnClickListener(v->finish());''','''back.setOnClickListener(v->leaveAndFinish940());''',1)
+q=q.replace('''leave.setOnClickListener(v->finish());''','''leave.setOnClickListener(v->leaveAndFinish940());''',1)
+
+marker='''    @Override protected void onResume(){'''
+helpers='''    private void leaveAndFinish940(){
+        if(db!=null&&mySeat>0){int seat=mySeat;mySeat=-1;micOn=false;cameraOn=false;applyMedia940();db.collection("live_rooms").document(roomId).collection("video_seats").document(String.valueOf(seat)).delete().addOnCompleteListener(x->finish());}
+        else finish();
+    }
+    @Override public void onBackPressed(){leaveAndFinish940();}
+
+'''
+if marker not in q: raise SystemExit('Multi Video lifecycle marker missing')
+q=q.replace(marker,helpers+marker,1)
+
+old='''    @Override protected void onDestroy(){if(seatsListener!=null)seatsListener.remove();if(roomListener!=null)roomListener.remove();if(roleListener!=null)roleListener.remove();if(inviteListener!=null)inviteListener.remove();try{if(meetView!=null){meetView.dispose();meetView=null;}}catch(Throwable ignored){}org.jitsi.meet.sdk.JitsiMeetActivityDelegate.onHostDestroy(this);super.onDestroy();}'''
+new='''    @Override protected void onDestroy(){if(seatsListener!=null)seatsListener.remove();if(roomListener!=null)roomListener.remove();if(roleListener!=null)roleListener.remove();if(inviteListener!=null)inviteListener.remove();if(db!=null&&mySeat>0)db.collection("live_rooms").document(roomId).collection("video_seats").document(String.valueOf(mySeat)).delete().addOnFailureListener(e->{});try{if(meetView!=null){meetView.dispose();meetView=null;}}catch(Throwable ignored){}org.jitsi.meet.sdk.JitsiMeetActivityDelegate.onHostDestroy(this);super.onDestroy();}'''
+if old not in q: raise SystemExit('Multi Video onDestroy marker missing for seat cleanup')
+q=q.replace(old,new,1)
+
+multi.write_text(q)
+print('v9.4.0 Multi Video seat cleanup applied')
+
 print('v9.4.0 parity batch 1 applied')
