@@ -3602,4 +3602,40 @@ q=q.replace(marker,helpers+marker,1)
 hub.write_text(q)
 print('v9.4.0 Topic Square parity applied')
 
+
+# Bolo-reference parity: in-app Friend Broadcast that posts a joinable room card to KING Square.
+party=pkg/'PartyActivity.java'
+q=party.read_text()
+old='''    private void friendBroadcast610(){
+        String text="Join my KING Plus Party: "+roomName+(roomId==null?"":" • Room "+roomId);
+        Intent i=new Intent(Intent.ACTION_SEND);i.setType("text/plain");i.putExtra(Intent.EXTRA_TEXT,text);startActivity(Intent.createChooser(i,"Broadcast Party to friends"));
+    }'''
+new='''    private void friendBroadcast610(){
+        final String text="Join my KING Plus Party: "+roomName+(roomId==null?"":" • Room "+roomId);
+        String[] actions={"📣 Post to KING Square","🔗 Share outside KING Plus","📋 Copy Room ID"};
+        new AlertDialog.Builder(this).setTitle("📣 Friend Broadcast").setItems(actions,(d,w)->{
+            if(w==0){
+                if(!cloudRoom||db==null||user==null){toast("Join a live signed-in Party room first");return;}
+                Map<String,Object>m=new HashMap<>();m.put("uid",user.getUid());m.put("name",safeName());m.put("text",text);m.put("topic","Friends");m.put("type","room_broadcast");m.put("roomId",roomId);m.put("roomName",roomName);m.put("createdAt",FieldValue.serverTimestamp());
+                db.collection("moments").add(m).addOnSuccessListener(v->{addEvent("friend_broadcast",safeName()+" broadcast this Party to KING Square 📣");toast("Party broadcast posted");}).addOnFailureListener(e->toast("Broadcast failed: "+msg(e)));
+            }else if(w==1){
+                Intent i=new Intent(Intent.ACTION_SEND);i.setType("text/plain");i.putExtra(Intent.EXTRA_TEXT,text);startActivity(Intent.createChooser(i,"Broadcast Party to friends"));
+            }else{
+                try{android.content.ClipboardManager cm=(android.content.ClipboardManager)getSystemService(CLIPBOARD_SERVICE);cm.setPrimaryClip(android.content.ClipData.newPlainText("KING Plus room",roomId==null?"":roomId));toast("Room ID copied");}catch(Exception e){toast("Could not copy Room ID");}
+            }
+        }).setNegativeButton("Close",null).show();
+    }'''
+if old not in q: raise SystemExit('Friend Broadcast marker missing for realtime broadcast')
+q=q.replace(old,new,1)
+party.write_text(q)
+
+hub=pkg/'CommunityHubActivity.java'
+q=hub.read_text()
+old='''card.addView(tv(text,15,DARK,false));LinearLayout a=new LinearLayout(this);'''
+new='''card.addView(tv(text,15,DARK,false));String type940=safe(d.getString("type"),"");String roomId940=safe(d.getString("roomId"),"");String roomName940=safe(d.getString("roomName"),"Live Party");if("room_broadcast".equals(type940)&&!roomId940.isEmpty()){TextView join940=button("🎤 Join "+roomName940,()->{Intent i=new Intent(this,PartyActivity.class);i.putExtra("roomId",roomId940);i.putExtra("roomName",roomName940);startActivity(i);});LinearLayout.LayoutParams jp940=new LinearLayout.LayoutParams(-1,dp(44));jp940.setMargins(0,dp(6),0,dp(6));card.addView(join940,jp940);}LinearLayout a=new LinearLayout(this);'''
+if old not in q: raise SystemExit('Moment text/action marker missing for joinable Friend Broadcast')
+q=q.replace(old,new,1)
+hub.write_text(q)
+print('v9.4.0 in-app Friend Broadcast parity applied')
+
 print('v9.4.0 parity batch 1 applied')
