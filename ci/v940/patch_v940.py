@@ -163,7 +163,7 @@ old='''        LinearLayout quick = new LinearLayout(this); quick.setGravity(Gra
 
         View dividerTop = new View(this); dividerTop.setBackgroundColor(0xffeeecef); root.addView(dividerTop,new LinearLayout.LayoutParams(-1,dp(1)));
 '''
-new='''        TextView recentTitle=label("Recent friends in room",13,0xff5f5964,true);recentTitle.setPadding(dp(18),0,0,0);root.addView(recentTitle,new LinearLayout.LayoutParams(-1,dp(34)));
+new='''        TextView recentTitle=label("Hot someone to chat",13,0xff5f5964,true);recentTitle.setPadding(dp(18),0,0,0);root.addView(recentTitle,new LinearLayout.LayoutParams(-1,dp(34)));
         root.addView(recentFriends940(),new LinearLayout.LayoutParams(-1,dp(78)));
         View dividerTop = new View(this); dividerTop.setBackgroundColor(0xffeeecef); root.addView(dividerTop,new LinearLayout.LayoutParams(-1,dp(1)));
 '''
