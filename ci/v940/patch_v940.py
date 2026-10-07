@@ -4589,4 +4589,52 @@ q=q.replace(old,new,1)
 party.write_text(q)
 print('v9.4.0 kick/ban reason and banned-user detail parity applied')
 
+
+# Bolo-reference parity: moderator-controlled RED/BLUE Audio PK team assignment.
+party=pkg/'PartyActivity.java'
+q=party.read_text()
+
+q=q.replace('''items.add("💫 Interactive Emoji"); items.add("🎧 Audio PK"); items.add("🎁 Gift Wall"); items.add("🔍 Online User Search");''',
+'''items.add("💫 Interactive Emoji"); items.add("🎧 Audio PK"); if(isModerator())items.add("⚔ PK Team Setup"); items.add("🎁 Gift Wall"); items.add("🔍 Online User Search");''',1)
+q=q.replace('''        else if(x.contains("Audio PK"))pkBattle();
+        else if(x.contains("Gift Wall"))giftWall620();''',
+'''        else if(x.contains("Audio PK"))pkBattle();
+        else if(x.contains("PK Team Setup"))pkTeamSetup940();
+        else if(x.contains("Gift Wall"))giftWall620();''',1)
+
+old='''                    if(actor!=null)for(Map.Entry<Integer,String>x:seatUids.entrySet())if(actor.equals(x.getValue())){seat=x.getKey();break;}
+                    if(seat!=null&&seat%2==0)red+=score;else if(seat!=null)blue+=score;else if((gifts%2)==0)red+=score;else blue+=score;gifts++;'''
+new='''                    if(actor!=null)for(Map.Entry<Integer,String>x:seatUids.entrySet())if(actor.equals(x.getValue())){seat=x.getKey();break;}
+                    Object customRaw940=pk.get("seatTeams");Map<String,Object> customTeams940=customRaw940 instanceof Map?(Map<String,Object>)customRaw940:null;String customTeam940=seat==null||customTeams940==null?null:String.valueOf(customTeams940.get(String.valueOf(seat)));
+                    if("red".equalsIgnoreCase(customTeam940))red+=score;else if("blue".equalsIgnoreCase(customTeam940))blue+=score;else if(seat!=null&&seat%2==0)red+=score;else if(seat!=null)blue+=score;else if((gifts%2)==0)red+=score;else blue+=score;gifts++;'''
+if old not in q: raise SystemExit('Audio PK scoring marker missing for team setup')
+q=q.replace(old,new,1)
+
+marker='''    private void audioPkPanel700(){'''
+helper=r'''    private void pkTeamSetup940(){
+        if(!cloudRoom||db==null||roomId==null){toast("Live room required");return;}
+        if(!isModerator()){toast("Host/co-host only");return;}
+        List<Integer> occupied=new ArrayList<>();for(int no=1;no<=maxSeats;no++)if(seatUids.get(no)!=null)occupied.add(no);
+        if(occupied.isEmpty()){new AlertDialog.Builder(this).setTitle("⚔ PK Team Setup").setMessage("No occupied mic seats yet.").setPositiveButton("OK",null).show();return;}
+        DocumentReference state=db.collection("live_rooms").document(roomId).collection("room_settings").document("audio_pk");
+        state.get().addOnSuccessListener(doc->{
+            Map<String,Object> teams=new HashMap<>();Object raw=doc.get("seatTeams");if(raw instanceof Map)teams.putAll((Map<String,Object>)raw);
+            String[] rows=new String[occupied.size()];for(int i=0;i<occupied.size();i++){int no=occupied.get(i);String team=String.valueOf(teams.get(String.valueOf(no)));String badge="red".equalsIgnoreCase(team)?"🔴 RED":"blue".equalsIgnoreCase(team)?"🔵 BLUE":(no%2==0?"🔴 AUTO":"🔵 AUTO");rows[i]="Seat "+no+" • "+seatNames.get(no)+" • "+badge;}
+            new AlertDialog.Builder(this).setTitle("⚔ PK Team Setup").setItems(rows,(d,w)->{
+                int no=occupied.get(w);String[] choose={"🔴 RED team","🔵 BLUE team","↺ Auto by seat"};
+                new AlertDialog.Builder(this).setTitle("Seat "+no+" • "+seatNames.get(no)).setItems(choose,(a,b)->{
+                    if(b==0)teams.put(String.valueOf(no),"red");else if(b==1)teams.put(String.valueOf(no),"blue");else teams.remove(String.valueOf(no));
+                    Map<String,Object> patch=new HashMap<>();patch.put("seatTeams",teams);patch.put("teamUpdatedAt",FieldValue.serverTimestamp());patch.put("teamUpdatedBy",user==null?"":user.getUid());
+                    state.set(patch,SetOptions.merge()).addOnSuccessListener(v->{addEvent("audio_pk_team",safeName()+" updated PK teams");pkTeamSetup940();}).addOnFailureListener(e->toast("PK team update failed: "+msg(e)));
+                }).setNegativeButton("Cancel",null).show();
+            }).setNeutralButton("Reset Auto",(d,w)->{Map<String,Object> patch=new HashMap<>();patch.put("seatTeams",new HashMap<String,Object>());patch.put("teamUpdatedAt",FieldValue.serverTimestamp());state.set(patch,SetOptions.merge()).addOnSuccessListener(v->toast("PK teams reset to auto"));}).setNegativeButton("Close",null).show();
+        }).addOnFailureListener(e->toast("PK team setup unavailable: "+msg(e)));
+    }
+
+'''
+if marker not in q: raise SystemExit('audioPkPanel marker missing for PK team helper')
+q=q.replace(marker,helper+marker,1)
+party.write_text(q)
+print('v9.4.0 Audio PK custom team assignment parity applied')
+
 print('v9.4.0 parity batch 1 applied')
