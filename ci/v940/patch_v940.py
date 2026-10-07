@@ -4127,4 +4127,50 @@ q=q.replace(old,new,1)
 party.write_text(q)
 print('v9.4.0 Party lobby history shortcut applied')
 
+
+# Bolo-reference parity: real room Fan Club backed by existing follows collection.
+party=pkg/'PartyActivity.java'
+q=party.read_text()
+old='''        items.add("💞 Family Party"); items.add("📣 Friend Broadcast"); items.add("📚 Party Master Help");'''
+new='''        items.add("💞 Family Party"); items.add("💜 Fan Club"); items.add("📣 Friend Broadcast"); items.add("📚 Party Master Help");'''
+if old not in q: raise SystemExit('Family/Friend menu marker missing for Fan Club')
+q=q.replace(old,new,1)
+old='''        else if(x.contains("Family Party"))familyPartyPanel610();
+        else if(x.contains("Friend Broadcast"))friendBroadcast610();'''
+new='''        else if(x.contains("Family Party"))familyPartyPanel610();
+        else if(x.contains("Fan Club"))fanClubPanel940();
+        else if(x.contains("Friend Broadcast"))friendBroadcast610();'''
+if old not in q: raise SystemExit('Family/Friend handler marker missing for Fan Club')
+q=q.replace(old,new,1)
+marker='''    private void friendBroadcast610(){'''
+helpers=r'''    private void fanClubPanel940(){
+        if(!cloudRoom||db==null||user==null||ownerUid==null||ownerUid.isEmpty()){toast("Open a live Party room first");return;}
+        db.collection("follows").whereEqualTo("targetUid",ownerUid).limit(100).get().addOnSuccessListener(snap->{
+            boolean joined=false;List<String> names=new ArrayList<>();
+            for(DocumentSnapshot d:snap.getDocuments()){
+                String uid=d.getString("followerUid");if(user.getUid().equals(uid))joined=true;
+                String n=d.getString("followerName");if(n==null||n.trim().isEmpty())n=uid==null?"KING Fan":"KING "+uid.substring(0,Math.min(6,uid.length()));names.add(n);
+            }
+            final boolean isJoined=joined;String[] actions={(isJoined?"💔 Leave Fan Club":"💜 Join Fan Club"),"👥 Fan members ("+snap.size()+")","🎁 Open Gift Center"};
+            new AlertDialog.Builder(this).setTitle("💜 "+(ownerName==null?"KING Host":ownerName)+" Fan Club").setMessage("Fans: "+snap.size()+"\nFollow the host to join this room's Fan Club.")
+                .setItems(actions,(d,w)->{
+                    if(w==0)toggleFanClub940(isJoined);
+                    else if(w==1){if(names.isEmpty())new AlertDialog.Builder(this).setTitle("Fan members").setMessage("No fans yet.").setPositiveButton("OK",null).show();else new AlertDialog.Builder(this).setTitle("Fan members").setItems(names.toArray(new String[0]),null).setNegativeButton("Close",null).show();}
+                    else giftDialogFor(ownerUid,ownerName==null?"Host":ownerName);
+                }).setNegativeButton("Close",null).show();
+        }).addOnFailureListener(e->toast("Fan Club unavailable: "+msg(e)));
+    }
+    private void toggleFanClub940(boolean joined){
+        if(user==null||db==null||ownerUid==null)return;
+        String id=user.getUid()+"__"+ownerUid;DocumentReference ref=db.collection("follows").document(id);
+        if(joined)ref.delete().addOnSuccessListener(v->{toast("Left Fan Club");fanClubPanel940();}).addOnFailureListener(e->toast("Could not leave Fan Club"));
+        else{Map<String,Object>x=new HashMap<>();x.put("followerUid",user.getUid());x.put("targetUid",ownerUid);x.put("followerName",safeName());x.put("createdAt",FieldValue.serverTimestamp());ref.set(x).addOnSuccessListener(v->{toast("Joined Fan Club 💜");fanClubPanel940();}).addOnFailureListener(e->toast("Could not join Fan Club: "+msg(e)));}
+    }
+
+'''
+if marker not in q: raise SystemExit('Friend Broadcast marker missing for Fan Club helper')
+q=q.replace(marker,helpers+marker,1)
+party.write_text(q)
+print('v9.4.0 real Fan Club parity applied')
+
 print('v9.4.0 parity batch 1 applied')
