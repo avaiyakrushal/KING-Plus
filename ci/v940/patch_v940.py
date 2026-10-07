@@ -552,10 +552,10 @@ party.write_text(q)
 # ---------------- Game navigation: no exposed simulated multiplayer paths ----------------
 main=pkg/'MainActivity.java'
 q=main.read_text()
-old='''    private void openPlayableGame(String game){if("ludo".equalsIgnoreCase(game)){startActivity(new Intent(this,OnlineLudoActivity.class));return;}Intent i=new Intent(this,GamePlayActivity.class);i.putExtra("game",game);startActivity(i);}'''
+old='''    private void openPlayableGame(String game){if("ludo".equalsIgnoreCase(game)){startActivity(new Intent(this,KingLudoLobbyActivity.class));return;}Intent i=new Intent(this,GamePlayActivity.class);i.putExtra("game",game);startActivity(i);}'''
 new='''    private void openPlayableGame(String game){
         String g=game==null?"":game.toLowerCase(java.util.Locale.US);
-        if("ludo".equals(g)){startActivity(new Intent(this,OnlineLudoActivity.class));return;}
+        if("ludo".equals(g)){startActivity(new Intent(this,KingLudoLobbyActivity.class));return;}
         if(g.equals("werewolf")||g.equals("spy")||g.equals("draw")||g.equals("bingo")||g.equals("domino")||g.equals("sheep")||g.equals("zoo")){
             kingOpenGameRoom(game);
             return;
