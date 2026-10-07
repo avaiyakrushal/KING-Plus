@@ -2643,11 +2643,10 @@ print('v9.4.0 Multi Video sit-down invitation flow applied')
 # Bolo-reference parity: visual Gift Wall backed by real room gift events.
 party=pkg/'PartyActivity.java'
 q=party.read_text()
-old='''    private void giftWall620(){
-        if(!cloudRoom||db==null){new AlertDialog.Builder(this).setTitle("🎁 Gift Wall").setMessage("Gift Wall becomes live inside a Firebase room. Gifts sent in this test room still appear in chat.").setPositiveButton("Gift Shop",(d,w)->giftShopPanel()).setNegativeButton("Close",null).show();return;}
-        db.collection("live_rooms").document(roomId).collection("events").orderBy("createdAt",Query.Direction.DESCENDING).limit(250).get().addOnSuccessListener(snap->{Map<String,Long> giftValue=new HashMap<>();Map<String,Integer> giftCount=new HashMap<>();long total=0;int events=0;for(DocumentSnapshot d:snap.getDocuments())if("gift".equals(d.getString("type"))){String g=str(d,"giftIcon","🎁")+" "+str(d,"giftName","Gift");Long v=d.getLong("giftValue");long value=v==null?0:Math.max(0,v);giftValue.put(g,(giftValue.containsKey(g)?giftValue.get(g):0L)+value);giftCount.put(g,(giftCount.containsKey(g)?giftCount.get(g):0)+1);total+=value;events++;}List<Map.Entry<String,Long>> list=new ArrayList<>(giftValue.entrySet());java.util.Collections.sort(list,(a,b)->Long.compare(b.getValue(),a.getValue()));StringBuilder out=new StringBuilder();out.append("Room gifts: ").append(events).append("   •   Value: 💎").append(compactNumber(total)).append("\n\n");int rank=1;for(Map.Entry<String,Long> e:list){out.append(rank++).append(". ").append(e.getKey()).append("  ×").append(giftCount.get(e.getKey())).append("  • 💎").append(compactNumber(e.getValue())).append("\n");if(rank>12)break;}if(events==0)out.append("No gifts yet");new AlertDialog.Builder(this).setTitle("🎁 Gift Wall").setMessage(out.toString()).setPositiveButton("Gift Shop",(d,w)->giftShopPanel()).setNeutralButton("Ranking",(d,w)->roomRankingDialog()).setNegativeButton("Close",null).show();}).addOnFailureListener(e->toast("Gift Wall unavailable: "+msg(e)));
-    }'''
-new='''    private void giftWall620(){
+gift_start=q.find("    private void giftWall620(){")
+gift_end=q.find("    private void seedLocalFeed()",gift_start)
+if gift_start<0 or gift_end<0: raise SystemExit('Gift Wall method boundary missing')
+gift_method=r'''    private void giftWall620(){
         if(!cloudRoom||db==null){new AlertDialog.Builder(this).setTitle("🎁 Gift Wall").setMessage("Gift Wall becomes live inside a Firebase room.").setPositiveButton("Gift Shop",(d,w)->giftShopPanel()).setNegativeButton("Close",null).show();return;}
         db.collection("live_rooms").document(roomId).collection("events").orderBy("createdAt",Query.Direction.DESCENDING).limit(250).get().addOnSuccessListener(snap->{
             Map<String,Long> giftValue=new HashMap<>();Map<String,Integer> giftCount=new HashMap<>();long total=0;int events=0;
@@ -2673,8 +2672,7 @@ new='''    private void giftWall620(){
             new AlertDialog.Builder(this).setTitle("🎁 Gift Wall").setView(root).setPositiveButton("Gift Shop",(d,w)->giftShopPanel()).setNeutralButton("Ranking",(d,w)->roomRankingDialog()).setNegativeButton("Close",null).show();
         }).addOnFailureListener(e->toast("Gift Wall unavailable: "+msg(e)));
     }'''
-if old not in q: raise SystemExit('Gift Wall base marker missing')
-q=q.replace(old,new,1)
+q=q[:gift_start]+gift_method+"\n\n"+q[gift_end:]
 party.write_text(q)
 print('v9.4.0 visual Gift Wall cards applied')
 
