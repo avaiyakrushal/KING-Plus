@@ -3114,4 +3114,61 @@ q=q.replace(owner_marker,helpers+owner_marker,1)
 party.write_text(q)
 print('v9.4.0 per-seat lock/unlock parity applied')
 
+
+# Startup crash hardening for returning users: never die before recovery UI/crash details can render.
+main=pkg/'MainActivity.java'
+q=main.read_text()
+
+old='''        if (displayName.isEmpty()) login(); else home();
+        String crash = getPreferences(0).getString("last_crash", "");
+        if (!crash.isEmpty()) {
+            getPreferences(0).edit().remove("last_crash").apply();
+            new AlertDialog.Builder(this).setTitle("KING Plus crash details")
+                .setMessage(crash).setPositiveButton("OK", null).show();
+        }'''
+new='''        String previousCrash940=getPreferences(0).getString("last_crash","");
+        try{
+            if(displayName.isEmpty())login();else home();
+        }catch(Throwable startupError940){
+            String trace940=android.util.Log.getStackTraceString(startupError940);
+            if(trace940.length()>3500)trace940=trace940.substring(0,3500);
+            getPreferences(0).edit().putString("last_crash",trace940).apply();
+            showStartupRecovery940(trace940);
+            return;
+        }
+        if(!previousCrash940.isEmpty()){
+            getPreferences(0).edit().remove("last_crash").apply();
+            final String crash940=previousCrash940;
+            new android.os.Handler(android.os.Looper.getMainLooper()).post(()->{
+                if(isFinishing()||isDestroyed())return;
+                new AlertDialog.Builder(this).setTitle("KING Plus recovered from a crash")
+                    .setMessage(crash940).setPositiveButton("OK",null).show();
+            });
+        }'''
+if old not in q: raise SystemExit('Main startup navigation/crash-report marker missing')
+q=q.replace(old,new,1)
+
+marker='''    private void installCrashReport() {'''
+helper=r'''    private void showStartupRecovery940(String detail){
+        try{
+            stopMic();
+            LinearLayout root940=new LinearLayout(this);root940.setOrientation(LinearLayout.VERTICAL);root940.setGravity(Gravity.CENTER);root940.setPadding(dp(24),dp(40),dp(24),dp(40));root940.setBackgroundColor(0xff101323);
+            TextView title940=new TextView(this);title940.setText("KING Plus recovery");title940.setTextSize(25);title940.setTypeface(null,Typeface.BOLD);title940.setTextColor(Color.WHITE);title940.setGravity(Gravity.CENTER);root940.addView(title940,new LinearLayout.LayoutParams(-1,dp(64)));
+            TextView msg940=new TextView(this);msg940.setText("The previous screen could not open safely. Your account data has not been deleted.");msg940.setTextSize(14);msg940.setTextColor(0xffd6d0e0);msg940.setGravity(Gravity.CENTER);root940.addView(msg940,new LinearLayout.LayoutParams(-1,dp(90)));
+            Button login940=new Button(this);login940.setText("Open Login Safely");login940.setAllCaps(false);login940.setOnClickListener(v->{try{login();}catch(Throwable e){Toast.makeText(this,"Login recovery failed",Toast.LENGTH_LONG).show();}});root940.addView(login940,new LinearLayout.LayoutParams(-1,dp(56)));
+            Button resetUi940=new Button(this);resetUi940.setText("Reset screen state & retry");resetUi940.setAllCaps(false);resetUi940.setOnClickListener(v->{getPreferences(0).edit().remove("screen").apply();try{if(displayName==null||displayName.trim().isEmpty())login();else home();}catch(Throwable e){Toast.makeText(this,"Home still has an error; use Login Safely",Toast.LENGTH_LONG).show();}});LinearLayout.LayoutParams rp940=new LinearLayout.LayoutParams(-1,dp(56));rp940.setMargins(0,dp(10),0,0);root940.addView(resetUi940,rp940);
+            TextView details940=new TextView(this);details940.setText("Crash details saved for diagnosis");details940.setTextSize(11);details940.setTextColor(0xff8f879c);details940.setGravity(Gravity.CENTER);root940.addView(details940,new LinearLayout.LayoutParams(-1,dp(50)));
+            setContentView(root940);
+        }catch(Throwable ignored940){
+            try{login();}catch(Throwable ignoredAgain940){}
+        }
+    }
+
+'''
+if marker not in q: raise SystemExit('installCrashReport marker missing for startup recovery')
+q=q.replace(marker,helper+marker,1)
+
+main.write_text(q)
+print('v9.4.0 startup crash recovery hardening applied')
+
 print('v9.4.0 parity batch 1 applied')
