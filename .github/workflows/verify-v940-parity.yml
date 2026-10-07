@@ -135,6 +135,19 @@ jobs:
           grep -F 'match /relationships/{relationshipId}' /tmp/src/firestore.rules
           grep -F 'match /moments/{momentId}' /tmp/src/firestore.rules
           grep -F 'match /chat_media/{ownerUid}/{threadId}/{fileName}' /tmp/src/storage.rules
+          grep -F 'requestMicSeat940' /tmp/src/app/src/main/java/com/kingplus/social/PartyActivity.java
+          grep -F 'openMicRequests940' /tmp/src/app/src/main/java/com/kingplus/social/PartyActivity.java
+          grep -F 'collection("video_seats")' /tmp/src/app/src/main/java/com/kingplus/social/KingMultiVideoActivity.java
+          grep -F 'collection("video_seat_invites")' /tmp/src/app/src/main/java/com/kingplus/social/KingMultiVideoActivity.java
+          grep -F 'buildSetVideoMutedIntent' /tmp/src/app/src/main/java/com/kingplus/social/KingMultiVideoActivity.java
+          grep -F 'leaveAndFinish940' /tmp/src/app/src/main/java/com/kingplus/social/KingMultiVideoActivity.java
+          grep -F 'match /video_seats/{seatId}' /tmp/src/firestore.rules
+          grep -F 'match /video_seat_invites/{recipientUid}' /tmp/src/firestore.rules
+          grep -F 'showGameHistory940' /tmp/src/app/src/main/java/com/kingplus/social/RoomGameActivity.java
+          grep -F 'totalGifts=tv("🎁 "+events' /tmp/src/app/src/main/java/com/kingplus/social/PartyActivity.java
+          grep -F '🏁  PK RESULT' /tmp/src/app/src/main/java/com/kingplus/social/PartyActivity.java
+          grep -F 'startKtvRequestVisual940' /tmp/src/app/src/main/java/com/kingplus/social/PartyActivity.java
+          grep -F 'Play Rematch' /tmp/src/app/src/main/java/com/kingplus/social/OnlineLudoActivity.java
       - name: Compile parity development build
         working-directory: /tmp/src
         run: |
