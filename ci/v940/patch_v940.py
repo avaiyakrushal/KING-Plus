@@ -4698,4 +4698,61 @@ q=q.replace(old,new,1)
 party.write_text(q)
 print('v9.4.0 Following-based Party invite parity applied')
 
+
+# Bolo-reference parity: Multi Video quick-match interaction for seated users.
+multi=pkg/'KingMultiVideoActivity.java'
+q=multi.read_text()
+
+old='''    private final Set<String> handledInvites940=new HashSet<>();
+    private int mySeat=-1; private boolean micOn=false,cameraOn=false,moderator=false,owner940=false,cohost940=false,leaving940=false;
+    private LinearLayout seatsBar,controls; private TextView stateText,seatAction,micAction,camAction;'''
+new='''    private final Set<String> handledInvites940=new HashSet<>(),handledMatches940=new HashSet<>();
+    private int mySeat=-1; private boolean micOn=false,cameraOn=false,moderator=false,owner940=false,cohost940=false,leaving940=false;
+    private LinearLayout seatsBar,controls; private TextView stateText,seatAction,micAction,camAction,matchAction;'''
+if old not in q: raise SystemExit('Multi Video field marker missing for quick match')
+q=q.replace(old,new,1)
+
+old='''        seatAction=control("＋ Sit Down",()->toggleSeat940());micAction=control("🎤 Mic OFF",()->toggleMic940());camAction=control("📷 Camera OFF",()->toggleCamera940());
+        controls.addView(seatAction,controlLp());controls.addView(micAction,controlLp());controls.addView(camAction,controlLp());body.addView(controls,new LinearLayout.LayoutParams(-1,dp(62)));'''
+new='''        seatAction=control("＋ Sit Down",()->toggleSeat940());micAction=control("🎤 Mic OFF",()->toggleMic940());camAction=control("📷 Camera OFF",()->toggleCamera940());matchAction=control("💞 Match",()->videoQuickMatch940());
+        controls.addView(seatAction,controlLp());controls.addView(micAction,controlLp());controls.addView(camAction,controlLp());controls.addView(matchAction,controlLp());body.addView(controls,new LinearLayout.LayoutParams(-1,dp(62)));'''
+if old not in q: raise SystemExit('Multi Video controls marker missing for quick match')
+q=q.replace(old,new,1)
+
+old='''            else if("video_camera".equals(type)&&seat>=1&&actor.equals(seatUids.get(seat)))seatCameras.put(seat,Boolean.TRUE.equals(d.getBoolean("enabled")));'''
+new='''            else if("video_camera".equals(type)&&seat>=1&&actor.equals(seatUids.get(seat)))seatCameras.put(seat,Boolean.TRUE.equals(d.getBoolean("enabled")));
+            else if("video_match".equals(type)&&me!=null&&me.getUid().equals(safe(d.getString("targetUid"),""))&&System.currentTimeMillis()-when<60000L&&handledMatches940.add(d.getId())){
+                final String from=safe(d.getString("actorName"),"KING User");runOnUiThread(()->new android.app.AlertDialog.Builder(this).setTitle("💞 Multi Video Match").setMessage(from+" matched with you.").setPositiveButton("OK",null).show());
+            }'''
+if old not in q: raise SystemExit('Multi Video reducer marker missing for match events')
+q=q.replace(old,new,1)
+
+marker='''    private void refreshControls940(){'''
+helper=r'''    private void videoQuickMatch940(){
+        if(mySeat<1){toast("Sit on a video seat first");return;}
+        List<Integer> seats=new ArrayList<>();List<String> labels=new ArrayList<>();
+        for(int i=1;i<=6;i++){String uid=seatUids.get(i);if(uid==null||uid.isEmpty()||i==mySeat)continue;seats.add(i);labels.add("Seat "+i+" • "+safe(seatNames.get(i),"KING User"));}
+        if(seats.isEmpty()){toast("No other video-seat user is available");return;}
+        List<String> choices=new ArrayList<>();choices.add("🎲 Quick random match");choices.addAll(labels);
+        new android.app.AlertDialog.Builder(this).setTitle("💞 Multi Video Match").setItems(choices.toArray(new String[0]),(d,w)->{
+            int index=w==0?new java.util.Random().nextInt(seats.size()):w-1;int targetSeat=seats.get(index);String uid=seatUids.get(targetSeat),name=safe(seatNames.get(targetSeat),"KING User");
+            Map<String,Object>x=new HashMap<>();x.put("seatNo",mySeat);x.put("targetSeat",targetSeat);x.put("targetUid",uid);x.put("targetName",name);
+            emit940("video_match",displayName+" matched with "+name,x);
+            new android.app.AlertDialog.Builder(this).setTitle("💞 Match found").setMessage(displayName+"  ×  "+name+"
+Video seats "+mySeat+" & "+targetSeat).setPositiveButton("OK",null).show();
+        }).setNegativeButton("Close",null).show();
+    }
+
+'''
+if marker not in q: raise SystemExit('Multi Video refresh controls marker missing for match helper')
+q=q.replace(marker,helper+marker,1)
+
+old='''    private void refreshControls940(){if(stateText!=null)stateText.setText(mySeat>0?("📹 Video seat "+mySeat+(moderator?" • Host controls":"")):("📹 Multi Video • viewer mode"+(moderator?" • Host controls":"")));if(seatAction!=null)seatAction.setText(mySeat>0?"↥ Leave Seat":"＋ Sit Down");if(micAction!=null){micAction.setText(micOn?"🎤 Mic ON":"🎤 Mic OFF");micAction.setAlpha(mySeat>0?1f:.45f);}if(camAction!=null){camAction.setText(cameraOn?"📷 Camera ON":"📷 Camera OFF");camAction.setAlpha(mySeat>0?1f:.45f);}}'''
+new='''    private void refreshControls940(){if(stateText!=null)stateText.setText(mySeat>0?("📹 Video seat "+mySeat+(moderator?" • Host controls":"")):("📹 Multi Video • viewer mode"+(moderator?" • Host controls":"")));if(seatAction!=null)seatAction.setText(mySeat>0?"↥ Leave Seat":"＋ Sit Down");if(micAction!=null){micAction.setText(micOn?"🎤 Mic ON":"🎤 Mic OFF");micAction.setAlpha(mySeat>0?1f:.45f);}if(camAction!=null){camAction.setText(cameraOn?"📷 Camera ON":"📷 Camera OFF");camAction.setAlpha(mySeat>0?1f:.45f);}if(matchAction!=null)matchAction.setAlpha(mySeat>0?1f:.45f);}'''
+if old not in q: raise SystemExit('Multi Video refresh control body missing for match alpha')
+q=q.replace(old,new,1)
+
+multi.write_text(q)
+print('v9.4.0 Multi Video quick-match parity applied')
+
 print('v9.4.0 parity batch 1 applied')
