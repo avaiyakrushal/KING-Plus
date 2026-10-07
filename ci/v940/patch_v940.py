@@ -2223,9 +2223,11 @@ pstart=q.find("    private void profile()")
 pend=q.find("    private void rankingsPage()",pstart)
 if pstart<0 or pend<0: raise SystemExit('Main profile/rankings boundary missing for video parity')
 profile_block=q[pstart:pend]
-needle='''ScrollView sv=new ScrollView(this); LinearLayout list=new LinearLayout(this); list.setOrientation(LinearLayout.VERTICAL); list.setPadding(dp(14),dp(5),dp(14),dp(14)); sv.addView(list);'''
-if needle not in profile_block: raise SystemExit('Profile list marker missing for video parity')
-profile_block=profile_block.replace(needle,needle+'''\n        addProfileVideoTabs940(list);\n        addProfileRecommendations940(list);''',1)
+anchor940='sv.addView(list);'
+apos940=profile_block.find(anchor940)
+if apos940<0: raise SystemExit('Profile list anchor missing for video parity')
+insert_at940=apos940+len(anchor940)
+profile_block=profile_block[:insert_at940]+'''\n        addProfileVideoTabs940(list);\n        addProfileRecommendations940(list);'''+profile_block[insert_at940:]
 q=q[:pstart]+profile_block+q[pend:]
 
 marker='''    private void rankingsPage(){'''
