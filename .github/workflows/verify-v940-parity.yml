@@ -99,6 +99,12 @@ jobs:
           grep -F 'addDiscoverEntrances940' /tmp/src/app/src/main/java/com/kingplus/social/DiscoverActivity.java
           grep -F 'loadSocialPhoto940' /tmp/src/app/src/main/java/com/kingplus/social/SocialActivity.java
           grep -F 'memberPhotos540.get(uid)' /tmp/src/app/src/main/java/com/kingplus/social/PartyActivity.java
+          grep -F 'loadPeerHeader940' /tmp/src/app/src/main/java/com/kingplus/social/ChatActivity.java
+          grep -F 'lobbyMemberCountListeners940' /tmp/src/app/src/main/java/com/kingplus/social/PartyActivity.java
+          ! grep -F 'CloudBackend.sendDirectMessageNotification' /tmp/src/app/src/main/java/com/kingplus/social/ChatActivity.java
+          ! grep -F 'CloudBackend.sendFollowNotification' /tmp/src/app/src/main/java/com/kingplus/social/SocialActivity.java
+          ! grep -F 'CloudBackend.sendFollowNotification' /tmp/src/app/src/main/java/com/kingplus/social/DiscoverActivity.java
+          ! grep -F 'CloudBackend.sendFollowNotification' /tmp/src/app/src/main/java/com/kingplus/social/KingPublicProfileActivity.java
           grep -F 'addProfileStat(counts,"…","Followers"' /tmp/src/app/src/main/java/com/kingplus/social/MainActivity.java
           grep -F 'putExtra("requestedGame",code)' /tmp/src/app/src/main/java/com/kingplus/social/KingDeepFlowActivity.java
           grep -F 'seenLiveEmojiEventsV530.size()>80' /tmp/src/app/src/main/java/com/kingplus/social/PartyActivity.java
