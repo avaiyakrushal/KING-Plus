@@ -91,6 +91,11 @@ jobs:
           grep -F 'Loading KING profiles…' /tmp/src/app/src/main/java/com/kingplus/social/DiscoverActivity.java
           grep -F 'Offline • showing local fallback' /tmp/src/app/src/main/java/com/kingplus/social/ChatActivity.java
           grep -F 'Offline / sync unavailable • showing recent local conversations' /tmp/src/app/src/main/java/com/kingplus/social/InboxActivity.java
+          grep -F 'addDiscoverEntrances940' /tmp/src/app/src/main/java/com/kingplus/social/DiscoverActivity.java
+          grep -F 'loadSocialPhoto940' /tmp/src/app/src/main/java/com/kingplus/social/SocialActivity.java
+          grep -F 'memberPhotos540.get(uid)' /tmp/src/app/src/main/java/com/kingplus/social/PartyActivity.java
+          grep -F 'addProfileStat(counts,"…","Followers"' /tmp/src/app/src/main/java/com/kingplus/social/MainActivity.java
+          grep -F 'putExtra("requestedGame",code)' /tmp/src/app/src/main/java/com/kingplus/social/KingDeepFlowActivity.java
           grep -F 'seenLiveEmojiEventsV530.size()>80' /tmp/src/app/src/main/java/com/kingplus/social/PartyActivity.java
           grep -F 'openRoomGames740()' /tmp/src/app/src/main/java/com/kingplus/social/PartyActivity.java
           grep -F 'normalizeRoomGame940' /tmp/src/app/src/main/java/com/kingplus/social/RoomGameActivity.java
