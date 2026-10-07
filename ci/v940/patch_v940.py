@@ -10,7 +10,6 @@ pkg=root/'app/src/main/java/com/kingplus/social'
 (pkg/'KingLoginBackdropView.java').write_text(Path(__file__).with_name('KingLoginBackdropView.java').read_text())
 (pkg/'KingWalletVisualActivity.java').write_text(Path(__file__).with_name('KingWalletVisualActivity.java').read_text())
 (pkg/'KingWardrobeActivity.java').write_text(Path(__file__).with_name('KingWardrobeActivity.java').read_text())
-(pkg/'KingCosmetics.java').write_text(Path(__file__).with_name('KingCosmetics.java').read_text())
 
 manifest=root/'app/src/main/AndroidManifest.xml'
 m=manifest.read_text()
@@ -4838,14 +4837,25 @@ if 'Open Wardrobe • Frames, Effects, Bubbles & Badges' not in q:
 hub.write_text(q)
 print('v9.4.0 Wardrobe equip flow wired')
 
-# Complete Wardrobe cosmetics: selected chat bubble styling + cloud badge/profile sync.
-chat=pkg/'ChatActivity.java'
-q=chat.read_text()
-old='''        LinearLayout bubble = new LinearLayout(this); bubble.setOrientation(LinearLayout.VERTICAL); bubble.setPadding(dp(12), dp(8), dp(12), dp(7)); bubble.setBackground(bg("gift".equals(type)?0xfffff2c7:(mine ? PURPLE : Color.WHITE), 18));'''
-new='''        LinearLayout bubble = new LinearLayout(this); bubble.setOrientation(LinearLayout.VERTICAL); bubble.setPadding(dp(12), dp(8), dp(12), dp(7)); bubble.setBackground(bg("gift".equals(type)?0xfffff2c7:(mine ? KingCosmetics.bubbleColor(this) : Color.WHITE), 18));'''
-if old not in q: raise SystemExit('Chat bubble style marker missing')
+# Complete Wardrobe cosmetics: keep the existing working bubble system and add real Name Badge sync.
+cos=pkg/'KingCosmetics.java'
+q=cos.read_text()
+old='''    public static final String[] BUBBLES={"Classic Purple","Rose Bubble","Ocean Bubble","Royal Gold","Galaxy Bubble"};'''
+new='''    public static final String[] BUBBLES={"Classic Purple","Rose Bubble","Ocean Bubble","Royal Gold","Galaxy Bubble"};
+    public static final String[] BADGES={"None","Music Star","Social Heart","Royal Crown","Galaxy Elite"};'''
+if old not in q: raise SystemExit('Existing bubble constant marker missing for Name Badges')
 q=q.replace(old,new,1)
-chat.write_text(q)
+old='''    public static int bubbleMetaColor(String name){if("Royal Gold".equals(name))return 0xfffff0c2;return 0xffeee7ff;}'''
+new='''    public static int bubbleMetaColor(String name){if("Royal Gold".equals(name))return 0xfffff0c2;return 0xffeee7ff;}
+    public static String bubbleEmoji(String name){if("Rose Bubble".equals(name))return "🌹";if("Ocean Bubble".equals(name))return "🌊";if("Royal Gold".equals(name))return "👑";if("Galaxy Bubble".equals(name))return "🌌";return "💬";}
+    public static String badge(Context c){String v=p(c).getString("badge","None");return v==null||v.isEmpty()?"None":v;}
+    public static void setBadge(Context c,String v){p(c).edit().putString("badge",v).apply();if(c instanceof Activity)((Activity)c).getPreferences(0).edit().putString("equipped_badge",v).apply();}
+    public static boolean unlockedBadge(String name,LevelSystem.Snapshot s){if("None".equals(name))return true;if("Music Star".equals(name))return s.level>=10;if("Social Heart".equals(name))return s.level>=20;if("Royal Crown".equals(name))return s.vipLevel>=6;if("Galaxy Elite".equals(name))return s.vipLevel>=9;return false;}
+    public static String requirementBadge(String name){if("None".equals(name))return "Free";if("Music Star".equals(name))return "Lv.10";if("Social Heart".equals(name))return "Lv.20";if("Royal Crown".equals(name))return "VIP 6";if("Galaxy Elite".equals(name))return "VIP 9";return "Locked";}
+    public static String badgeEmoji(String name){if("Music Star".equals(name))return "🎵";if("Social Heart".equals(name))return "💗";if("Royal Crown".equals(name))return "👑";if("Galaxy Elite".equals(name))return "🌌";return "";}'''
+if old not in q: raise SystemExit('Existing bubble meta marker missing for Name Badges')
+q=q.replace(old,new,1)
+cos.write_text(q)
 
 publicp=pkg/'KingPublicProfileActivity.java'
 q=publicp.read_text()
@@ -4860,11 +4870,10 @@ publicp.write_text(q)
 party=pkg/'PartyActivity.java'
 q=party.read_text()
 old='''d.put("equippedFrame",frame730);d.put("entranceEffect",effect730);d.put("deviceId",deviceId891());'''
-new='''d.put("equippedFrame",frame730);d.put("entranceEffect",effect730);d.put("nameBadge",KingCosmetics.badge(this));d.put("chatBubble",KingCosmetics.bubble(this));d.put("deviceId",deviceId891());'''
+new='''d.put("equippedFrame",frame730);d.put("entranceEffect",effect730);d.put("nameBadge",KingCosmetics.badge(this));d.put("deviceId",deviceId891());'''
 if old in q:q=q.replace(old,new,1)
 party.write_text(q)
-print('v9.4.0 Wardrobe chat bubble and badge cosmetics applied')
-
+print('v9.4.0 Wardrobe Name Badge cosmetic parity applied')
 
 # Route cosmetic privilege pages to the real Wardrobe instead of generic detail placeholders.
 deep=pkg/'KingDeepFlowActivity.java'
