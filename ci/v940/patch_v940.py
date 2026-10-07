@@ -4113,4 +4113,18 @@ q=q.replace(marker,helper+marker,1)
 deep.write_text(q)
 print('v9.4.0 local login/device history parity applied')
 
+
+# Party lobby parity: expose recent/favorite rooms from the lobby header.
+party=pkg/'PartyActivity.java'
+q=party.read_text()
+old='''        TextView searchIcon=tv("⌕",28,0xff222222,false);searchIcon.setGravity(Gravity.CENTER);searchIcon.setOnClickListener(v->showLobbySearch(selected));head.addView(searchIcon,new LinearLayout.LayoutParams(dp(46),dp(50)));
+        TextView hot=tv("🔥",23,0xff222222,false);'''
+new='''        TextView searchIcon=tv("⌕",28,0xff222222,false);searchIcon.setGravity(Gravity.CENTER);searchIcon.setOnClickListener(v->showLobbySearch(selected));head.addView(searchIcon,new LinearLayout.LayoutParams(dp(42),dp(50)));
+        TextView history940=tv("🕘",18,0xff222222,false);history940.setGravity(Gravity.CENTER);history940.setContentDescription("Recent and favorite rooms");history940.setOnClickListener(v->roomHistoryPanel940());head.addView(history940,new LinearLayout.LayoutParams(dp(42),dp(50)));
+        TextView hot=tv("🔥",23,0xff222222,false);'''
+if old not in q: raise SystemExit('Party lobby search marker missing for history shortcut')
+q=q.replace(old,new,1)
+party.write_text(q)
+print('v9.4.0 Party lobby history shortcut applied')
+
 print('v9.4.0 parity batch 1 applied')
