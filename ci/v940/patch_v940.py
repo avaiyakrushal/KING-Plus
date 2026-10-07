@@ -2215,4 +2215,44 @@ q=q.replace(marker,helpers+marker,1)
 main.write_text(q)
 print('v9.4.0 first-login profile completion applied')
 
+
+# Video-reference Me/Profile: Favorites/Status tabs + real Recommended for you list.
+main=pkg/'MainActivity.java'
+q=main.read_text()
+pstart=q.find("    private void profile()")
+pend=q.find("    private void rankingsPage()",pstart)
+if pstart<0 or pend<0: raise SystemExit('Main profile/rankings boundary missing for video parity')
+profile_block=q[pstart:pend]
+needle='''ScrollView sv=new ScrollView(this); LinearLayout list=new LinearLayout(this); list.setOrientation(LinearLayout.VERTICAL); list.setPadding(dp(14),dp(5),dp(14),dp(14)); sv.addView(list);'''
+if needle not in profile_block: raise SystemExit('Profile list marker missing for video parity')
+profile_block=profile_block.replace(needle,needle+'''\n        addProfileVideoTabs940(list);\n        addProfileRecommendations940(list);''',1)
+q=q[:pstart]+profile_block+q[pend:]
+
+marker='''    private void rankingsPage(){'''
+helpers=r'''    private void addProfileVideoTabs940(LinearLayout list){
+        LinearLayout tabs=new LinearLayout(this);tabs.setGravity(Gravity.CENTER);tabs.setPadding(0,dp(3),0,dp(8));
+        TextView fav=new TextView(this);fav.setText("Favorites");fav.setTextSize(14);fav.setTypeface(null,Typeface.BOLD);fav.setTextColor(0xff222222);fav.setGravity(Gravity.CENTER);fav.setBackground(background(0xffffe500,10));fav.setOnClickListener(v->backpackPage());
+        TextView status=new TextView(this);status.setText("Status");status.setTextSize(14);status.setTypeface(null,Typeface.BOLD);status.setTextColor(0xff6f6877);status.setGravity(Gravity.CENTER);status.setBackground(background(0xfff0eef4,10));status.setOnClickListener(v->momentsPage());
+        LinearLayout.LayoutParams p=new LinearLayout.LayoutParams(0,dp(42),1);p.setMargins(dp(3),0,dp(3),0);tabs.addView(fav,p);tabs.addView(status,new LinearLayout.LayoutParams(p));list.addView(tabs,new LinearLayout.LayoutParams(-1,dp(52)));
+    }
+    private void addProfileRecommendations940(LinearLayout list){
+        TextView title940=new TextView(this);title940.setText("Recommended for you");title940.setTextSize(16);title940.setTypeface(null,Typeface.BOLD);title940.setTextColor(0xff2a2730);title940.setPadding(dp(3),dp(8),0,dp(5));list.addView(title940,new LinearLayout.LayoutParams(-1,dp(42)));
+        LinearLayout box940=new LinearLayout(this);box940.setOrientation(LinearLayout.VERTICAL);list.addView(box940,new LinearLayout.LayoutParams(-1,-2));
+        TextView loading940=new TextView(this);loading940.setText("Finding KING profiles…");loading940.setTextSize(12);loading940.setTextColor(0xff8a8391);loading940.setPadding(dp(10),dp(12),dp(10),dp(12));box940.addView(loading940,new LinearLayout.LayoutParams(-1,dp(48)));
+        if(firestore==null||firebaseAuth==null||firebaseAuth.getCurrentUser()==null){loading940.setText("Sign in to see recommendations");return;}
+        String own=firebaseAuth.getCurrentUser().getUid();
+        firestore.collection("public_profiles").limit(8).get().addOnSuccessListener(snap->{box940.removeAllViews();int shown=0;for(DocumentSnapshot d:snap.getDocuments()){String uid=d.getString("uid");if(uid==null||uid.isEmpty())uid=d.getId();if(uid.equals(own))continue;String n=d.getString("displayName");if(n==null||n.trim().isEmpty())n="KING User";Long vip=d.getLong("vipLevel"),lv=d.getLong("level");addProfileRecommendationRow940(box940,uid,n,vip==null?0:vip,lv==null?1:lv);if(++shown>=5)break;}if(shown==0){TextView e=new TextView(this);e.setText("No recommendations yet");e.setTextSize(12);e.setTextColor(0xff8a8391);e.setPadding(dp(10),dp(12),dp(10),dp(12));box940.addView(e,new LinearLayout.LayoutParams(-1,dp(48)));}}).addOnFailureListener(e->{loading940.setText("Recommendations unavailable • tap Status or try again later");});
+    }
+    private void addProfileRecommendationRow940(LinearLayout box,String uid,String name,long vip,long level){
+        LinearLayout row=new LinearLayout(this);row.setGravity(Gravity.CENTER_VERTICAL);row.setPadding(dp(10),dp(8),dp(10),dp(8));row.setBackground(background(Color.WHITE,12));
+        TextView av=new TextView(this);av.setText(name.isEmpty()?"K":name.substring(0,1).toUpperCase());av.setTextSize(18);av.setTypeface(null,Typeface.BOLD);av.setTextColor(Color.WHITE);av.setGravity(Gravity.CENTER);av.setBackground(background(0xff7c62d5,24));row.addView(av,new LinearLayout.LayoutParams(dp(48),dp(48)));
+        LinearLayout info=new LinearLayout(this);info.setOrientation(LinearLayout.VERTICAL);info.setPadding(dp(10),0,0,0);TextView nm=new TextView(this);nm.setText(name);nm.setTextSize(14);nm.setTypeface(null,Typeface.BOLD);nm.setTextColor(0xff25222a);info.addView(nm,new LinearLayout.LayoutParams(-1,dp(25)));TextView sub=new TextView(this);sub.setText("VIP "+vip+"  •  Lv."+level+"  •  ID "+publicId(uid));sub.setTextSize(10);sub.setTextColor(0xff7b7480);info.addView(sub,new LinearLayout.LayoutParams(-1,dp(20)));row.addView(info,new LinearLayout.LayoutParams(0,dp(48),1));TextView arrow=new TextView(this);arrow.setText("›");arrow.setTextSize(24);arrow.setTextColor(0xffaaa4ad);arrow.setGravity(Gravity.CENTER);row.addView(arrow,new LinearLayout.LayoutParams(dp(30),dp(48)));row.setOnClickListener(v->{Intent i=new Intent(this,KingPublicProfileActivity.class);i.putExtra("uid",uid);i.putExtra("name",name);startActivity(i);});LinearLayout.LayoutParams rp=new LinearLayout.LayoutParams(-1,dp(70));rp.setMargins(0,dp(4),0,dp(4));box.addView(row,rp);
+    }
+
+'''
+if marker not in q: raise SystemExit('Rankings marker missing for profile video helpers')
+q=q.replace(marker,helpers+marker,1)
+main.write_text(q)
+print('v9.4.0 video-reference Me profile recommendations applied')
+
 print('v9.4.0 parity batch 1 applied')
