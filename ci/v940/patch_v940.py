@@ -3808,4 +3808,70 @@ q=q[:radio_start]+radio_method+"\n\n"+q[radio_end:]
 party.write_text(q)
 print('v9.4.0 realtime Radio Mic visual parity applied')
 
+
+# Bolo-reference parity: realtime Team Up cards using existing room events.
+party=pkg/'PartyActivity.java'
+q=party.read_text()
+old='''        items.add("🎮 Games"); items.add("⚔ PK battle"); items.add("🧭 Full feature center");'''
+new='''        items.add("🎮 Games"); items.add("🤝 Team Up"); items.add("⚔ PK battle"); items.add("🧭 Full feature center");'''
+if old not in q: raise SystemExit('Party main More marker missing for Team Up')
+q=q.replace(old,new,1)
+old='''        else if(x.contains("Full feature center"))openDeepFlow810("party_play");
+        else if(x.contains("Games"))openRoomGames740();'''
+new='''        else if(x.contains("Full feature center"))openDeepFlow810("party_play");
+        else if(x.contains("Team Up"))teamUpPanel940();
+        else if(x.contains("Games"))openRoomGames740();'''
+if old not in q: raise SystemExit('Party More handler marker missing for Team Up')
+q=q.replace(old,new,1)
+marker='''    private void roomMenu() {'''
+helpers=r'''    private void teamUpPanel940(){
+        if(!cloudRoom||db==null||user==null||roomId==null){toast("Open a live Party room first");return;}
+        db.collection("live_rooms").document(roomId).collection("events").orderBy("createdAt",Query.Direction.DESCENDING).limit(180).get().addOnSuccessListener(snap->{
+            Set<String> closed=new HashSet<>();Map<String,Set<String>> joined=new HashMap<>();
+            for(DocumentSnapshot d:snap.getDocuments()){
+                String type=d.getString("type"),card=d.getString("teamCardId");
+                if("team_up_close".equals(type)&&card!=null)closed.add(card);
+                else if("team_up_join".equals(type)&&card!=null){Set<String> s=joined.get(card);if(s==null){s=new HashSet<>();joined.put(card,s);}String uid=d.getString("actorUid");if(uid!=null)s.add(uid);}
+            }
+            List<DocumentSnapshot> cards=new ArrayList<>();List<String> rows=new ArrayList<>();rows.add("＋ Create Team Up card");long now=System.currentTimeMillis();
+            for(DocumentSnapshot d:snap.getDocuments()){
+                if(!"team_up_create".equals(d.getString("type"))||closed.contains(d.getId()))continue;
+                com.google.firebase.Timestamp ts=d.getTimestamp("createdAt");if(ts!=null&&now-ts.toDate().getTime()>3600000L)continue;
+                String game=str(d,"teamGame","Game"),host=str(d,"actorName","KING User");Long cap=d.getLong("teamCapacity");int capacity=cap==null?4:Math.max(2,Math.min(6,cap.intValue()));
+                Set<String> members=joined.get(d.getId());int count=1+(members==null?0:members.size());if(count>=capacity)continue;
+                cards.add(d);rows.add("🤝 "+game+"  •  "+host+"  •  "+count+"/"+capacity);if(cards.size()>=15)break;
+            }
+            new AlertDialog.Builder(this).setTitle("🤝 Team Up").setItems(rows.toArray(new String[0]),(dlg,w)->{
+                if(w==0){createTeamUpCard940();return;}DocumentSnapshot card=cards.get(w-1);String hostUid=card.getString("actorUid"),hostName=str(card,"actorName","KING User"),game=str(card,"teamGame","Game");
+                if(user.getUid().equals(hostUid))teamUpOwnerMenu940(card,game);else joinTeamUpCard940(card,game,hostName);
+            }).setNegativeButton("Close",null).show();
+        }).addOnFailureListener(e->toast("Team Up unavailable: "+msg(e)));
+    }
+    private void createTeamUpCard940(){
+        String[] games={"Ludo","Werewolf","Spy","Draw & Guess","Domino","Dice"};
+        new AlertDialog.Builder(this).setTitle("Choose Team Up game").setItems(games,(d,w)->{final String game=games[w];String[] sizes={"2 players","4 players","6 players"};new AlertDialog.Builder(this).setTitle(game+" team size").setItems(sizes,(x,k)->publishTeamUpCard940(game,new int[]{2,4,6}[k])).setNegativeButton("Cancel",null).show();}).setNegativeButton("Cancel",null).show();
+    }
+    private void publishTeamUpCard940(String game,int capacity){
+        Map<String,Object> e=new HashMap<>();e.put("actorUid",user.getUid());e.put("actorName",safeName());e.put("type","team_up_create");e.put("text",safeName()+" created a "+game+" Team Up card");e.put("teamGame",game);e.put("teamCapacity",capacity);e.put("createdAt",FieldValue.serverTimestamp());
+        db.collection("live_rooms").document(roomId).collection("events").add(e).addOnSuccessListener(v->{toast("Team Up card published");teamUpPanel940();}).addOnFailureListener(x->toast("Could not create Team Up card: "+msg(x)));
+    }
+    private void joinTeamUpCard940(DocumentSnapshot card,String game,String hostName){
+        Map<String,Object> e=new HashMap<>();e.put("actorUid",user.getUid());e.put("actorName",safeName());e.put("type","team_up_join");e.put("text",safeName()+" joined "+hostName+"'s "+game+" team");e.put("teamCardId",card.getId());e.put("teamGame",game);e.put("createdAt",FieldValue.serverTimestamp());
+        db.collection("live_rooms").document(roomId).collection("events").add(e).addOnSuccessListener(v->{toast("Joined Team Up • "+game);openTeamGame940(game);}).addOnFailureListener(x->toast("Could not join team: "+msg(x)));
+    }
+    private void teamUpOwnerMenu940(DocumentSnapshot card,String game){
+        new AlertDialog.Builder(this).setTitle("Your Team Up • "+game).setItems(new String[]{"🎮 Start / open game","✖ Close Team Up card"},(d,w)->{
+            if(w==0)openTeamGame940(game);else{Map<String,Object> e=new HashMap<>();e.put("actorUid",user.getUid());e.put("actorName",safeName());e.put("type","team_up_close");e.put("text",safeName()+" closed a Team Up card");e.put("teamCardId",card.getId());e.put("createdAt",FieldValue.serverTimestamp());db.collection("live_rooms").document(roomId).collection("events").add(e).addOnSuccessListener(v->toast("Team Up card closed"));}
+        }).setNegativeButton("Cancel",null).show();
+    }
+    private void openTeamGame940(String game){
+        Intent i=new Intent(this,RoomGameActivity.class);i.putExtra("roomId",roomId);i.putExtra("roomName",roomName);i.putExtra("displayName",safeName());i.putExtra("requestedGame",game);startActivity(i);
+    }
+
+'''
+if marker not in q: raise SystemExit('roomMenu marker missing for Team Up helpers')
+q=q.replace(marker,helpers+marker,1)
+party.write_text(q)
+print('v9.4.0 realtime Team Up parity applied')
+
 print('v9.4.0 parity batch 1 applied')
