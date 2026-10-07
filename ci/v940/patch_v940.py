@@ -1283,4 +1283,21 @@ q=q.replace(old,new,1)
 main.write_text(q)
 print('v9.4.0 Me profile realtime loading states applied')
 
+
+# Deep-flow game shortcuts must use realtime Party multiplayer too.
+deep=pkg/'KingDeepFlowActivity.java'
+q=deep.read_text()
+old='''    private void openGame(String code){if("ludo".equalsIgnoreCase(code)){startActivity(new Intent(this,KingLudoLobbyActivity.class));return;}Intent i=new Intent(this,GamePlayActivity.class);i.putExtra("game",code);startActivity(i);}'''
+new='''    private void openGame(String code){
+        if("ludo".equalsIgnoreCase(code)){startActivity(new Intent(this,KingLudoLobbyActivity.class));return;}
+        if(roomId!=null&&!roomId.trim().isEmpty()){
+            Intent i=new Intent(this,RoomGameActivity.class);i.putExtra("roomId",roomId);i.putExtra("roomName",roomName);i.putExtra("displayName",safe(mainPrefs.getString("name","KING User"),"KING User"));i.putExtra("requestedGame",code);startActivity(i);return;
+        }
+        Intent i=new Intent(this,PartyActivity.class);i.putExtra("requestedGame",code);i.putExtra("displayName",safe(mainPrefs.getString("name","KING User"),"KING User"));startActivity(i);
+    }'''
+if old not in q: raise SystemExit('DeepFlow v9.4 game route marker missing')
+q=q.replace(old,new,1)
+deep.write_text(q)
+print('v9.4.0 DeepFlow games routed to Party multiplayer')
+
 print('v9.4.0 parity batch 1 applied')
