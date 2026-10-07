@@ -51,6 +51,10 @@ public class KingWardrobeActivity extends Activity {
         for(String f:KingCosmetics.FRAMES)addFrame(f);
         section("Entrance Effects");
         for(String e:KingCosmetics.EFFECTS)addEffect(e);
+        section("Chat Bubbles");
+        for(String x:KingCosmetics.BUBBLES)addBubble(x);
+        section("Name Badges");
+        for(String x:KingCosmetics.BADGES)addBadge(x);
         TextView note=tv("Unlock cosmetics by normal Level / VIP progress. Equipped cosmetics sync to your public profile and Party room identity.",12,MUTED,false);
         note.setBackground(bg(Color.WHITE,14));LinearLayout.LayoutParams np=new LinearLayout.LayoutParams(-1,-2);np.setMargins(0,dp(14),0,0);body.addView(note,np);
         setContentView(sc);
@@ -83,12 +87,30 @@ public class KingWardrobeActivity extends Activity {
         LinearLayout.LayoutParams p=new LinearLayout.LayoutParams(-1,dp(68));p.setMargins(0,dp(4),0,dp(4));body.addView(row,p);
     }
 
+    private void addBubble(String name){
+        boolean unlocked=KingCosmetics.unlockedBubble(name,progress),equipped=name.equals(KingCosmetics.bubble(this));
+        TextView row=tv((equipped?"✓  ":unlocked?"💬  ":"🔒  ")+KingCosmetics.bubbleEmoji(name)+"  "+name+"\n"+(equipped?"Equipped":unlocked?"Tap to equip":"Unlock at "+KingCosmetics.requirementBubble(name)),15,equipped?Color.WHITE:INK,true);
+        row.setBackground(bg(equipped?KingCosmetics.bubbleColor(this):Color.WHITE,14));
+        row.setOnClickListener(v->{if(!unlocked){toast("Locked • "+KingCosmetics.requirementBubble(name));return;}KingCosmetics.setBubble(this,name);syncCloud();toast(name+" equipped");render();});
+        LinearLayout.LayoutParams p=new LinearLayout.LayoutParams(-1,dp(68));p.setMargins(0,dp(4),0,dp(4));body.addView(row,p);
+    }
+
+    private void addBadge(String name){
+        boolean unlocked=KingCosmetics.unlockedBadge(name,progress),equipped=name.equals(KingCosmetics.badge(this));
+        TextView row=tv((equipped?"✓  ":unlocked?"🏷  ":"🔒  ")+KingCosmetics.badgeEmoji(name)+"  "+name+"\n"+(equipped?"Equipped":unlocked?"Tap to equip":"Unlock at "+KingCosmetics.requirementBadge(name)),15,equipped?Color.WHITE:INK,true);
+        row.setBackground(bg(equipped?0xff6650aa:Color.WHITE,14));
+        row.setOnClickListener(v->{if(!unlocked){toast("Locked • "+KingCosmetics.requirementBadge(name));return;}KingCosmetics.setBadge(this,name);syncCloud();toast(name+" equipped");render();});
+        LinearLayout.LayoutParams p=new LinearLayout.LayoutParams(-1,dp(68));p.setMargins(0,dp(4),0,dp(4));body.addView(row,p);
+    }
+
     private void syncCloud(){
         if(db==null||me==null)return;
         Map<String,Object> m=new HashMap<>();
         m.put("uid",me.getUid());
         m.put("equippedFrame",KingCosmetics.frame(this));
         m.put("entranceEffect",KingCosmetics.effect(this));
+        m.put("chatBubble",KingCosmetics.bubble(this));
+        m.put("nameBadge",KingCosmetics.badge(this));
         m.put("level",progress.level);m.put("vipLevel",progress.vipLevel);
         m.put("updatedAt",FieldValue.serverTimestamp());
         db.collection("public_profiles").document(me.getUid()).set(m,SetOptions.merge()).addOnFailureListener(e->{});
