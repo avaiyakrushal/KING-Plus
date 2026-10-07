@@ -4284,4 +4284,44 @@ q=q.replace(marker,helper+marker,1)
 party.write_text(q)
 print('v9.4.0 Audio PK history parity applied')
 
+
+# Bolo-reference parity: typed room online-user search with profile/moderation actions.
+party=pkg/'PartyActivity.java'
+q=party.read_text()
+old='''    private void findRoomUserPanel(){
+        List<String> names=new ArrayList<>();List<String> uids=new ArrayList<>();
+        if(ownerName!=null){names.add("👑 "+ownerName);uids.add(ownerUid==null?"":ownerUid);}for(String n:memberNames){String uid=memberUids.get(n);if(uid==null||uid.isEmpty()||uids.contains(uid))continue;names.add("👤 "+n);uids.add(uid);}if(names.isEmpty()){toast("No room members loaded");return;}
+        new AlertDialog.Builder(this).setTitle("🔎 Find room user").setItems(names.toArray(new String[0]),(d,w)->{String uid=uids.get(w),name=names.get(w).replace("👑 ","").replace("👤 ","");if(uid.isEmpty())toast("Profile unavailable");else memberProfileDialog(uid,name);}).setNegativeButton("Close",null).show();
+    }'''
+new='''    private void findRoomUserPanel(){
+        if(!cloudRoom){toast("Open a live Party room first");return;}
+        final EditText search=new EditText(this);search.setHint("Name or user ID");search.setSingleLine(true);
+        new AlertDialog.Builder(this).setTitle("🔎 Online User Search").setView(search).setNegativeButton("Cancel",null)
+            .setNeutralButton("Show all",(d,w)->showRoomUserResults940(""))
+            .setPositiveButton("Search",(d,w)->showRoomUserResults940(search.getText().toString().trim())).show();
+    }
+    private void showRoomUserResults940(String query){
+        String q=query==null?"":query.trim().toLowerCase(java.util.Locale.US);
+        List<String> names=new ArrayList<>();List<String> uids=new ArrayList<>();
+        if(ownerName!=null&&ownerUid!=null){
+            String label="👑 "+ownerName;String hay=(ownerName+" "+ownerUid).toLowerCase(java.util.Locale.US);
+            if(q.isEmpty()||hay.contains(q)){names.add(label);uids.add(ownerUid);}
+        }
+        for(String n:memberNames){
+            String uid=memberUids.get(n);if(uid==null||uid.isEmpty()||uids.contains(uid))continue;
+            String hay=((n==null?"":n)+" "+uid).toLowerCase(java.util.Locale.US);if(!q.isEmpty()&&!hay.contains(q))continue;
+            names.add("👤 "+(n==null?"KING User":n));uids.add(uid);
+        }
+        if(names.isEmpty()){new AlertDialog.Builder(this).setTitle("Online User Search").setMessage(q.isEmpty()?"No room members loaded.":"No room user matched “"+query+"”.").setPositiveButton("Search again",(d,w)->findRoomUserPanel()).setNegativeButton("Close",null).show();return;}
+        new AlertDialog.Builder(this).setTitle("Online Users • "+names.size()).setItems(names.toArray(new String[0]),(d,w)->{
+            String uid=uids.get(w),name=names.get(w).replace("👑 ","").replace("👤 ","");
+            if(uid.isEmpty()){toast("Profile unavailable");return;}
+            if(isModerator()&&user!=null&&!uid.equals(user.getUid()))showProfileMore(uid,name);else memberProfileDialog(uid,name);
+        }).setNeutralButton("Search again",(d,w)->findRoomUserPanel()).setNegativeButton("Close",null).show();
+    }'''
+if old not in q: raise SystemExit('findRoomUserPanel marker missing for typed search')
+q=q.replace(old,new,1)
+party.write_text(q)
+print('v9.4.0 typed online-user search parity applied')
+
 print('v9.4.0 parity batch 1 applied')
