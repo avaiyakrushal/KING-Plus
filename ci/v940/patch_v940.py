@@ -4047,4 +4047,70 @@ q=q.replace(old,new,1)
 party.write_text(q)
 print('v9.4.0 real Chat Bubble cosmetic parity applied')
 
+
+# Account parity: local successful-login/device history exposed from Account & Security.
+main=pkg/'MainActivity.java'
+q=main.read_text()
+old='''    private void saveLocalSession(String name, String provider) {
+        displayName=name; getPreferences(0).edit().putString("name",name).putString("login_provider",provider).apply();'''
+new='''    private void saveLocalSession(String name, String provider) {
+        displayName=name; getPreferences(0).edit().putString("name",name).putString("login_provider",provider).apply();
+        recordLoginHistory940(provider);'''
+if old not in q: raise SystemExit('saveLocalSession marker missing for login history')
+q=q.replace(old,new,1)
+old='''    private void finishGoogleIdentity931(boolean navigateHome,boolean cloudRestored){
+        try{PushNotifications.refreshToken();}catch(Exception ignored){}'''
+new='''    private void finishGoogleIdentity931(boolean navigateHome,boolean cloudRestored){
+        recordLoginHistory940("Google");
+        try{PushNotifications.refreshToken();}catch(Exception ignored){}'''
+if old not in q: raise SystemExit('finishGoogleIdentity marker missing for login history')
+q=q.replace(old,new,1)
+marker='''    private void saveLocalSession(String name, String provider) {'''
+helper=r'''    private void recordLoginHistory940(String provider){
+        try{
+            SharedPreferences sec=getSharedPreferences("king_security",MODE_PRIVATE);
+            String old=sec.getString("login_history","");
+            String device=(android.os.Build.MANUFACTURER+" "+android.os.Build.MODEL).trim().replace("::"," ");
+            String p=provider==null||provider.trim().isEmpty()?"Unknown":provider.trim().replace("::"," ");
+            String entry=String.format(java.util.Locale.US,"%013d::%s::%s",System.currentTimeMillis(),p,device);
+            List<String> rows=new ArrayList<>();rows.add(entry);
+            if(old!=null&&!old.isEmpty())for(String x:old.split("\\|\\|\\|"))if(x!=null&&!x.trim().isEmpty()&&rows.size()<12)rows.add(x);
+            StringBuilder out=new StringBuilder();for(String x:rows){if(out.length()>0)out.append("|||");out.append(x);}
+            sec.edit().putString("login_history",out.toString()).putLong("last_login_at",System.currentTimeMillis()).putString("last_provider",p).apply();
+        }catch(Throwable e){KingStability.nonFatal(this,"login-history",e);}
+    }
+
+'''
+if marker not in q: raise SystemExit('saveLocalSession marker missing for login history helper')
+q=q.replace(marker,helper+marker,1)
+main.write_text(q)
+
+deep=pkg/'KingDeepFlowActivity.java'
+q=deep.read_text()
+old='''    private void settingsAccount(){toggle("Remember login","remember_login",true);row("📱","Login devices","Current device and session safety","detail_login_devices");row("🔑","Change / bind phone","Mobile identity flow","detail_bind_phone");row("🗑","Account deletion","Review before deleting account","detail_delete_account");}'''
+new='''    private void settingsAccount(){toggle("Remember login","remember_login",true);row("📱","Login devices & history","Current device and successful local sign-ins",this::loginDevices940);row("🔑","Change / bind phone","Mobile identity flow","detail_bind_phone");row("🗑","Account deletion","Review before deleting account","detail_delete_account");}'''
+if old not in q: raise SystemExit('settingsAccount marker missing for login history')
+q=q.replace(old,new,1)
+marker='''    private void settingsPrivacy(){'''
+helper=r'''    private void loginDevices940(){
+        body.removeAllViews();hero("📱 Login Devices & History","Local security history on this phone. No advertiser or third-party access.");
+        String provider=mainPrefs.getString("login_provider","Unknown");
+        String device=(android.os.Build.MANUFACTURER+" "+android.os.Build.MODEL).trim();
+        String account=me==null?"Signed out":("KING ID • "+me.getUid().substring(0,Math.min(8,me.getUid().length())).toUpperCase(java.util.Locale.US));
+        section("Current session");chip("Device: "+device,()->{});chip("Provider: "+provider,()->{});chip(account,()->{});
+        section("Successful sign-ins on this device");
+        SharedPreferences sec=getSharedPreferences("king_security",MODE_PRIVATE);String raw=sec.getString("login_history","");
+        if(raw==null||raw.isEmpty())chip("No local login history yet.",()->{});
+        else{
+            int shown=0;for(String x:raw.split("\\|\\|\\|")){String[] p=x.split("::",3);if(p.length<3)continue;long at=0;try{at=Long.parseLong(p[0]);}catch(Exception ignored){}String when=at<=0?"Unknown time":new java.text.SimpleDateFormat("dd MMM yyyy • HH:mm",java.util.Locale.US).format(new java.util.Date(at));chip("✓ "+p[1]+" • "+p[2]+"\n"+when,()->{});if(++shown>=12)break;}
+        }
+        TextView clear=button("Clear local login history",()->{sec.edit().remove("login_history").apply();toast("Local login history cleared");loginDevices940();});LinearLayout.LayoutParams cp=new LinearLayout.LayoutParams(-1,dp(48));cp.setMargins(0,dp(12),0,dp(6));body.addView(clear,cp);
+    }
+
+'''
+if marker not in q: raise SystemExit('settingsPrivacy marker missing for login history helper')
+q=q.replace(marker,helper+marker,1)
+deep.write_text(q)
+print('v9.4.0 local login/device history parity applied')
+
 print('v9.4.0 parity batch 1 applied')
