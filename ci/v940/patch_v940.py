@@ -3432,4 +3432,91 @@ if voice.exists():
     voice.write_text(q)
 print('v9.4.0 VoiceWeb pre-33 URL encoding fix applied')
 
+
+# Bolo-reference parity: realtime no-billing Red Packet / Lucky Packet room flow.
+party=pkg/'PartyActivity.java'
+q=party.read_text()
+
+q=q.replace('''items.add("🎁 Lucky Gift"); items.add("💫 Gift Wish"); items.add("🔎 Find room user"); items.add("📢 Notice center");''',
+'''items.add("🧧 Red Packet"); items.add("🎁 Lucky Gift"); items.add("💫 Gift Wish"); items.add("🔎 Find room user"); items.add("📢 Notice center");''',1)
+
+q=q.replace('''        else if(x.contains("Lucky Gift"))luckyGiftPanel();''',
+'''        else if(x.contains("Red Packet"))redPacketPanel940();
+        else if(x.contains("Lucky Gift"))luckyGiftPanel();''',1)
+
+marker='''    private void luckyGiftPanel(){'''
+helpers=r'''    private void redPacketPanel940(){
+        if(!cloudRoom||db==null||user==null||roomId==null){toast("Join a live Party room first");return;}
+        final DocumentReference state=db.collection("live_rooms").document(roomId).collection("game_state").document("lucky_packet");
+        state.get().addOnSuccessListener(doc->{
+            boolean active=doc!=null&&doc.exists()&&Boolean.TRUE.equals(doc.getBoolean("active"));
+            String packetId=active?str(doc,"packetId",""):"";
+            Long expRaw=active?doc.getLong("expiresAtMs"):null;long expiresAt=expRaw==null?0L:expRaw;
+            Long totalRaw=active?doc.getLong("totalCoins"):null;long total=totalRaw==null?0L:totalRaw;
+            Long slotsRaw=active?doc.getLong("slots"):null;int slots=slotsRaw==null?0:slotsRaw.intValue();
+            String sender=active?str(doc,"senderName","Host"):"";
+            if(active&&(packetId.isEmpty()||expiresAt<=System.currentTimeMillis()))active=false;
+            final boolean packetActive=active;final String pid=packetId;final long packetTotal=total;final int packetSlots=slots;final String packetSender=sender;
+            if(packetActive){
+                db.collection("live_rooms").document(roomId).collection("events").whereEqualTo("packetId",pid).limit(100).get().addOnSuccessListener(claims->{
+                    int claimed=0;for(DocumentSnapshot d:claims.getDocuments())if("packet_claim".equals(d.getString("type")))claimed++;
+                    int left=Math.max(0,packetSlots-claimed);
+                    String msg="From: "+packetSender+"\nTEST coins: "+packetTotal+"\nClaims left: "+left+"/"+packetSlots+"\n\nNo real money or billing is used.";
+                    AlertDialog.Builder b=new AlertDialog.Builder(this).setTitle("🧧 KING Red Packet").setMessage(msg).setNegativeButton("Close",null);
+                    if(left>0)b.setPositiveButton("Open",(d,w)->claimRedPacket940(pid,packetTotal,packetSlots));
+                    if(isModerator())b.setNeutralButton("New packet",(d,w)->createRedPacket940());
+                    b.show();
+                }).addOnFailureListener(e->toast("Packet status unavailable: "+msg(e)));
+            }else{
+                AlertDialog.Builder b=new AlertDialog.Builder(this).setTitle("🧧 KING Red Packet").setMessage("No active Red Packet in this room.\n\nPackets use TEST coins only.");
+                if(isModerator())b.setPositiveButton("Create packet",(d,w)->createRedPacket940());
+                else b.setPositiveButton("OK",null);
+                b.setNegativeButton("Close",null).show();
+            }
+        }).addOnFailureListener(e->toast("Red Packet unavailable: "+msg(e)));
+    }
+    private void createRedPacket940(){
+        if(!isModerator()||db==null||user==null){toast("Host/co-host only");return;}
+        final EditText amount=new EditText(this);amount.setHint("Total TEST coins (10–1000)");amount.setInputType(android.text.InputType.TYPE_CLASS_NUMBER);
+        final EditText slots=new EditText(this);slots.setHint("Number of claims (1–20)");slots.setInputType(android.text.InputType.TYPE_CLASS_NUMBER);
+        LinearLayout box=new LinearLayout(this);box.setOrientation(LinearLayout.VERTICAL);box.setPadding(dp(22),0,dp(22),0);box.addView(amount,new LinearLayout.LayoutParams(-1,dp(54)));box.addView(slots,new LinearLayout.LayoutParams(-1,dp(54)));
+        new AlertDialog.Builder(this).setTitle("🧧 Create Red Packet").setView(box).setNegativeButton("Cancel",null).setPositiveButton("Create",(d,w)->{
+            int total,claimSlots;try{total=Integer.parseInt(amount.getText().toString().trim());claimSlots=Integer.parseInt(slots.getText().toString().trim());}catch(Exception e){toast("Enter valid numbers");return;}
+            if(total<10||total>1000||claimSlots<1||claimSlots>20||total<claimSlots){toast("Use 10–1000 coins and 1–20 claims");return;}
+            String pid=String.valueOf(System.currentTimeMillis())+"_"+user.getUid().substring(0,Math.min(6,user.getUid().length()));
+            Map<String,Object>x=new HashMap<>();x.put("active",true);x.put("packetId",pid);x.put("totalCoins",total);x.put("slots",claimSlots);x.put("senderUid",user.getUid());x.put("senderName",safeName());x.put("createdAt",FieldValue.serverTimestamp());x.put("expiresAtMs",System.currentTimeMillis()+300000L);
+            db.collection("live_rooms").document(roomId).collection("game_state").document("lucky_packet").set(x)
+                .addOnSuccessListener(v->{addEvent("red_packet",safeName()+" dropped a KING Red Packet 🧧");toast("Red Packet created");redPacketPanel940();})
+                .addOnFailureListener(e->toast("Could not create packet: "+msg(e)));
+        }).show();
+    }
+    private int redPacketReward940(String packetId,long total,int slots){
+        String key=packetId+":"+user.getUid();int h=key.hashCode()&0x7fffffff;
+        int average=(int)Math.max(1L,total/Math.max(1,slots));
+        int low=Math.max(1,average/2),high=Math.max(low,Math.min((int)Math.max(1,total),average+Math.max(1,average/2)));
+        return low+(h%Math.max(1,high-low+1));
+    }
+    private void claimRedPacket940(String packetId,long total,int slots){
+        if(user==null||db==null||packetId==null||packetId.isEmpty())return;
+        final String claimId=("packet_"+packetId+"_"+user.getUid()).replace("/","_");
+        final DocumentReference claim=db.collection("live_rooms").document(roomId).collection("events").document(claimId);
+        claim.get().addOnSuccessListener(existing->{
+            if(existing.exists()){toast("You already opened this Red Packet");return;}
+            db.collection("live_rooms").document(roomId).collection("events").whereEqualTo("packetId",packetId).limit(100).get().addOnSuccessListener(all->{
+                int count=0;for(DocumentSnapshot d:all.getDocuments())if("packet_claim".equals(d.getString("type")))count++;
+                if(count>=slots){toast("Red Packet is finished");return;}
+                int reward=redPacketReward940(packetId,total,slots);
+                Map<String,Object>e=new HashMap<>();e.put("actorUid",user.getUid());e.put("actorName",safeName());e.put("type","packet_claim");e.put("text",safeName()+" opened Red Packet • +"+reward+" TEST coins 🧧");e.put("packetId",packetId);e.put("reward",reward);e.put("createdAt",FieldValue.serverTimestamp());
+                claim.set(e).addOnSuccessListener(v->{localCoins+=reward;prefs.edit().putInt("coins",localCoins).apply();showReactionEffect("🧧");toast("Red Packet +"+reward+" TEST coins");})
+                    .addOnFailureListener(err->toast("Packet already claimed or unavailable"));
+            }).addOnFailureListener(e->toast("Could not open packet: "+msg(e)));
+        }).addOnFailureListener(e->toast("Could not check packet: "+msg(e)));
+    }
+
+'''
+if marker not in q: raise SystemExit('Lucky Gift marker missing for Red Packet parity')
+q=q.replace(marker,helpers+marker,1)
+party.write_text(q)
+print('v9.4.0 realtime Red Packet parity applied')
+
 print('v9.4.0 parity batch 1 applied')
