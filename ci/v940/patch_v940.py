@@ -4511,4 +4511,82 @@ q=q.replace(marker,helper+marker,1)
 party.write_text(q)
 print('v9.4.0 realtime Pick Me waiting queue parity applied')
 
+
+# Bolo-reference moderation parity: kick/ban reasons + detailed banned-user management.
+party=pkg/'PartyActivity.java'
+q=party.read_text()
+
+old='''    private void kickUser(String uid,String name){
+        if(!isModerator()||uid==null||uid.isEmpty()||uid.equals(ownerUid)){toast("Cannot kick this member");return;}
+        if(!cloudRoom||db==null){toast("Live room required");return;}
+        for(Map.Entry<Integer,String> entry:new HashMap<>(seatUids).entrySet()){
+            if(uid.equals(entry.getValue()))db.collection("live_rooms").document(roomId).collection("seats").document(String.valueOf(entry.getKey())).delete();
+        }
+        db.collection("live_rooms").document(roomId).collection("members").document(uid).delete()
+            .addOnSuccessListener(v->{addEvent("kick",name+" was removed by a moderator");toast(name+" kicked");})
+            .addOnFailureListener(e->toast("Kick failed: "+msg(e)));
+    }
+    private void banUser(String uid,String name){
+        if(!isModerator()||uid==null||uid.isEmpty()||uid.equals(ownerUid)){toast("Cannot ban this member");return;}
+        if(!cloudRoom||db==null){toast("Live room required");return;}
+        Map<String,Object> ban=new HashMap<>();ban.put("uid",uid);ban.put("active",true);ban.put("byUid",user.getUid());ban.put("createdAt",FieldValue.serverTimestamp());
+        db.collection("live_rooms").document(roomId).collection("room_bans").document(uid).set(ban)
+            .addOnSuccessListener(v->kickUser(uid,name)).addOnFailureListener(e->toast("Ban failed: "+msg(e)));
+    }'''
+new='''    private void kickUser(String uid,String name){
+        if(!isModerator()||uid==null||uid.isEmpty()||uid.equals(ownerUid)){toast("Cannot kick this member");return;}
+        String[] reasons={"Room rule violation","Spam / flooding","Abusive behavior","Mic disruption","Other"};
+        new AlertDialog.Builder(this).setTitle("🚪 Kick • "+name).setMessage("Choose a reason").setItems(reasons,(d,w)->performKick940(uid,name,reasons[w])).setNegativeButton("Cancel",null).show();
+    }
+    private void performKick940(String uid,String name,String reason){
+        if(!isModerator()||uid==null||uid.isEmpty()||uid.equals(ownerUid)||!cloudRoom||db==null)return;
+        for(Map.Entry<Integer,String> entry:new HashMap<>(seatUids).entrySet())if(uid.equals(entry.getValue()))db.collection("live_rooms").document(roomId).collection("seats").document(String.valueOf(entry.getKey())).delete();
+        final String why=(reason==null||reason.trim().isEmpty())?"Moderator action":reason.trim();
+        db.collection("live_rooms").document(roomId).collection("members").document(uid).delete()
+            .addOnSuccessListener(v->{addEvent("kick",name+" was removed • "+why);toast(name+" kicked");})
+            .addOnFailureListener(e->toast("Kick failed: "+msg(e)));
+    }
+    private void banUser(String uid,String name){
+        if(!isModerator()||uid==null||uid.isEmpty()||uid.equals(ownerUid)){toast("Cannot ban this member");return;}
+        if(!cloudRoom||db==null){toast("Live room required");return;}
+        String[] reasons={"Repeated rule violation","Spam / scam","Abusive behavior","Harassment","Other"};
+        new AlertDialog.Builder(this).setTitle("🚫 Ban • "+name).setMessage("This user will not be able to re-enter this room until unbanned.").setItems(reasons,(d,w)->{
+            String reason=reasons[w];Map<String,Object> ban=new HashMap<>();ban.put("uid",uid);ban.put("name",name);ban.put("reason",reason);ban.put("active",true);ban.put("byUid",user.getUid());ban.put("byName",safeName());ban.put("createdAt",FieldValue.serverTimestamp());
+            db.collection("live_rooms").document(roomId).collection("room_bans").document(uid).set(ban)
+                .addOnSuccessListener(v->performKick940(uid,name,"Banned: "+reason)).addOnFailureListener(e->toast("Ban failed: "+msg(e)));
+        }).setNegativeButton("Cancel",null).show();
+    }'''
+if old not in q: raise SystemExit('kick/ban marker missing for moderation reasons')
+q=q.replace(old,new,1)
+
+old='''    private void banListDialog(){
+        if(!isModerator()||!cloudRoom||db==null){toast("Host/co-host only");return;}
+        db.collection("live_rooms").document(roomId).collection("room_bans").get().addOnSuccessListener(snap->{
+            List<DocumentSnapshot>docs=new ArrayList<>();List<String>rows=new ArrayList<>();
+            for(DocumentSnapshot d:snap.getDocuments())if(Boolean.TRUE.equals(d.getBoolean("active"))){docs.add(d);rows.add("🚫 "+memberNameForUid(d.getId()));}
+            if(rows.isEmpty()){toast("No banned users");return;}
+            new AlertDialog.Builder(this).setTitle("🚫 Banned users").setItems(rows.toArray(new String[0]),(x,w)->{DocumentSnapshot d=docs.get(w);String name=memberNameForUid(d.getId());new AlertDialog.Builder(this).setTitle(name).setMessage("Allow this user to join again?").setPositiveButton("Unban",(a,b)->d.getReference().delete().addOnSuccessListener(v->toast(name+" unbanned")).addOnFailureListener(e->toast(msg(e)))).setNegativeButton("Cancel",null).show();}).setNegativeButton("Close",null).show();
+        }).addOnFailureListener(e->toast(msg(e)));
+    }'''
+new='''    private void banListDialog(){
+        if(!isModerator()||!cloudRoom||db==null){toast("Host/co-host only");return;}
+        db.collection("live_rooms").document(roomId).collection("room_bans").get().addOnSuccessListener(snap->{
+            List<DocumentSnapshot>docs=new ArrayList<>();List<String>rows=new ArrayList<>();
+            for(DocumentSnapshot d:snap.getDocuments())if(Boolean.TRUE.equals(d.getBoolean("active"))){
+                docs.add(d);String name=str(d,"name",memberNameForUid(d.getId()));String reason=str(d,"reason","No reason saved");com.google.firebase.Timestamp at=d.getTimestamp("createdAt");String when=at==null?"":new java.text.SimpleDateFormat("dd MMM • HH:mm",java.util.Locale.US).format(at.toDate());
+                rows.add("🚫 "+name+"\n"+reason+(when.isEmpty()?"":" • "+when));
+            }
+            if(rows.isEmpty()){new AlertDialog.Builder(this).setTitle("🚫 Banned users").setMessage("No banned users in this room.").setPositiveButton("OK",null).show();return;}
+            new AlertDialog.Builder(this).setTitle("🚫 Banned users • "+rows.size()).setItems(rows.toArray(new String[0]),(x,w)->{
+                DocumentSnapshot d=docs.get(w);String name=str(d,"name",memberNameForUid(d.getId()));String reason=str(d,"reason","No reason saved");
+                new AlertDialog.Builder(this).setTitle(name).setMessage("Reason: "+reason+"\n\nAllow this user to join again?").setPositiveButton("Unban",(a,b)->d.getReference().delete().addOnSuccessListener(v->{addEvent("unban",safeName()+" unbanned "+name);toast(name+" unbanned");}).addOnFailureListener(e->toast(msg(e)))).setNegativeButton("Cancel",null).show();
+            }).setNegativeButton("Close",null).show();
+        }).addOnFailureListener(e->toast(msg(e)));
+    }'''
+if old not in q: raise SystemExit('banListDialog marker missing for moderation details')
+q=q.replace(old,new,1)
+
+party.write_text(q)
+print('v9.4.0 kick/ban reason and banned-user detail parity applied')
+
 print('v9.4.0 parity batch 1 applied')
