@@ -3519,4 +3519,87 @@ q=q.replace(marker,helpers+marker,1)
 party.write_text(q)
 print('v9.4.0 realtime Red Packet parity applied')
 
+
+# Bolo-reference parity: Topic Square / tagged Moments using existing moments rules.
+hub=pkg/'CommunityHubActivity.java'
+q=hub.read_text()
+
+old='''    private String selected="Search", targetUid="", targetName="";'''
+new='''    private String selected="Search", targetUid="", targetName="";
+    private String selectedTopic940="All";'''
+if old not in q: raise SystemExit('CommunityHub field marker missing for Topic Square')
+q=q.replace(old,new,1)
+
+old='''String[] ts={"Search","Moments","Family","Relationship","Collection","Visitors"};'''
+new='''String[] ts={"Search","Moments","Topics","Family","Relationship","Collection","Visitors"};'''
+if old not in q: raise SystemExit('CommunityHub tabs marker missing for Topic Square')
+q=q.replace(old,new,1)
+
+old='''if("Moments".equals(tab))moments();else if("Family".equals(tab))family();'''
+new='''if("Moments".equals(tab))moments();else if("Topics".equals(tab))topics940();else if("Family".equals(tab))family();'''
+if old not in q: raise SystemExit('CommunityHub render marker missing for Topic Square')
+q=q.replace(old,new,1)
+
+old='''    private void moments(){body.addView(tv("Moments / Square",21,DARK,true));if(!cloud()){body.addView(tv("Sign in to publish Moments.",14,MUTED,false));return;}EditText e=new EditText(this);e.setHint("Share a moment…");e.setBackground(bg(CARD,14));e.setMinLines(2);body.addView(e,new LinearLayout.LayoutParams(-1,dp(78)));TextView post=button("Post Moment",()->postMoment(e));LinearLayout.LayoutParams pp=new LinearLayout.LayoutParams(-1,dp(46));pp.setMargins(0,dp(7),0,dp(10));body.addView(post,pp);loadMoments();}'''
+new='''    private void moments(){
+        body.addView(tv("Moments / Square",21,DARK,true));
+        if(!cloud()){body.addView(tv("Sign in to publish Moments.",14,MUTED,false));return;}
+        TextView topic=tv("🏷 Topic: "+selectedTopic940+"   ›",13,DARK,true);topic.setGravity(Gravity.CENTER_VERTICAL);topic.setBackground(bg(0xffeee9ff,12));topic.setOnClickListener(v->chooseTopic940(true));body.addView(topic,new LinearLayout.LayoutParams(-1,dp(46)));
+        EditText e=new EditText(this);e.setHint("Share a moment…");e.setBackground(bg(CARD,14));e.setMinLines(2);LinearLayout.LayoutParams ep=new LinearLayout.LayoutParams(-1,dp(78));ep.setMargins(0,dp(8),0,0);body.addView(e,ep);
+        TextView post=button("Post Moment",()->postMoment(e));LinearLayout.LayoutParams pp=new LinearLayout.LayoutParams(-1,dp(46));pp.setMargins(0,dp(7),0,dp(10));body.addView(post,pp);
+        loadMoments();
+    }'''
+if old not in q: raise SystemExit('CommunityHub moments marker missing for Topic Square')
+q=q.replace(old,new,1)
+
+old='''m.put("text",text);m.put("createdAt",FieldValue.serverTimestamp());'''
+new='''m.put("text",text);m.put("topic","All".equals(selectedTopic940)?"General":selectedTopic940);m.put("createdAt",FieldValue.serverTimestamp());'''
+if old not in q: raise SystemExit('CommunityHub postMoment marker missing for Topic Square')
+q=q.replace(old,new,1)
+
+old='''    private void loadMoments(){db.collection("moments").orderBy("createdAt",Query.Direction.DESCENDING).limit(40).get().addOnSuccessListener(s->{if(s.isEmpty()){body.addView(tv("No Moments yet. Be first to post.",14,MUTED,false));return;}for(DocumentSnapshot d:s.getDocuments())addMoment(d);}).addOnFailureListener(e->toast("Moments unavailable"));}'''
+new='''    private void loadMoments(){
+        db.collection("moments").orderBy("createdAt",Query.Direction.DESCENDING).limit(80).get().addOnSuccessListener(s->{
+            int shown=0;
+            for(DocumentSnapshot d:s.getDocuments()){
+                String topic=safe(d.getString("topic"),"General");
+                if(!"All".equals(selectedTopic940)&&!selectedTopic940.equalsIgnoreCase(topic))continue;
+                addMoment(d);shown++;if(shown>=40)break;
+            }
+            if(shown==0)body.addView(tv("No Moments in "+selectedTopic940+" yet.",14,MUTED,false));
+        }).addOnFailureListener(e->toast("Moments unavailable"));
+    }'''
+if old not in q: raise SystemExit('CommunityHub loadMoments marker missing for Topic Square')
+q=q.replace(old,new,1)
+
+old='''card.addView(tv("● "+name,14,DARK,true));card.addView(tv(text,15,DARK,false));'''
+new='''card.addView(tv("● "+name,14,DARK,true));String topic940=safe(d.getString("topic"),"General");TextView tag940=tv("#"+topic940,11,PURPLE,true);tag940.setOnClickListener(v->{selectedTopic940=topic940;render("Moments");});card.addView(tag940,new LinearLayout.LayoutParams(-1,dp(30)));card.addView(tv(text,15,DARK,false));'''
+if old not in q: raise SystemExit('CommunityHub moment card marker missing for Topic Square')
+q=q.replace(old,new,1)
+
+marker='''    private void family(){'''
+helpers=r'''    private String[] topics940(){return new String[]{"All","General","Friends","Music","Games","KTV","Ludo","Family","Love","PK","Newcomers"};}
+    private void chooseTopic940(boolean returnToMoments){
+        String[] topics=topics940();
+        new AlertDialog.Builder(this).setTitle("🏷 Choose Topic").setItems(topics,(d,w)->{selectedTopic940=topics[w];if(returnToMoments)render("Moments");else render("Topics");}).setNegativeButton("Close",null).show();
+    }
+    private void topics940(){
+        body.addView(tv("Topic Square",21,DARK,true));
+        body.addView(tv("Browse the latest KING Moments by topic.",13,MUTED,false));
+        if(!cloud()){body.addView(tv("Sign in to view Topic Square.",14,MUTED,false));return;}
+        LinearLayout grid=new LinearLayout(this);grid.setOrientation(LinearLayout.VERTICAL);body.addView(grid,new LinearLayout.LayoutParams(-1,-2));
+        db.collection("moments").orderBy("createdAt",Query.Direction.DESCENDING).limit(100).get().addOnSuccessListener(s->{
+            Map<String,Integer> counts=new HashMap<>();for(String t:topics940())counts.put(t,0);
+            int total=0;for(DocumentSnapshot d:s.getDocuments()){String topic=safe(d.getString("topic"),"General");counts.put(topic,counts.containsKey(topic)?counts.get(topic)+1:1);total++;}counts.put("All",total);
+            String[] topics=topics940();for(String t:topics){TextView row=tv("#"+t+"   •   "+(counts.containsKey(t)?counts.get(t):0)+" posts",14,DARK,true);row.setGravity(Gravity.CENTER_VERTICAL);row.setBackground(bg(CARD,14));row.setOnClickListener(v->{selectedTopic940=t;render("Moments");});LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(-1,dp(54));lp.setMargins(0,dp(4),0,dp(4));grid.addView(row,lp);}
+        }).addOnFailureListener(e->body.addView(tv("Topic Square unavailable right now.",14,MUTED,false)));
+    }
+
+'''
+if marker not in q: raise SystemExit('CommunityHub family marker missing for Topic Square helpers')
+q=q.replace(marker,helpers+marker,1)
+
+hub.write_text(q)
+print('v9.4.0 Topic Square parity applied')
+
 print('v9.4.0 parity batch 1 applied')
