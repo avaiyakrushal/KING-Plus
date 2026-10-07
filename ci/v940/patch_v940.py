@@ -2733,4 +2733,55 @@ q=q[:pk_start]+pk_method+"\n\n"+q[pk_end:]
 party.write_text(q)
 print('v9.4.0 visual Audio PK arena applied')
 
+
+# Bolo-reference parity: visual synchronized KTV stage and request queue.
+party=pkg/'PartyActivity.java'
+q=party.read_text()
+ktv_start=q.find("    private void ktvQueuePanel(){")
+ktv_end=q.find("    private void radioMicPanel()",ktv_start)
+if ktv_start<0 or ktv_end<0: raise SystemExit('KTV method boundary missing')
+ktv_method=r'''    private void ktvQueuePanel(){
+        if(!cloudRoom||db==null||roomId==null){karaokeDialog();return;}
+        DocumentReference ktv=db.collection("live_rooms").document(roomId).collection("game_state").document("ktv");
+        ktv.get().addOnSuccessListener(state->db.collection("live_rooms").document(roomId).collection("events").orderBy("createdAt",Query.Direction.DESCENDING).limit(120).get().addOnSuccessListener(snap->{
+            boolean active=Boolean.TRUE.equals(state.getBoolean("active"));String nowSong=str(state,"song","");String singer=str(state,"singerName","");
+            LinearLayout root=new LinearLayout(this);root.setOrientation(LinearLayout.VERTICAL);root.setPadding(dp(14),dp(10),dp(14),dp(12));root.setBackgroundColor(0xff17131f);
+            LinearLayout stage=new LinearLayout(this);stage.setOrientation(LinearLayout.VERTICAL);stage.setGravity(Gravity.CENTER);stage.setPadding(dp(10),dp(8),dp(10),dp(8));stage.setBackground(bg(active?0xff39234f:0xff24202c,16));
+            TextView mic=tv(active?"🎤":"🎙",32,Color.WHITE,false);mic.setGravity(Gravity.CENTER);stage.addView(mic,new LinearLayout.LayoutParams(-1,dp(45)));
+            TextView singerView=tv(active?singer:"KTV Stage",17,active?0xffffd75a:Color.WHITE,true);singerView.setGravity(Gravity.CENTER);stage.addView(singerView,new LinearLayout.LayoutParams(-1,dp(30)));
+            TextView songView=tv(active?nowSong:"No singer on stage",12,MUTED,true);songView.setGravity(Gravity.CENTER);stage.addView(songView,new LinearLayout.LayoutParams(-1,dp(25)));root.addView(stage,new LinearLayout.LayoutParams(-1,dp(108)));
+
+            LinearLayout actions=new LinearLayout(this);actions.setGravity(Gravity.CENTER);actions.setPadding(0,dp(6),0,dp(6));
+            TextView request=tv("＋ Request Song",11,Color.WHITE,true);request.setGravity(Gravity.CENTER);request.setBackground(bg(0xff553979,12));request.setOnClickListener(v->karaokeDialog());LinearLayout.LayoutParams ap=new LinearLayout.LayoutParams(0,dp(42),1);ap.setMargins(dp(3),0,dp(3),0);actions.addView(request,ap);
+            if(isModerator()){TextView control=tv(active?"⏹ End Singer":"🎛 Music",11,Color.WHITE,true);control.setGravity(Gravity.CENTER);control.setBackground(bg(0xff4a395c,12));control.setOnClickListener(v->{if(active){Map<String,Object>end=new HashMap<>();end.put("active",false);end.put("endedAt",FieldValue.serverTimestamp());end.put("endedBy",user==null?"":user.getUid());ktv.set(end,SetOptions.merge()).addOnSuccessListener(x->{addEvent("ktv_end",safeName()+" ended KTV singer");ktvQueuePanel();});}else musicPanel();});actions.addView(control,new LinearLayout.LayoutParams(ap));}
+            root.addView(actions,new LinearLayout.LayoutParams(-1,dp(54)));
+
+            TextView qTitle=tv("Song Request Queue",14,Color.WHITE,true);qTitle.setPadding(dp(2),dp(6),0,dp(5));root.addView(qTitle,new LinearLayout.LayoutParams(-1,dp(38)));
+            ScrollView scroll=new ScrollView(this);LinearLayout queue=new LinearLayout(this);queue.setOrientation(LinearLayout.VERTICAL);scroll.addView(queue);
+            int shown=0;String currentRequest=str(state,"requestEventId","");
+            for(DocumentSnapshot req:snap.getDocuments()){
+                if(!"song".equals(req.getString("type")))continue;if(req.getId().equals(currentRequest))continue;
+                String raw=str(req,"text","Song request");String requestedSong=raw;int mark=raw.indexOf(" requested 🎵 ");if(mark>=0)requestedSong=raw.substring(mark+" requested 🎵 ".length()).trim();
+                final String song=requestedSong;final DocumentSnapshot requestDoc=req;
+                LinearLayout row=new LinearLayout(this);row.setGravity(Gravity.CENTER_VERTICAL);row.setPadding(dp(10),dp(6),dp(8),dp(6));row.setBackground(bg(0xff24202e,12));
+                TextView icon=tv("🎵",22,Color.WHITE,false);icon.setGravity(Gravity.CENTER);row.addView(icon,new LinearLayout.LayoutParams(dp(42),dp(46)));
+                LinearLayout info=new LinearLayout(this);info.setOrientation(LinearLayout.VERTICAL);TextView songText=tv(song,13,Color.WHITE,true);songText.setSingleLine(true);TextView userText=tv(str(req,"actorName","Guest"),10,MUTED,false);info.addView(songText,new LinearLayout.LayoutParams(-1,dp(24)));info.addView(userText,new LinearLayout.LayoutParams(-1,dp(18)));row.addView(info,new LinearLayout.LayoutParams(0,dp(46),1));
+                TextView next=tv(isModerator()?"START ›":"WAIT",10,isModerator()?0xffffd75a:MUTED,true);next.setGravity(Gravity.CENTER);row.addView(next,new LinearLayout.LayoutParams(dp(64),dp(46)));
+                row.setOnClickListener(v->{if(!isModerator()){toast("Host/co-host selects the next singer");return;}new AlertDialog.Builder(this).setTitle("Start KTV singer?").setMessage(str(requestDoc,"actorName","Guest")+" • "+song).setPositiveButton("Start",(d,w)->startKtvRequestVisual940(requestDoc,song,ktv)).setNegativeButton("Cancel",null).show();});
+                LinearLayout.LayoutParams rp=new LinearLayout.LayoutParams(-1,dp(60));rp.setMargins(0,dp(3),0,dp(3));queue.addView(row,rp);if(++shown>=20)break;
+            }
+            if(shown==0){TextView empty=tv("No waiting song requests",12,MUTED,true);empty.setGravity(Gravity.CENTER);queue.addView(empty,new LinearLayout.LayoutParams(-1,dp(72)));}
+            root.addView(scroll,new LinearLayout.LayoutParams(-1,Math.min(dp(360),Math.max(dp(90),shown*dp(66)+dp(20)))));
+            new AlertDialog.Builder(this).setTitle("🎤 KTV").setView(root).setPositiveButton("Refresh",(d,w)->ktvQueuePanel()).setNegativeButton("Close",null).show();
+        }).addOnFailureListener(e->toast("KTV queue unavailable: "+msg(e)))).addOnFailureListener(e->toast("KTV state unavailable: "+msg(e)));
+    }
+    private void startKtvRequestVisual940(DocumentSnapshot req,String song,DocumentReference ktv){
+        Map<String,Object>stage=new HashMap<>();stage.put("active",true);stage.put("song",song);stage.put("singerUid",str(req,"actorUid",""));stage.put("singerName",str(req,"actorName","Guest"));stage.put("requestEventId",req.getId());stage.put("startedAt",FieldValue.serverTimestamp());stage.put("startedBy",user==null?"":user.getUid());
+        ktv.set(stage,SetOptions.merge()).addOnSuccessListener(v->{addEvent("ktv_start",safeName()+" put "+str(req,"actorName","Guest")+" on KTV stage • "+song);ktvQueuePanel();}).addOnFailureListener(e->toast("KTV stage failed: "+msg(e)));
+    }
+'''
+q=q[:ktv_start]+ktv_method+"\n\n"+q[ktv_end:]
+party.write_text(q)
+print('v9.4.0 visual synchronized KTV stage applied')
+
 print('v9.4.0 parity batch 1 applied')
