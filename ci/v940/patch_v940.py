@@ -4108,7 +4108,7 @@ helper=r'''    private void loginDevices940(){
         SharedPreferences sec=getSharedPreferences("king_security",MODE_PRIVATE);String raw=sec.getString("login_history","");
         if(raw==null||raw.isEmpty())chip("No local login history yet.",()->{});
         else{
-            int shown=0;for(String x:raw.split("\\|\\|\\|")){String[] p=x.split("::",3);if(p.length<3)continue;long at=0;try{at=Long.parseLong(p[0]);}catch(Exception ignored){}String when=at<=0?"Unknown time":new java.text.SimpleDateFormat("dd MMM yyyy • HH:mm",java.util.Locale.US).format(new java.util.Date(at));chip("✓ "+p[1]+" • "+p[2]+"\n"+when,()->{});if(++shown>=12)break;}
+            int shown=0;for(String x:raw.split("[|][|][|]")){String[] p=x.split("::",3);if(p.length<3)continue;long at=0;try{at=Long.parseLong(p[0]);}catch(Exception ignored){}String when=at<=0?"Unknown time":new java.text.SimpleDateFormat("dd MMM yyyy • HH:mm",java.util.Locale.US).format(new java.util.Date(at));chip("✓ "+p[1]+" • "+p[2]+"\n"+when,()->{});if(++shown>=12)break;}
         }
         chip("Clear local login history",()->{sec.edit().remove("login_history").apply();toast("Local login history cleared");loginDevices940();});
     }
@@ -4236,12 +4236,12 @@ new='''    private void showLobbySearch(String selected){
     private void saveLobbySearch940(String query){
         if(query==null||query.trim().isEmpty())return;String q=query.trim().replace("|||"," ");
         String raw=prefs.getString("party_search_history_940","");List<String> rows=new ArrayList<>();rows.add(q);
-        if(raw!=null&&!raw.isEmpty())for(String x:raw.split("\\|\\|\\|"))if(x!=null&&!x.trim().isEmpty()&&!q.equalsIgnoreCase(x.trim())&&rows.size()<10)rows.add(x.trim());
+        if(raw!=null&&!raw.isEmpty())for(String x:raw.split("[|][|][|]"))if(x!=null&&!x.trim().isEmpty()&&!q.equalsIgnoreCase(x.trim())&&rows.size()<10)rows.add(x.trim());
         StringBuilder out=new StringBuilder();for(String x:rows){if(out.length()>0)out.append("|||");out.append(x);}prefs.edit().putString("party_search_history_940",out.toString()).apply();
     }
     private void showLobbySearchHistory940(String selected){
         String raw=prefs.getString("party_search_history_940","");if(raw==null||raw.trim().isEmpty()){new AlertDialog.Builder(this).setTitle("Recent Searches").setMessage("No recent Party searches yet.").setPositiveButton("OK",null).show();return;}
-        List<String> rows=new ArrayList<>();for(String x:raw.split("\\|\\|\\|"))if(x!=null&&!x.trim().isEmpty())rows.add(x.trim());
+        List<String> rows=new ArrayList<>();for(String x:raw.split("[|][|][|]"))if(x!=null&&!x.trim().isEmpty())rows.add(x.trim());
         String[] labels=new String[rows.size()+1];for(int i=0;i<rows.size();i++)labels[i]="⌕  "+rows.get(i);labels[rows.size()]="🗑 Clear search history";
         new AlertDialog.Builder(this).setTitle("Recent Searches").setItems(labels,(d,w)->{
             if(w==rows.size()){prefs.edit().remove("party_search_history_940").apply();toast("Search history cleared");return;}
