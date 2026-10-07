@@ -668,4 +668,28 @@ if old in q:q=q.replace(old,new,1)
 party.write_text(q)
 print('v9.4.0 RTC moderation sync applied')
 
+# Route exposed Party feature tiles to working room flows instead of presentation-only pages.
+party=pkg/'PartyActivity.java'
+q=party.read_text()
+q=q.replace('''        else if("KTV Stage".equals(label))openParity870("ktv");
+        else if("PK Arena".equals(label))openParity870("pk");
+        else if("Match".equals(label))openParity870("match");
+        else if("Party Stage".equals(label))openParity870("stage");
+        else if("VIP Rank".equals(label))openParity870("vip");''','''        else if("KTV Stage".equals(label))ktvQueuePanel();
+        else if("PK Arena".equals(label))audioPkPanel700();
+        else if("Match".equals(label))openRoomGames740();
+        else if("Party Stage".equals(label))roomSeatPanel();
+        else if("VIP Rank".equals(label))roomRankingDialog();''',1)
+q=q.replace('''        else if(x.contains("KTV Stage"))openParity870("ktv");
+        else if(x.contains("PK Arena"))openParity870("pk");
+        else if(x.contains("Match Center"))openParity870("match");
+        else if(x.contains("Party Stage"))openParity870("stage");
+        else if(x.contains("VIP & Rank"))openParity870("vip");''','''        else if(x.contains("KTV Stage"))ktvQueuePanel();
+        else if(x.contains("PK Arena"))audioPkPanel700();
+        else if(x.contains("Match Center"))openRoomGames740();
+        else if(x.contains("Party Stage"))roomSeatPanel();
+        else if(x.contains("VIP & Rank"))roomRankingDialog();''',1)
+party.write_text(q)
+print('v9.4.0 functional Party feature routing applied')
+
 print('v9.4.0 parity batch 1 applied')
