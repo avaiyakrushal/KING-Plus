@@ -2255,4 +2255,26 @@ q=q.replace(marker,helpers+marker,1)
 main.write_text(q)
 print('v9.4.0 video-reference Me profile recommendations applied')
 
+
+# Restore game navigation helpers that lived between games() and discover() in the verified base.
+main=pkg/'MainActivity.java'
+q=main.read_text()
+helper_marker='''    private void discover(){'''
+helpers='''    private void openPlayableGame(String game){
+        String g=game==null?"":game.toLowerCase(java.util.Locale.US).trim();
+        if("ludo".equals(g)){startActivity(new Intent(this,KingLudoLobbyActivity.class));return;}
+        kingOpenGameRoom(game);
+    }
+    private void kingGameModes(String game){openPlayableGame(game);}
+
+'''
+if 'private void openPlayableGame(String game)' not in q:
+    if helper_marker not in q: raise SystemExit('Discover marker missing for restored game helpers')
+    q=q.replace(helper_marker,helpers+helper_marker,1)
+elif 'private void kingGameModes(String game)' not in q:
+    if helper_marker not in q: raise SystemExit('Discover marker missing for kingGameModes helper')
+    q=q.replace(helper_marker,'    private void kingGameModes(String game){openPlayableGame(game);}\n\n'+helper_marker,1)
+main.write_text(q)
+print('v9.4.0 video Game navigation helpers restored')
+
 print('v9.4.0 parity batch 1 applied')
