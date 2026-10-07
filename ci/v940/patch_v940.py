@@ -4391,4 +4391,46 @@ q=q.replace(old,new,1)
 party.write_text(q)
 print('v9.4.0 searchable KTV song request parity applied')
 
+
+# KTV correctness + parity: completed queue tracking and KTV history.
+party=pkg/'PartyActivity.java'
+q=party.read_text()
+
+old='''            if(isModerator()){TextView control=tv(active?"⏹ End Singer":"🎛 Music",11,Color.WHITE,true);control.setGravity(Gravity.CENTER);control.setBackground(bg(0xff4a395c,12));control.setOnClickListener(v->{if(active){Map<String,Object>end=new HashMap<>();end.put("active",false);end.put("endedAt",FieldValue.serverTimestamp());end.put("endedBy",user==null?"":user.getUid());ktv.set(end,SetOptions.merge()).addOnSuccessListener(x->{addEvent("ktv_end",safeName()+" ended KTV singer");ktvQueuePanel();});}else musicPanel();});actions.addView(control,new LinearLayout.LayoutParams(ap));}'''
+new='''            if(isModerator()){TextView control=tv(active?"⏹ End Singer":"🎛 Music",11,Color.WHITE,true);control.setGravity(Gravity.CENTER);control.setBackground(bg(0xff4a395c,12));control.setOnClickListener(v->{if(active){String finishedRequest940=str(state,"requestEventId","");String finishedSong940=str(state,"song","");String finishedSinger940=str(state,"singerName","Guest");Map<String,Object>end=new HashMap<>();end.put("active",false);end.put("endedAt",FieldValue.serverTimestamp());end.put("endedBy",user==null?"":user.getUid());end.put("requestEventId","");if(!finishedRequest940.isEmpty())end.put("completedRequestIds",FieldValue.arrayUnion(finishedRequest940));ktv.set(end,SetOptions.merge()).addOnSuccessListener(x->{addEvent("ktv_end",finishedSinger940+" finished KTV • "+finishedSong940);ktvQueuePanel();});}else musicPanel();});actions.addView(control,new LinearLayout.LayoutParams(ap));}
+            TextView history940=tv("🕘 History",11,Color.WHITE,true);history940.setGravity(Gravity.CENTER);history940.setBackground(bg(0xff3e3550,12));history940.setOnClickListener(v->ktvHistory940());actions.addView(history940,new LinearLayout.LayoutParams(ap));'''
+if old not in q: raise SystemExit('KTV end-singer marker missing for completion tracking')
+q=q.replace(old,new,1)
+
+old='''            int shown=0;String currentRequest=str(state,"requestEventId","");
+            for(DocumentSnapshot req:snap.getDocuments()){
+                if(!"song".equals(req.getString("type")))continue;if(req.getId().equals(currentRequest))continue;'''
+new='''            int shown=0;String currentRequest=str(state,"requestEventId","");Set<String> completedRequests940=new HashSet<>();Object completedRaw940=state.get("completedRequestIds");if(completedRaw940 instanceof List)for(Object x:(List<?>)completedRaw940)if(x!=null)completedRequests940.add(String.valueOf(x));
+            for(DocumentSnapshot req:snap.getDocuments()){
+                if(!"song".equals(req.getString("type")))continue;if(req.getId().equals(currentRequest)||completedRequests940.contains(req.getId()))continue;'''
+if old not in q: raise SystemExit('KTV queue skip marker missing for completion tracking')
+q=q.replace(old,new,1)
+
+marker='''    private void startKtvRequestVisual940(DocumentSnapshot req,String song,DocumentReference ktv){'''
+helper=r'''    private void ktvHistory940(){
+        if(!cloudRoom||db==null||roomId==null){toast("Open a live Party room first");return;}
+        db.collection("live_rooms").document(roomId).collection("events").orderBy("createdAt",Query.Direction.DESCENDING).limit(180).get().addOnSuccessListener(snap->{
+            List<String> rows=new ArrayList<>();
+            for(DocumentSnapshot d:snap.getDocuments()){
+                String type=d.getString("type");if(!"ktv_start".equals(type)&&!"ktv_end".equals(type))continue;
+                String text=d.getString("text");if(text==null||text.trim().isEmpty())continue;
+                com.google.firebase.Timestamp at=d.getTimestamp("createdAt");String when=at==null?"":new java.text.SimpleDateFormat("dd MMM • HH:mm",java.util.Locale.US).format(at.toDate());
+                rows.add(("ktv_start".equals(type)?"🎤 START  ":"🏁 END  ")+(when.isEmpty()?"":when+"  •  ")+text);if(rows.size()>=40)break;
+            }
+            if(rows.isEmpty()){new AlertDialog.Builder(this).setTitle("🎤 KTV History").setMessage("No completed KTV activity in this room yet.").setPositiveButton("OK",null).show();return;}
+            new AlertDialog.Builder(this).setTitle("🎤 KTV History").setItems(rows.toArray(new String[0]),null).setNegativeButton("Close",null).show();
+        }).addOnFailureListener(e->toast("KTV history unavailable: "+msg(e)));
+    }
+
+'''
+if marker not in q: raise SystemExit('startKtv marker missing for KTV history')
+q=q.replace(marker,helper+marker,1)
+party.write_text(q)
+print('v9.4.0 KTV completed queue + history parity applied')
+
 print('v9.4.0 parity batch 1 applied')
