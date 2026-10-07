@@ -549,4 +549,91 @@ q=q.replace(old,new,1)
 
 party.write_text(q)
 
+# ---------------- Game navigation: no exposed simulated multiplayer paths ----------------
+main=pkg/'MainActivity.java'
+q=main.read_text()
+old='''    private void openPlayableGame(String game){if("ludo".equalsIgnoreCase(game)){startActivity(new Intent(this,OnlineLudoActivity.class));return;}Intent i=new Intent(this,GamePlayActivity.class);i.putExtra("game",game);startActivity(i);}'''
+new='''    private void openPlayableGame(String game){
+        String g=game==null?"":game.toLowerCase(java.util.Locale.US);
+        if("ludo".equals(g)){startActivity(new Intent(this,OnlineLudoActivity.class));return;}
+        if(g.equals("werewolf")||g.equals("spy")||g.equals("draw")||g.equals("bingo")||g.equals("domino")||g.equals("sheep")||g.equals("zoo")){
+            kingOpenGameRoom(game);
+            return;
+        }
+        Intent i=new Intent(this,GamePlayActivity.class);i.putExtra("game",game);startActivity(i);
+    }'''
+if old not in q: raise SystemExit('Main openPlayableGame marker missing')
+q=q.replace(old,new,1)
+
+old='''            if(w==0)kingStartGame(game,"Quick Match");
+            else if(w==1)kingStartGame(game,"1 vs 1");
+            else if(w==2)kingStartGame(game,"Team Match");
+            else if(w==3)kingInviteGame(game);
+            else if(w==4)kingOpenGameRoom(game);
+            else kingGameRules(game);'''
+new='''            if(w==0)openPlayableGame(playableCode730(game));
+            else if(w==1||w==2||w==4)kingOpenGameRoom(game);
+            else if(w==3)kingInviteGame(game);
+            else kingGameRules(game);'''
+if old not in q: raise SystemExit('Main game mode routing marker missing')
+q=q.replace(old,new,1)
+main.write_text(q)
+
+# Carry the selected social game into the Party screen instead of dropping the extra.
+party=pkg/'PartyActivity.java'
+q=party.read_text()
+old='''    private String inRoomVoiceSlug940="";'''
+new='''    private String inRoomVoiceSlug940="";
+    private String requestedGame940="";'''
+if old not in q: raise SystemExit('Party inline voice field marker missing for requested game')
+q=q.replace(old,new,1)
+
+old='''        displayName = getIntent().getStringExtra("displayName");
+        if (displayName == null || displayName.trim().isEmpty()) displayName = safeName();'''
+new='''        displayName = getIntent().getStringExtra("displayName");
+        if (displayName == null || displayName.trim().isEmpty()) displayName = safeName();
+        requestedGame940=safe(getIntent().getStringExtra("requestedGame"),"");'''
+if old not in q: raise SystemExit('Party onCreate displayName marker missing for requested game')
+q=q.replace(old,new,1)
+
+old='''        roomRoot.addView(badges,new LinearLayout.LayoutParams(-1,dp(36)));
+
+        // Hidden state labels retained for existing realtime/controller logic.'''
+new='''        roomRoot.addView(badges,new LinearLayout.LayoutParams(-1,dp(36)));
+        if(!requestedGame940.isEmpty()){
+            TextView gamePrompt940=pill("🎮 "+requestedGame940+" • Open Room Games",0x553b1b6b,()->{
+                Intent gi940=new Intent(this,RoomGameActivity.class);
+                gi940.putExtra("roomId",roomId);
+                gi940.putExtra("roomName",roomName);
+                gi940.putExtra("displayName",safeName());
+                gi940.putExtra("requestedGame",requestedGame940);
+                startActivity(gi940);
+            });
+            gamePrompt940.setTextSize(11);
+            roomRoot.addView(gamePrompt940,new LinearLayout.LayoutParams(-1,dp(34)));
+        }
+
+        // Hidden state labels retained for existing realtime/controller logic.'''
+if old not in q: raise SystemExit('Party badges marker missing for requested game banner')
+q=q.replace(old,new,1)
+party.write_text(q)
+
+# Show selected-game intent in multiplayer controls so the requested mode is not lost.
+rg=pkg/'RoomGameActivity.java'
+q=rg.read_text()
+old='''    private String roomId="",roomName="Live Room",displayName="KING User";'''
+new='''    private String roomId="",roomName="Live Room",displayName="KING User",requestedGame="";'''
+if old not in q: raise SystemExit('RoomGame field marker missing')
+q=q.replace(old,new,1)
+old='''        roomId=s(getIntent().getStringExtra("roomId"));roomName=s(getIntent().getStringExtra("roomName"));displayName=s(getIntent().getStringExtra("displayName"));if(roomName.isEmpty())roomName="Live Room";if(displayName.isEmpty())displayName="KING User";'''
+new='''        roomId=s(getIntent().getStringExtra("roomId"));roomName=s(getIntent().getStringExtra("roomName"));displayName=s(getIntent().getStringExtra("displayName"));requestedGame=s(getIntent().getStringExtra("requestedGame"));if(roomName.isEmpty())roomName="Live Room";if(displayName.isEmpty())displayName="KING User";'''
+if old not in q: raise SystemExit('RoomGame onCreate marker missing')
+q=q.replace(old,new,1)
+old='''        roleText=tv("Checking room role…",12,MUTED,false);page.addView(roleText);'''
+new='''        roleText=tv("Checking room role…",12,MUTED,false);page.addView(roleText);
+        if(!requestedGame.isEmpty()){TextView requested=tv("🎮 Selected from Games: "+requestedGame+" • tap Ready, then host/co-host starts the synchronized round",12,GOLD,true);requested.setBackground(bg(CARD,12));page.addView(requested,new LinearLayout.LayoutParams(-1,dp(54)));}'''
+if old not in q: raise SystemExit('RoomGame role marker missing')
+q=q.replace(old,new,1)
+rg.write_text(q)
+
 print('v9.4.0 parity batch 1 applied')
