@@ -2,3 +2,4 @@ verify latest parity source after Create Party polish
 verify party mic stays in-room
 verify in-room mic no conference launch
 verify embedded in-room audio-only rtc
+retry embedded rtc with jitsi13 config
