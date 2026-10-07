@@ -1856,4 +1856,46 @@ q=q.replace(old,new,1)
 party.write_text(q)
 print('v9.4.0 realtime lobby member counts applied')
 
+
+# Public profile: real Followers / Following / Friends counters.
+pub=pkg/'KingPublicProfileActivity.java'
+q=pub.read_text()
+old='''    private FirebaseFirestore db; private FirebaseUser me; private String uid="", name="KING User"; private LinearLayout body; private TextView followBtn;'''
+new='''    private FirebaseFirestore db; private FirebaseUser me; private String uid="", name="KING User"; private LinearLayout body; private TextView followBtn;
+    private TextView publicFollowers940,publicFollowing940,publicFriends940;'''
+if old not in q: raise SystemExit('Public profile fields marker missing for counters')
+q=q.replace(old,new,1)
+
+old='''body.addView(actions);
+        section("Profile");'''
+new='''body.addView(actions);addPublicCounts940();
+        section("Profile");'''
+if old not in q: raise SystemExit('Public profile actions marker missing for counters')
+q=q.replace(old,new,1)
+
+marker='''    private TextView action(String s){'''
+helpers='''    private void addPublicCounts940(){
+        LinearLayout counts=new LinearLayout(this);counts.setGravity(Gravity.CENTER);counts.setPadding(0,dp(6),0,dp(6));
+        publicFollowers940=publicStat940(counts,"…","Followers");publicFollowing940=publicStat940(counts,"…","Following");publicFriends940=publicStat940(counts,"…","Friends");
+        LinearLayout.LayoutParams cp=new LinearLayout.LayoutParams(-1,dp(66));cp.setMargins(0,dp(5),0,dp(5));body.addView(counts,cp);loadPublicCounts940();
+    }
+    private TextView publicStat940(LinearLayout row,String value,String label){
+        TextView t=tv(value+"\\n"+label,13,INK,true);t.setGravity(Gravity.CENTER);t.setBackground(bg(Color.WHITE,12));LinearLayout.LayoutParams p=new LinearLayout.LayoutParams(0,dp(58),1);p.setMargins(dp(2),0,dp(2),0);row.addView(t,p);return t;
+    }
+    private void setPublicStat940(TextView v,long n,String label){if(v!=null)v.setText(n+"\\n"+label);}
+    private void failPublicCounts940(){if(publicFollowers940!=null)publicFollowers940.setText("—\\nFollowers");if(publicFollowing940!=null)publicFollowing940.setText("—\\nFollowing");if(publicFriends940!=null)publicFriends940.setText("—\\nFriends");}
+    private void loadPublicCounts940(){
+        if(db==null||uid==null||uid.isEmpty()){failPublicCounts940();return;}
+        db.collection("follows").whereEqualTo("followerUid",uid).get().addOnSuccessListener(out->{
+            java.util.Set<String> following=new java.util.HashSet<>();for(DocumentSnapshot d:out.getDocuments()){String x=d.getString("targetUid");if(x!=null&&!x.isEmpty())following.add(x);}setPublicStat940(publicFollowing940,following.size(),"Following");
+            db.collection("follows").whereEqualTo("targetUid",uid).get().addOnSuccessListener(in->{long followers=0,friends=0;for(DocumentSnapshot d:in.getDocuments()){String x=d.getString("followerUid");if(x!=null&&!x.isEmpty()){followers++;if(following.contains(x))friends++;}}setPublicStat940(publicFollowers940,followers,"Followers");setPublicStat940(publicFriends940,friends,"Friends");}).addOnFailureListener(e->failPublicCounts940());
+        }).addOnFailureListener(e->failPublicCounts940());
+    }
+
+'''
+if marker not in q: raise SystemExit('Public profile action marker missing for counters')
+q=q.replace(marker,helpers+marker,1)
+pub.write_text(q)
+print('v9.4.0 public profile real social counters applied')
+
 print('v9.4.0 parity batch 1 applied')
