@@ -655,4 +655,17 @@ if old in q:q=q.replace(old,new,1)
 party.write_text(q)
 print('v9.4.0 Party controls cleaned')
 
+# Keep embedded RTC in sync with seat removal and host Mute All.
+party=pkg/'PartyActivity.java'
+q=party.read_text()
+old='''        seatsListener=room.collection("seats").addSnapshotListener((snap,e)->{if(e!=null||snap==null)return;seatNames.clear();seatUids.clear();seatMics.clear();mySeat=-1;for(DocumentSnapshot d:snap.getDocuments()){int no;try{no=Integer.parseInt(d.getId());}catch(Exception ex){continue;}seatNames.put(no,str(d,"name","Guest"));seatUids.put(no,d.getString("uid"));seatMics.put(no,!Boolean.FALSE.equals(d.getBoolean("micOn")));if(user.getUid().equals(d.getString("uid"))){mySeat=no;micOn=Boolean.TRUE.equals(d.getBoolean("micOn"));}}setInlineAudioMuted940(!(micOn&&mySeat>0));rebuildSeats();refreshPeopleCounts();if(micLabel!=null){refreshMicControl();}});'''
+new='''        seatsListener=room.collection("seats").addSnapshotListener((snap,e)->{if(e!=null||snap==null)return;seatNames.clear();seatUids.clear();seatMics.clear();mySeat=-1;for(DocumentSnapshot d:snap.getDocuments()){int no;try{no=Integer.parseInt(d.getId());}catch(Exception ex){continue;}seatNames.put(no,str(d,"name","Guest"));seatUids.put(no,d.getString("uid"));seatMics.put(no,!Boolean.FALSE.equals(d.getBoolean("micOn")));if(user.getUid().equals(d.getString("uid"))){mySeat=no;micOn=Boolean.TRUE.equals(d.getBoolean("micOn"));}}if(mySeat<1)micOn=false;setInlineAudioMuted940(!(micOn&&mySeat>0));rebuildSeats();refreshPeopleCounts();if(micLabel!=null){refreshMicControl();}});'''
+if old in q:q=q.replace(old,new,1)
+
+old='''muteAll=Boolean.TRUE.equals(doc.getBoolean("muteAll"));roomPrivate=Boolean.TRUE.equals(doc.getBoolean("isPrivate"));'''
+new='''muteAll=Boolean.TRUE.equals(doc.getBoolean("muteAll"));if(muteAll&&!isModerator()&&micOn){micOn=false;setInlineAudioMuted940(true);if(mySeat>0)room.collection("seats").document(String.valueOf(mySeat)).update("micOn",false).addOnFailureListener(x->{});refreshMicControl();}roomPrivate=Boolean.TRUE.equals(doc.getBoolean("isPrivate"));'''
+if old in q:q=q.replace(old,new,1)
+party.write_text(q)
+print('v9.4.0 RTC moderation sync applied')
+
 print('v9.4.0 parity batch 1 applied')
