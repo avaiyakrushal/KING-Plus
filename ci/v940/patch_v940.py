@@ -4886,4 +4886,82 @@ q=q.replace('''            default:detail(route);break;''',
 deep.write_text(q)
 print('v9.4.0 privilege cosmetics routed to working Wardrobe')
 
+
+# Replace remaining Party-related generic detail pages with working live-room panels.
+party=pkg/'PartyActivity.java'
+q=party.read_text()
+
+field_marker='''    private String requestedGame940="";'''
+field_new='''    private String requestedGame940="";
+    private String requestedPanel940="";'''
+if field_marker in q:q=q.replace(field_marker,field_new,1)
+
+old='''        requestedGame940=safe(getIntent().getStringExtra("requestedGame"),"");'''
+new='''        requestedGame940=safe(getIntent().getStringExtra("requestedGame"),"");
+        requestedPanel940=safe(getIntent().getStringExtra("requestedPanel"),"");'''
+if old not in q: raise SystemExit('Party requestedGame marker missing for requested panel')
+q=q.replace(old,new,1)
+
+old='''            openCloudRoom(directRoomId,safe(directName,"Live Party"),directOwnerUid,safe(directOwnerName,"KING Host"),directPrivate,directPassword);
+        } else renderLobby("Hot");'''
+new='''            if(directOwnerUid==null||directOwnerUid.trim().isEmpty()){
+                db.collection("live_rooms").document(directRoomId).get().addOnSuccessListener(doc->{if(doc!=null&&doc.exists()&&!Boolean.TRUE.equals(doc.getBoolean("closed")))openRoomDoc891(doc);else{toast("This Party room is unavailable");renderLobby("Hot");}}).addOnFailureListener(e->{toast("Could not open Party room");renderLobby("Hot");});
+            }else openCloudRoom(directRoomId,safe(directName,"Live Party"),directOwnerUid,safe(directOwnerName,"KING Host"),directPrivate,directPassword);
+        } else renderLobby("Hot");'''
+if old not in q: raise SystemExit('Party direct-room marker missing for requested panel')
+q=q.replace(old,new,1)
+
+old='''        memberSeen=true;renderParty();startHeartbeat900();addEvent("join",safeName()+" joined the room");if(page!=null)page.postDelayed(()->showEntranceEffect(safeName()),350);'''
+new='''        memberSeen=true;renderParty();startHeartbeat900();addEvent("join",safeName()+" joined the room");if(page!=null){page.postDelayed(()->showEntranceEffect(safeName()),350);page.postDelayed(this::openRequestedPanel940,650);}'''
+if old not in q: raise SystemExit('finishMemberJoin marker missing for requested panel')
+q=q.replace(old,new,1)
+
+old='''            .addOnSuccessListener(v->{memberSeen=true;addEvent("join",safeName()+" joined the room");renderParty();if(page!=null)page.postDelayed(()->showEntranceEffect(safeName()),350);})'''
+new='''            .addOnSuccessListener(v->{memberSeen=true;addEvent("join",safeName()+" joined the room");renderParty();if(page!=null){page.postDelayed(()->showEntranceEffect(safeName()),350);page.postDelayed(this::openRequestedPanel940,650);}})'''
+if old in q:q=q.replace(old,new,1)
+
+marker='''    private void musicPanel(){'''
+helper='''    private void openRequestedPanel940(){
+        if(requestedPanel940==null||requestedPanel940.trim().isEmpty()||isFinishing()||isDestroyed())return;
+        String panel=requestedPanel940;requestedPanel940="";
+        if("music".equals(panel))musicPanel();
+        else if("song".equals(panel))karaokeDialog();
+        else if("ktv".equals(panel))ktvQueuePanel();
+        else if("radio".equals(panel))radioMicPanel();
+        else if("theme".equals(panel))themeRoomPanel();
+        else if("seats".equals(panel))roomSeatPanel();
+        else if("games".equals(panel))openRoomGames740();
+    }
+
+'''
+if marker not in q: raise SystemExit('Party musicPanel marker missing for requested panel helper')
+q=q.replace(marker,helper+marker,1)
+party.write_text(q)
+
+deep=pkg/'KingDeepFlowActivity.java'
+q=deep.read_text()
+old='''            case "detail_frames": case "detail_entrance": case "detail_chat_bubble": case "detail_name_badge": startActivity(new Intent(this,KingWardrobeActivity.class));break;
+            default:detail(route);break;'''
+new='''            case "detail_frames": case "detail_entrance": case "detail_chat_bubble": case "detail_name_badge": startActivity(new Intent(this,KingWardrobeActivity.class));break;
+            case "detail_music_library": openPartyPanel940("music");break;
+            case "detail_song_request": openPartyPanel940("song");break;
+            case "detail_ktv_queue": openPartyPanel940("ktv");break;
+            case "detail_radio_queue": openPartyPanel940("radio");break;
+            case "detail_room_theme": openPartyPanel940("theme");break;
+            case "detail_room_seats": case "detail_vip_seat": openPartyPanel940("seats");break;
+            default:detail(route);break;'''
+if old not in q: raise SystemExit('DeepFlow cosmetics route marker missing for live panel routes')
+q=q.replace(old,new,1)
+
+marker='''    private void openGiftCenter(){'''
+helper='''    private void openPartyPanel940(String panel){
+        if(roomId==null||roomId.trim().isEmpty()){toast("Join a live Party room first");KingNav.openRoot(this,0);return;}
+        Intent i=new Intent(this,PartyActivity.class);i.putExtra("directRoomId",roomId);i.putExtra("directRoomName",roomName);i.putExtra("displayName",safe(mainPrefs.getString("name","KING User"),"KING User"));i.putExtra("requestedPanel",panel);startActivity(i);
+    }
+'''
+if marker not in q: raise SystemExit('DeepFlow openGiftCenter marker missing for live panel helper')
+q=q.replace(marker,helper+marker,1)
+deep.write_text(q)
+print('v9.4.0 Party nested detail routes wired to working panels')
+
 print('v9.4.0 parity batch 1 applied')
