@@ -1919,4 +1919,49 @@ q=q.replace(marker,helper+marker,1)
 pub.write_text(q)
 print('v9.4.0 public profile visitor tracking applied')
 
+
+# Me/Profile: real owner-only visitor count and recent visitor list.
+main=pkg/'MainActivity.java'
+q=main.read_text()
+old='''    private TextView profileFollowersNumber, profileFollowingNumber, profileFriendsNumber, profileTopBalance, profileWalletCoins;'''
+new='''    private TextView profileFollowersNumber, profileFollowingNumber, profileFriendsNumber, profileTopBalance, profileWalletCoins, profileVisitorsChip940;'''
+if old not in q: raise SystemExit('Main profile field marker missing for visitors')
+q=q.replace(old,new,1)
+
+old='''        LinearLayout hub=new LinearLayout(this);String[] hi={"🔎 Search","📝 Moments","💞 CP","🎒 Collection"};String[] ht={"Search","Moments","Relationship","Collection"};for(int i=0;i<hi.length;i++){final String tab=ht[i];TextView x=new TextView(this);x.setText(hi[i]);x.setTextSize(11);x.setGravity(Gravity.CENTER);x.setTextColor(0xff41394b);x.setBackground(background(0xfff3f0f7,12));x.setOnClickListener(v->openCommunityHub700(tab));LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(0,dp(46),1);lp.setMargins(dp(3),0,dp(3),0);hub.addView(x,lp);}content.addView(hub,new LinearLayout.LayoutParams(-1,dp(52)));'''
+new='''        LinearLayout hub=new LinearLayout(this);String[] hi={"👣 Visitors","📝 Moments","💞 CP","🎒 Collection"};String[] ht={"Visitors","Moments","Relationship","Collection"};for(int i=0;i<hi.length;i++){final String tab=ht[i];TextView x=new TextView(this);x.setText(hi[i]);x.setTextSize(11);x.setGravity(Gravity.CENTER);x.setTextColor(0xff41394b);x.setBackground(background(0xfff3f0f7,12));if("Visitors".equals(tab))profileVisitorsChip940=x;x.setOnClickListener(v->{if("Visitors".equals(tab))showProfileVisitors940();else openCommunityHub700(tab);});LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(0,dp(46),1);lp.setMargins(dp(3),0,dp(3),0);hub.addView(x,lp);}content.addView(hub,new LinearLayout.LayoutParams(-1,dp(52)));'''
+if old not in q: raise SystemExit('Main profile hub marker missing for visitors')
+q=q.replace(old,new,1)
+
+old='''        refreshServerWallet();
+    }'''
+new='''        loadProfileVisitors940(uid);
+        refreshServerWallet();
+    }'''
+if old not in q: raise SystemExit('Main profile data tail marker missing for visitors')
+q=q.replace(old,new,1)
+
+marker='''    private void refreshServerWallet(){'''
+helpers='''    private void loadProfileVisitors940(String uid){
+        if(profileVisitorsChip940!=null)profileVisitorsChip940.setText("👣 Visitors …");
+        if(firestore==null||uid==null||uid.isEmpty())return;
+        firestore.collection("public_profiles").document(uid).collection("visitors").limit(100).get().addOnSuccessListener(s->{if(profileVisitorsChip940!=null)profileVisitorsChip940.setText("👣 Visitors "+s.size());}).addOnFailureListener(e->{if(profileVisitorsChip940!=null)profileVisitorsChip940.setText("👣 Visitors —");});
+    }
+    private void showProfileVisitors940(){
+        if(firestore==null||firebaseAuth==null||firebaseAuth.getCurrentUser()==null){toast("Sign in to view visitors");return;}
+        String uid=firebaseAuth.getCurrentUser().getUid();
+        firestore.collection("public_profiles").document(uid).collection("visitors").orderBy("visitedAt",com.google.firebase.firestore.Query.Direction.DESCENDING).limit(50).get().addOnSuccessListener(snap->{
+            if(snap.isEmpty()){new AlertDialog.Builder(this).setTitle("👣 Profile Visitors").setMessage("No profile visitors yet.").setPositiveButton("OK",null).show();return;}
+            java.util.List<String> rows=new java.util.ArrayList<>();java.util.List<String> ids=new java.util.ArrayList<>();
+            for(DocumentSnapshot d:snap.getDocuments()){String n=d.getString("name");if(n==null||n.trim().isEmpty())n="KING User";com.google.firebase.Timestamp t=d.getTimestamp("visitedAt");String when=t==null?"":java.text.DateFormat.getDateTimeInstance(java.text.DateFormat.SHORT,java.text.DateFormat.SHORT).format(t.toDate());rows.add("👤 "+n+(when.isEmpty()?"":"  •  "+when));ids.add(d.getId());}
+            new AlertDialog.Builder(this).setTitle("👣 Profile Visitors").setItems(rows.toArray(new String[0]),(dlg,w)->{Intent i=new Intent(this,KingPublicProfileActivity.class);i.putExtra("uid",ids.get(w));startActivity(i);}).setNegativeButton("Close",null).show();
+        }).addOnFailureListener(e->new AlertDialog.Builder(this).setTitle("👣 Profile Visitors").setMessage("Visitors are unavailable right now.").setPositiveButton("Retry",(d,w)->showProfileVisitors940()).setNegativeButton("Close",null).show());
+    }
+
+'''
+if marker not in q: raise SystemExit('Main wallet marker missing for visitor helpers')
+q=q.replace(marker,helpers+marker,1)
+main.write_text(q)
+print('v9.4.0 Me profile visitor count and history applied')
+
 print('v9.4.0 parity batch 1 applied')
