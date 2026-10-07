@@ -174,3 +174,14 @@ jobs:
           path: /tmp/KING-Plus-v9.4.0-current-test.apk
           if-no-files-found: error
           retention-days: 7
+      - name: Package generated source for crash audit
+        run: |
+          cd /tmp/src
+          zip -qr /tmp/KING-Plus-v9.4.0-generated-source.zip .
+      - name: Upload generated source audit artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: KING-Plus-v9.4.0-generated-source
+          path: /tmp/KING-Plus-v9.4.0-generated-source.zip
+          if-no-files-found: error
+          retention-days: 3
