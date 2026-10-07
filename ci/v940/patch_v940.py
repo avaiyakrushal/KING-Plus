@@ -2830,4 +2830,170 @@ q=q.replace('collection("game_state").document("ktv")','collection("room_setting
 party.write_text(q)
 print('v9.4.0 KTV and Audio PK production-rule compatibility applied')
 
+
+# Production-rule compatible Multi Video: event-sourced seats/media/invites on the established room events stream.
+multi=pkg/'KingMultiVideoActivity.java'
+multi.write_text(r'''package com.kingplus.social;
+
+import android.content.Intent;
+import android.graphics.Color;
+import android.graphics.Typeface;
+import android.graphics.drawable.GradientDrawable;
+import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
+import android.view.Gravity;
+import android.view.View;
+import android.widget.FrameLayout;
+import android.widget.LinearLayout;
+import android.widget.TextView;
+
+import androidx.localbroadcastmanager.content.LocalBroadcastManager;
+
+import com.google.firebase.Timestamp;
+import com.google.firebase.auth.FirebaseAuth;
+import com.google.firebase.auth.FirebaseUser;
+import com.google.firebase.firestore.CollectionReference;
+import com.google.firebase.firestore.DocumentSnapshot;
+import com.google.firebase.firestore.FieldValue;
+import com.google.firebase.firestore.FirebaseFirestore;
+import com.google.firebase.firestore.ListenerRegistration;
+import com.google.firebase.firestore.Query;
+import com.google.firebase.firestore.QuerySnapshot;
+
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+
+public class KingMultiVideoActivity extends androidx.fragment.app.FragmentActivity implements org.jitsi.meet.sdk.JitsiMeetActivityInterface {
+    private org.jitsi.meet.sdk.JitsiMeetView meetView;
+    private String roomId="",roomName="KING Plus Multi Video",displayName="KING User";
+    private FirebaseFirestore db; private FirebaseUser me; private ListenerRegistration eventsListener,roomListener,roleListener;
+    private final Map<Integer,String> seatUids=new HashMap<>(),seatNames=new HashMap<>();
+    private final Map<Integer,Boolean> seatMics=new HashMap<>(),seatCameras=new HashMap<>();
+    private final Set<String> handledInvites940=new HashSet<>();
+    private int mySeat=-1; private boolean micOn=false,cameraOn=false,moderator=false,leaving940=false;
+    private LinearLayout seatsBar,controls; private TextView stateText,seatAction,micAction,camAction;
+    private final Handler heartbeat940=new Handler(Looper.getMainLooper());
+    private final Runnable heartbeatTask940=new Runnable(){@Override public void run(){if(mySeat>0&&!leaving940){Map<String,Object>x=new HashMap<>();x.put("seatNo",mySeat);emit940("video_presence",displayName+" is active on video seat "+mySeat,x);heartbeat940.postDelayed(this,25000L);}}};
+
+    private int dp(int n){return (int)(n*getResources().getDisplayMetrics().density+.5f);}
+    private GradientDrawable bg(int c,int r){GradientDrawable d=new GradientDrawable();d.setColor(c);d.setCornerRadius(dp(r));return d;}
+    private TextView tv(String s,int z,int c,boolean b){TextView t=new TextView(this);t.setText(s);t.setTextSize(z);t.setTextColor(c);if(b)t.setTypeface(null,Typeface.BOLD);return t;}
+    private String safe(String s,String f){return s==null||s.trim().isEmpty()?f:s.trim();}
+    private void toast(String s){if(!isFinishing())android.widget.Toast.makeText(this,s,android.widget.Toast.LENGTH_SHORT).show();}
+    private CollectionReference events940(){return db.collection("live_rooms").document(roomId).collection("events");}
+
+    @Override public void onCreate(Bundle state){
+        super.onCreate(state);
+        roomId=safe(getIntent().getStringExtra("roomId"),"");roomName=safe(getIntent().getStringExtra("roomName"),"KING Plus Multi Video");displayName=safe(getIntent().getStringExtra("displayName"),"KING User");
+        try{db=FirebaseFirestore.getInstance();me=FirebaseAuth.getInstance().getCurrentUser();}catch(Exception ignored){}
+
+        FrameLayout shell=new FrameLayout(this);shell.setBackgroundColor(0xff0d0b15);LinearLayout body=new LinearLayout(this);body.setOrientation(LinearLayout.VERTICAL);shell.addView(body,new FrameLayout.LayoutParams(-1,-1));
+        LinearLayout head=new LinearLayout(this);head.setGravity(Gravity.CENTER_VERTICAL);head.setPadding(dp(10),0,dp(12),0);head.setBackgroundColor(0xff171322);
+        TextView back=tv("‹",38,Color.WHITE,false);back.setGravity(Gravity.CENTER);back.setOnClickListener(v->leaveAndFinish940());head.addView(back,new LinearLayout.LayoutParams(dp(50),dp(58)));
+        LinearLayout info=new LinearLayout(this);info.setOrientation(LinearLayout.VERTICAL);TextView title=tv(roomName,17,Color.WHITE,true);stateText=tv("📹 Multi Video • viewer mode",11,0xffc7bdd5,true);info.addView(title,new LinearLayout.LayoutParams(-1,dp(30)));info.addView(stateText,new LinearLayout.LayoutParams(-1,dp(22)));head.addView(info,new LinearLayout.LayoutParams(0,dp(58),1));
+        TextView leave=tv("Leave",12,Color.WHITE,true);leave.setGravity(Gravity.CENTER);leave.setBackground(bg(0xff7b3fd0,18));leave.setOnClickListener(v->leaveAndFinish940());head.addView(leave,new LinearLayout.LayoutParams(dp(72),dp(38)));body.addView(head,new LinearLayout.LayoutParams(-1,dp(62)));
+
+        FrameLayout stage=new FrameLayout(this);body.addView(stage,new LinearLayout.LayoutParams(-1,0,1));TextView loading=tv("Connecting Multi Video…",14,0xffcfc8da,true);loading.setGravity(Gravity.CENTER);stage.addView(loading,new FrameLayout.LayoutParams(-1,-1));
+        seatsBar=new LinearLayout(this);seatsBar.setGravity(Gravity.CENTER);seatsBar.setPadding(dp(8),dp(5),dp(8),dp(3));seatsBar.setBackgroundColor(0xff171322);body.addView(seatsBar,new LinearLayout.LayoutParams(-1,dp(68)));
+        controls=new LinearLayout(this);controls.setGravity(Gravity.CENTER);controls.setPadding(dp(6),dp(3),dp(6),dp(8));controls.setBackgroundColor(0xff171322);
+        seatAction=control("＋ Sit Down",()->toggleSeat940());micAction=control("🎤 Mic OFF",()->toggleMic940());camAction=control("📷 Camera OFF",()->toggleCamera940());
+        controls.addView(seatAction,controlLp());controls.addView(micAction,controlLp());controls.addView(camAction,controlLp());body.addView(controls,new LinearLayout.LayoutParams(-1,dp(62)));
+
+        try{
+            org.jitsi.meet.sdk.JitsiMeet.instantiateReactNative(this);meetView=new org.jitsi.meet.sdk.JitsiMeetView(this);stage.addView(meetView,new FrameLayout.LayoutParams(-1,-1));
+            String slug=("KINGPlus-"+roomId).replaceAll("[^A-Za-z0-9_-]","");org.jitsi.meet.sdk.JitsiMeetUserInfo ui=new org.jitsi.meet.sdk.JitsiMeetUserInfo();ui.setDisplayName(displayName);
+            org.jitsi.meet.sdk.JitsiMeetConferenceOptions options=new org.jitsi.meet.sdk.JitsiMeetConferenceOptions.Builder().setServerURL(new java.net.URL("https://meet.jit.si")).setRoom(slug).setSubject(roomName).setAudioMuted(true).setVideoMuted(true).setUserInfo(ui)
+                .setFeatureFlag("welcomepage.enabled",false).setFeatureFlag("prejoinpage.enabled",false).setFeatureFlag("invite.enabled",false).setFeatureFlag("chat.enabled",false).setFeatureFlag("recording.enabled",false).setFeatureFlag("live-streaming.enabled",false).setFeatureFlag("pip.enabled",true).build();
+            meetView.join(options);loading.setVisibility(View.GONE);
+        }catch(Throwable e){loading.setText("Multi Video could not start • tap back and retry");}
+        setContentView(shell);attachRealtime940();renderSeats940();refreshControls940();
+    }
+
+    private TextView control(String text,Runnable action){TextView v=tv(text,12,Color.WHITE,true);v.setGravity(Gravity.CENTER);v.setBackground(bg(0xff372b4c,15));v.setOnClickListener(x->action.run());return v;}
+    private LinearLayout.LayoutParams controlLp(){LinearLayout.LayoutParams p=new LinearLayout.LayoutParams(0,dp(48),1);p.setMargins(dp(4),0,dp(4),0);return p;}
+
+    private void attachRealtime940(){
+        if(db==null||me==null||roomId.isEmpty()){stateText.setText("📹 Multi Video • sign in required for seats");return;}
+        roomListener=db.collection("live_rooms").document(roomId).addSnapshotListener((doc,e)->{if(e==null&&doc!=null&&doc.exists()){moderator=me.getUid().equals(doc.getString("ownerUid"));refreshControls940();}});
+        roleListener=db.collection("live_rooms").document(roomId).collection("roles").document(me.getUid()).addSnapshotListener((doc,e)->{if(e==null&&doc!=null&&doc.exists()&&"cohost".equals(doc.getString("role")))moderator=true;refreshControls940();});
+        eventsListener=events940().orderBy("createdAt",Query.Direction.DESCENDING).limit(250).addSnapshotListener((snap,e)->{if(e!=null||snap==null)return;reduceEvents940(snap);});
+    }
+
+    private void reduceEvents940(QuerySnapshot snap){
+        seatUids.clear();seatNames.clear();seatMics.clear();seatCameras.clear();
+        Map<String,Long> lastActive=new HashMap<>();DocumentSnapshot pendingInvite=null;Set<String> responded=new HashSet<>();
+        List<DocumentSnapshot> docs=new ArrayList<>(snap.getDocuments());Collections.reverse(docs);
+        for(DocumentSnapshot d:docs){
+            String type=safe(d.getString("type"),""),actor=safe(d.getString("actorUid"),"");Long sn=d.getLong("seatNo");int seat=sn==null?-1:sn.intValue();Timestamp ts=d.getTimestamp("createdAt");long when=ts==null?System.currentTimeMillis():ts.toDate().getTime();
+            if(!actor.isEmpty()&&(type.startsWith("video_")))lastActive.put(actor,when);
+            if("video_seat_claim".equals(type)&&seat>=1&&seat<=6&&!actor.isEmpty()){removeUid940(actor);seatUids.put(seat,actor);seatNames.put(seat,safe(d.getString("actorName"),"Guest"));seatMics.put(seat,false);seatCameras.put(seat,true);}
+            else if("video_seat_leave".equals(type)&&seat>=1&&actor.equals(seatUids.get(seat)))clearSeat940(seat);
+            else if("video_remove".equals(type)&&seat>=1){String target=safe(d.getString("targetUid"),"");if(target.equals(seatUids.get(seat)))clearSeat940(seat);}
+            else if("video_mic".equals(type)&&seat>=1&&actor.equals(seatUids.get(seat)))seatMics.put(seat,Boolean.TRUE.equals(d.getBoolean("enabled")));
+            else if("video_camera".equals(type)&&seat>=1&&actor.equals(seatUids.get(seat)))seatCameras.put(seat,Boolean.TRUE.equals(d.getBoolean("enabled")));
+            else if("video_invite".equals(type)&&me!=null&&me.getUid().equals(d.getString("targetUid")))pendingInvite=d;
+            else if("video_invite_response".equals(type)){String id=safe(d.getString("inviteId"),"");if(!id.isEmpty())responded.add(id);}
+        }
+        long now=System.currentTimeMillis();for(Integer seat:new ArrayList<>(seatUids.keySet())){String uid=seatUids.get(seat);Long seen=lastActive.get(uid);if(seen!=null&&now-seen>90000L)clearSeat940(seat);}
+        mySeat=-1;micOn=false;cameraOn=false;if(me!=null)for(Map.Entry<Integer,String>x:seatUids.entrySet())if(me.getUid().equals(x.getValue())){mySeat=x.getKey();micOn=Boolean.TRUE.equals(seatMics.get(mySeat));cameraOn=Boolean.TRUE.equals(seatCameras.get(mySeat));break;}
+        if(mySeat>0){heartbeat940.removeCallbacks(heartbeatTask940);heartbeat940.postDelayed(heartbeatTask940,25000L);}else heartbeat940.removeCallbacks(heartbeatTask940);
+        applyMedia940();renderSeats940();refreshControls940();
+        if(pendingInvite!=null&&!responded.contains(pendingInvite.getId())&&mySeat<1&&!handledInvites940.contains(pendingInvite.getId()))showInvite940(pendingInvite);
+    }
+    private void removeUid940(String uid){for(Integer seat:new ArrayList<>(seatUids.keySet()))if(uid.equals(seatUids.get(seat)))clearSeat940(seat);}
+    private void clearSeat940(int seat){seatUids.remove(seat);seatNames.remove(seat);seatMics.remove(seat);seatCameras.remove(seat);}
+
+    private void showInvite940(DocumentSnapshot invite){
+        handledInvites940.add(invite.getId());Long raw=invite.getLong("seatNo");int seat=raw==null?-1:raw.intValue();if(seat<1||seat>6)return;String inviter=safe(invite.getString("actorName"),"Host");
+        new android.app.AlertDialog.Builder(this).setTitle("📹 Video seat invitation").setMessage(inviter+" invited you to video seat "+seat+".")
+            .setPositiveButton("Sit Down",(d,w)->{Map<String,Object>r=new HashMap<>();r.put("inviteId",invite.getId());r.put("accepted",true);emit940("video_invite_response",displayName+" accepted a video seat invitation",r);takeSeat940(seat);})
+            .setNegativeButton("Reject",(d,w)->{Map<String,Object>r=new HashMap<>();r.put("inviteId",invite.getId());r.put("accepted",false);emit940("video_invite_response",displayName+" rejected a video seat invitation",r);}).show();
+    }
+
+    private void renderSeats940(){
+        if(seatsBar==null)return;seatsBar.removeAllViews();
+        for(int i=1;i<=6;i++){final int seat=i;String uid=seatUids.get(i),name=seatNames.get(i);boolean mine=me!=null&&me.getUid().equals(uid);
+            TextView v=tv(uid==null?"＋":(mine?"●":safe(name,"G").substring(0,1).toUpperCase()),uid==null?18:14,mine?0xffffe500:Color.WHITE,true);v.setGravity(Gravity.CENTER);v.setBackground(bg(mine?0xff51431b:(uid==null?0xff30283b:0xff47345e),24));v.setContentDescription(uid==null?"Empty video seat "+i:"Video seat "+i+" "+name);v.setOnClickListener(x->seatTap940(seat));v.setOnLongClickListener(x->{if(moderator&&uid==null){inviteToVideoSeat940(seat);return true;}return false;});
+            LinearLayout.LayoutParams p=new LinearLayout.LayoutParams(0,dp(50),1);p.setMargins(dp(3),0,dp(3),0);seatsBar.addView(v,p);}
+    }
+    private void seatTap940(int seat){String uid=seatUids.get(seat);if(uid==null){if(mySeat>0){toast("Leave your current video seat first");return;}takeSeat940(seat);return;}if(me!=null&&me.getUid().equals(uid)){leaveSeat940();return;}if(moderator)new android.app.AlertDialog.Builder(this).setTitle(seatNames.get(seat)).setMessage("Remove this member from video seat "+seat+"?").setPositiveButton("Remove",(d,w)->removeSeat940(seat)).setNegativeButton("Cancel",null).show();else toast(seatNames.get(seat)+" is on video seat "+seat);}
+    private void toggleSeat940(){if(mySeat>0)leaveSeat940();else{for(int i=1;i<=6;i++)if(!seatUids.containsKey(i)){takeSeat940(i);return;}toast("All video seats are occupied");}}
+    private void takeSeat940(int seat){if(me==null||db==null){toast("Sign in required");return;}if(seatUids.containsKey(seat)){toast("That video seat is occupied");return;}Map<String,Object>x=new HashMap<>();x.put("seatNo",seat);emit940("video_seat_claim",displayName+" joined video seat "+seat,x);}
+    private void leaveSeat940(){if(mySeat<1)return;int seat=mySeat;Map<String,Object>x=new HashMap<>();x.put("seatNo",seat);emit940("video_seat_leave",displayName+" left video seat "+seat,x);}
+    private void removeSeat940(int seat){if(!moderator)return;String uid=seatUids.get(seat);if(uid==null)return;Map<String,Object>x=new HashMap<>();x.put("seatNo",seat);x.put("targetUid",uid);emit940("video_remove",displayName+" removed "+safe(seatNames.get(seat),"Guest")+" from video seat "+seat,x);}
+    private void toggleMic940(){if(mySeat<1){toast("Sit on a video seat first");return;}boolean next=!micOn;Map<String,Object>x=new HashMap<>();x.put("seatNo",mySeat);x.put("enabled",next);emit940("video_mic",displayName+(next?" turned video mic on":" turned video mic off"),x);}
+    private void toggleCamera940(){if(mySeat<1){toast("Sit on a video seat first");return;}boolean next=!cameraOn;Map<String,Object>x=new HashMap<>();x.put("seatNo",mySeat);x.put("enabled",next);emit940("video_camera",displayName+(next?" turned camera on":" turned camera off"),x);}
+
+    private void inviteToVideoSeat940(int seat){
+        if(!moderator||db==null||me==null){toast("Host/co-host only");return;}
+        db.collection("live_rooms").document(roomId).collection("members").limit(100).get().addOnSuccessListener(snap->{List<DocumentSnapshot>docs=new ArrayList<>();List<String>rows=new ArrayList<>();for(DocumentSnapshot d:snap.getDocuments()){String uid=d.getString("uid");if(uid==null||uid.isEmpty()||uid.equals(me.getUid())||seatUids.containsValue(uid))continue;docs.add(d);rows.add(safe(d.getString("name"),"KING User"));}if(rows.isEmpty()){toast("No available room members to invite");return;}new android.app.AlertDialog.Builder(this).setTitle("Invite to video seat "+seat).setItems(rows.toArray(new String[0]),(dlg,w)->{DocumentSnapshot target=docs.get(w);Map<String,Object>x=new HashMap<>();x.put("seatNo",seat);x.put("targetUid",target.getString("uid"));x.put("targetName",safe(target.getString("name"),"KING User"));emit940("video_invite",displayName+" invited "+safe(target.getString("name"),"KING User")+" to video seat "+seat,x);}).setNegativeButton("Close",null).show();}).addOnFailureListener(e->toast("Members unavailable: "+e.getMessage()));
+    }
+
+    private void emit940(String type,String text,Map<String,Object> extras){
+        if(db==null||me==null||roomId.isEmpty())return;Map<String,Object>d=new HashMap<>();d.put("actorUid",me.getUid());d.put("actorName",displayName);d.put("type",type);d.put("text",text);d.put("createdAt",FieldValue.serverTimestamp());if(extras!=null)d.putAll(extras);events940().add(d).addOnFailureListener(e->toast("Multi Video sync failed"));
+    }
+
+    private void applyMedia940(){applyAudio940(mySeat<1||!micOn);applyVideo940(mySeat<1||!cameraOn);}
+    private void applyAudio940(boolean muted){try{Intent i=org.jitsi.meet.sdk.BroadcastIntentHelper.buildSetAudioMutedIntent(muted);LocalBroadcastManager.getInstance(getApplicationContext()).sendBroadcast(i);}catch(Throwable ignored){}}
+    private void applyVideo940(boolean muted){try{Intent i=org.jitsi.meet.sdk.BroadcastIntentHelper.buildSetVideoMutedIntent(muted);LocalBroadcastManager.getInstance(getApplicationContext()).sendBroadcast(i);}catch(Throwable ignored){}}
+    private void refreshControls940(){if(stateText!=null)stateText.setText(mySeat>0?("📹 Video seat "+mySeat+(moderator?" • Host controls":"")):("📹 Multi Video • viewer mode"+(moderator?" • Host controls":"")));if(seatAction!=null)seatAction.setText(mySeat>0?"↥ Leave Seat":"＋ Sit Down");if(micAction!=null){micAction.setText(micOn?"🎤 Mic ON":"🎤 Mic OFF");micAction.setAlpha(mySeat>0?1f:.45f);}if(camAction!=null){camAction.setText(cameraOn?"📷 Camera ON":"📷 Camera OFF");camAction.setAlpha(mySeat>0?1f:.45f);}}
+
+    private void leaveAndFinish940(){if(leaving940)return;leaving940=true;heartbeat940.removeCallbacks(heartbeatTask940);if(mySeat>0){int seat=mySeat;Map<String,Object>x=new HashMap<>();x.put("seatNo",seat);if(db!=null&&me!=null)events940().add(new HashMap<String,Object>(){{put("actorUid",me.getUid());put("actorName",displayName);put("type","video_seat_leave");put("text",displayName+" left video seat "+seat);put("seatNo",seat);put("createdAt",FieldValue.serverTimestamp());}}).addOnCompleteListener(v->finish());else finish();}else finish();}
+    @Override public void onBackPressed(){leaveAndFinish940();}
+    @Override protected void onResume(){super.onResume();org.jitsi.meet.sdk.JitsiMeetActivityDelegate.onHostResume(this);}
+    @Override protected void onStop(){org.jitsi.meet.sdk.JitsiMeetActivityDelegate.onHostPause(this);super.onStop();}
+    @Override public void onNewIntent(Intent intent){super.onNewIntent(intent);org.jitsi.meet.sdk.JitsiMeetActivityDelegate.onNewIntent(intent);}
+    @Override protected void onActivityResult(int requestCode,int resultCode,Intent data){super.onActivityResult(requestCode,resultCode,data);org.jitsi.meet.sdk.JitsiMeetActivityDelegate.onActivityResult(this,requestCode,resultCode,data);}
+    @Override public void requestPermissions(String[] permissions,int requestCode,com.facebook.react.modules.core.PermissionListener listener){org.jitsi.meet.sdk.JitsiMeetActivityDelegate.requestPermissions(this,permissions,requestCode,listener);}
+    @Override public void onRequestPermissionsResult(int requestCode,String[] permissions,int[] grantResults){org.jitsi.meet.sdk.JitsiMeetActivityDelegate.onRequestPermissionsResult(requestCode,permissions,grantResults);}
+    @Override protected void onDestroy(){heartbeat940.removeCallbacks(heartbeatTask940);if(eventsListener!=null)eventsListener.remove();if(roomListener!=null)roomListener.remove();if(roleListener!=null)roleListener.remove();try{if(meetView!=null){meetView.dispose();meetView=null;}}catch(Throwable ignored){}org.jitsi.meet.sdk.JitsiMeetActivityDelegate.onHostDestroy(this);super.onDestroy();}
+}''')
+print('v9.4.0 production-rule compatible event-sourced Multi Video applied')
+
 print('v9.4.0 parity batch 1 applied')
