@@ -2093,4 +2093,67 @@ q=q.replace(old,new,1)
 main.write_text(q)
 print('v9.4.0 resilient mobile OTP verification and resend applied')
 
+
+# Video-reference parity: Game page uses My Games + Recommended visual grid.
+main=pkg/'MainActivity.java'
+q=main.read_text()
+start=q.find("    private void games(){")
+end=q.find("    private void discover(){",start)
+if start<0 or end<0: raise SystemExit('Main games/discover boundary missing for video parity')
+new_games=r'''    private void games(){
+        incrementMission("mission_game",1);
+        screen="games";stopMic();
+        LinearLayout root=new LinearLayout(this);root.setOrientation(LinearLayout.VERTICAL);root.setBackgroundColor(0xfffafafa);
+        LinearLayout head=new LinearLayout(this);head.setGravity(Gravity.CENTER_VERTICAL);head.setPadding(dp(16),dp(12),dp(10),dp(6));
+        TextView h=new TextView(this);h.setText("Game");h.setTextSize(30);h.setTextColor(0xff171717);h.setTypeface(null,Typeface.BOLD);head.addView(h,new LinearLayout.LayoutParams(0,dp(56),1));
+        TextView search=new TextView(this);search.setText("⌕");search.setTextSize(26);search.setTextColor(0xff4f4a57);search.setGravity(Gravity.CENTER);search.setOnClickListener(v->discover());head.addView(search,new LinearLayout.LayoutParams(dp(50),dp(50)));root.addView(head,new LinearLayout.LayoutParams(-1,dp(66)));
+
+        ScrollView sv=new ScrollView(this);LinearLayout host=new LinearLayout(this);host.setOrientation(LinearLayout.VERTICAL);host.setPadding(dp(14),0,dp(14),dp(18));sv.addView(host);
+        TextView mine=new TextView(this);mine.setText("My Games");mine.setTextSize(16);mine.setTypeface(null,Typeface.BOLD);mine.setTextColor(0xff27242b);mine.setPadding(dp(2),dp(8),0,dp(8));host.addView(mine,new LinearLayout.LayoutParams(-1,dp(42)));
+        LinearLayout myRow=new LinearLayout(this);myRow.setGravity(Gravity.TOP);
+        addGameVideoCard940(myRow,"ludo","Ludo","Online");
+        addGameVideoCard940(myRow,"werewolf","Werewolf","Party");
+        addGameVideoCard940(myRow,"draw","Draw","Friends");
+        host.addView(myRow,new LinearLayout.LayoutParams(-1,dp(142)));
+
+        LinearLayout titleRow=new LinearLayout(this);titleRow.setGravity(Gravity.CENTER_VERTICAL);TextView rec=new TextView(this);rec.setText("Recommended");rec.setTextSize(16);rec.setTypeface(null,Typeface.BOLD);rec.setTextColor(0xff27242b);titleRow.addView(rec,new LinearLayout.LayoutParams(0,dp(44),1));TextView more=new TextView(this);more.setText("More ›");more.setTextSize(12);more.setTextColor(0xff8a7d92);more.setGravity(Gravity.CENTER);titleRow.addView(more,new LinearLayout.LayoutParams(dp(72),dp(44)));host.addView(titleRow);
+
+        String[][] games={{"bingo","Bingo"},{"domino","Domino"},{"spy","Spy"},{"sheep","Sheep"},{"zoo","Zoo"},{"memory","Memory"},{"rps","RPS"},{"dice","Dice"},{"wheel","Wheel"}};
+        LinearLayout row=null;
+        for(int i=0;i<games.length;i++){
+            if(i%3==0){row=new LinearLayout(this);row.setGravity(Gravity.TOP);host.addView(row,new LinearLayout.LayoutParams(-1,dp(148)));}
+            addGameVideoCard940(row,games[i][0],games[i][1],"Realtime");
+        }
+        root.addView(sv,new LinearLayout.LayoutParams(-1,0,1));addBottomNav(root,1);setContentView(root);
+    }
+    private void addGameVideoCard940(LinearLayout row,String code,String title,String badge){
+        LinearLayout card=new LinearLayout(this);card.setOrientation(LinearLayout.VERTICAL);card.setPadding(dp(4),dp(4),dp(4),dp(6));card.setBackground(background(Color.WHITE,12));card.setOnClickListener(v->openPlayableGame(code));
+        KingGameArtView art=new KingGameArtView(this,code,title);card.addView(art,new LinearLayout.LayoutParams(-1,dp(88)));
+        TextView nm=new TextView(this);nm.setText(title);nm.setTextSize(12);nm.setTypeface(null,Typeface.BOLD);nm.setTextColor(0xff27242b);nm.setGravity(Gravity.CENTER_VERTICAL);nm.setSingleLine(true);card.addView(nm,new LinearLayout.LayoutParams(-1,dp(24)));
+        TextView sub=new TextView(this);sub.setText("● "+badge);sub.setTextSize(9);sub.setTextColor(0xff23a578);sub.setSingleLine(true);card.addView(sub,new LinearLayout.LayoutParams(-1,dp(18)));
+        LinearLayout.LayoutParams p=new LinearLayout.LayoutParams(0,dp(136),1);p.setMargins(dp(4),dp(2),dp(4),dp(6));row.addView(card,p);
+    }
+
+'''
+q=q[:start]+new_games+q[end:]
+main.write_text(q)
+print('v9.4.0 video-reference Game page parity applied')
+
+# Video-reference parity: Messages top notification banner before recent people.
+inbox=pkg/'InboxActivity.java'
+q=inbox.read_text()
+marker='''        root.addView(head);
+'''
+insert='''        root.addView(head);
+
+        LinearLayout notice940=new LinearLayout(this);notice940.setGravity(Gravity.CENTER_VERTICAL);notice940.setPadding(dp(14),dp(6),dp(10),dp(6));notice940.setBackground(bg(0xfffff8d8,12));
+        LinearLayout noticeText940=new LinearLayout(this);noticeText940.setOrientation(LinearLayout.VERTICAL);TextView nt940=label("Interactive Notifications",13,DARK,true);TextView ns940=label("Follows, gifts, room activity and invitations",10,0xff8a7d58,false);noticeText940.addView(nt940,new LinearLayout.LayoutParams(-1,dp(22)));noticeText940.addView(ns940,new LinearLayout.LayoutParams(-1,dp(19)));notice940.addView(noticeText940,new LinearLayout.LayoutParams(0,dp(42),1));
+        TextView view940=label("View",11,0xff2b2500,true);view940.setGravity(Gravity.CENTER);view940.setBackground(bg(0xffffe500,10));view940.setOnClickListener(v->showCloudNotifications940(""));notice940.addView(view940,new LinearLayout.LayoutParams(dp(68),dp(36)));
+        LinearLayout.LayoutParams np940=new LinearLayout.LayoutParams(-1,dp(58));np940.setMargins(dp(12),0,dp(12),dp(6));root.addView(notice940,np940);
+'''
+if marker not in q: raise SystemExit('Inbox head marker missing for video notification banner')
+q=q.replace(marker,insert,1)
+inbox.write_text(q)
+print('v9.4.0 video-reference Messages banner applied')
+
 print('v9.4.0 parity batch 1 applied')
