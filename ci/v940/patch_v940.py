@@ -1522,13 +1522,14 @@ new='''    private void showNotifications(){showCloudNotifications940("");}
                     Object dataObj=n.get("data");String type="";if(dataObj instanceof Map){Object t=((Map<?,?>)dataObj).get("type");if(t!=null)type=String.valueOf(t);}
                     if(filter!=null&&!filter.isEmpty()&&!filter.equals(type))continue;
                     docs.add(n);String title=n.getString("title"),body=n.getString("body");Timestamp at=n.getTimestamp("createdAt");
-                    String when=formatTime(at);rows.add((title==null?"KING Plus":title)+(when.isEmpty()?"":"  •  "+when)+"\n"+(body==null?"":body));
+                    String when=formatTime(at);boolean unread=!Boolean.TRUE.equals(n.getBoolean("read"));rows.add((unread?"● ":"")+(title==null?"KING Plus":title)+(when.isEmpty()?"":"  •  "+when)+"\n"+(body==null?"":body));
                 }
                 if(rows.isEmpty()){new AlertDialog.Builder(this).setTitle(filter!=null&&!filter.isEmpty()?"Room invitations":"Notifications").setMessage(filter!=null&&!filter.isEmpty()?"No room invitations yet.":"No notifications yet.").setPositiveButton("OK",null).show();return;}
                 new AlertDialog.Builder(this).setTitle(filter!=null&&!filter.isEmpty()?"Room invitations":"Notifications").setItems(rows.toArray(new String[0]),(d,w)->openNotification940(docs.get(w))).setNegativeButton("Close",null).show();
             }).addOnFailureListener(e->new AlertDialog.Builder(this).setTitle("Notifications").setMessage("Notification feed is unavailable right now.").setPositiveButton("Retry",(d,w)->showCloudNotifications940(filter)).setNegativeButton("Close",null).show());
     }
     private void openNotification940(DocumentSnapshot n){
+        if(n!=null&&!Boolean.TRUE.equals(n.getBoolean("read")))n.getReference().update("read",true).addOnFailureListener(e->{});
         Object dataObj=n.get("data");if(!(dataObj instanceof Map)){return;}Map<?,?> data=(Map<?,?>)dataObj;String type=data.get("type")==null?"":String.valueOf(data.get("type"));
         if("room_invite".equals(type)){
             String rid=data.get("roomId")==null?"":String.valueOf(data.get("roomId"));if(rid.isEmpty()){Toast.makeText(this,"Room invite is missing its room ID",Toast.LENGTH_SHORT).show();return;}
