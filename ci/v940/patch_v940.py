@@ -248,6 +248,46 @@ d=d.replace(marker,helper+marker,1)
 inbox.write_text(d)
 print('v9.4.0 Messages loading/offline states applied')
 
+# Direct chat resilience: never leave a blank conversation or silently lose a send on cloud failure.
+chat=pkg/'ChatActivity.java'
+q=chat.read_text()
+old='''                if (error != null) { status.setText("Cloud unavailable • local fallback available"); Toast.makeText(this,"Realtime chat error: "+safe(error.getLocalizedMessage()),Toast.LENGTH_SHORT).show(); return; }
+                if (snap == null) return;
+                List<DocumentSnapshot> docs = new ArrayList<>(snap.getDocuments()); java.util.Collections.reverse(docs);
+                messages.removeAllViews();
+                for (DocumentSnapshot doc : docs) renderCloudMessage(doc);
+                markRead(); scrollDown();'''
+new='''                if (error != null) { status.setText("Offline • showing local fallback"); loadLocal(); return; }
+                if (snap == null) { status.setText("Sync unavailable • showing local fallback"); loadLocal(); return; }
+                status.setText("Realtime chat");
+                List<DocumentSnapshot> docs = new ArrayList<>(snap.getDocuments()); java.util.Collections.reverse(docs);
+                messages.removeAllViews();
+                if(docs.isEmpty())addBubble(false,"Start the conversation 👋","text","",new Date(),false);
+                else for (DocumentSnapshot doc : docs) renderCloudMessage(doc);
+                markRead(); scrollDown();'''
+if old not in q: raise SystemExit('Chat realtime listener marker missing')
+q=q.replace(old,new,1)
+
+old='''                db.collection("direct_threads").document(chatId).collection("messages").add(msg)
+                    .addOnSuccessListener(r -> CloudBackend.sendDirectMessageNotification(peerUid, myName, text, (ok,m)->{}))
+                    .addOnFailureListener(e -> Toast.makeText(this,"Message failed: "+safe(e.getLocalizedMessage()),Toast.LENGTH_SHORT).show());
+            }).addOnFailureListener(e -> Toast.makeText(this,"Chat could not start: "+safe(e.getLocalizedMessage()),Toast.LENGTH_SHORT).show());'''
+new='''                db.collection("direct_threads").document(chatId).collection("messages").add(msg)
+                    .addOnSuccessListener(r -> {status.setText("Realtime chat");CloudBackend.sendDirectMessageNotification(peerUid, myName, text, (ok,m)->{});})
+                    .addOnFailureListener(e -> {status.setText("Offline • message saved on this phone");saveLocal(text,type,mediaUrl,true);});
+            }).addOnFailureListener(e -> {status.setText("Offline • message saved on this phone");saveLocal(text,type,mediaUrl,true);});'''
+if old not in q: raise SystemExit('Chat cloud send marker missing')
+q=q.replace(old,new,1)
+
+old='''            .addOnSuccessListener(url -> { status.setText("Realtime chat"); sendCloudMessage(type.equals("photo") ? "📷 Photo" : "🎤 Voice note", type, url.toString()); })
+            .addOnFailureListener(e -> { status.setText("Upload failed"); Toast.makeText(this,"Upload failed: "+safe(e.getLocalizedMessage()),Toast.LENGTH_SHORT).show(); });'''
+new='''            .addOnSuccessListener(url -> { status.setText("Realtime chat"); sendCloudMessage(type.equals("photo") ? "📷 Photo" : "🎤 Voice note", type, url.toString()); })
+            .addOnFailureListener(e -> { status.setText("Offline • media saved locally"); saveLocal(type.equals("photo") ? "📷 Photo" : "🎤 Voice note", type, uri.toString(), true); });'''
+if old not in q: raise SystemExit('Chat media upload marker missing')
+q=q.replace(old,new,1)
+chat.write_text(q)
+print('v9.4.0 direct chat offline fallback applied')
+
 
 # ---------------- Party lobby room-card visual parity ----------------
 party=pkg/'PartyActivity.java'
