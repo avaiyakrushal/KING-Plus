@@ -3736,4 +3736,24 @@ q=q.replace(marker,helpers+marker,1)
 hub.write_text(q)
 print('v9.4.0 Family Lucky Bag parity applied')
 
+
+# Party visual parity: compact Bolo-like More actions grid while preserving all existing handlers.
+party=pkg/'PartyActivity.java'
+q=party.read_text()
+old='''        final AlertDialog[] holder=new AlertDialog[1];
+        for(String label:items){final String x=label;TextView row=tv(label,14,0xff222222,false);row.setGravity(Gravity.CENTER_VERTICAL);row.setPadding(dp(10),0,dp(8),0);row.setBackground(bg(Color.WHITE,8));row.setOnClickListener(v->{if(holder[0]!=null)holder[0].dismiss();handleRoomMenuItem810(x);});LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(-1,dp(50));lp.setMargins(0,dp(1),0,dp(1));panel.addView(row,lp);}
+        holder[0]=new AlertDialog.Builder(this).setView(scroll).create();'''
+new='''        TextView tools940=tv("More tools",13,0xff777777,true);tools940.setPadding(dp(6),dp(8),0,dp(5));panel.addView(tools940,new LinearLayout.LayoutParams(-1,dp(34)));
+        final AlertDialog[] holder=new AlertDialog[1];
+        LinearLayout gridRow940=null;
+        for(int i940=0;i940<items.size();i940++){
+            if(i940%4==0){gridRow940=new LinearLayout(this);gridRow940.setGravity(Gravity.TOP);gridRow940.setWeightSum(4f);LinearLayout.LayoutParams rp940=new LinearLayout.LayoutParams(-1,dp(82));rp940.setMargins(0,dp(2),0,dp(2));panel.addView(gridRow940,rp940);}
+            final String x=items.get(i940);TextView tile940=tv(x,11,0xff2c2731,true);tile940.setGravity(Gravity.CENTER);tile940.setMaxLines(3);tile940.setEllipsize(android.text.TextUtils.TruncateAt.END);tile940.setPadding(dp(4),dp(6),dp(4),dp(6));tile940.setBackground(bg(0xfff5f2f8,14));tile940.setOnClickListener(v->{if(holder[0]!=null)holder[0].dismiss();handleRoomMenuItem810(x);});LinearLayout.LayoutParams tp940=new LinearLayout.LayoutParams(0,dp(76),1);tp940.setMargins(dp(3),dp(3),dp(3),dp(3));gridRow940.addView(tile940,tp940);
+        }
+        holder[0]=new AlertDialog.Builder(this).setView(scroll).create();'''
+if old not in q: raise SystemExit('Party More list marker missing for grid parity')
+q=q.replace(old,new,1)
+party.write_text(q)
+print('v9.4.0 Party More actions grid parity applied')
+
 print('v9.4.0 parity batch 1 applied')
