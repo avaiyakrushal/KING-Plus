@@ -4212,4 +4212,39 @@ q=q.replace(old,new,1)
 party.write_text(q)
 print('v9.4.0 room notice history parity applied')
 
+
+# Bolo-reference parity: Party room search history.
+party=pkg/'PartyActivity.java'
+q=party.read_text()
+old='''    private void showLobbySearch(String selected){
+        final EditText e=new EditText(this);e.setHint("Search room, host or ID");e.setSingleLine(true);e.setText(lobbyFilter);
+        new AlertDialog.Builder(this).setTitle("Search Party").setView(e).setNegativeButton("Cancel",null).setNeutralButton("Clear",(d,w)->{lobbyFilter="";renderLobby(selected);})
+            .setPositiveButton("Search",(d,w)->{lobbyFilter=e.getText().toString().trim();renderLobby(selected);}).show();
+    }'''
+new='''    private void showLobbySearch(String selected){
+        final EditText e=new EditText(this);e.setHint("Search room, host or ID");e.setSingleLine(true);e.setText(lobbyFilter);
+        new AlertDialog.Builder(this).setTitle("Search Party").setView(e).setNegativeButton("Cancel",null)
+            .setNeutralButton("Recent",(d,w)->showLobbySearchHistory940(selected))
+            .setPositiveButton("Search",(d,w)->{lobbyFilter=e.getText().toString().trim();if(!lobbyFilter.isEmpty())saveLobbySearch940(lobbyFilter);renderLobby(selected);}).show();
+    }
+    private void saveLobbySearch940(String query){
+        if(query==null||query.trim().isEmpty())return;String q=query.trim().replace("|||"," ");
+        String raw=prefs.getString("party_search_history_940","");List<String> rows=new ArrayList<>();rows.add(q);
+        if(raw!=null&&!raw.isEmpty())for(String x:raw.split("\\|\\|\\|"))if(x!=null&&!x.trim().isEmpty()&&!q.equalsIgnoreCase(x.trim())&&rows.size()<10)rows.add(x.trim());
+        StringBuilder out=new StringBuilder();for(String x:rows){if(out.length()>0)out.append("|||");out.append(x);}prefs.edit().putString("party_search_history_940",out.toString()).apply();
+    }
+    private void showLobbySearchHistory940(String selected){
+        String raw=prefs.getString("party_search_history_940","");if(raw==null||raw.trim().isEmpty()){new AlertDialog.Builder(this).setTitle("Recent Searches").setMessage("No recent Party searches yet.").setPositiveButton("OK",null).show();return;}
+        List<String> rows=new ArrayList<>();for(String x:raw.split("\\|\\|\\|"))if(x!=null&&!x.trim().isEmpty())rows.add(x.trim());
+        String[] labels=new String[rows.size()+1];for(int i=0;i<rows.size();i++)labels[i]="⌕  "+rows.get(i);labels[rows.size()]="🗑 Clear search history";
+        new AlertDialog.Builder(this).setTitle("Recent Searches").setItems(labels,(d,w)->{
+            if(w==rows.size()){prefs.edit().remove("party_search_history_940").apply();toast("Search history cleared");return;}
+            lobbyFilter=rows.get(w);renderLobby(selected);
+        }).setNegativeButton("Close",null).show();
+    }'''
+if old not in q: raise SystemExit('showLobbySearch marker missing for search history')
+q=q.replace(old,new,1)
+party.write_text(q)
+print('v9.4.0 Party room search history parity applied')
+
 print('v9.4.0 parity batch 1 applied')
