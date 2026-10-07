@@ -2558,4 +2558,85 @@ q=q.replace(marker,helper+marker,1)
 rg.write_text(q)
 print('v9.4.0 Party game history/result panel applied')
 
+
+# Bolo-reference Multi Video: host/co-host sit-down invitation flow.
+multi=pkg/'KingMultiVideoActivity.java'
+q=multi.read_text()
+
+q=q.replace('''import java.util.HashMap;
+import java.util.Map;''','''import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;''',1)
+
+q=q.replace('''private FirebaseFirestore db; private FirebaseUser me; private ListenerRegistration seatsListener,roomListener,roleListener;''',
+'''private FirebaseFirestore db; private FirebaseUser me; private ListenerRegistration seatsListener,roomListener,roleListener,inviteListener;
+    private boolean inviteDialogOpen940=false;''',1)
+
+old='''        seatsListener=room.collection("video_seats").addSnapshotListener((snap,e)->{
+            if(e!=null||snap==null)return;seatUids.clear();seatNames.clear();mySeat=-1;micOn=false;cameraOn=false;
+            for(DocumentSnapshot d:snap.getDocuments()){int no;try{no=Integer.parseInt(d.getId());}catch(Exception ex){continue;}seatUids.put(no,d.getString("uid"));seatNames.put(no,safe(d.getString("name"),"Guest"));if(me.getUid().equals(d.getString("uid"))){mySeat=no;micOn=Boolean.TRUE.equals(d.getBoolean("micOn"));cameraOn=Boolean.TRUE.equals(d.getBoolean("cameraOn"));}}
+            applyMedia940();renderSeats940();refreshControls940();
+        });'''
+new='''        seatsListener=room.collection("video_seats").addSnapshotListener((snap,e)->{
+            if(e!=null||snap==null)return;seatUids.clear();seatNames.clear();mySeat=-1;micOn=false;cameraOn=false;
+            for(DocumentSnapshot d:snap.getDocuments()){int no;try{no=Integer.parseInt(d.getId());}catch(Exception ex){continue;}seatUids.put(no,d.getString("uid"));seatNames.put(no,safe(d.getString("name"),"Guest"));if(me.getUid().equals(d.getString("uid"))){mySeat=no;micOn=Boolean.TRUE.equals(d.getBoolean("micOn"));cameraOn=Boolean.TRUE.equals(d.getBoolean("cameraOn"));}}
+            applyMedia940();renderSeats940();refreshControls940();
+        });
+        inviteListener=room.collection("video_seat_invites").document(me.getUid()).addSnapshotListener((doc,e)->{
+            if(e!=null||doc==null||!doc.exists()||inviteDialogOpen940||mySeat>0)return;
+            Long raw=doc.getLong("seatNo");int seat=raw==null?-1:raw.intValue();if(seat<1||seat>6)return;
+            inviteDialogOpen940=true;String inviter=safe(doc.getString("inviterName"),"Host");
+            new android.app.AlertDialog.Builder(this).setTitle("📹 Video seat invitation").setMessage(inviter+" invited you to video seat "+seat+".")
+                .setPositiveButton("Sit Down",(d,w)->{inviteDialogOpen940=false;acceptVideoInvite940(doc,seat);})
+                .setNegativeButton("Reject",(d,w)->{inviteDialogOpen940=false;doc.getReference().delete().addOnFailureListener(x->{});})
+                .setOnCancelListener(d->inviteDialogOpen940=false).show();
+        });'''
+if old not in q: raise SystemExit('Multi Video seats listener marker missing for invite flow')
+q=q.replace(old,new,1)
+
+old='''            TextView v=tv(uid==null?"＋":(mine?"●":safe(name,"G").substring(0,1).toUpperCase()),uid==null?18:14,mine?0xffffe500:Color.WHITE,true);v.setGravity(Gravity.CENTER);v.setBackground(bg(mine?0xff51431b:(uid==null?0xff30283b:0xff47345e),24));v.setContentDescription(uid==null?"Empty video seat "+i:"Video seat "+i+" "+name);v.setOnClickListener(x->seatTap940(seat));
+            LinearLayout.LayoutParams p=new LinearLayout.LayoutParams(0,dp(50),1);p.setMargins(dp(3),0,dp(3),0);seatsBar.addView(v,p);}'''
+new='''            TextView v=tv(uid==null?"＋":(mine?"●":safe(name,"G").substring(0,1).toUpperCase()),uid==null?18:14,mine?0xffffe500:Color.WHITE,true);v.setGravity(Gravity.CENTER);v.setBackground(bg(mine?0xff51431b:(uid==null?0xff30283b:0xff47345e),24));v.setContentDescription(uid==null?"Empty video seat "+i:"Video seat "+i+" "+name);v.setOnClickListener(x->seatTap940(seat));v.setOnLongClickListener(x->{if(moderator&&uid==null){inviteToVideoSeat940(seat);return true;}return false;});
+            LinearLayout.LayoutParams p=new LinearLayout.LayoutParams(0,dp(50),1);p.setMargins(dp(3),0,dp(3),0);seatsBar.addView(v,p);}'''
+if old not in q: raise SystemExit('Multi Video seat render marker missing for invite long press')
+q=q.replace(old,new,1)
+
+marker='''    private void toggleSeat940(){'''
+helpers='''    private void inviteToVideoSeat940(int seat){
+        if(!moderator||db==null||me==null){toast("Host/co-host only");return;}
+        db.collection("live_rooms").document(roomId).collection("members").limit(100).get().addOnSuccessListener(snap->{
+            List<DocumentSnapshot> docs=new ArrayList<>();List<String> rows=new ArrayList<>();
+            for(DocumentSnapshot d:snap.getDocuments()){
+                String uid=d.getString("uid");if(uid==null||uid.isEmpty()||uid.equals(me.getUid())||seatUids.containsValue(uid))continue;
+                docs.add(d);rows.add(safe(d.getString("name"),"KING User"));
+            }
+            if(rows.isEmpty()){toast("No available room members to invite");return;}
+            new android.app.AlertDialog.Builder(this).setTitle("Invite to video seat "+seat).setItems(rows.toArray(new String[0]),(dlg,w)->{
+                DocumentSnapshot target=docs.get(w);String uid=target.getString("uid");String name=safe(target.getString("name"),"KING User");
+                Map<String,Object> inv=new HashMap<>();inv.put("recipientUid",uid);inv.put("recipientName",name);inv.put("seatNo",seat);inv.put("inviterUid",me.getUid());inv.put("inviterName",displayName);inv.put("createdAt",FieldValue.serverTimestamp());
+                db.collection("live_rooms").document(roomId).collection("video_seat_invites").document(uid).set(inv)
+                    .addOnSuccessListener(v->toast("Video seat invite sent to "+name)).addOnFailureListener(e->toast("Invite failed: "+e.getMessage()));
+            }).setNegativeButton("Close",null).show();
+        }).addOnFailureListener(e->toast("Members unavailable: "+e.getMessage()));
+    }
+    private void acceptVideoInvite940(DocumentSnapshot invite,int seat){
+        if(me==null||db==null){return;}
+        if(seatUids.containsKey(seat)){toast("That video seat is no longer free");invite.getReference().delete().addOnFailureListener(e->{});return;}
+        Map<String,Object>s=new HashMap<>();s.put("uid",me.getUid());s.put("name",displayName);s.put("micOn",false);s.put("cameraOn",true);s.put("joinedAt",FieldValue.serverTimestamp());
+        db.collection("live_rooms").document(roomId).collection("video_seats").document(String.valueOf(seat)).set(s)
+            .addOnSuccessListener(v->invite.getReference().delete().addOnSuccessListener(x->toast("Joined video seat "+seat)).addOnFailureListener(x->{}))
+            .addOnFailureListener(e->toast("Could not join invited seat: "+e.getMessage()));
+    }
+
+'''
+if marker not in q: raise SystemExit('Multi Video toggleSeat marker missing for invite helpers')
+q=q.replace(marker,helpers+marker,1)
+
+q=q.replace('''@Override protected void onDestroy(){if(seatsListener!=null)seatsListener.remove();if(roomListener!=null)roomListener.remove();if(roleListener!=null)roleListener.remove();''',
+'''@Override protected void onDestroy(){if(seatsListener!=null)seatsListener.remove();if(roomListener!=null)roomListener.remove();if(roleListener!=null)roleListener.remove();if(inviteListener!=null)inviteListener.remove();''',1)
+
+multi.write_text(q)
+print('v9.4.0 Multi Video sit-down invitation flow applied')
+
 print('v9.4.0 parity batch 1 applied')
