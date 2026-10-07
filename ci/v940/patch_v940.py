@@ -177,6 +177,77 @@ if marker not in d: raise SystemExit('inbox helper marker missing')
 d=d.replace(marker,helpers+marker,1)
 inbox.write_text(d)
 
+# Messages loading/offline/error states: retain local/system content instead of blank/toast-only failures.
+inbox=pkg/'InboxActivity.java'
+d=inbox.read_text()
+old='''    private final ArrayList<ThreadModel> models = new ArrayList<>();'''
+new='''    private final ArrayList<ThreadModel> models = new ArrayList<>();
+    private String inboxState940="";'''
+if old not in d: raise SystemExit('Inbox models field marker missing')
+d=d.replace(old,new,1)
+
+old='''    private void loadInbox() {
+        models.clear();
+        Set<String> local = getSharedPreferences("chat_store", MODE_PRIVATE).getStringSet("recent_names", new HashSet<>());
+        for (String name : local) if (name != null && !name.trim().isEmpty()) models.add(new ThreadModel("●",name,"Tap to continue chatting","","",false));
+        renderModels(models);
+
+        if (me == null || db == null) return;
+        threadListener = db.collection("direct_threads").whereArrayContains("members", me.getUid())
+            .addSnapshotListener((snap,error)->{
+                if(error!=null){Toast.makeText(this,"Messages could not refresh",Toast.LENGTH_SHORT).show();return;}
+                renderCloudThreads(snap);
+            });
+    }'''
+new='''    private void loadInbox() {
+        models.clear();
+        Set<String> local = getSharedPreferences("chat_store", MODE_PRIVATE).getStringSet("recent_names", new HashSet<>());
+        for (String name : local) if (name != null && !name.trim().isEmpty()) models.add(new ThreadModel("●",name,"Tap to continue chatting","","",false));
+        if(me==null)inboxState940="Sign in to sync real conversations";
+        else if(db==null)inboxState940="Cloud unavailable • showing local conversations";
+        else inboxState940="Syncing conversations…";
+        renderModels(models);
+
+        if (me == null || db == null) return;
+        threadListener = db.collection("direct_threads").whereArrayContains("members", me.getUid())
+            .addSnapshotListener((snap,error)->{
+                if(error!=null){
+                    inboxState940="Offline / sync unavailable • showing recent local conversations";
+                    renderModels(models);
+                    return;
+                }
+                inboxState940="";
+                renderCloudThreads(snap);
+            });
+    }'''
+if old not in d: raise SystemExit('Inbox loadInbox marker missing')
+d=d.replace(old,new,1)
+
+old='''    private void renderModels(List<ThreadModel> source){
+        if(list==null)return; list.removeAllViews();addSystemRows940();
+        if(source==null||source.isEmpty()){
+'''
+new='''    private void renderModels(List<ThreadModel> source){
+        if(list==null)return; list.removeAllViews();addSystemRows940();addInboxState940();
+        if(source==null||source.isEmpty()){
+'''
+if old not in d: raise SystemExit('Inbox v9.4 renderModels marker missing')
+d=d.replace(old,new,1)
+
+marker='''    private void addSystemRows940(){'''
+helper='''    private void addInboxState940(){
+        if(inboxState940==null||inboxState940.trim().isEmpty())return;
+        TextView state=label(inboxState940,12,inboxState940.startsWith("Syncing")?0xff675d76:0xff8b5b12,true);
+        state.setGravity(Gravity.CENTER_VERTICAL);state.setPadding(dp(16),0,dp(16),0);
+        state.setBackground(bg(inboxState940.startsWith("Syncing")?0xfff3eefb:0xfffff4d6,10));
+        LinearLayout.LayoutParams p=new LinearLayout.LayoutParams(-1,dp(42));p.setMargins(dp(12),dp(7),dp(12),dp(7));list.addView(state,p);
+    }
+'''
+if marker not in d: raise SystemExit('Inbox system rows marker missing for state helper')
+d=d.replace(marker,helper+marker,1)
+inbox.write_text(d)
+print('v9.4.0 Messages loading/offline states applied')
+
 
 # ---------------- Party lobby room-card visual parity ----------------
 party=pkg/'PartyActivity.java'
