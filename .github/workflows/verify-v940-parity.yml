@@ -7,6 +7,8 @@ on:
       - 'ci/v940/TRIGGER'
       - 'ci/v940/patch_v940.py'
       - 'ci/v940/PARITY-GATES.md'
+      - 'firestore.rules'
+      - 'storage.rules'
   workflow_dispatch:
 permissions:
   contents: read
@@ -56,6 +58,7 @@ jobs:
           cp ci/v940/PARITY-MATRIX.md /tmp/src/PARITY-MATRIX-v9.4.0.md
           cp ci/v940/PARITY-GATES.md /tmp/src/PARITY-GATES-v9.4.0.md
           cp firestore.rules /tmp/src/firestore.rules
+          cp storage.rules /tmp/src/storage.rules
           python3 - <<'PY'
           from pathlib import Path
           p=Path('/tmp/src/app/build.gradle');s=p.read_text()
@@ -86,6 +89,10 @@ jobs:
           grep -F 'match /game_state/{stateId}' /tmp/src/firestore.rules
           grep -F 'match /music_state/{stateId}' /tmp/src/firestore.rules
           grep -F 'match /public_profiles/{uid}' /tmp/src/firestore.rules
+          grep -F 'match /families/{familyCode}' /tmp/src/firestore.rules
+          grep -F 'match /relationships/{relationshipId}' /tmp/src/firestore.rules
+          grep -F 'match /moments/{momentId}' /tmp/src/firestore.rules
+          grep -F 'match /chat_media/{ownerUid}/{threadId}/{fileName}' /tmp/src/storage.rules
       - name: Compile parity development build
         working-directory: /tmp/src
         run: |
