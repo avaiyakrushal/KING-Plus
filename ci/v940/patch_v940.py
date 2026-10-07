@@ -2278,4 +2278,105 @@ elif 'private void kingGameModes(String game)' not in q:
 main.write_text(q)
 print('v9.4.0 video Game navigation helpers restored')
 
+
+# Bolo-reference parity: realtime Mic-up request queue with host/co-host approval.
+party=pkg/'PartyActivity.java'
+q=party.read_text()
+
+old='''    private void toggleMic() {
+        if(mySeat<1){toast("Take a mic seat first");return;}
+        if(muteAll&&!isModerator()){toast("Host muted all seats");return;}
+        micOn=!micOn;
+        if(cloudRoom){
+            setVoicePresence900(micOn);
+            if(user!=null&&db!=null)db.collection("live_rooms").document(roomId).collection("seats").document(String.valueOf(mySeat)).update("micOn",micOn).addOnFailureListener(e->toast("Mic sync failed: "+msg(e)));
+            refreshMicControl();
+            setInlineAudioMuted940(!micOn);
+            toast(micOn?"Mic ON • live inside Party room":"Mic OFF");
+            return;
+        }
+        prefs.edit().putBoolean("mic_"+roomId,micOn).apply();seatMics.put(mySeat,micOn);rebuildSeats();refreshMicControl();
+    }'''
+new='''    private void toggleMic() {
+        if(mySeat<1){
+            if(cloudRoom){requestMicSeat940();return;}
+            toast("Take a mic seat first");return;
+        }
+        if(muteAll&&!isModerator()){toast("Host muted all seats");return;}
+        micOn=!micOn;
+        if(cloudRoom){
+            setVoicePresence900(micOn);
+            if(user!=null&&db!=null)db.collection("live_rooms").document(roomId).collection("seats").document(String.valueOf(mySeat)).update("micOn",micOn).addOnFailureListener(e->toast("Mic sync failed: "+msg(e)));
+            refreshMicControl();
+            setInlineAudioMuted940(!micOn);
+            toast(micOn?"Mic ON • live inside Party room":"Mic OFF");
+            return;
+        }
+        prefs.edit().putBoolean("mic_"+roomId,micOn).apply();seatMics.put(mySeat,micOn);rebuildSeats();refreshMicControl();
+    }'''
+if old not in q: raise SystemExit('final toggleMic marker missing for Mic-up queue')
+q=q.replace(old,new,1)
+
+# Add Mic requests to the rich More sheet for moderators.
+q=q.replace('''items.add(micOn?"🎤 Mic OFF":"🎤 Mic ON"); items.add("📹 Multi Video"); items.add("🎵 Song request"); items.add("😊 Reaction");''',
+'''items.add(micOn?"🎤 Mic OFF":"🎤 Mic ON"); if(isModerator())items.add("🎙 Mic requests"); items.add("📹 Multi Video"); items.add("🎵 Song request"); items.add("😊 Reaction");''',1)
+q=q.replace('''else if(x.contains("Mic ON")||x.contains("Mic OFF"))toggleMic();
+        else if(x.contains("Multi Video"))openVideoRoom();''',
+'''else if(x.contains("Mic ON")||x.contains("Mic OFF"))toggleMic();
+        else if(x.contains("Mic requests"))openMicRequests940();
+        else if(x.contains("Multi Video"))openVideoRoom();''',1)
+
+marker='''    private boolean isOwner(){'''
+helpers='''    private int firstFreeMicSeat940(){
+        for(int n=1;n<=maxSeats;n++)if(!seatUids.containsKey(n))return n;
+        return -1;
+    }
+    private void requestMicSeat940(){
+        if(!cloudRoom||db==null||user==null){toast("Join a live Party room first");return;}
+        if(muteAll&&!isModerator()){toast("Host muted room microphones");return;}
+        final int seatNo=firstFreeMicSeat940();
+        if(seatNo<1){toast("All mic seats are occupied");return;}
+        DocumentReference req=db.collection("live_rooms").document(roomId).collection("seat_requests").document(user.getUid());
+        req.get().addOnSuccessListener(existing->{
+            if(existing!=null&&existing.exists()){Long n=existing.getLong("seatNo");toast("Mic request pending"+(n==null?"":" • Seat "+n));return;}
+            Map<String,Object>d=new HashMap<>();d.put("uid",user.getUid());d.put("name",safeName());d.put("seatNo",seatNo);d.put("createdAt",FieldValue.serverTimestamp());
+            req.set(d).addOnSuccessListener(v->{toast("Mic request sent • waiting for host");addEvent("mic_request",safeName()+" requested mic seat "+seatNo+" 🎙");}).addOnFailureListener(e->toast("Mic request failed: "+msg(e)));
+        }).addOnFailureListener(e->toast("Mic request unavailable: "+msg(e)));
+    }
+    private void openMicRequests940(){
+        if(!cloudRoom||db==null||user==null){toast("Live Party room required");return;}
+        if(!isModerator()){toast("Host/co-host only");return;}
+        CollectionReference requests=db.collection("live_rooms").document(roomId).collection("seat_requests");
+        requests.orderBy("createdAt",Query.Direction.ASCENDING).limit(30).get().addOnSuccessListener(snap->{
+            if(snap==null||snap.isEmpty()){new AlertDialog.Builder(this).setTitle("🎙 Mic requests").setMessage("No one is waiting for a mic seat.").setPositiveButton("OK",null).show();return;}
+            List<DocumentSnapshot> docs=new ArrayList<>(snap.getDocuments());String[] rows=new String[docs.size()];
+            for(int i=0;i<docs.size();i++){DocumentSnapshot d=docs.get(i);Long n=d.getLong("seatNo");rows[i]=str(d,"name","Guest")+"   •   Seat "+(n==null?"?":n);}
+            new AlertDialog.Builder(this).setTitle("🎙 Mic requests • "+docs.size()).setItems(rows,(dlg,w)->reviewMicRequest940(docs.get(w))).setNegativeButton("Close",null).show();
+        }).addOnFailureListener(e->toast("Mic requests unavailable: "+msg(e)));
+    }
+    private void reviewMicRequest940(DocumentSnapshot request){
+        if(request==null||!isModerator())return;
+        final String uid=request.getString("uid");final String name=str(request,"name","Guest");Long raw=request.getLong("seatNo");final int preferred=raw==null?-1:raw.intValue();
+        new AlertDialog.Builder(this).setTitle(name).setMessage("Requested mic seat "+(preferred>0?preferred:"")+"\n\nApprove to place this member on stage with mic OFF.")
+            .setPositiveButton("Approve",(d,w)->approveMicRequest940(request,uid,name,preferred))
+            .setNeutralButton("Reject",(d,w)->request.getReference().delete().addOnSuccessListener(v->toast("Mic request rejected")).addOnFailureListener(e->toast("Reject failed: "+msg(e))))
+            .setNegativeButton("Cancel",null).show();
+    }
+    private void approveMicRequest940(DocumentSnapshot request,String uid,String name,int preferred){
+        if(uid==null||uid.isEmpty()||db==null)return;
+        int seat=(preferred>0&&!seatUids.containsKey(preferred))?preferred:firstFreeMicSeat940();
+        if(seat<1){toast("No free mic seat");return;}
+        final int targetSeat=seat;
+        DocumentReference seatRef=db.collection("live_rooms").document(roomId).collection("seats").document(String.valueOf(targetSeat));
+        Map<String,Object>s=new HashMap<>();s.put("uid",uid);s.put("name",name);s.put("micOn",false);s.put("joinedAt",FieldValue.serverTimestamp());
+        seatRef.set(s).addOnSuccessListener(v->request.getReference().delete().addOnSuccessListener(x->{addEvent("seat",name+" approved to mic seat "+targetSeat+" 🎙");toast(name+" moved to seat "+targetSeat);}).addOnFailureListener(e->toast("Seat approved; request cleanup failed")))
+            .addOnFailureListener(e->toast("Could not assign seat: "+msg(e)));
+    }
+
+'''
+if marker not in q: raise SystemExit('isOwner marker missing for Mic-up helpers')
+q=q.replace(marker,helpers+marker,1)
+party.write_text(q)
+print('v9.4.0 realtime Mic-up request queue applied')
+
 print('v9.4.0 parity batch 1 applied')
