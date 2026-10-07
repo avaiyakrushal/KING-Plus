@@ -3874,4 +3874,72 @@ q=q.replace(marker,helpers+marker,1)
 party.write_text(q)
 print('v9.4.0 realtime Team Up parity applied')
 
+
+# Bolo-reference parity: recent + favorite Party rooms.
+party=pkg/'PartyActivity.java'
+q=party.read_text()
+old='''        items.add("🎮 Games"); items.add("🤝 Team Up"); items.add("⚔ PK battle"); items.add("🧭 Full feature center");'''
+new='''        items.add("🎮 Games"); items.add("🤝 Team Up"); items.add("🕘 Room history"); if(cloudRoom)items.add(isFavoriteRoom940()?"★ Unfavorite room":"☆ Favorite room"); items.add("⚔ PK battle"); items.add("🧭 Full feature center");'''
+if old not in q: raise SystemExit('Team Up More marker missing for room history')
+q=q.replace(old,new,1)
+old='''        else if(x.contains("Team Up"))teamUpPanel940();
+        else if(x.contains("Games"))openRoomGames740();'''
+new='''        else if(x.contains("Team Up"))teamUpPanel940();
+        else if(x.contains("Room history"))roomHistoryPanel940();
+        else if(x.contains("Favorite room")||x.contains("Unfavorite room"))toggleFavoriteRoom940();
+        else if(x.contains("Games"))openRoomGames740();'''
+if old not in q: raise SystemExit('Team Up handler marker missing for room history')
+q=q.replace(old,new,1)
+old='''    private void renderParty() {
+        clearListeners();'''
+new='''    private void renderParty() {
+        clearListeners();
+        if(cloudRoom)recordRoomVisit940();'''
+if old not in q: raise SystemExit('renderParty marker missing for room history')
+q=q.replace(old,new,1)
+marker='''    private void teamUpPanel940(){'''
+helpers=r'''    private String roomFavKey940(String id,String name){
+        return (id==null?"":id.replace("\u0001"," "))+"\u0001"+(name==null?"Live Party":name.replace("\u0001"," "));
+    }
+    private boolean isFavoriteRoom940(){
+        if(!cloudRoom||roomId==null)return false;
+        Set<String> fav=new HashSet<>(prefs.getStringSet("favorite_rooms_940",new HashSet<>()));
+        for(String x:fav){int p=x.indexOf('\u0001');String id=p<0?x:x.substring(0,p);if(roomId.equals(id))return true;}
+        return false;
+    }
+    private void toggleFavoriteRoom940(){
+        if(!cloudRoom||roomId==null){toast("Open a live Party room first");return;}
+        Set<String> fav=new HashSet<>(prefs.getStringSet("favorite_rooms_940",new HashSet<>()));
+        String found=null;for(String x:fav){int p=x.indexOf('\u0001');String id=p<0?x:x.substring(0,p);if(roomId.equals(id)){found=x;break;}}
+        if(found!=null){fav.remove(found);toast("Removed from favorite rooms");}
+        else{fav.add(roomFavKey940(roomId,roomName));toast("Room saved to favorites ★");}
+        prefs.edit().putStringSet("favorite_rooms_940",fav).apply();
+    }
+    private void recordRoomVisit940(){
+        if(!cloudRoom||roomId==null||roomId.trim().isEmpty())return;
+        Set<String> raw=new HashSet<>(prefs.getStringSet("recent_rooms_940",new HashSet<>()));
+        List<String> keep=new ArrayList<>();
+        for(String x:raw){String[] p=x.split("::",3);if(p.length<3||roomId.equals(p[1]))continue;keep.add(x);}
+        keep.sort((a,b)->b.compareTo(a));if(keep.size()>19)keep=new ArrayList<>(keep.subList(0,19));
+        String safeId=roomId.replace("::","");String safeName=(roomName==null?"Live Party":roomName).replace("::"," ");
+        keep.add(String.format(java.util.Locale.US,"%013d::%s::%s",System.currentTimeMillis(),safeId,safeName));
+        prefs.edit().putStringSet("recent_rooms_940",new HashSet<>(keep)).apply();
+    }
+    private void roomHistoryPanel940(){
+        Set<String> fav=new HashSet<>(prefs.getStringSet("favorite_rooms_940",new HashSet<>()));
+        Set<String> recentSet=new HashSet<>(prefs.getStringSet("recent_rooms_940",new HashSet<>()));
+        List<String> ids=new ArrayList<>(),labels=new ArrayList<>();
+        for(String x:fav){int p=x.indexOf('\u0001');if(p<=0)continue;ids.add(x.substring(0,p));labels.add("★  "+x.substring(p+1));}
+        List<String> recent=new ArrayList<>(recentSet);recent.sort((a,b)->b.compareTo(a));
+        for(String x:recent){String[] p=x.split("::",3);if(p.length<3)continue;boolean duplicate=false;for(String id:ids)if(id.equals(p[1])){duplicate=true;break;}if(duplicate)continue;ids.add(p[1]);labels.add("🕘  "+p[2]);if(labels.size()>=25)break;}
+        if(labels.isEmpty()){new AlertDialog.Builder(this).setTitle("🕘 Room history").setMessage("No recent or favorite Party rooms yet.").setPositiveButton("OK",null).show();return;}
+        new AlertDialog.Builder(this).setTitle("🕘 Recent & Favorite Rooms").setItems(labels.toArray(new String[0]),(d,w)->{if(db==null||user==null){toast("Sign in required");return;}joinRoomDocument891(ids.get(w));}).setNegativeButton("Close",null).show();
+    }
+
+'''
+if marker not in q: raise SystemExit('Team Up helper marker missing for room history')
+q=q.replace(marker,helpers+marker,1)
+party.write_text(q)
+print('v9.4.0 recent/favorite room parity applied')
+
 print('v9.4.0 parity batch 1 applied')
