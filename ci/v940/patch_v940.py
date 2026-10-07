@@ -3013,12 +3013,12 @@ q=q.replace('''            if("video_seat_claim".equals(type)&&seat>=1&&seat<=6&
 '''            if("video_seat_claim".equals(type)&&seat>=1&&seat<=6&&!actor.isEmpty()){removeUid940(actor);seatUids.put(seat,actor);seatNames.put(seat,safe(d.getString("actorName"),"Guest"));seatMics.put(seat,false);seatCameras.put(seat,true);}
             else if("video_presence".equals(type)&&seat>=1&&seat<=6&&!actor.isEmpty()){removeUid940(actor);seatUids.put(seat,actor);seatNames.put(seat,safe(d.getString("actorName"),"Guest"));seatMics.put(seat,Boolean.TRUE.equals(d.getBoolean("micOn")));seatCameras.put(seat,Boolean.TRUE.equals(d.getBoolean("cameraOn")));}
             else if("video_seat_leave".equals(type)&&seat>=1&&actor.equals(seatUids.get(seat)))clearSeat940(seat);''',1)
-const marker='''    private void reduceEvents940(QuerySnapshot snap){''';
-const helper='''    private void refreshModerator940(){moderator=owner940||cohost940;refreshControls940();}
+marker='''    private void reduceEvents940(QuerySnapshot snap){'''
+helper='''    private void refreshModerator940(){moderator=owner940||cohost940;refreshControls940();}
 
-''';
-if(!q.includes(marker)) throw new Error("Multi Video reducer marker missing");
-q=q.replace(marker,helper+marker,1);
+'''
+if marker not in q: raise SystemExit('Multi Video reducer marker missing')
+q=q.replace(marker,helper+marker,1)
 multi.write_text(q)
 print('v9.4.0 Multi Video heartbeat and moderator hardening applied')
 
