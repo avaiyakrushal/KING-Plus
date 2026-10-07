@@ -4,3 +4,4 @@ verify in-room mic no conference launch
 verify embedded in-room audio-only rtc
 retry embedded rtc with jitsi13 config
 verify embedded party audio and direct games parity
+verify startup crash recovery and remaining parity work
