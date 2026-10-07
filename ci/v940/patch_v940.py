@@ -3421,4 +3421,15 @@ if voice.exists():
     voice.write_text(q)
 print('v9.4.0 lint runtime compatibility fixes applied')
 
+
+# VoiceWeb Android 26+ URL encoding compatibility (avoid API-33 Charset overload).
+voice=pkg/'VoiceWebActivity.java'
+if voice.exists():
+    import re
+    q=voice.read_text()
+    q=re.sub(r'(?:(?:java\\.net\\.)?URLEncoder)\\.encode\\(([^,()\\n]+),\\s*(?:java\\.nio\\.charset\\.)?StandardCharsets\\.UTF_8\\)',r'android.net.Uri.encode(\\1)',q)
+    q=re.sub(r'(?:(?:java\\.net\\.)?URLEncoder)\\.encode\\(([^,()\\n]+),\\s*java\\.nio\\.charset\\.StandardCharsets\\.UTF_8\\)',r'android.net.Uri.encode(\\1)',q)
+    voice.write_text(q)
+print('v9.4.0 VoiceWeb pre-33 URL encoding fix applied')
+
 print('v9.4.0 parity batch 1 applied')
