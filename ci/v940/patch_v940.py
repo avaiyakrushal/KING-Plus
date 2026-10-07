@@ -2810,4 +2810,15 @@ q=q.replace(old,new,1)
 multi.write_text(q)
 print('v9.4.0 Multi Video seat cleanup applied')
 
+
+# Bolo-reference parity: explicit Ludo result/rematch/exit state for all players.
+ludo=pkg/'OnlineLudoActivity.java'
+q=ludo.read_text()
+old='''if(("finished".equals(phase)||"cancelled".equals(phase))&&owner){Button rematch=btn("↻ Rematch");rematch.setOnClickListener(v->rematch());actionsBox.addView(rematch,new LinearLayout.LayoutParams(-1,dp(52)));}}'''
+new='''if("finished".equals(phase)){int winner=i(state.get("winner"));List<String> names=strList(state.get("names"));TextView resultCard=tv("🏆  "+safeName(names,winner)+" WINS",21,GOLD,true);resultCard.setGravity(Gravity.CENTER);resultCard.setBackground(bg(0xff3d3154,16));LinearLayout.LayoutParams rcp=new LinearLayout.LayoutParams(-1,dp(68));rcp.setMargins(0,dp(8),0,dp(8));actionsBox.addView(resultCard,rcp);if(owner){Button rematch=btn("↻ Play Rematch");rematch.setOnClickListener(v->rematch());actionsBox.addView(rematch,new LinearLayout.LayoutParams(-1,dp(52)));}else{TextView waiting=tv("Waiting for host to start a rematch",13,MUTED,true);waiting.setGravity(Gravity.CENTER);actionsBox.addView(waiting,new LinearLayout.LayoutParams(-1,dp(42)));}Button exit=btn("Exit Ludo");exit.setOnClickListener(v->finish());LinearLayout.LayoutParams ep=new LinearLayout.LayoutParams(-1,dp(48));ep.setMargins(0,dp(6),0,0);actionsBox.addView(exit,ep);}else if("cancelled".equals(phase)){TextView cancelled=tv("Match ended",16,MUTED,true);cancelled.setGravity(Gravity.CENTER);actionsBox.addView(cancelled,new LinearLayout.LayoutParams(-1,dp(48)));if(owner){Button rematch=btn("↻ Rematch");rematch.setOnClickListener(v->rematch());actionsBox.addView(rematch,new LinearLayout.LayoutParams(-1,dp(52)));}Button exit=btn("Exit Ludo");exit.setOnClickListener(v->finish());actionsBox.addView(exit,new LinearLayout.LayoutParams(-1,dp(48)));}}'''
+if old not in q: raise SystemExit('Ludo rematch action marker missing')
+q=q.replace(old,new,1)
+ludo.write_text(q)
+print('v9.4.0 Ludo result/rematch presentation applied')
+
 print('v9.4.0 parity batch 1 applied')
