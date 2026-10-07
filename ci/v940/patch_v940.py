@@ -1522,7 +1522,7 @@ new='''    private void showNotifications(){showCloudNotifications940("");}
                     Object dataObj=n.get("data");String type="";if(dataObj instanceof Map){Object t=((Map<?,?>)dataObj).get("type");if(t!=null)type=String.valueOf(t);}
                     if(filter!=null&&!filter.isEmpty()&&!filter.equals(type))continue;
                     docs.add(n);String title=n.getString("title"),body=n.getString("body");Timestamp at=n.getTimestamp("createdAt");
-                    String when=formatTime(at);boolean unread=!Boolean.TRUE.equals(n.getBoolean("read"));rows.add((unread?"● ":"")+(title==null?"KING Plus":title)+(when.isEmpty()?"":"  •  "+when)+"\n"+(body==null?"":body));
+                    String when=formatTime(at);boolean unread=!Boolean.TRUE.equals(n.getBoolean("read"));rows.add((unread?"● ":"")+(title==null?"KING Plus":title)+(when.isEmpty()?"":"  •  "+when)+"\\n"+(body==null?"":body));
                 }
                 if(rows.isEmpty()){new AlertDialog.Builder(this).setTitle(filter!=null&&!filter.isEmpty()?"Room invitations":"Notifications").setMessage(filter!=null&&!filter.isEmpty()?"No room invitations yet.":"No notifications yet.").setPositiveButton("OK",null).show();return;}
                 new AlertDialog.Builder(this).setTitle(filter!=null&&!filter.isEmpty()?"Room invitations":"Notifications").setItems(rows.toArray(new String[0]),(d,w)->openNotification940(docs.get(w))).setNegativeButton("Close",null).show();
