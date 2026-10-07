@@ -306,6 +306,40 @@ chat.write_text(q)
 print('v9.4.0 direct chat offline fallback applied')
 
 
+# ---------------- Party lobby loading/offline/retry states ----------------
+party=pkg/'PartyActivity.java'
+q=party.read_text()
+old='''        if (user != null && db != null) {
+            LinearLayout cloudList = new LinearLayout(this); cloudList.setOrientation(LinearLayout.VERTICAL); page.addView(cloudList);
+            roomsListener = db.collection("live_rooms").orderBy("createdAt", Query.Direction.DESCENDING).limit(30)
+                .addSnapshotListener((snap,error) -> {
+                    if (error != null) { showLobbyError(cloudList,"Live rooms could not load. Tap to retry.",selected); return; }
+                    cloudList.removeAllViews();'''
+new='''        if (user != null && db != null) {
+            LinearLayout cloudList = new LinearLayout(this); cloudList.setOrientation(LinearLayout.VERTICAL); page.addView(cloudList);
+            TextView lobbyState940=tv(KingNetwork.online(this)?"Loading live Party rooms…":"Offline • checking cached Party rooms…",13,0xff756c7d,true);
+            lobbyState940.setGravity(Gravity.CENTER);lobbyState940.setBackground(bg(0xfff3eef7,14));LinearLayout.LayoutParams lobbyStateLp940=new LinearLayout.LayoutParams(-1,dp(64));lobbyStateLp940.setMargins(dp(6),dp(8),dp(6),0);cloudList.addView(lobbyState940,lobbyStateLp940);
+            roomsListener = db.collection("live_rooms").orderBy("createdAt", Query.Direction.DESCENDING).limit(30)
+                .addSnapshotListener((snap,error) -> {
+                    if (error != null) { showLobbyError(cloudList,KingNetwork.online(this)?"Live rooms unavailable • tap to retry":"Offline • cached rooms unavailable • tap to retry",selected); return; }
+                    cloudList.removeAllViews();'''
+if old not in q: raise SystemExit('Party lobby listener marker missing')
+q=q.replace(old,new,1)
+
+old='''    private void showLobbyError(LinearLayout host,String message,String selected){
+        host.removeAllViews();TextView e=tv(message,14,0xff8b4d64,true);e.setGravity(Gravity.CENTER);e.setBackground(bg(0xffffe9ef,16));e.setOnClickListener(v->renderLobby(selected));LinearLayout.LayoutParams p=new LinearLayout.LayoutParams(-1,dp(90));p.setMargins(dp(6),dp(12),dp(6),0);host.addView(e,p);
+    }'''
+new='''    private void showLobbyError(LinearLayout host,String message,String selected){
+        host.removeAllViews();LinearLayout box=new LinearLayout(this);box.setOrientation(LinearLayout.VERTICAL);box.setGravity(Gravity.CENTER);box.setBackground(bg(0xfffff1e8,16));
+        TextView e=tv(message,14,0xff8b4d64,true);e.setGravity(Gravity.CENTER);box.addView(e,new LinearLayout.LayoutParams(-1,dp(48)));
+        TextView retry=tv("↻ Retry",13,0xff5b2aa8,true);retry.setGravity(Gravity.CENTER);retry.setBackground(bg(0xffffffff,16));retry.setOnClickListener(v->renderLobby(selected));LinearLayout.LayoutParams rp=new LinearLayout.LayoutParams(dp(120),dp(38));rp.gravity=Gravity.CENTER;box.addView(retry,rp);
+        LinearLayout.LayoutParams p=new LinearLayout.LayoutParams(-1,dp(112));p.setMargins(dp(6),dp(12),dp(6),0);host.addView(box,p);
+    }'''
+if old not in q: raise SystemExit('Party lobby error helper marker missing')
+q=q.replace(old,new,1)
+party.write_text(q)
+print('v9.4.0 Party lobby loading/offline states applied')
+
 # ---------------- Party lobby room-card visual parity ----------------
 party=pkg/'PartyActivity.java'
 q=party.read_text()
