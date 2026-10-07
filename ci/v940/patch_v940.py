@@ -4574,12 +4574,12 @@ new='''    private void banListDialog(){
             List<DocumentSnapshot>docs=new ArrayList<>();List<String>rows=new ArrayList<>();
             for(DocumentSnapshot d:snap.getDocuments())if(Boolean.TRUE.equals(d.getBoolean("active"))){
                 docs.add(d);String name=str(d,"name",memberNameForUid(d.getId()));String reason=str(d,"reason","No reason saved");com.google.firebase.Timestamp at=d.getTimestamp("createdAt");String when=at==null?"":new java.text.SimpleDateFormat("dd MMM • HH:mm",java.util.Locale.US).format(at.toDate());
-                rows.add("🚫 "+name+"\n"+reason+(when.isEmpty()?"":" • "+when));
+                rows.add("🚫 "+name+"\\n"+reason+(when.isEmpty()?"":" • "+when));
             }
             if(rows.isEmpty()){new AlertDialog.Builder(this).setTitle("🚫 Banned users").setMessage("No banned users in this room.").setPositiveButton("OK",null).show();return;}
             new AlertDialog.Builder(this).setTitle("🚫 Banned users • "+rows.size()).setItems(rows.toArray(new String[0]),(x,w)->{
                 DocumentSnapshot d=docs.get(w);String name=str(d,"name",memberNameForUid(d.getId()));String reason=str(d,"reason","No reason saved");
-                new AlertDialog.Builder(this).setTitle(name).setMessage("Reason: "+reason+"\n\nAllow this user to join again?").setPositiveButton("Unban",(a,b)->d.getReference().delete().addOnSuccessListener(v->{addEvent("unban",safeName()+" unbanned "+name);toast(name+" unbanned");}).addOnFailureListener(e->toast(msg(e)))).setNegativeButton("Cancel",null).show();
+                new AlertDialog.Builder(this).setTitle(name).setMessage("Reason: "+reason+"\\n\\nAllow this user to join again?").setPositiveButton("Unban",(a,b)->d.getReference().delete().addOnSuccessListener(v->{addEvent("unban",safeName()+" unbanned "+name);toast(name+" unbanned");}).addOnFailureListener(e->toast(msg(e)))).setNegativeButton("Cancel",null).show();
             }).setNegativeButton("Close",null).show();
         }).addOnFailureListener(e->toast(msg(e)));
     }'''
