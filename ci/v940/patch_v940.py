@@ -4738,8 +4738,7 @@ helper=r'''    private void videoQuickMatch940(){
             int index=w==0?new java.util.Random().nextInt(seats.size()):w-1;int targetSeat=seats.get(index);String uid=seatUids.get(targetSeat),name=safe(seatNames.get(targetSeat),"KING User");
             Map<String,Object>x=new HashMap<>();x.put("seatNo",mySeat);x.put("targetSeat",targetSeat);x.put("targetUid",uid);x.put("targetName",name);
             emit940("video_match",displayName+" matched with "+name,x);
-            new android.app.AlertDialog.Builder(this).setTitle("💞 Match found").setMessage(displayName+"  ×  "+name+"
-Video seats "+mySeat+" & "+targetSeat).setPositiveButton("OK",null).show();
+            new android.app.AlertDialog.Builder(this).setTitle("💞 Match found").setMessage(displayName+"  ×  "+name+"\\nVideo seats "+mySeat+" & "+targetSeat).setPositiveButton("OK",null).show();
         }).setNegativeButton("Close",null).show();
     }
 
