@@ -1439,4 +1439,64 @@ q=q.replace(old,new,1)
 party.write_text(q)
 print('v9.4.0 Party member strip cloud avatar parity applied')
 
+# Discover and Messages auto-recover when validated network connectivity returns.
+discover=pkg/'DiscoverActivity.java'
+q=discover.read_text()
+old='''    private String activePeopleTab="Recommended";'''
+new='''    private String activePeopleTab="Recommended";
+    private android.net.ConnectivityManager.NetworkCallback discoverNetworkCallback940;
+    private boolean discoverLastOnline940;'''
+if old not in q: raise SystemExit('Discover active tab marker missing for auto recovery')
+q=q.replace(old,new,1)
+old='''        publishStats();
+        renderDiscover();
+    }'''
+new='''        publishStats();
+        renderDiscover();
+        discoverLastOnline940=KingNetwork.online(this);
+        discoverNetworkCallback940=KingNetwork.watch(this,online->runOnUiThread(()->{
+            boolean recovered=online&&!discoverLastOnline940;discoverLastOnline940=online;
+            if(recovered&&!isFinishing()&&!isDestroyed())renderDiscover();
+        }));
+    }'''
+if old not in q: raise SystemExit('Discover onCreate tail marker missing for auto recovery')
+q=q.replace(old,new,1)
+old='''    @Override public void onBackPressed(){KingNav.confirmExit(this);}
+}'''
+new='''    @Override public void onBackPressed(){KingNav.confirmExit(this);}
+    @Override protected void onDestroy(){KingNetwork.unwatch(this,discoverNetworkCallback940);discoverNetworkCallback940=null;super.onDestroy();}
+}'''
+if old not in q: raise SystemExit('Discover lifecycle tail marker missing for auto recovery')
+q=q.replace(old,new,1)
+discover.write_text(q)
+
+inbox=pkg/'InboxActivity.java'
+q=inbox.read_text()
+old='''    private String inboxState940="";'''
+new='''    private String inboxState940="";
+    private android.net.ConnectivityManager.NetworkCallback inboxNetworkCallback940;
+    private boolean inboxLastOnline940;'''
+if old not in q: raise SystemExit('Inbox state field marker missing for auto recovery')
+q=q.replace(old,new,1)
+old='''        renderShell();
+        loadInbox();
+    }'''
+new='''        renderShell();
+        loadInbox();
+        inboxLastOnline940=KingNetwork.online(this);
+        inboxNetworkCallback940=KingNetwork.watch(this,online->runOnUiThread(()->{
+            boolean recovered=online&&!inboxLastOnline940;inboxLastOnline940=online;
+            if(recovered&&!isFinishing()&&!isDestroyed()){if(threadListener!=null){threadListener.remove();threadListener=null;}loadInbox();}
+            else if(!online&&!isFinishing()&&!isDestroyed()){inboxState940="Offline • showing recent local conversations";renderModels(models);}
+        }));
+    }'''
+if old not in q: raise SystemExit('Inbox onCreate tail marker missing for auto recovery')
+q=q.replace(old,new,1)
+old='''    @Override protected void onDestroy(){if(threadListener!=null)threadListener.remove();super.onDestroy();}'''
+new='''    @Override protected void onDestroy(){KingNetwork.unwatch(this,inboxNetworkCallback940);inboxNetworkCallback940=null;if(threadListener!=null)threadListener.remove();super.onDestroy();}'''
+if old not in q: raise SystemExit('Inbox onDestroy marker missing for auto recovery')
+q=q.replace(old,new,1)
+inbox.write_text(q)
+print('v9.4.0 Discover and Messages network auto-recovery applied')
+
 print('v9.4.0 parity batch 1 applied')
