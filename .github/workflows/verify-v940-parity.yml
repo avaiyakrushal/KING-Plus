@@ -73,6 +73,11 @@ jobs:
           ! grep -F 'com.android.billingclient:billing' /tmp/src/app/build.gradle
           test ! -f /tmp/src/app/src/main/java/com/kingplus/social/BillingManager.java
           ! grep -F 'Open Play Recharge' /tmp/src/app/src/main/java/com/kingplus/social/MainActivity.java
+          grep -F 'phoneResendToken940' /tmp/src/app/src/main/java/com/kingplus/social/MainActivity.java
+          grep -F 'setForceResendingToken(phoneResendToken940)' /tmp/src/app/src/main/java/com/kingplus/social/MainActivity.java
+          grep -F 'publicFollowers940' /tmp/src/app/src/main/java/com/kingplus/social/KingPublicProfileActivity.java
+          grep -F 'profileVisitorsChip940' /tmp/src/app/src/main/java/com/kingplus/social/MainActivity.java
+          grep -F 'logProfileVisit940' /tmp/src/app/src/main/java/com/kingplus/social/KingPublicProfileActivity.java
           grep -F 'WACKO ITEM MODE' /tmp/src/app/src/main/java/com/kingplus/social/KingLudoLobbyActivity.java
           grep -F 'First VIP Reward Pack' /tmp/src/app/src/main/java/com/kingplus/social/KingVipVisualActivity.java
           grep -F 'String[] items={"Square","Privilege Pack"' /tmp/src/app/src/main/java/com/kingplus/social/MainActivity.java
