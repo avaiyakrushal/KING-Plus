@@ -3350,4 +3350,46 @@ q=q.replace('''        } catch (Exception ex) { stopMic(); Toast.makeText(this, 
 main.write_text(q)
 print('v9.4.0 mic permission runtime hardening applied')
 
+
+# Shared non-fatal action wrapper across remaining screens.
+(pkg/'KingSafe.java').write_text(r'''package com.kingplus.social;
+
+import android.app.Activity;
+import android.content.Context;
+import android.view.View;
+import android.widget.Toast;
+
+public final class KingSafe {
+    private KingSafe(){}
+    private static Context context(Object owner){
+        if(owner instanceof Context)return (Context)owner;
+        if(owner instanceof View)return ((View)owner).getContext();
+        return null;
+    }
+    public static void run(Object owner,String area,Runnable action){
+        try{if(action!=null)action.run();}
+        catch(Throwable error){
+            Context c=context(owner);
+            if(c!=null)KingStability.nonFatal(c,area,error);
+            if(c!=null){
+                try{
+                    if(!(c instanceof Activity)||(!((Activity)c).isFinishing()&&!((Activity)c).isDestroyed()))
+                        Toast.makeText(c,"This action could not open safely. Please try again.",Toast.LENGTH_LONG).show();
+                }catch(Throwable ignored){}
+            }
+        }
+    }
+}
+''')
+
+for java in pkg.glob('*.java'):
+    if java.name in {'KingSafe.java'}: continue
+    q=java.read_text()
+    q=q.replace('setOnClickListener(v->action.run());','setOnClickListener(v->KingSafe.run(this,"ui-action",action));')
+    q=q.replace('setOnClickListener(v -> action.run());','setOnClickListener(v->KingSafe.run(this,"ui-action",action));')
+    q=q.replace('setOnClickListener(x->action.run());','setOnClickListener(x->KingSafe.run(this,"ui-action",action));')
+    q=q.replace('setOnClickListener(x -> action.run());','setOnClickListener(x->KingSafe.run(this,"ui-action",action));')
+    java.write_text(q)
+print('v9.4.0 shared UI action crash guard applied')
+
 print('v9.4.0 parity batch 1 applied')
