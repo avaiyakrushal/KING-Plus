@@ -4330,4 +4330,29 @@ q=q.replace(old,new,1)
 party.write_text(q)
 print('v9.4.0 typed online-user search parity applied')
 
+
+# Bolo-reference parity: user-initiated room exit/recommendation flow.
+party=pkg/'PartyActivity.java'
+q=party.read_text()
+q=q.replace('''back.setOnClickListener(v->leaveRoom());''','''back.setOnClickListener(v->confirmLeave940());''',1)
+q=q.replace('''if(k==0){if(roomId!=null)leaveRoom();else renderLobby("Hot");}else KingNav.openRoot(this,k);''','''if(k==0){if(roomId!=null)confirmLeave940();else renderLobby("Hot");}else KingNav.openRoot(this,k);''',1)
+old='''    @Override public void onBackPressed(){if(roomId!=null)leaveRoom();else KingNav.confirmExit(this);}'''
+new='''    @Override public void onBackPressed(){if(roomId!=null)confirmLeave940();else KingNav.confirmExit(this);}'''
+if old not in q: raise SystemExit('Party onBackPressed marker missing for exit flow')
+q=q.replace(old,new,1)
+marker='''    private void leaveRoom(){'''
+helper=r'''    private void confirmLeave940(){
+        if(roomId==null){renderLobby("Hot");return;}
+        new AlertDialog.Builder(this).setTitle("Leave Party?")
+            .setMessage("You can stay, leave to Party lobby, or discover another live room.")
+            .setPositiveButton("Leave",(d,w)->leaveRoom())
+            .setNeutralButton("Find another",(d,w)->{leaveRoom();new android.os.Handler(android.os.Looper.getMainLooper()).postDelayed(()->showLobbySearch("Hot"),120L);})
+            .setNegativeButton("Stay",null).show();
+    }
+'''
+if marker not in q: raise SystemExit('leaveRoom marker missing for exit helper')
+q=q.replace(marker,helper+marker,1)
+party.write_text(q)
+print('v9.4.0 room exit recommendation parity applied')
+
 print('v9.4.0 parity batch 1 applied')
