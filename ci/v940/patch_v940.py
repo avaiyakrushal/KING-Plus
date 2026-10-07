@@ -825,6 +825,74 @@ q=q.replace(old,new,1)
 party.write_text(q)
 print('v9.4.0 synchronized KTV stage applied')
 
+# Route every exposed non-Ludo game into synchronized Party multiplayer, never local simulated matches.
+main=pkg/'MainActivity.java'
+q=main.read_text()
+old='''    private void openPlayableGame(String game){
+        String g=game==null?"":game.toLowerCase(java.util.Locale.US);
+        if("ludo".equals(g)){startActivity(new Intent(this,KingLudoLobbyActivity.class));return;}
+        if(g.equals("werewolf")||g.equals("spy")||g.equals("draw")||g.equals("bingo")||g.equals("domino")||g.equals("sheep")||g.equals("zoo")){
+            kingOpenGameRoom(game);
+            return;
+        }
+        Intent i=new Intent(this,GamePlayActivity.class);i.putExtra("game",game);startActivity(i);
+    }'''
+new='''    private void openPlayableGame(String game){
+        String g=game==null?"":game.toLowerCase(java.util.Locale.US);
+        if("ludo".equals(g)){startActivity(new Intent(this,KingLudoLobbyActivity.class));return;}
+        kingOpenGameRoom(game);
+    }'''
+if old not in q: raise SystemExit('Main v9.4 multiplayer route marker missing')
+q=q.replace(old,new,1)
+main.write_text(q)
+
+rg=pkg/'RoomGameActivity.java'
+q=rg.read_text()
+old='''    private void openPlayableRoomGame(String code){
+        Intent i=new Intent(this,GamePlayActivity.class);
+        i.putExtra("game",code);i.putExtra("roomId",roomId);i.putExtra("roomName",roomName);i.putExtra("displayName",displayName);
+        startActivity(i);
+    }'''
+new='''    private String normalizeRoomGame940(String code){
+        String g=code==null?"":code.toLowerCase(java.util.Locale.US).trim();
+        if("tic_tac_toe".equals(g)||"tic tac toe".equals(g))return "ttt";
+        if("guess".equals(g)||"guess number".equals(g))return "number";
+        if(g.contains("ludo"))return "ludo";
+        if(g.contains("werewolf"))return "werewolf";
+        if(g.contains("spy"))return "spy";
+        if(g.contains("draw"))return "draw";
+        if(g.contains("bingo"))return "bingo";
+        if(g.contains("domino"))return "domino";
+        if(g.contains("sheep"))return "sheep";
+        if(g.contains("zoo"))return "zoo";
+        if(g.contains("memory"))return "memory";
+        if(g.contains("reaction"))return "reaction";
+        if(g.contains("high"))return "highlow";
+        if(g.contains("wheel"))return "wheel";
+        if(g.contains("slot"))return "slot";
+        if(g.contains("coin"))return "coin";
+        if(g.contains("rock")||g.contains("rps"))return "rps";
+        if(g.contains("dice"))return "dice";
+        if(g.contains("number"))return "number";
+        return g;
+    }
+    private void startRequestedGame940(String code){
+        String gt=normalizeRoomGame940(code);
+        if("ludo".equals(gt)){openPartyLudo862();return;}
+        if(!moderator){toast("Tap Ready • host/co-host starts "+code+" for the room");return;}
+        startRound(gt);
+    }
+    private void openPlayableRoomGame(String code){startRequestedGame940(code);}'''
+if old not in q: raise SystemExit('RoomGame local game route marker missing')
+q=q.replace(old,new,1)
+
+old='''        if(!requestedGame.isEmpty()){TextView requested=tv("🎮 Selected from Games: "+requestedGame+" • tap Ready, then host/co-host starts the synchronized round",12,GOLD,true);requested.setBackground(bg(CARD,12));page.addView(requested,new LinearLayout.LayoutParams(-1,dp(54)));}'''
+new='''        if(!requestedGame.isEmpty()){TextView requested=tv("🎮 Selected from Games: "+requestedGame+" • realtime room mode",12,GOLD,true);requested.setBackground(bg(CARD,12));page.addView(requested,new LinearLayout.LayoutParams(-1,dp(54)));Button selectedStart=button("▶ "+requestedGame+" • Start / Join");selectedStart.setOnClickListener(v->startRequestedGame940(requestedGame));LinearLayout.LayoutParams sgp=new LinearLayout.LayoutParams(-1,dp(50));sgp.setMargins(0,dp(4),0,dp(6));page.addView(selectedStart,sgp);}'''
+if old not in q: raise SystemExit('RoomGame requested game prompt marker missing')
+q=q.replace(old,new,1)
+rg.write_text(q)
+print('v9.4.0 all exposed games routed to synchronized room multiplayer')
+
 # Route Party Family actions into the real Community/Family data flow.
 party=pkg/'PartyActivity.java'
 q=party.read_text()
