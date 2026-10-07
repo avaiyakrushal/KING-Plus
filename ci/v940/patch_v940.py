@@ -1694,11 +1694,12 @@ public class KingMultiVideoActivity extends androidx.fragment.app.FragmentActivi
 
 manifest=root/'app/src/main/AndroidManifest.xml'
 q=manifest.read_text()
-old='''        <activity android:name=".PartyActivity" android:exported="false" />'''
-new='''        <activity android:name=".PartyActivity" android:exported="false" />
+old='''        <activity android:name=".PartyActivity" android:exported="false" android:windowSoftInputMode="adjustResize" />'''
+new='''        <activity android:name=".PartyActivity" android:exported="false" android:windowSoftInputMode="adjustResize" />
         <activity android:name=".KingMultiVideoActivity" android:exported="false" />'''
-if old not in q: raise SystemExit('manifest Party marker missing for Multi Video')
-q=q.replace(old,new,1)
+if '.KingMultiVideoActivity' not in q:
+    if old not in q: raise SystemExit('manifest Party marker missing for Multi Video')
+    q=q.replace(old,new,1)
 manifest.write_text(q)
 
 party=pkg/'PartyActivity.java'
