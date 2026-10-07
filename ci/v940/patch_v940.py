@@ -963,4 +963,62 @@ q=q.replace('''TextView start=tv(roomCreateInFlight921?"Creating Party…":"🎉
 party.write_text(q)
 print('v9.4.0 robust Create Party visual pass applied')
 
+# Preserve canonical KING identity across Google re-login, including offline/profile-read failure.
+main=pkg/'MainActivity.java'
+q=main.read_text()
+old='''    private void restoreCanonicalGoogleProfile931(FirebaseUser user,String fallbackName,boolean navigateHome){
+        if(user==null)return;
+        clearCrossAccountIdentity931(user.getUid());
+        final String googleName=googleName931(user,fallbackName);
+        final String googlePhoto=user.getPhotoUrl()==null?"":user.getPhotoUrl().toString();
+        if(firestore==null){applyCanonicalIdentity931(user,googleName,googlePhoto,null);finishGoogleIdentity931(navigateHome,false);return;}
+        firestore.collection("public_profiles").document(user.getUid()).get()
+            .addOnSuccessListener(doc->{
+                boolean existing=doc!=null&&doc.exists();
+                String canonicalName=existing?doc.getString("displayName"):null;
+                if(canonicalName==null||canonicalName.trim().isEmpty())canonicalName=googleName;
+                String canonicalPhoto=existing?doc.getString("photoUrl"):null;
+                if(canonicalPhoto==null||canonicalPhoto.trim().isEmpty())canonicalPhoto=googlePhoto;
+                applyCanonicalIdentity931(user,canonicalName,canonicalPhoto,doc);
+                if(!existing)syncPublicProfile();
+                finishGoogleIdentity931(navigateHome,true);
+            })
+            .addOnFailureListener(e->{applyCanonicalIdentity931(user,googleName,googlePhoto,null);KingStability.nonFatal(this,"canonical-profile-read",e);finishGoogleIdentity931(navigateHome,false);});
+    }'''
+new='''    private void restoreCanonicalGoogleProfile931(FirebaseUser user,String fallbackName,boolean navigateHome){
+        if(user==null)return;
+        clearCrossAccountIdentity931(user.getUid());
+        final SharedPreferences identityPrefs=getPreferences(0);
+        final boolean sameAccount=user.getUid().equals(identityPrefs.getString("firebase_uid",""));
+        final String localName=sameAccount?identityPrefs.getString("name",""):"";
+        final String localPhoto=sameAccount?identityPrefs.getString("profile_photo_cloud",""):"";
+        final String googleName=googleName931(user,fallbackName);
+        final String googlePhoto=user.getPhotoUrl()==null?"":user.getPhotoUrl().toString();
+        final String safeLocalName=localName==null?"":localName.trim();
+        final String safeLocalPhoto=localPhoto==null?"":localPhoto.trim();
+        if(firestore==null){
+            applyCanonicalIdentity931(user,safeLocalName.isEmpty()?googleName:safeLocalName,safeLocalPhoto.isEmpty()?googlePhoto:safeLocalPhoto,null);
+            finishGoogleIdentity931(navigateHome,false);return;
+        }
+        firestore.collection("public_profiles").document(user.getUid()).get()
+            .addOnSuccessListener(doc->{
+                boolean existing=doc!=null&&doc.exists();
+                String canonicalName=existing?doc.getString("displayName"):null;
+                if(canonicalName==null||canonicalName.trim().isEmpty())canonicalName=safeLocalName.isEmpty()?googleName:safeLocalName;
+                String canonicalPhoto=existing?doc.getString("photoUrl"):null;
+                if(canonicalPhoto==null||canonicalPhoto.trim().isEmpty())canonicalPhoto=safeLocalPhoto.isEmpty()?googlePhoto:safeLocalPhoto;
+                applyCanonicalIdentity931(user,canonicalName,canonicalPhoto,doc);
+                if(!existing)syncPublicProfile();
+                finishGoogleIdentity931(navigateHome,true);
+            })
+            .addOnFailureListener(e->{
+                applyCanonicalIdentity931(user,safeLocalName.isEmpty()?googleName:safeLocalName,safeLocalPhoto.isEmpty()?googlePhoto:safeLocalPhoto,null);
+                KingStability.nonFatal(this,"canonical-profile-read",e);finishGoogleIdentity931(navigateHome,false);
+            });
+    }'''
+if old not in q: raise SystemExit('canonical Google profile method marker missing')
+q=q.replace(old,new,1)
+main.write_text(q)
+print('v9.4.0 canonical profile re-login hardening applied')
+
 print('v9.4.0 parity batch 1 applied')
