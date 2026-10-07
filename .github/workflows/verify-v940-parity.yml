@@ -199,6 +199,17 @@ jobs:
         working-directory: /tmp/src
         continue-on-error: true
         run: gradle :app:lintDebug --no-daemon
+      - name: Show lint errors for crash audit
+        working-directory: /tmp/src
+        if: always()
+        run: |
+          REPORT=app/build/intermediates/lint_intermediate_text_report/debug/lintReportDebug/lint-results-debug.txt
+          if [ -f "$REPORT" ]; then
+            echo "=== LINT ERRORS ==="
+            grep -n " Error: " "$REPORT" || true
+            echo "=== CRASH-RELEVANT WARNINGS ==="
+            grep -nE "MissingPermission|WrongThread|Recycle|RegisterReceiverFlag|UnsafeIntentLaunch|SetJavaScriptEnabled|ObsoleteSdkInt" "$REPORT" | head -200 || true
+          fi
       - name: Prepare current test APK
         run: |
           cp /tmp/src/app/build/outputs/apk/debug/app-debug.apk /tmp/KING-Plus-v9.4.0-current-test.apk
