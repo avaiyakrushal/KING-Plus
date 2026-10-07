@@ -4247,4 +4247,41 @@ q=q.replace(old,new,1)
 party.write_text(q)
 print('v9.4.0 Party room search history parity applied')
 
+
+# Bolo-reference parity: Audio PK history.
+party=pkg/'PartyActivity.java'
+q=party.read_text()
+old='''        items.add("💫 Interactive Emoji"); items.add("🎧 Audio PK"); items.add("🎁 Gift Wall"); items.add("🔍 Online User Search");'''
+new='''        items.add("💫 Interactive Emoji"); items.add("🎧 Audio PK"); items.add("📜 PK History"); items.add("🎁 Gift Wall"); items.add("🔍 Online User Search");'''
+if old not in q: raise SystemExit('Audio PK menu marker missing for PK history')
+q=q.replace(old,new,1)
+old='''        else if(x.contains("Audio PK"))pkBattle();
+        else if(x.contains("Gift Wall"))giftWall620();'''
+new='''        else if(x.contains("Audio PK"))pkBattle();
+        else if(x.contains("PK History"))pkHistory940();
+        else if(x.contains("Gift Wall"))giftWall620();'''
+if old not in q: raise SystemExit('Audio PK handler marker missing for PK history')
+q=q.replace(old,new,1)
+marker='''    private void audioPkPanel700(){'''
+helper=r'''    private void pkHistory940(){
+        if(!cloudRoom||db==null||roomId==null){toast("Open a live Party room first");return;}
+        db.collection("live_rooms").document(roomId).collection("events").orderBy("createdAt",Query.Direction.DESCENDING).limit(180).get().addOnSuccessListener(snap->{
+            List<String> rows=new ArrayList<>();
+            for(DocumentSnapshot d:snap.getDocuments()){
+                String type=d.getString("type");if(!"audio_pk".equals(type)&&!"audio_pk_end".equals(type))continue;
+                String text=d.getString("text");if(text==null||text.trim().isEmpty())text="audio_pk".equals(type)?"Audio PK started":"Audio PK ended";
+                com.google.firebase.Timestamp at=d.getTimestamp("createdAt");String when=at==null?"":new java.text.SimpleDateFormat("dd MMM • HH:mm",java.util.Locale.US).format(at.toDate());
+                rows.add(("audio_pk".equals(type)?"⚔ START  ":"🏁 END  ")+(when.isEmpty()?"":when+"  •  ")+text);if(rows.size()>=40)break;
+            }
+            if(rows.isEmpty()){new AlertDialog.Builder(this).setTitle("📜 PK History").setMessage("No Audio PK history in this room yet.").setPositiveButton("OK",null).show();return;}
+            new AlertDialog.Builder(this).setTitle("📜 PK History").setItems(rows.toArray(new String[0]),null).setNegativeButton("Close",null).show();
+        }).addOnFailureListener(e->toast("PK history unavailable: "+msg(e)));
+    }
+
+'''
+if marker not in q: raise SystemExit('audioPkPanel marker missing for PK history helper')
+q=q.replace(marker,helper+marker,1)
+party.write_text(q)
+print('v9.4.0 Audio PK history parity applied')
+
 print('v9.4.0 parity batch 1 applied')
