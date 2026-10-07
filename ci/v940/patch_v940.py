@@ -637,4 +637,22 @@ q=q.replace(old,new,1)
 rg.write_text(q)
 
 
+# Party control cleanup after inline RTC
+party=pkg/'PartyActivity.java'
+q=party.read_text()
+q=q.replace('''        items.add("🎙 Open voice room"); items.add("📹 Multi Video"); items.add("🎵 Song request"); items.add("😊 Reaction");''','''        items.add(micOn?"🎤 Mic OFF":"🎤 Mic ON"); items.add("📹 Multi Video"); items.add("🎵 Song request"); items.add("😊 Reaction");''',1)
+q=q.replace('''        else if(x.contains("Open voice"))openVoice();
+        else if(x.contains("Multi Video"))openVideoRoom();''','''        else if(x.contains("Mic ON")||x.contains("Mic OFF"))toggleMic();
+        else if(x.contains("Multi Video"))openVideoRoom();''',1)
+q=q.replace('''        else if(x.contains("Games"))openDeepFlow810("game_center");''','''        else if(x.contains("Games"))openRoomGames740();''',1)
+q=q.replace('''        else if("Voice Room".equals(label))openVoice();
+        else if("Multi Video".equals(label))openVideoRoom();''','''        else if("Mic ON".equals(label)||"Mic OFF".equals(label))toggleMic();
+        else if("Multi Video".equals(label))openVideoRoom();''',1)
+q=q.replace('''"Find User","Notice","Voice Room","Multi Video"''','''"Find User","Notice",micOn?"Mic OFF":"Mic ON","Multi Video"''',1)
+old='''        seatsListener=room.collection("seats").addSnapshotListener((snap,e)->{if(e!=null||snap==null)return;seatNames.clear();seatUids.clear();seatMics.clear();mySeat=-1;for(DocumentSnapshot d:snap.getDocuments()){int no;try{no=Integer.parseInt(d.getId());}catch(Exception ex){continue;}seatNames.put(no,str(d,"name","Guest"));seatUids.put(no,d.getString("uid"));seatMics.put(no,!Boolean.FALSE.equals(d.getBoolean("micOn")));if(user.getUid().equals(d.getString("uid"))){mySeat=no;micOn=Boolean.TRUE.equals(d.getBoolean("micOn"));}}rebuildSeats();refreshPeopleCounts();if(micLabel!=null){refreshMicControl();}});'''
+new='''        seatsListener=room.collection("seats").addSnapshotListener((snap,e)->{if(e!=null||snap==null)return;seatNames.clear();seatUids.clear();seatMics.clear();mySeat=-1;for(DocumentSnapshot d:snap.getDocuments()){int no;try{no=Integer.parseInt(d.getId());}catch(Exception ex){continue;}seatNames.put(no,str(d,"name","Guest"));seatUids.put(no,d.getString("uid"));seatMics.put(no,!Boolean.FALSE.equals(d.getBoolean("micOn")));if(user.getUid().equals(d.getString("uid"))){mySeat=no;micOn=Boolean.TRUE.equals(d.getBoolean("micOn"));}}setInlineAudioMuted940(!(micOn&&mySeat>0));rebuildSeats();refreshPeopleCounts();if(micLabel!=null){refreshMicControl();}});'''
+if old in q:q=q.replace(old,new,1)
+party.write_text(q)
+print('v9.4.0 Party controls cleaned')
+
 print('v9.4.0 parity batch 1 applied')
