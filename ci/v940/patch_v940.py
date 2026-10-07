@@ -3638,4 +3638,32 @@ q=q.replace(old,new,1)
 hub.write_text(q)
 print('v9.4.0 in-app Friend Broadcast parity applied')
 
+
+# Party moderation parity: Manage Members must expose real actions for seated and non-seated members.
+party=pkg/'PartyActivity.java'
+q=party.read_text()
+
+old='''            memberProfileDialog(uid,labels.get(w));'''
+new='''            if(isModerator()&&user!=null&&!uid.equals(user.getUid()))showProfileMore(uid,labels.get(w));else memberProfileDialog(uid,labels.get(w));'''
+if old not in q: raise SystemExit('Members dialog action marker missing for moderator member menu')
+q=q.replace(old,new,1)
+
+old='''            if(occupiedSeat>0){items.add(Boolean.FALSE.equals(seatMics.get(occupiedSeat))?"🎤 Unmute seat":"🔇 Mute seat");items.add("↔ Move seat");items.add("⬇ Remove from seat");}
+            items.add("🚪 Kick");items.add("🚫 Ban");'''
+new='''            if(occupiedSeat>0){items.add(Boolean.FALSE.equals(seatMics.get(occupiedSeat))?"🎤 Unmute seat":"🔇 Mute seat");items.add("↔ Move seat");items.add("⬇ Remove from seat");}
+            else items.add("🎙 Assign mic seat");
+            items.add("🚪 Kick");items.add("🚫 Ban");'''
+if old not in q: raise SystemExit('Profile More moderator seat marker missing')
+q=q.replace(old,new,1)
+
+old='''            else if(x.contains("Mute seat")||x.contains("Unmute seat"))hostToggleSeat(occupiedSeat);else if(x.contains("Move seat"))moveUserToSeatDialog(uid,name,occupiedSeat);else if(x.contains("Remove from seat"))hostRemoveSeat(occupiedSeat);
+            else if(x.contains("Kick"))kickUser(uid,name);'''
+new='''            else if(x.contains("Mute seat")||x.contains("Unmute seat"))hostToggleSeat(occupiedSeat);else if(x.contains("Move seat"))moveUserToSeatDialog(uid,name,occupiedSeat);else if(x.contains("Assign mic seat"))moveUserToSeatDialog(uid,name,-1);else if(x.contains("Remove from seat"))hostRemoveSeat(occupiedSeat);
+            else if(x.contains("Kick"))kickUser(uid,name);'''
+if old not in q: raise SystemExit('Profile More moderator action marker missing')
+q=q.replace(old,new,1)
+
+party.write_text(q)
+print('v9.4.0 non-seated member moderation parity applied')
+
 print('v9.4.0 parity batch 1 applied')
