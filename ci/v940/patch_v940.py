@@ -4637,4 +4637,65 @@ q=q.replace(marker,helper+marker,1)
 party.write_text(q)
 print('v9.4.0 Audio PK custom team assignment parity applied')
 
+
+# Bolo-reference parity: invite friends from Following list, not Firebase UID only.
+party=pkg/'PartyActivity.java'
+q=party.read_text()
+
+old='''    private void inviteDialog(){
+        if(!cloudRoom||user==null){shareRoom();return;}
+        final EditText e=new EditText(this);e.setHint("Friend Firebase UID");
+        new AlertDialog.Builder(this).setTitle("Invite to Party").setView(e).setNegativeButton("Cancel",null).setPositiveButton("Invite",(d,w)->{
+            String uid=e.getText().toString().trim();if(uid.isEmpty())return;
+            Runnable send=()->CloudBackend.sendRoomInvite(uid,roomId,roomName,(ok,m)->runOnUiThread(()->toast(m)));
+            if(roomPrivate&&isModerator()&&db!=null){
+                Map<String,Object> grant=new HashMap<>();grant.put("uid",uid);grant.put("grantedBy",user.getUid());grant.put("createdAt",FieldValue.serverTimestamp());
+                db.collection("live_rooms").document(roomId).collection("access").document(uid).set(grant)
+                    .addOnSuccessListener(v->send.run()).addOnFailureListener(x->toast("Private invite failed: "+msg(x)));
+            }else send.run();
+        }).show();
+    }'''
+new='''    private void inviteDialog(){
+        if(!cloudRoom||user==null){shareRoom();return;}
+        String[] choices={"👥 Invite from Following","🔎 Enter Firebase UID","🔗 Share room link"};
+        new AlertDialog.Builder(this).setTitle("Invite to Party").setItems(choices,(d,w)->{
+            if(w==0)inviteFollowing940();
+            else if(w==1)inviteByUid940();
+            else shareRoom();
+        }).setNegativeButton("Cancel",null).show();
+    }
+    private void inviteByUid940(){
+        final EditText e=new EditText(this);e.setHint("Friend Firebase UID");e.setSingleLine(true);
+        new AlertDialog.Builder(this).setTitle("Invite by UID").setView(e).setNegativeButton("Cancel",null).setPositiveButton("Invite",(d,w)->{
+            String uid=e.getText().toString().trim();if(uid.isEmpty())return;sendRoomInvite940(uid,"Friend");
+        }).show();
+    }
+    private void inviteFollowing940(){
+        if(db==null||user==null){toast("Firebase sign-in required");return;}
+        db.collection("follows").whereEqualTo("followerUid",user.getUid()).limit(80).get().addOnSuccessListener(follows->{
+            Set<String> ids=new HashSet<>();for(DocumentSnapshot d:follows.getDocuments()){String uid=d.getString("targetUid");if(uid!=null&&!uid.isEmpty()&&!uid.equals(user.getUid())&&!memberUids.containsValue(uid))ids.add(uid);}
+            if(ids.isEmpty()){new AlertDialog.Builder(this).setTitle("Invite from Following").setMessage("No followed users are available to invite right now.").setPositiveButton("Invite by UID",(d,w)->inviteByUid940()).setNegativeButton("Close",null).show();return;}
+            db.collection("public_profiles").limit(100).get().addOnSuccessListener(profiles->{
+                List<String> labels=new ArrayList<>();List<String> uids=new ArrayList<>();
+                for(DocumentSnapshot p:profiles.getDocuments()){String uid=p.getString("uid");if(uid==null||uid.isEmpty())uid=p.getId();if(!ids.contains(uid))continue;labels.add("👤 "+str(p,"displayName","KING User"));uids.add(uid);}
+                for(String uid:ids)if(!uids.contains(uid)){labels.add("👤 KING User • "+publicId(uid));uids.add(uid);}
+                if(labels.isEmpty()){toast("No followed users available");return;}
+                new AlertDialog.Builder(this).setTitle("👥 Invite Following • "+labels.size()).setItems(labels.toArray(new String[0]),(d,w)->sendRoomInvite940(uids.get(w),labels.get(w).replace("👤 ",""))).setNegativeButton("Close",null).show();
+            }).addOnFailureListener(e->toast("Profiles unavailable: "+msg(e)));
+        }).addOnFailureListener(e->toast("Following list unavailable: "+msg(e)));
+    }
+    private void sendRoomInvite940(String uid,String name){
+        if(uid==null||uid.trim().isEmpty())return;final String target=uid.trim();
+        Runnable send=()->CloudBackend.sendRoomInvite(target,roomId,roomName,(ok,m)->runOnUiThread(()->toast(ok?"Invite sent to "+name:m)));
+        if(roomPrivate&&isModerator()&&db!=null){
+            Map<String,Object> grant=new HashMap<>();grant.put("uid",target);grant.put("grantedBy",user.getUid());grant.put("createdAt",FieldValue.serverTimestamp());
+            db.collection("live_rooms").document(roomId).collection("access").document(target).set(grant)
+                .addOnSuccessListener(v->send.run()).addOnFailureListener(x->toast("Private invite failed: "+msg(x)));
+        }else send.run();
+    }'''
+if old not in q: raise SystemExit('inviteDialog marker missing for Following invite parity')
+q=q.replace(old,new,1)
+party.write_text(q)
+print('v9.4.0 Following-based Party invite parity applied')
+
 print('v9.4.0 parity batch 1 applied')
