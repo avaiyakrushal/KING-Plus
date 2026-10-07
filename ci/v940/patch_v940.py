@@ -3834,7 +3834,7 @@ helpers=r'''    private void teamUpPanel940(){
                 if("team_up_close".equals(type)&&card!=null)closed.add(card);
                 else if("team_up_join".equals(type)&&card!=null){Set<String> s=joined.get(card);if(s==null){s=new HashSet<>();joined.put(card,s);}String uid=d.getString("actorUid");if(uid!=null)s.add(uid);}
             }
-            List<DocumentSnapshot> cards=new ArrayList<>();List<String> rows=new ArrayList<>();rows.add("＋ Create Team Up card");long now=System.currentTimeMillis();
+            List<DocumentSnapshot> cards=new ArrayList<>();List<String> rows=new ArrayList<>();rows.add("＋ Create Team Up card");rows.add("⚡ Quick Match");long now=System.currentTimeMillis();
             for(DocumentSnapshot d:snap.getDocuments()){
                 if(!"team_up_create".equals(d.getString("type"))||closed.contains(d.getId()))continue;
                 com.google.firebase.Timestamp ts=d.getTimestamp("createdAt");if(ts!=null&&now-ts.toDate().getTime()>3600000L)continue;
@@ -3843,10 +3843,16 @@ helpers=r'''    private void teamUpPanel940(){
                 cards.add(d);rows.add("🤝 "+game+"  •  "+host+"  •  "+count+"/"+capacity);if(cards.size()>=15)break;
             }
             new AlertDialog.Builder(this).setTitle("🤝 Team Up").setItems(rows.toArray(new String[0]),(dlg,w)->{
-                if(w==0){createTeamUpCard940();return;}DocumentSnapshot card=cards.get(w-1);String hostUid=card.getString("actorUid"),hostName=str(card,"actorName","KING User"),game=str(card,"teamGame","Game");
+                if(w==0){createTeamUpCard940();return;}if(w==1){quickTeamUp940(cards);return;}DocumentSnapshot card=cards.get(w-2);String hostUid=card.getString("actorUid"),hostName=str(card,"actorName","KING User"),game=str(card,"teamGame","Game");
                 if(user.getUid().equals(hostUid))teamUpOwnerMenu940(card,game);else joinTeamUpCard940(card,game,hostName);
             }).setNegativeButton("Close",null).show();
         }).addOnFailureListener(e->toast("Team Up unavailable: "+msg(e)));
+    }
+    private void quickTeamUp940(List<DocumentSnapshot> cards){
+        if(cards!=null&&!cards.isEmpty()){
+            for(DocumentSnapshot card:cards){String host=card.getString("actorUid");if(host!=null&&user!=null&&!user.getUid().equals(host)){joinTeamUpCard940(card,str(card,"teamGame","Game"),str(card,"actorName","KING User"));return;}}
+        }
+        publishTeamUpCard940("Ludo",4);toast("No open team found • created a 4-player Ludo team");
     }
     private void createTeamUpCard940(){
         String[] games={"Ludo","Werewolf","Spy","Draw & Guess","Domino","Dice"};
