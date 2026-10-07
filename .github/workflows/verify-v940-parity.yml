@@ -80,7 +80,14 @@ jobs:
           grep -F 'showLiveEmojiPanelV530' /tmp/src/app/src/main/java/com/kingplus/social/PartyActivity.java
           grep -F 'giftShopPanel' /tmp/src/app/src/main/java/com/kingplus/social/PartyActivity.java
           grep -F 'audioPkPanel700' /tmp/src/app/src/main/java/com/kingplus/social/PartyActivity.java
+          grep -F 'document("audio_pk")' /tmp/src/app/src/main/java/com/kingplus/social/PartyActivity.java
+          grep -F 'Start 3 min PK' /tmp/src/app/src/main/java/com/kingplus/social/PartyActivity.java
           grep -F 'ktvQueuePanel' /tmp/src/app/src/main/java/com/kingplus/social/PartyActivity.java
+          grep -F 'document("ktv")' /tmp/src/app/src/main/java/com/kingplus/social/PartyActivity.java
+          grep -F 'Host/co-host selects the next singer' /tmp/src/app/src/main/java/com/kingplus/social/PartyActivity.java
+          grep -F 'Mic ON • live inside Party room' /tmp/src/app/src/main/java/com/kingplus/social/PartyActivity.java
+          grep -F 'seenLiveEmojiEventsV530.size()>80' /tmp/src/app/src/main/java/com/kingplus/social/PartyActivity.java
+          grep -F 'openRoomGames740()' /tmp/src/app/src/main/java/com/kingplus/social/PartyActivity.java
           grep -F 'kickUser' /tmp/src/app/src/main/java/com/kingplus/social/PartyActivity.java
           grep -F 'banUser' /tmp/src/app/src/main/java/com/kingplus/social/PartyActivity.java
           grep -F 'coHostDialog' /tmp/src/app/src/main/java/com/kingplus/social/PartyActivity.java
