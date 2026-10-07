@@ -478,7 +478,7 @@ helpers='''    private void attachInRoomVoice940(FrameLayout shell){
                 .setSubject(roomName==null||roomName.trim().isEmpty()?"KING Plus Party":roomName)
                 .setAudioMuted(!micOn)
                 .setVideoMuted(true)
-                .setLowBandwidthMode(true)
+                .setConfigOverride("startLowBandwidthMode",true)
                 .setUserInfo(info940)
                 .setFeatureFlag("welcomepage.enabled",false)
                 .setFeatureFlag("prejoinpage.enabled",false)
