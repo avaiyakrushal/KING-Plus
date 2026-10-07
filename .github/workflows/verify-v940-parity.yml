@@ -137,8 +137,9 @@ jobs:
           grep -F 'match /chat_media/{ownerUid}/{threadId}/{fileName}' /tmp/src/storage.rules
           grep -F 'requestMicSeat940' /tmp/src/app/src/main/java/com/kingplus/social/PartyActivity.java
           grep -F 'openMicRequests940' /tmp/src/app/src/main/java/com/kingplus/social/PartyActivity.java
-          grep -F 'collection("video_seats")' /tmp/src/app/src/main/java/com/kingplus/social/KingMultiVideoActivity.java
-          grep -F 'collection("video_seat_invites")' /tmp/src/app/src/main/java/com/kingplus/social/KingMultiVideoActivity.java
+          grep -F '"video_seat_claim"' /tmp/src/app/src/main/java/com/kingplus/social/KingMultiVideoActivity.java
+          grep -F '"video_invite"' /tmp/src/app/src/main/java/com/kingplus/social/KingMultiVideoActivity.java
+          grep -F '"video_presence"' /tmp/src/app/src/main/java/com/kingplus/social/KingMultiVideoActivity.java
           grep -F 'buildSetVideoMutedIntent' /tmp/src/app/src/main/java/com/kingplus/social/KingMultiVideoActivity.java
           grep -F 'leaveAndFinish940' /tmp/src/app/src/main/java/com/kingplus/social/KingMultiVideoActivity.java
           grep -F 'match /video_seats/{seatId}' /tmp/src/firestore.rules
