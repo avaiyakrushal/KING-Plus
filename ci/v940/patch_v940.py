@@ -2546,9 +2546,9 @@ helper='''    private void showGameHistory940(){
                 if(!"play".equals(type)||text.isEmpty())continue;
                 if(text.startsWith("🏁")||text.contains(" wins")||text.contains(" Draw")||text.contains(" ended ")){rows.add(text);if(rows.size()>=20)break;}
             }
-            if(rows.isEmpty()&&!result.isEmpty())rows.add("🏁 "+result.replace("\n"," • "));
+            if(rows.isEmpty()&&!result.isEmpty())rows.add("🏁 "+result.replace("\\n"," • "));
             if(rows.isEmpty()){new AlertDialog.Builder(this).setTitle("📜 Game History").setMessage("No finished Party game rounds yet.").setPositiveButton("OK",null).show();return;}
-            new AlertDialog.Builder(this).setTitle("📜 Recent game results").setItems(rows.toArray(new String[0]),(d,w)->new AlertDialog.Builder(this).setTitle("Round result").setMessage(rows.get(w).replace(" • ","\n")).setPositiveButton("OK",null).show()).setNegativeButton("Close",null).show();
+            new AlertDialog.Builder(this).setTitle("📜 Recent game results").setItems(rows.toArray(new String[0]),(d,w)->new AlertDialog.Builder(this).setTitle("Round result").setMessage(rows.get(w).replace(" • ","\\n")).setPositiveButton("OK",null).show()).setNegativeButton("Close",null).show();
         }).addOnFailureListener(e->toast("Game history unavailable: "+e.getMessage()));
     }
 
