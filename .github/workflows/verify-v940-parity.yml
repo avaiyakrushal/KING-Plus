@@ -5,6 +5,8 @@ on:
     paths:
       - '.github/workflows/verify-v940-parity.yml'
       - 'ci/v940/TRIGGER'
+      - 'ci/v940/patch_v940.py'
+      - 'ci/v940/PARITY-GATES.md'
   workflow_dispatch:
 permissions:
   contents: read
@@ -66,6 +68,18 @@ jobs:
           grep -F 'WACKO ITEM MODE' /tmp/src/app/src/main/java/com/kingplus/social/KingLudoLobbyActivity.java
           grep -F 'First VIP Reward Pack' /tmp/src/app/src/main/java/com/kingplus/social/KingVipVisualActivity.java
           grep -F 'String[] items={"Square","Privilege Pack"' /tmp/src/app/src/main/java/com/kingplus/social/MainActivity.java
+          grep -F 'JitsiMeetView inRoomVoiceView940' /tmp/src/app/src/main/java/com/kingplus/social/PartyActivity.java
+          grep -F 'buildSetAudioMutedIntent' /tmp/src/app/src/main/java/com/kingplus/social/PartyActivity.java
+          grep -F 'ludo_matches' /tmp/src/app/src/main/java/com/kingplus/social/OnlineLudoActivity.java
+          grep -F 'partyRoomMode' /tmp/src/app/src/main/java/com/kingplus/social/OnlineLudoActivity.java
+          grep -F 'showLiveEmojiPanelV530' /tmp/src/app/src/main/java/com/kingplus/social/PartyActivity.java
+          grep -F 'giftShopPanel' /tmp/src/app/src/main/java/com/kingplus/social/PartyActivity.java
+          grep -F 'audioPkPanel700' /tmp/src/app/src/main/java/com/kingplus/social/PartyActivity.java
+          grep -F 'ktvQueuePanel' /tmp/src/app/src/main/java/com/kingplus/social/PartyActivity.java
+          grep -F 'kickUser' /tmp/src/app/src/main/java/com/kingplus/social/PartyActivity.java
+          grep -F 'banUser' /tmp/src/app/src/main/java/com/kingplus/social/PartyActivity.java
+          grep -F 'coHostDialog' /tmp/src/app/src/main/java/com/kingplus/social/PartyActivity.java
+          grep -F 'game_votes' /tmp/src/app/src/main/java/com/kingplus/social/RoomGameActivity.java
       - name: Compile parity development build
         working-directory: /tmp/src
         run: gradle :app:assembleDebug --no-daemon
