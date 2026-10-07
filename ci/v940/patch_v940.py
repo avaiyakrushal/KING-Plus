@@ -1898,4 +1898,25 @@ q=q.replace(marker,helpers+marker,1)
 pub.write_text(q)
 print('v9.4.0 public profile real social counters applied')
 
+
+# Public profile visits: log real visitor records from every profile entry point.
+pub=pkg/'KingPublicProfileActivity.java'
+q=pub.read_text()
+old='''    @Override public void onCreate(Bundle b){super.onCreate(b);uid=getIntent().getStringExtra("uid");name=getIntent().getStringExtra("name");if(uid==null)uid="";if(name==null||name.trim().isEmpty())name="KING User";try{db=FirebaseFirestore.getInstance();me=FirebaseAuth.getInstance().getCurrentUser();}catch(Exception ignored){}render();load();}'''
+new='''    @Override public void onCreate(Bundle b){super.onCreate(b);uid=getIntent().getStringExtra("uid");name=getIntent().getStringExtra("name");if(uid==null)uid="";if(name==null||name.trim().isEmpty())name="KING User";try{db=FirebaseFirestore.getInstance();me=FirebaseAuth.getInstance().getCurrentUser();}catch(Exception ignored){}render();logProfileVisit940();load();}'''
+if old not in q: raise SystemExit('Public profile onCreate marker missing for visitor tracking')
+q=q.replace(old,new,1)
+
+marker='''    private void load(){'''
+helper='''    private void logProfileVisit940(){
+        if(db==null||me==null||uid==null||uid.isEmpty()||uid.equals(me.getUid()))return;
+        Map<String,Object> visit=new HashMap<>();visit.put("uid",me.getUid());visit.put("name",displayName());visit.put("visitedAt",FieldValue.serverTimestamp());
+        db.collection("public_profiles").document(uid).collection("visitors").document(me.getUid()).set(visit,com.google.firebase.firestore.SetOptions.merge()).addOnFailureListener(e->{});
+    }
+'''
+if marker not in q: raise SystemExit('Public profile load marker missing for visitor helper')
+q=q.replace(marker,helper+marker,1)
+pub.write_text(q)
+print('v9.4.0 public profile visitor tracking applied')
+
 print('v9.4.0 parity batch 1 applied')
