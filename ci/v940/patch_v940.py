@@ -4355,4 +4355,40 @@ q=q.replace(marker,helper+marker,1)
 party.write_text(q)
 print('v9.4.0 room exit recommendation parity applied')
 
+
+# Bolo-reference parity: searchable KTV song request from the real room playlist.
+party=pkg/'PartyActivity.java'
+q=party.read_text()
+old='''    private void karaokeDialog(){
+        String[] songs={"🎵 Romantic Hits","🎤 Bollywood Mix","🎶 Party Beats","💜 Love Songs","🔥 Trending Music","＋ Custom song title"};
+        new AlertDialog.Builder(this).setTitle("Sing / Song request").setItems(songs,(d,w)->{
+            if(w==songs.length-1){final EditText e=new EditText(this);e.setHint("Song title");new AlertDialog.Builder(this).setTitle("Request a song").setView(e).setPositiveButton("Request",(x,y)->requestSong(e.getText().toString().trim())).setNegativeButton("Cancel",null).show();}
+            else requestSong(songs[w].substring(songs[w].indexOf(' ')+1));
+        }).setNegativeButton("Close",null).show();
+    }'''
+new='''    private void karaokeDialog(){
+        String[] songs={"🔎 Search room song library","🎵 Romantic Hits","🎤 Bollywood Mix","🎶 Party Beats","💜 Love Songs","🔥 Trending Music","＋ Custom song title"};
+        new AlertDialog.Builder(this).setTitle("Sing / Song request").setMessage(musicNames.isEmpty()?"Room playlist is empty • presets and custom requests are available.":"Room playlist: "+musicNames.size()+" song"+(musicNames.size()==1?"":"s"))
+            .setItems(songs,(d,w)->{
+                if(w==0){searchKtvSongs940();return;}
+                if(w==songs.length-1){final EditText e=new EditText(this);e.setHint("Song title");new AlertDialog.Builder(this).setTitle("Request a song").setView(e).setPositiveButton("Request",(x,y)->requestSong(e.getText().toString().trim())).setNegativeButton("Cancel",null).show();}
+                else requestSong(songs[w].substring(songs[w].indexOf(' ')+1));
+            }).setNegativeButton("Close",null).show();
+    }
+    private void searchKtvSongs940(){
+        final EditText e=new EditText(this);e.setHint("Search room playlist");e.setSingleLine(true);
+        new AlertDialog.Builder(this).setTitle("🔎 KTV Song Search").setView(e).setNegativeButton("Cancel",null).setNeutralButton("Show all",(d,w)->showKtvSongResults940(""))
+            .setPositiveButton("Search",(d,w)->showKtvSongResults940(e.getText().toString().trim())).show();
+    }
+    private void showKtvSongResults940(String query){
+        String q=query==null?"":query.trim().toLowerCase(java.util.Locale.US);List<String> rows=new ArrayList<>();
+        for(String song:musicNames){if(song==null||song.trim().isEmpty())continue;if(q.isEmpty()||song.toLowerCase(java.util.Locale.US).contains(q))rows.add(song);if(rows.size()>=50)break;}
+        if(rows.isEmpty()){new AlertDialog.Builder(this).setTitle("KTV Song Search").setMessage(musicNames.isEmpty()?"No songs are in the room playlist yet.":"No song matched “"+query+"”.").setPositiveButton("Custom request",(d,w)->{final EditText x=new EditText(this);x.setHint("Song title");new AlertDialog.Builder(this).setTitle("Request a song").setView(x).setPositiveButton("Request",(a,b)->requestSong(x.getText().toString().trim())).setNegativeButton("Cancel",null).show();}).setNegativeButton("Close",null).show();return;}
+        new AlertDialog.Builder(this).setTitle("🎤 Songs • "+rows.size()).setItems(rows.toArray(new String[0]),(d,w)->requestSong(rows.get(w))).setNeutralButton("Search again",(d,w)->searchKtvSongs940()).setNegativeButton("Close",null).show();
+    }'''
+if old not in q: raise SystemExit('karaokeDialog marker missing for KTV search')
+q=q.replace(old,new,1)
+party.write_text(q)
+print('v9.4.0 searchable KTV song request parity applied')
+
 print('v9.4.0 parity batch 1 applied')
