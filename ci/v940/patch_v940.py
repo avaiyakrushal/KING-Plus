@@ -3578,9 +3578,9 @@ if old not in q: raise SystemExit('CommunityHub moment card marker missing for T
 q=q.replace(old,new,1)
 
 marker='''    private void family(){'''
-helpers=r'''    private String[] topics940(){return new String[]{"All","General","Friends","Music","Games","KTV","Ludo","Family","Love","PK","Newcomers"};}
+helpers=r'''    private String[] topicNames940(){return new String[]{"All","General","Friends","Music","Games","KTV","Ludo","Family","Love","PK","Newcomers"};}
     private void chooseTopic940(boolean returnToMoments){
-        String[] topics=topics940();
+        String[] topics=topicNames940();
         new AlertDialog.Builder(this).setTitle("🏷 Choose Topic").setItems(topics,(d,w)->{selectedTopic940=topics[w];if(returnToMoments)render("Moments");else render("Topics");}).setNegativeButton("Close",null).show();
     }
     private void topics940(){
@@ -3589,7 +3589,7 @@ helpers=r'''    private String[] topics940(){return new String[]{"All","General"
         if(!cloud()){body.addView(tv("Sign in to view Topic Square.",14,MUTED,false));return;}
         LinearLayout grid=new LinearLayout(this);grid.setOrientation(LinearLayout.VERTICAL);body.addView(grid,new LinearLayout.LayoutParams(-1,-2));
         db.collection("moments").orderBy("createdAt",Query.Direction.DESCENDING).limit(100).get().addOnSuccessListener(s->{
-            Map<String,Integer> counts=new HashMap<>();for(String t:topics940())counts.put(t,0);
+            Map<String,Integer> counts=new HashMap<>();for(String t:topicNames940())counts.put(t,0);
             int total=0;for(DocumentSnapshot d:s.getDocuments()){String topic=safe(d.getString("topic"),"General");counts.put(topic,counts.containsKey(topic)?counts.get(topic)+1:1);total++;}counts.put("All",total);
             String[] topics=topics940();for(String t:topics){TextView row=tv("#"+t+"   •   "+(counts.containsKey(t)?counts.get(t):0)+" posts",14,DARK,true);row.setGravity(Gravity.CENTER_VERTICAL);row.setBackground(bg(CARD,14));row.setOnClickListener(v->{selectedTopic940=t;render("Moments");});LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(-1,dp(54));lp.setMargins(0,dp(4),0,dp(4));grid.addView(row,lp);}
         }).addOnFailureListener(e->body.addView(tv("Topic Square unavailable right now.",14,MUTED,false)));
