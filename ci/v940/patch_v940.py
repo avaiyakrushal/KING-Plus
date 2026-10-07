@@ -2676,4 +2676,61 @@ q=q[:gift_start]+gift_method+"\n\n"+q[gift_end:]
 party.write_text(q)
 print('v9.4.0 visual Gift Wall cards applied')
 
+
+# Bolo-reference parity: visual synchronized Audio PK arena/result panel.
+party=pkg/'PartyActivity.java'
+q=party.read_text()
+pk_start=q.find("    private void audioPkPanel700(){")
+pk_end=q.find("    private int firstOpenSeat700()",pk_start)
+if pk_start<0 or pk_end<0: raise SystemExit('Audio PK method boundary missing')
+pk_method=r'''    private void audioPkPanel700(){
+        if(!cloudRoom||db==null||roomId==null){toast("Live room required");return;}
+        DocumentReference state=db.collection("live_rooms").document(roomId).collection("game_state").document("audio_pk");
+        state.get().addOnSuccessListener(pk->{
+            boolean active=Boolean.TRUE.equals(pk.getBoolean("active"));
+            com.google.firebase.Timestamp started=pk.getTimestamp("startedAt");
+            Long durationRaw=pk.getLong("durationSec");long duration=durationRaw==null?180L:Math.max(30L,durationRaw);
+            long elapsed=started==null?0L:Math.max(0L,(System.currentTimeMillis()-started.toDate().getTime())/1000L);
+            long remain=Math.max(0L,duration-elapsed);
+            if(active&&remain<=0){active=false;if(isModerator())state.update("active",false,"endedAt",FieldValue.serverTimestamp()).addOnFailureListener(x->{});}
+            final boolean pkActive=active;final long pkRemain=remain;final com.google.firebase.Timestamp pkStarted=started;
+            db.collection("live_rooms").document(roomId).collection("events").orderBy("createdAt",Query.Direction.DESCENDING).limit(250).get().addOnSuccessListener(ev->{
+                long red=0,blue=0;int gifts=0;
+                for(DocumentSnapshot e:ev.getDocuments()){
+                    if(!"gift".equals(e.getString("type")))continue;
+                    com.google.firebase.Timestamp at=e.getTimestamp("createdAt");if(pkStarted!=null&&at!=null&&at.compareTo(pkStarted)<0)continue;
+                    Long raw=e.getLong("giftValue");long score=raw==null?0:Math.max(0,raw);String actor=e.getString("actorUid");Integer seat=null;
+                    if(actor!=null)for(Map.Entry<Integer,String>x:seatUids.entrySet())if(actor.equals(x.getValue())){seat=x.getKey();break;}
+                    if(seat!=null&&seat%2==0)red+=score;else if(seat!=null)blue+=score;else if((gifts%2)==0)red+=score;else blue+=score;gifts++;
+                }
+                final long redScore=red,blueScore=blue;
+                LinearLayout root=new LinearLayout(this);root.setOrientation(LinearLayout.VERTICAL);root.setPadding(dp(14),dp(10),dp(14),dp(14));root.setBackgroundColor(0xff15121e);
+                TextView timer=tv(pkActive?String.format(java.util.Locale.US,"⏱  %02d:%02d",pkRemain/60,pkRemain%60):"🏁  PK RESULT",18,pkActive?0xffffd84d:Color.WHITE,true);timer.setGravity(Gravity.CENTER);root.addView(timer,new LinearLayout.LayoutParams(-1,dp(46)));
+                LinearLayout teams=new LinearLayout(this);teams.setGravity(Gravity.CENTER);
+                LinearLayout redCard=new LinearLayout(this);redCard.setOrientation(LinearLayout.VERTICAL);redCard.setGravity(Gravity.CENTER);redCard.setBackground(bg(0xff5c2230,16));
+                TextView redTitle=tv("🔴 RED",15,Color.WHITE,true);redTitle.setGravity(Gravity.CENTER);redCard.addView(redTitle,new LinearLayout.LayoutParams(-1,dp(30)));
+                TextView redVal=tv(compactNumber(redScore),27,0xffffc5cd,true);redVal.setGravity(Gravity.CENTER);redCard.addView(redVal,new LinearLayout.LayoutParams(-1,dp(48)));
+                TextView vs=tv("VS",18,0xffffd84d,true);vs.setGravity(Gravity.CENTER);
+                LinearLayout blueCard=new LinearLayout(this);blueCard.setOrientation(LinearLayout.VERTICAL);blueCard.setGravity(Gravity.CENTER);blueCard.setBackground(bg(0xff203b66,16));
+                TextView blueTitle=tv("🔵 BLUE",15,Color.WHITE,true);blueTitle.setGravity(Gravity.CENTER);blueCard.addView(blueTitle,new LinearLayout.LayoutParams(-1,dp(30)));
+                TextView blueVal=tv(compactNumber(blueScore),27,0xffc5dcff,true);blueVal.setGravity(Gravity.CENTER);blueCard.addView(blueVal,new LinearLayout.LayoutParams(-1,dp(48)));
+                teams.addView(redCard,new LinearLayout.LayoutParams(0,dp(86),1));teams.addView(vs,new LinearLayout.LayoutParams(dp(52),dp(86)));teams.addView(blueCard,new LinearLayout.LayoutParams(0,dp(86),1));root.addView(teams,new LinearLayout.LayoutParams(-1,dp(92)));
+                LinearLayout bar=new LinearLayout(this);long sum=Math.max(1L,redScore+blueScore);TextView rb=new TextView(this);rb.setBackgroundColor(0xffe34d66);TextView bb=new TextView(this);bb.setBackgroundColor(0xff4b85e5);bar.addView(rb,new LinearLayout.LayoutParams(0,dp(10),(float)Math.max(1L,redScore)));bar.addView(bb,new LinearLayout.LayoutParams(0,dp(10),(float)Math.max(1L,blueScore)));LinearLayout.LayoutParams bp=new LinearLayout.LayoutParams(-1,dp(10));bp.setMargins(0,dp(10),0,dp(8));root.addView(bar,bp);
+                String result=redScore==blueScore?"🤝 Draw":redScore>blueScore?"🏆 Red team leads":"🏆 Blue team leads";
+                if(!pkActive)result=redScore==blueScore?"🤝 PK ended in a draw":redScore>blueScore?"🏆 Red team wins":"🏆 Blue team wins";
+                TextView resultView=tv(result,15,Color.WHITE,true);resultView.setGravity(Gravity.CENTER);root.addView(resultView,new LinearLayout.LayoutParams(-1,dp(42)));
+                TextView giftCount=tv("🎁 PK gifts  "+gifts,11,MUTED,true);giftCount.setGravity(Gravity.CENTER);root.addView(giftCount,new LinearLayout.LayoutParams(-1,dp(28)));
+                AlertDialog.Builder b=new AlertDialog.Builder(this).setTitle("⚔️ Audio PK").setView(root).setPositiveButton(pkActive?"Refresh":"Close",(d,w)->{if(pkActive)audioPkPanel700();}).setNegativeButton(pkActive?"Close":null,null);
+                if(isModerator()){
+                    if(pkActive)b.setNeutralButton("End PK",(d,w)->{Map<String,Object>end=new HashMap<>();end.put("active",false);end.put("endedAt",FieldValue.serverTimestamp());end.put("endedBy",user==null?"":user.getUid());state.set(end,SetOptions.merge()).addOnSuccessListener(v->{addEvent("audio_pk_end",safeName()+" ended Audio PK");audioPkPanel700();});});
+                    else b.setNeutralButton("Start 3 min PK",(d,w)->{Map<String,Object>start=new HashMap<>();start.put("active",true);start.put("durationSec",180);start.put("startedAt",FieldValue.serverTimestamp());start.put("startedBy",user==null?"":user.getUid());start.put("startedByName",safeName());state.set(start,SetOptions.merge()).addOnSuccessListener(v->{addEvent("audio_pk",safeName()+" started 3-minute Audio PK ⚔️");audioPkPanel700();}).addOnFailureListener(e->toast("PK start failed: "+msg(e)));});
+                }
+                b.show();
+            }).addOnFailureListener(e->toast("PK scores unavailable: "+msg(e)));
+        }).addOnFailureListener(e->toast("PK state unavailable: "+msg(e)));
+    }'''
+q=q[:pk_start]+pk_method+"\n\n"+q[pk_end:]
+party.write_text(q)
+print('v9.4.0 visual Audio PK arena applied')
+
 print('v9.4.0 parity batch 1 applied')
