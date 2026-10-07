@@ -2203,7 +2203,7 @@ helpers=r'''    private void showFirstProfileSetup940(FirebaseUser user,String s
         male940.setOnClickListener(v->{selectedGender940[0]="Male";refreshGender940.run();});female940.setOnClickListener(v->{selectedGender940[0]="Female";refreshGender940.run();});refreshGender940.run();
         LinearLayout.LayoutParams gp940=new LinearLayout.LayoutParams(0,dp(54),1);gp940.setMargins(dp(4),0,dp(4),0);genders940.addView(male940,gp940);genders940.addView(female940,new LinearLayout.LayoutParams(gp940));root.addView(genders940,new LinearLayout.LayoutParams(-1,dp(58)));
 
-        Space flex940=new Space(this);root.addView(flex940,new LinearLayout.LayoutParams(-1,0,1));
+        android.widget.Space flex940=new android.widget.Space(this);root.addView(flex940,new LinearLayout.LayoutParams(-1,0,1));
         TextView cont940=new TextView(this);cont940.setText("Continue");cont940.setTextSize(16);cont940.setTypeface(null,Typeface.BOLD);cont940.setTextColor(0xff171717);cont940.setGravity(Gravity.CENTER);cont940.setBackground(background(0xffffe500,10));
         cont940.setOnClickListener(v->{String name=name940.getText().toString().trim();if(name.isEmpty()){name940.setError("Name required");return;}displayName=name;SharedPreferences.Editor ed=getPreferences(0).edit().putString("name",name).putString("gender",selectedGender940[0]).putString("firebase_uid",user.getUid()).putBoolean("profile_complete_"+user.getUid(),true);if(photoUrl!=null&&!photoUrl.trim().isEmpty())ed.putString("profile_photo_cloud",photoUrl.trim());ed.apply();syncPublicProfile();if(navigateHome)home();});
         root.addView(cont940,new LinearLayout.LayoutParams(-1,dp(56)));setContentView(root);
