@@ -86,6 +86,11 @@ jobs:
           grep -F 'document("ktv")' /tmp/src/app/src/main/java/com/kingplus/social/PartyActivity.java
           grep -F 'Host/co-host selects the next singer' /tmp/src/app/src/main/java/com/kingplus/social/PartyActivity.java
           grep -F 'Mic ON • live inside Party room' /tmp/src/app/src/main/java/com/kingplus/social/PartyActivity.java
+          grep -F 'slug.equals(inRoomVoiceSlug940)' /tmp/src/app/src/main/java/com/kingplus/social/PartyActivity.java
+          grep -F 'Offline • checking cached Party rooms' /tmp/src/app/src/main/java/com/kingplus/social/PartyActivity.java
+          grep -F 'Loading KING profiles…' /tmp/src/app/src/main/java/com/kingplus/social/DiscoverActivity.java
+          grep -F 'Offline • showing local fallback' /tmp/src/app/src/main/java/com/kingplus/social/ChatActivity.java
+          grep -F 'Offline / sync unavailable • showing recent local conversations' /tmp/src/app/src/main/java/com/kingplus/social/InboxActivity.java
           grep -F 'seenLiveEmojiEventsV530.size()>80' /tmp/src/app/src/main/java/com/kingplus/social/PartyActivity.java
           grep -F 'openRoomGames740()' /tmp/src/app/src/main/java/com/kingplus/social/PartyActivity.java
           grep -F 'normalizeRoomGame940' /tmp/src/app/src/main/java/com/kingplus/social/RoomGameActivity.java
