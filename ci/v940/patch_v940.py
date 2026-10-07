@@ -1310,4 +1310,52 @@ q=q.replace(old,new,1)
 party.write_text(q)
 print('v9.4.0 Party More bottom drawer visual parity applied')
 
+
+# Real social cards: cloud photo + VIP/level instead of initial-only profile rows.
+social=pkg/'SocialActivity.java'
+q=social.read_text()
+old='''        for (DocumentSnapshot d : docs) { String uid=d.getString("uid"); if(uid==null||uid.isEmpty()||me!=null&&uid.equals(me.getUid())) continue; addPerson(uid, nameOf(d), clean(d.getString("bio"))); shown++; }'''
+new='''        for (DocumentSnapshot d : docs) { String uid=d.getString("uid"); if(uid==null||uid.isEmpty()||me!=null&&uid.equals(me.getUid())) continue; addPerson(uid, nameOf(d), clean(d.getString("bio")),clean(d.getString("photoUrl")),d.getLong("level"),d.getLong("vipLevel")); shown++; }'''
+if old not in q: raise SystemExit('Social renderProfiles marker missing')
+q=q.replace(old,new,1)
+
+old='''        db.collection("public_profiles").document(uid).get().addOnSuccessListener(d->{ if(d.exists())addPerson(uid,nameOf(d),clean(d.getString("bio"))); else addPerson(uid,"KING "+shortUid(uid),""); });'''
+new='''        db.collection("public_profiles").document(uid).get().addOnSuccessListener(d->{ if(d.exists())addPerson(uid,nameOf(d),clean(d.getString("bio")),clean(d.getString("photoUrl")),d.getLong("level"),d.getLong("vipLevel")); else addPerson(uid,"KING "+shortUid(uid),"","",null,null); });'''
+if old not in q: raise SystemExit('Social loadProfileCard marker missing')
+q=q.replace(old,new,1)
+
+old='''    private void addPerson(String uid, String name, String bio) {
+        LinearLayout card=new LinearLayout(this); card.setGravity(Gravity.CENTER_VERTICAL); card.setPadding(dp(14),dp(10),dp(12),dp(10)); card.setBackground(bg(Color.WHITE,18));
+        String initial=(name==null||name.trim().isEmpty())?"K":name.trim().substring(0,1).toUpperCase(Locale.US);
+        TextView av=label(initial,22,Color.WHITE,true); av.setGravity(Gravity.CENTER); av.setBackground(bg(PURPLE,25)); card.addView(av,new LinearLayout.LayoutParams(dp(50),dp(50)));
+        LinearLayout info=new LinearLayout(this); info.setOrientation(LinearLayout.VERTICAL); info.setPadding(dp(12),0,dp(4),0);
+        info.addView(label(name,16,DARK,true),new LinearLayout.LayoutParams(-1,dp(24)));
+        TextView id=label("KING ID: "+publicId(uid),11,PURPLE,true); info.addView(id,new LinearLayout.LayoutParams(-1,dp(18)));
+        TextView b=label(bio.isEmpty()?"KING Plus member":bio,11,MUTED,false); b.setMaxLines(1); info.addView(b,new LinearLayout.LayoutParams(-1,dp(18)));
+        card.addView(info,new LinearLayout.LayoutParams(0,dp(60),1));
+        TextView arrow=label("›",28,0xff9993a6,false); card.addView(arrow);
+        LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(-1,dp(80)); lp.setMargins(0,dp(5),0,dp(5)); list.addView(card,lp); card.setOnClickListener(v->openProfile(uid,name,bio));
+    }'''
+new='''    private void addPerson(String uid, String name, String bio,String photo,Long level,Long vip) {
+        LinearLayout card=new LinearLayout(this); card.setGravity(Gravity.CENTER_VERTICAL); card.setPadding(dp(14),dp(10),dp(12),dp(10)); card.setBackground(bg(Color.WHITE,18));
+        String initial=(name==null||name.trim().isEmpty())?"K":name.trim().substring(0,1).toUpperCase(Locale.US);
+        android.widget.FrameLayout avatarBox=new android.widget.FrameLayout(this);TextView av=label(initial,22,Color.WHITE,true);av.setGravity(Gravity.CENTER);av.setBackground(bg(PURPLE,28));avatarBox.addView(av,new android.widget.FrameLayout.LayoutParams(-1,-1));
+        android.widget.ImageView image=new android.widget.ImageView(this);image.setScaleType(android.widget.ImageView.ScaleType.CENTER_CROP);avatarBox.addView(image,new android.widget.FrameLayout.LayoutParams(-1,-1));if(photo!=null&&!photo.isEmpty())loadSocialPhoto940(image,av,photo);
+        card.addView(avatarBox,new LinearLayout.LayoutParams(dp(56),dp(56)));
+        LinearLayout info=new LinearLayout(this); info.setOrientation(LinearLayout.VERTICAL); info.setPadding(dp(12),0,dp(4),0);
+        info.addView(label(name,16,DARK,true),new LinearLayout.LayoutParams(-1,dp(23)));
+        LinearLayout badges=new LinearLayout(this);badges.setGravity(Gravity.CENTER_VERTICAL);TextView id=label("ID "+publicId(uid),10,PURPLE,true);badges.addView(id,new LinearLayout.LayoutParams(0,dp(18),1));TextView lv=label("VIP "+(vip==null?0:vip)+"  ·  Lv."+(level==null?1:level),10,0xff7b5c00,true);lv.setGravity(Gravity.RIGHT|Gravity.CENTER_VERTICAL);badges.addView(lv,new LinearLayout.LayoutParams(dp(105),dp(18)));info.addView(badges,new LinearLayout.LayoutParams(-1,dp(19)));
+        TextView b=label(bio.isEmpty()?"KING Plus member":bio,11,MUTED,false); b.setMaxLines(1); info.addView(b,new LinearLayout.LayoutParams(-1,dp(18)));
+        card.addView(info,new LinearLayout.LayoutParams(0,dp(60),1));
+        TextView arrow=label("›",28,0xff9993a6,false); card.addView(arrow);
+        LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(-1,dp(84)); lp.setMargins(0,dp(5),0,dp(5)); list.addView(card,lp); card.setOnClickListener(v->openProfile(uid,name,bio));
+    }
+    private void loadSocialPhoto940(android.widget.ImageView image,TextView fallback,String url){
+        final String source=url;image.setTag(source);new Thread(()->{try{java.net.URLConnection c=new java.net.URL(source).openConnection();c.setConnectTimeout(7000);c.setReadTimeout(7000);try(java.io.InputStream in=c.getInputStream()){android.graphics.Bitmap bm=android.graphics.BitmapFactory.decodeStream(in);if(bm!=null)runOnUiThread(()->{if(!isFinishing()&&source.equals(image.getTag())){image.setImageBitmap(bm);fallback.setVisibility(View.GONE);}});}}catch(Exception ignored){}}).start();
+    }'''
+if old not in q: raise SystemExit('Social addPerson marker missing')
+q=q.replace(old,new,1)
+social.write_text(q)
+print('v9.4.0 real social profile card visuals applied')
+
 print('v9.4.0 parity batch 1 applied')
