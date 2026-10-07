@@ -4754,4 +4754,73 @@ q=q.replace(old,new,1)
 multi.write_text(q)
 print('v9.4.0 Multi Video quick-match parity applied')
 
+
+# Bolo-reference parity: secure cross-room Audio PK challenge search using existing server room-invite callable.
+party=pkg/'PartyActivity.java'
+q=party.read_text()
+
+old='''        items.add("💫 Interactive Emoji"); items.add("🎧 Audio PK");'''
+new='''        items.add("💫 Interactive Emoji"); items.add("🎧 Audio PK"); if(isModerator())items.add("⚔ PK Challenge");'''
+if old not in q: raise SystemExit('Party Audio PK menu marker missing for PK challenge')
+q=q.replace(old,new,1)
+
+old='''        else if(x.contains("Audio PK"))pkBattle();'''
+new='''        else if(x.contains("Audio PK"))pkBattle();
+        else if(x.contains("PK Challenge"))pkChallengeSearch940();'''
+if old not in q: raise SystemExit('Party Audio PK handler marker missing for PK challenge')
+q=q.replace(old,new,1)
+
+marker='''    private void audioPkPanel700(){'''
+helper=r'''    private void pkChallengeSearch940(){
+        if(!cloudRoom||db==null||user==null||roomId==null){toast("Live Party room required");return;}
+        if(!isModerator()){toast("Host/co-host only");return;}
+        db.collection("live_rooms").limit(60).get().addOnSuccessListener(snap->{
+            List<DocumentSnapshot> rooms940=new ArrayList<>();List<String> labels940=new ArrayList<>();
+            for(DocumentSnapshot d:snap.getDocuments()){
+                if(d==null||!d.exists()||d.getId().equals(roomId)||Boolean.TRUE.equals(d.getBoolean("closed")))continue;
+                String targetOwner=d.getString("ownerUid");if(targetOwner==null||targetOwner.isEmpty()||targetOwner.equals(user.getUid()))continue;
+                String targetRoom=str(d,"name","KING Party"),targetHost=str(d,"ownerName","KING Host");
+                rooms940.add(d);labels940.add("⚔ "+targetRoom+"  •  "+targetHost);
+            }
+            if(labels940.isEmpty()){new AlertDialog.Builder(this).setTitle("⚔ PK Challenge").setMessage("No other live Party rooms are available right now.").setPositiveButton("OK",null).show();return;}
+            final EditText search940=new EditText(this);search940.setHint("Search room or host");search940.setSingleLine(true);
+            new AlertDialog.Builder(this).setTitle("⚔ PK Challenge • "+labels940.size()+" rooms").setView(search940)
+                .setPositiveButton("Search",(d,w)->showPkChallengeResults940(rooms940,search940.getText().toString().trim()))
+                .setNeutralButton("Show all",(d,w)->showPkChallengeResults940(rooms940,""))
+                .setNegativeButton("Cancel",null).show();
+        }).addOnFailureListener(e->toast("PK room search unavailable: "+msg(e)));
+    }
+    private void showPkChallengeResults940(List<DocumentSnapshot> rooms940,String query){
+        String needle=query==null?"":query.trim().toLowerCase(java.util.Locale.US);
+        List<DocumentSnapshot> filtered940=new ArrayList<>();List<String> labels940=new ArrayList<>();
+        for(DocumentSnapshot d:rooms940){
+            String rn=str(d,"name","KING Party"),host=str(d,"ownerName","KING Host");
+            String hay=(rn+" "+host+" "+d.getId()).toLowerCase(java.util.Locale.US);
+            if(!needle.isEmpty()&&!hay.contains(needle))continue;
+            filtered940.add(d);labels940.add("⚔ "+rn+"  •  "+host);
+        }
+        if(labels940.isEmpty()){new AlertDialog.Builder(this).setTitle("PK room search").setMessage("No matching live room.").setPositiveButton("Search again",(d,w)->pkChallengeSearch940()).setNegativeButton("Close",null).show();return;}
+        new AlertDialog.Builder(this).setTitle("Choose PK opponent").setItems(labels940.toArray(new String[0]),(d,w)->confirmPkChallenge940(filtered940.get(w))).setNegativeButton("Close",null).show();
+    }
+    private void confirmPkChallenge940(DocumentSnapshot target){
+        if(target==null||user==null)return;
+        String targetUid=target.getString("ownerUid"),targetRoom=str(target,"name","KING Party"),targetHost=str(target,"ownerName","KING Host");
+        if(targetUid==null||targetUid.isEmpty()){toast("Opponent host is unavailable");return;}
+        new AlertDialog.Builder(this).setTitle("⚔ Challenge "+targetHost+"?")
+            .setMessage("Room: "+targetRoom+"\n\nThe opponent host will receive a secure PK invitation to join your Party room.")
+            .setPositiveButton("Send Challenge",(d,w)->{
+                String challengeName="⚔ PK Challenge • "+roomName+" vs "+targetRoom;
+                CloudBackend.sendRoomInvite(targetUid,roomId,challengeName,(ok,m)->runOnUiThread(()->{
+                    if(ok){addEvent("pk_challenge",safeName()+" challenged "+targetHost+" • "+targetRoom);toast("PK challenge sent to "+targetHost);}
+                    else toast(m);
+                }));
+            }).setNegativeButton("Cancel",null).show();
+    }
+
+'''
+if marker not in q: raise SystemExit('Audio PK method marker missing for PK challenge helpers')
+q=q.replace(marker,helper+marker,1)
+party.write_text(q)
+print('v9.4.0 secure cross-room PK challenge search applied')
+
 print('v9.4.0 parity batch 1 applied')
