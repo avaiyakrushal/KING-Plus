@@ -164,6 +164,41 @@ jobs:
             fi
           done
           exit 1
+      - name: Static runtime crash audit
+        working-directory: /tmp/src
+        run: |
+          python3 - <<'PY'
+          import re, pathlib, xml.etree.ElementTree as ET
+          root=pathlib.Path("app/src/main")
+          manifest=root/"AndroidManifest.xml"
+          mt=manifest.read_text(errors="ignore")
+          declared=set(re.findall(r'<activity[^>]+android:name="\.([^"]+)"',mt))
+          java=list((root/"java/com/kingplus/social").glob("*.java"))
+          intents=set()
+          unsafe_user=[]
+          unsafe_jitsi=[]
+          for p in java:
+              t=p.read_text(errors="ignore")
+              intents.update(re.findall(r'new Intent\(this,\s*([A-Za-z0-9_]+)\.class\)',t))
+              for n,line in enumerate(t.splitlines(),1):
+                  if "getCurrentUser().getUid()" in line and "getCurrentUser()!=null" not in line and "getCurrentUser() != null" not in line:
+                      unsafe_user.append(f"{p.name}:{n}:{line.strip()}")
+                  if "JitsiMeetActivityDelegate." in line and "try{" not in line and "try {" not in line:
+                      unsafe_jitsi.append(f"{p.name}:{n}:{line.strip()}")
+          missing=sorted(x for x in intents if x not in declared and x!="MainActivity")
+          print("=== KING PLUS RUNTIME AUDIT ===")
+          print("Intent targets:",sorted(intents))
+          print("Manifest activities:",sorted(declared))
+          print("Missing manifest targets:",missing)
+          print("Potential currentUser dereferences:",*unsafe_user,sep="\n  ")
+          print("Potential unguarded Jitsi delegate calls:",*unsafe_jitsi,sep="\n  ")
+          if missing:
+              raise SystemExit("Missing Activity registrations: "+",".join(missing))
+          PY
+      - name: Android lint crash-risk scan
+        working-directory: /tmp/src
+        continue-on-error: true
+        run: gradle :app:lintDebug --no-daemon
       - name: Prepare current test APK
         run: |
           cp /tmp/src/app/build/outputs/apk/debug/app-debug.apk /tmp/KING-Plus-v9.4.0-current-test.apk
