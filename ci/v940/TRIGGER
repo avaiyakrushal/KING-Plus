@@ -6,3 +6,4 @@ retry embedded rtc with jitsi13 config
 verify embedded party audio and direct games parity
 verify startup crash recovery and remaining parity work
 verify full stability audit after crash diagnostic escape fix
+verify topic/friend-broadcast/moderation/family-lucky-bag combined checkpoint
