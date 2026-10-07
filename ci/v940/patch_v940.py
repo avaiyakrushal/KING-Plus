@@ -4073,7 +4073,7 @@ helper=r'''    private void recordLoginHistory940(String provider){
             String device=(android.os.Build.MANUFACTURER+" "+android.os.Build.MODEL).trim().replace("::"," ");
             String p=provider==null||provider.trim().isEmpty()?"Unknown":provider.trim().replace("::"," ");
             String entry=String.format(java.util.Locale.US,"%013d::%s::%s",System.currentTimeMillis(),p,device);
-            List<String> rows=new ArrayList<>();rows.add(entry);
+            ArrayList<String> rows=new ArrayList<>();rows.add(entry);
             if(old!=null&&!old.isEmpty())for(String x:old.split("\\|\\|\\|"))if(x!=null&&!x.trim().isEmpty()&&rows.size()<12)rows.add(x);
             StringBuilder out=new StringBuilder();for(String x:rows){if(out.length()>0)out.append("|||");out.append(x);}
             sec.edit().putString("login_history",out.toString()).putLong("last_login_at",System.currentTimeMillis()).putString("last_provider",p).apply();
@@ -4104,7 +4104,7 @@ helper=r'''    private void loginDevices940(){
         else{
             int shown=0;for(String x:raw.split("\\|\\|\\|")){String[] p=x.split("::",3);if(p.length<3)continue;long at=0;try{at=Long.parseLong(p[0]);}catch(Exception ignored){}String when=at<=0?"Unknown time":new java.text.SimpleDateFormat("dd MMM yyyy • HH:mm",java.util.Locale.US).format(new java.util.Date(at));chip("✓ "+p[1]+" • "+p[2]+"\n"+when,()->{});if(++shown>=12)break;}
         }
-        TextView clear=button("Clear local login history",()->{sec.edit().remove("login_history").apply();toast("Local login history cleared");loginDevices940();});LinearLayout.LayoutParams cp=new LinearLayout.LayoutParams(-1,dp(48));cp.setMargins(0,dp(12),0,dp(6));body.addView(clear,cp);
+        chip("Clear local login history",()->{sec.edit().remove("login_history").apply();toast("Local login history cleared");loginDevices940();});
     }
 
 '''
