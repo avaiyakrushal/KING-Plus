@@ -1544,4 +1544,74 @@ q=q.replace(old,new,1)
 inbox.write_text(q)
 print('v9.4.0 real Firebase notification feed applied')
 
+# Queue failed direct text messages and flush them deterministically after reconnect.
+chat=pkg/'ChatActivity.java'
+q=chat.read_text()
+old='''    private boolean cloudMode;'''
+new='''    private boolean cloudMode;
+    private android.net.ConnectivityManager.NetworkCallback chatNetworkCallback940;
+    private boolean chatLastOnline940;'''
+if old not in q: raise SystemExit('Chat cloudMode marker missing for retry queue')
+q=q.replace(old,new,1)
+
+old='''        if (cloudMode) listenCloud(); else loadLocal();
+    }'''
+new='''        if (cloudMode) listenCloud(); else loadLocal();
+        chatLastOnline940=KingNetwork.online(this);
+        chatNetworkCallback940=KingNetwork.watch(this,online->runOnUiThread(()->{
+            boolean recovered=online&&!chatLastOnline940;chatLastOnline940=online;
+            if(recovered&&cloudMode&&!isFinishing()&&!isDestroyed()){status.setText("Back online • syncing pending messages…");flushPendingText940();}
+        }));
+        if(cloudMode&&chatLastOnline940)flushPendingText940();
+    }'''
+if old not in q: raise SystemExit('Chat onCreate tail marker missing for retry queue')
+q=q.replace(old,new,1)
+
+old='''.addOnFailureListener(e -> {status.setText("Offline • message saved on this phone");saveLocal(text,type,mediaUrl,true);});'''
+new='''.addOnFailureListener(e -> {status.setText("Offline • message saved on this phone");if("text".equals(type))queuePendingText940(text);saveLocal(text,type,mediaUrl,true);});'''
+if q.count(old)<1: raise SystemExit('Chat message add failure marker missing for retry queue')
+q=q.replace(old,new,1)
+old='''}).addOnFailureListener(e -> {status.setText("Offline • message saved on this phone");saveLocal(text,type,mediaUrl,true);});'''
+new='''}).addOnFailureListener(e -> {status.setText("Offline • message saved on this phone");if("text".equals(type))queuePendingText940(text);saveLocal(text,type,mediaUrl,true);});'''
+if old not in q: raise SystemExit('Chat thread failure marker missing for retry queue')
+q=q.replace(old,new,1)
+
+marker2='''    private void saveLocal(String text, String type, String media, boolean mine) {'''
+helpers='''    private String pendingKey940(){return "pending_cloud_"+safeKey(chatId==null?peerName:chatId);}
+    private void queuePendingText940(String text){
+        if(text==null||text.trim().isEmpty())return;
+        try{
+            SharedPreferences p=getSharedPreferences("chat_store",MODE_PRIVATE);JSONArray a=new JSONArray(p.getString(pendingKey940(),"[]"));
+            JSONObject o=new JSONObject();o.put("id",java.util.UUID.randomUUID().toString().replace("-",""));o.put("text",text);o.put("ts",System.currentTimeMillis());a.put(o);
+            while(a.length()>100){JSONArray n=new JSONArray();for(int i=1;i<a.length();i++)n.put(a.get(i));a=n;}
+            p.edit().putString(pendingKey940(),a.toString()).apply();
+        }catch(Exception ignored){}
+    }
+    private void flushPendingText940(){
+        if(!cloudMode||db==null||me==null||!KingNetwork.online(this))return;
+        try{
+            SharedPreferences p=getSharedPreferences("chat_store",MODE_PRIVATE);JSONArray a=new JSONArray(p.getString(pendingKey940(),"[]"));if(a.length()==0){if(status!=null)status.setText("Realtime chat");return;}
+            JSONObject o=a.getJSONObject(0);String id=o.optString("id",""),text=o.optString("text","");if(id.isEmpty()||text.isEmpty()){removePendingHead940(a,p);flushPendingText940();return;}
+            Map<String,Object> thread=new HashMap<>();List<String> members=new ArrayList<>();members.add(me.getUid());members.add(peerUid);thread.put("members",members);Map<String,Object> names=new HashMap<>();names.put(me.getUid(),myName);names.put(peerUid,peerName);thread.put("memberNames",names);thread.put("lastMessage",text);thread.put("lastSenderUid",me.getUid());thread.put("updatedAt",FieldValue.serverTimestamp());
+            db.collection("direct_threads").document(chatId).set(thread,SetOptions.merge()).addOnSuccessListener(v->{
+                Map<String,Object> msg=new HashMap<>();msg.put("senderUid",me.getUid());msg.put("recipientUid",peerUid);msg.put("senderName",myName);msg.put("text",text);msg.put("type","text");msg.put("clientId",id);msg.put("createdAt",FieldValue.serverTimestamp());
+                db.collection("direct_threads").document(chatId).collection("messages").document("q_"+id).set(msg).addOnSuccessListener(x->{removePendingHead940(a,p);CloudBackend.sendDirectMessageNotification(peerUid,myName,text,(ok,m)->{});flushPendingText940();}).addOnFailureListener(x->{if(status!=null)status.setText("Pending message will retry");});
+            }).addOnFailureListener(x->{if(status!=null)status.setText("Pending message will retry");});
+        }catch(Exception ignored){}
+    }
+    private void removePendingHead940(JSONArray a,SharedPreferences p){
+        try{JSONArray n=new JSONArray();for(int i=1;i<a.length();i++)n.put(a.get(i));p.edit().putString(pendingKey940(),n.toString()).apply();}catch(Exception ignored){}
+    }
+
+'''
+if marker2 not in q: raise SystemExit('Chat saveLocal marker missing for queue helpers')
+q=q.replace(marker2,helpers+marker2,1)
+
+old='''    @Override protected void onDestroy() { if(messagesListener!=null)messagesListener.remove(); if(threadListener!=null)threadListener.remove(); stopVoice(false); super.onDestroy(); }'''
+new='''    @Override protected void onDestroy() { KingNetwork.unwatch(this,chatNetworkCallback940);chatNetworkCallback940=null;if(messagesListener!=null)messagesListener.remove(); if(threadListener!=null)threadListener.remove(); stopVoice(false); super.onDestroy(); }'''
+if old not in q: raise SystemExit('Chat onDestroy marker missing for retry queue')
+q=q.replace(old,new,1)
+chat.write_text(q)
+print('v9.4.0 direct text pending retry queue applied')
+
 print('v9.4.0 parity batch 1 applied')
