@@ -814,9 +814,9 @@ new='''    private void ktvQueuePanel(){
                 if(!isModerator()){toast("Host/co-host selects the next singer");return;}
                 int offset=actions.size()-requestDocs.size();int ri=w-offset;if(ri<0||ri>=requestDocs.size())return;
                 DocumentSnapshot req=requestDocs.get(ri);String raw=str(req,"text","Song request");
-                String song=raw;int mark=raw.indexOf(" requested 🎵 ");if(mark>=0)song=raw.substring(mark+" requested 🎵 ".length()).trim();
-                Map<String,Object>stage=new HashMap<>();stage.put("active",true);stage.put("song",song);stage.put("singerUid",str(req,"actorUid",""));stage.put("singerName",str(req,"actorName","Guest"));stage.put("requestEventId",req.getId());stage.put("startedAt",FieldValue.serverTimestamp());stage.put("startedBy",user==null?"":user.getUid());
-                ktv.set(stage,SetOptions.merge()).addOnSuccessListener(v->{addEvent("ktv_start",safeName()+" put "+str(req,"actorName","Guest")+" on KTV stage • "+song);ktvQueuePanel();}).addOnFailureListener(e->toast("KTV stage failed: "+msg(e)));
+                String song=raw;int mark=raw.indexOf(" requested 🎵 ");if(mark>=0)song=raw.substring(mark+" requested 🎵 ".length()).trim();final String selectedSong940=song;
+                Map<String,Object>stage=new HashMap<>();stage.put("active",true);stage.put("song",selectedSong940);stage.put("singerUid",str(req,"actorUid",""));stage.put("singerName",str(req,"actorName","Guest"));stage.put("requestEventId",req.getId());stage.put("startedAt",FieldValue.serverTimestamp());stage.put("startedBy",user==null?"":user.getUid());
+                ktv.set(stage,SetOptions.merge()).addOnSuccessListener(v->{addEvent("ktv_start",safeName()+" put "+str(req,"actorName","Guest")+" on KTV stage • "+selectedSong940);ktvQueuePanel();}).addOnFailureListener(e->toast("KTV stage failed: "+msg(e)));
             }).setNegativeButton("Close",null).show();
         }).addOnFailureListener(e->toast("KTV queue unavailable: "+msg(e)))).addOnFailureListener(e->toast("KTV state unavailable: "+msg(e)));
     }'''
