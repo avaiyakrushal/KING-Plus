@@ -774,4 +774,55 @@ q=q.replace(old,new,1)
 party.write_text(q)
 print('v9.4.0 synchronized timed Audio PK applied')
 
+# Synced KTV stage state over room game_state/ktv while keeping immutable request events.
+party=pkg/'PartyActivity.java'
+q=party.read_text()
+old='''    private void ktvQueuePanel(){
+        if(!cloudRoom||db==null||roomId==null){karaokeDialog();return;}
+        db.collection("live_rooms").document(roomId).collection("events").orderBy("createdAt",Query.Direction.DESCENDING).limit(120).get().addOnSuccessListener(snap->{
+            List<String> rows=new ArrayList<>();for(DocumentSnapshot d:snap.getDocuments())if("song".equals(d.getString("type"))){String text=d.getString("text");if(text!=null&&!text.trim().isEmpty())rows.add("🎵 "+text);if(rows.size()>=20)break;}
+            List<String> actions=new ArrayList<>();actions.add("＋ Request a song");if(isModerator())actions.add("🎛 Open room music player");actions.addAll(rows);
+            new AlertDialog.Builder(this).setTitle("🎤 KTV Queue").setItems(actions.toArray(new String[0]),(d,w)->{String x=actions.get(w);if(x.startsWith("＋"))karaokeDialog();else if(x.contains("music player"))musicPanel();}).setNegativeButton("Close",null).show();
+        }).addOnFailureListener(e->toast("KTV queue unavailable: "+msg(e)));
+    }'''
+new='''    private void ktvQueuePanel(){
+        if(!cloudRoom||db==null||roomId==null){karaokeDialog();return;}
+        DocumentReference ktv=db.collection("live_rooms").document(roomId).collection("game_state").document("ktv");
+        ktv.get().addOnSuccessListener(state->db.collection("live_rooms").document(roomId).collection("events").orderBy("createdAt",Query.Direction.DESCENDING).limit(120).get().addOnSuccessListener(snap->{
+            boolean active=Boolean.TRUE.equals(state.getBoolean("active"));
+            String nowSong=str(state,"song","");
+            String singer=str(state,"singerName","");
+            List<String> actions=new ArrayList<>();List<DocumentSnapshot> requestDocs=new ArrayList<>();
+            if(active&&!nowSong.isEmpty())actions.add("🎤 Now Singing • "+singer+" • "+nowSong);
+            actions.add("＋ Request a song");
+            if(isModerator()){actions.add("🎛 Open room music player");if(active)actions.add("⏹ End current singer");}
+            for(DocumentSnapshot doc:snap.getDocuments()){
+                if(!"song".equals(doc.getString("type")))continue;
+                String text=doc.getString("text");if(text==null||text.trim().isEmpty())continue;
+                actions.add("🎵 "+text);requestDocs.add(doc);if(requestDocs.size()>=20)break;
+            }
+            new AlertDialog.Builder(this).setTitle("🎤 KTV Queue").setItems(actions.toArray(new String[0]),(d,w)->{
+                String x=actions.get(w);
+                if(x.startsWith("🎤 Now Singing")){toast(active?"KTV stage is live":"No singer");return;}
+                if(x.startsWith("＋")){karaokeDialog();return;}
+                if(x.contains("music player")){musicPanel();return;}
+                if(x.startsWith("⏹")){
+                    Map<String,Object>end=new HashMap<>();end.put("active",false);end.put("endedAt",FieldValue.serverTimestamp());end.put("endedBy",user==null?"":user.getUid());
+                    ktv.set(end,SetOptions.merge()).addOnSuccessListener(v->{addEvent("ktv_end",safeName()+" ended KTV singer");ktvQueuePanel();});return;
+                }
+                if(!x.startsWith("🎵"))return;
+                if(!isModerator()){toast("Host/co-host selects the next singer");return;}
+                int offset=actions.size()-requestDocs.size();int ri=w-offset;if(ri<0||ri>=requestDocs.size())return;
+                DocumentSnapshot req=requestDocs.get(ri);String raw=str(req,"text","Song request");
+                String song=raw;int mark=raw.indexOf(" requested 🎵 ");if(mark>=0)song=raw.substring(mark+" requested 🎵 ".length()).trim();
+                Map<String,Object>stage=new HashMap<>();stage.put("active",true);stage.put("song",song);stage.put("singerUid",str(req,"actorUid",""));stage.put("singerName",str(req,"actorName","Guest"));stage.put("requestEventId",req.getId());stage.put("startedAt",FieldValue.serverTimestamp());stage.put("startedBy",user==null?"":user.getUid());
+                ktv.set(stage,SetOptions.merge()).addOnSuccessListener(v->{addEvent("ktv_start",safeName()+" put "+str(req,"actorName","Guest")+" on KTV stage • "+song);ktvQueuePanel();}).addOnFailureListener(e->toast("KTV stage failed: "+msg(e)));
+            }).setNegativeButton("Close",null).show();
+        }).addOnFailureListener(e->toast("KTV queue unavailable: "+msg(e)))).addOnFailureListener(e->toast("KTV state unavailable: "+msg(e)));
+    }'''
+if old not in q: raise SystemExit('KTV queue base marker missing')
+q=q.replace(old,new,1)
+party.write_text(q)
+print('v9.4.0 synchronized KTV stage applied')
+
 print('v9.4.0 parity batch 1 applied')
