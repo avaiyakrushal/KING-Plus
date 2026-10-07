@@ -1429,7 +1429,7 @@ new='''    private void rebuildMemberStrip() {
             FrameLayout frame=new FrameLayout(this);String equipped=memberFrame730.get(uid);if(equipped==null||equipped.trim().isEmpty())equipped="Minimal Frame";frame.setBackground(KingCosmetics.avatarFrame(this,equipped,uid!=null&&!uid.isEmpty()&&uid.equals(ownerUid)));frame.setPadding(dp(2),dp(2),dp(2),dp(2));
             frame.addView(fallback,new FrameLayout.LayoutParams(-1,-1));ImageView photo=new ImageView(this);photo.setScaleType(ImageView.ScaleType.CENTER_CROP);frame.addView(photo,new FrameLayout.LayoutParams(-1,-1));
             String photoUrl=memberPhotos540.get(uid);if(user!=null&&uid!=null&&uid.equals(user.getUid())){String own=cloudProfilePhoto868();if(own.isEmpty()&&user.getPhotoUrl()!=null)own=user.getPhotoUrl().toString();photoUrl=own;}if(photoUrl!=null&&!photoUrl.isEmpty())applyProfilePhoto868(photo,fallback,photoUrl);
-            final String tapUid=uid, tapName=n;frame.setOnClickListener(v->{if(tapUid!=null&&!tapUid.isEmpty())openMemberProfile(tapUid,tapName);});
+            final String tapUid=uid, tapName=n;frame.setOnClickListener(v->{if(tapUid!=null&&!tapUid.isEmpty())memberProfileDialog(tapUid,tapName);});
             LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(dp(36),dp(36));lp.setMargins(0,0,dp(5),0);memberStripBox.addView(frame,lp);
         }
         int extra=Math.max(0,names.size()-6);TextView label=tv(cloudRoom?("Members "+liveMemberCount+(extra>0?" • +"+extra:"")):"Host",11,MUTED,false);memberStripBox.addView(label,new LinearLayout.LayoutParams(0,dp(36),1));
