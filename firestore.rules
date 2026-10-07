@@ -209,6 +209,18 @@ service cloud.firestore {
           && (resource.data.uid == request.auth.uid || roomModerator(roomId));
       }
 
+      match /video_seat_invites/{recipientUid} {
+        allow read: if signedIn()
+          && (recipientUid == request.auth.uid || roomModerator(roomId));
+        allow create, update: if roomModerator(roomId)
+          && request.resource.data.recipientUid == recipientUid
+          && request.resource.data.seatNo is int
+          && request.resource.data.seatNo >= 1
+          && request.resource.data.seatNo <= 6;
+        allow delete: if signedIn()
+          && (recipientUid == request.auth.uid || roomModerator(roomId));
+      }
+
       // v9.x realtime room features. Keep writes scoped to the signed-in
       // member or the room moderator so UI-only features actually work multi-user.
       match /seat_invites/{targetUid} {
