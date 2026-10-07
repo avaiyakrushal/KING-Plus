@@ -7,3 +7,4 @@ verify embedded party audio and direct games parity
 verify startup crash recovery and remaining parity work
 verify full stability audit after crash diagnostic escape fix
 verify topic/friend-broadcast/moderation/family-lucky-bag combined checkpoint
+verify combined parity after Multi Video quick-match compile fix
