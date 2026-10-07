@@ -10,6 +10,7 @@ pkg=root/'app/src/main/java/com/kingplus/social'
 (pkg/'KingLoginBackdropView.java').write_text(Path(__file__).with_name('KingLoginBackdropView.java').read_text())
 (pkg/'KingWalletVisualActivity.java').write_text(Path(__file__).with_name('KingWalletVisualActivity.java').read_text())
 (pkg/'KingWardrobeActivity.java').write_text(Path(__file__).with_name('KingWardrobeActivity.java').read_text())
+(pkg/'KingCosmetics.java').write_text(Path(__file__).with_name('KingCosmetics.java').read_text())
 
 manifest=root/'app/src/main/AndroidManifest.xml'
 m=manifest.read_text()
@@ -4835,5 +4836,33 @@ if old not in q: raise SystemExit('Collection Center marker missing for Wardrobe
 q=q.replace(old,new,1)
 hub.write_text(q)
 print('v9.4.0 Wardrobe equip flow wired')
+
+
+# Complete Wardrobe cosmetics: selected chat bubble styling + cloud badge/profile sync.
+chat=pkg/'ChatActivity.java'
+q=chat.read_text()
+old='''        LinearLayout bubble = new LinearLayout(this); bubble.setOrientation(LinearLayout.VERTICAL); bubble.setPadding(dp(12), dp(8), dp(12), dp(7)); bubble.setBackground(bg("gift".equals(type)?0xfffff2c7:(mine ? PURPLE : Color.WHITE), 18));'''
+new='''        LinearLayout bubble = new LinearLayout(this); bubble.setOrientation(LinearLayout.VERTICAL); bubble.setPadding(dp(12), dp(8), dp(12), dp(7)); bubble.setBackground(bg("gift".equals(type)?0xfffff2c7:(mine ? KingCosmetics.bubbleColor(this) : Color.WHITE), 18));'''
+if old not in q: raise SystemExit('Chat bubble style marker missing')
+q=q.replace(old,new,1)
+chat.write_text(q)
+
+publicp=pkg/'KingPublicProfileActivity.java'
+q=publicp.read_text()
+old='''String frame=safe(p.getString("equippedFrame"),"Minimal Frame"),effect=safe(p.getString("entranceEffect"),"Welcome Sparkle"),bio=safe(p.getString("bio"),"KING Plus member"),tags=safe(p.getString("tags"),"");'''
+new='''String frame=safe(p.getString("equippedFrame"),"Minimal Frame"),effect=safe(p.getString("entranceEffect"),"Welcome Sparkle"),badge=safe(p.getString("nameBadge"),"None"),bio=safe(p.getString("bio"),"KING Plus member"),tags=safe(p.getString("tags"),"");'''
+if old in q:q=q.replace(old,new,1)
+old='''TextView cosmetics=tv("🖼 "+frame+"     ✨ "+effect,13,PURPLE,true);'''
+new='''TextView cosmetics=tv("🖼 "+frame+"     ✨ "+effect+(badge.equals("None")?"":"     "+KingCosmetics.badgeEmoji(badge)+" "+badge),13,PURPLE,true);'''
+if old in q:q=q.replace(old,new,1)
+publicp.write_text(q)
+
+party=pkg/'PartyActivity.java'
+q=party.read_text()
+old='''d.put("equippedFrame",frame730);d.put("entranceEffect",effect730);d.put("deviceId",deviceId891());'''
+new='''d.put("equippedFrame",frame730);d.put("entranceEffect",effect730);d.put("nameBadge",KingCosmetics.badge(this));d.put("chatBubble",KingCosmetics.bubble(this));d.put("deviceId",deviceId891());'''
+if old in q:q=q.replace(old,new,1)
+party.write_text(q)
+print('v9.4.0 Wardrobe chat bubble and badge cosmetics applied')
 
 print('v9.4.0 parity batch 1 applied')
