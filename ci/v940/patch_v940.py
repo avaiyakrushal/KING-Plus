@@ -668,6 +668,45 @@ if old in q:q=q.replace(old,new,1)
 party.write_text(q)
 print('v9.4.0 RTC moderation sync applied')
 
+# Deduplicate sender gift animations and keep emoji replay state bounded.
+party=pkg/'PartyActivity.java'
+q=party.read_text()
+old='''                if(ok){toast(message);addGiftEvent(targetUid,targetName,gift,icon,unitCost,quantity,totalCost);return;}
+                if(localCoins>=totalCost){localCoins-=totalCost;prefs.edit().putInt("coins",localCoins).apply();addGiftEvent(targetUid,targetName,gift,icon,unitCost,quantity,totalCost);toast("TEST room gift synced • backend wallet unavailable");}'''
+new='''                if(ok){toast(message);showGiftEffect(safeName(),targetName,gift,icon,quantity,totalCost);addGiftEvent(targetUid,targetName,gift,icon,unitCost,quantity,totalCost);return;}
+                if(localCoins>=totalCost){localCoins-=totalCost;prefs.edit().putInt("coins",localCoins).apply();showGiftEffect(safeName(),targetName,gift,icon,quantity,totalCost);addGiftEvent(targetUid,targetName,gift,icon,unitCost,quantity,totalCost);toast("TEST room gift synced • backend wallet unavailable");}'''
+if old not in q: raise SystemExit('gift cloud send marker missing')
+q=q.replace(old,new,1)
+
+old='''                if("gift".equals(type)){Long q=d.getLong("giftQty");Long v=d.getLong("giftValue");String gift=d.getString("giftName");showGiftEffect(str(d,"actorName","User"),str(d,"targetName","Host"),gift,giftIconFor(gift),q==null?1:q,v==null?1:v);}'''
+new='''                if("gift".equals(type)){Long q=d.getLong("giftQty");Long v=d.getLong("giftValue");String gift=d.getString("giftName");String actorUid=d.getString("actorUid");if(user==null||actorUid==null||!user.getUid().equals(actorUid))showGiftEffect(str(d,"actorName","User"),str(d,"targetName","Host"),gift,giftIconFor(gift),q==null?1:q,v==null?1:v);}'''
+if old not in q: raise SystemExit('gift event listener marker missing')
+q=q.replace(old,new,1)
+
+old='''            for(DocumentSnapshot docV530:snapV530.getDocuments()){
+                if(!"live_emoji".equals(docV530.getString("type")) || seenLiveEmojiEventsV530.contains(docV530.getId())) continue;
+                seenLiveEmojiEventsV530.add(docV530.getId()); Object tsV530=docV530.get("createdAt");
+                if(tsV530 instanceof com.google.firebase.Timestamp){long ageV530=System.currentTimeMillis()-((com.google.firebase.Timestamp)tsV530).toDate().getTime();if(ageV530>12000)continue;}
+                String actorV530=str(docV530,"actorName","User"); String emojiV530=str(docV530,"emoji",str(docV530,"text","😊"));
+                if(!user.getUid().equals(docV530.getString("actorUid"))) showLiveEmojiEffect560(emojiV530,actorV530,docV530.getString("actorUid"));
+            }
+        });'''
+new='''            java.util.HashSet<String> currentEmojiIds940=new java.util.HashSet<>();
+            for(DocumentSnapshot docV530:snapV530.getDocuments()){
+                currentEmojiIds940.add(docV530.getId());
+                if(!"live_emoji".equals(docV530.getString("type")) || seenLiveEmojiEventsV530.contains(docV530.getId())) continue;
+                seenLiveEmojiEventsV530.add(docV530.getId()); Object tsV530=docV530.get("createdAt");
+                if(tsV530 instanceof com.google.firebase.Timestamp){long ageV530=System.currentTimeMillis()-((com.google.firebase.Timestamp)tsV530).toDate().getTime();if(ageV530>12000)continue;}
+                String actorV530=str(docV530,"actorName","User"); String emojiV530=str(docV530,"emoji",str(docV530,"text","😊"));
+                if(!user.getUid().equals(docV530.getString("actorUid"))) showLiveEmojiEffect560(emojiV530,actorV530,docV530.getString("actorUid"));
+            }
+            if(seenLiveEmojiEventsV530.size()>80)seenLiveEmojiEventsV530.retainAll(currentEmojiIds940);
+        });'''
+if old not in q: raise SystemExit('live emoji listener marker missing')
+q=q.replace(old,new,1)
+party.write_text(q)
+print('v9.4.0 gift and emoji replay protection applied')
+
 # Route exposed Party feature tiles to working room flows instead of presentation-only pages.
 party=pkg/'PartyActivity.java'
 q=party.read_text()
