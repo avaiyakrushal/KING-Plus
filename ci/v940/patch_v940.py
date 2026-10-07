@@ -1614,4 +1614,123 @@ q=q.replace(old,new,1)
 chat.write_text(q)
 print('v9.4.0 direct text pending retry queue applied')
 
+# Dedicated in-app Multi Video page using the same Party room conference.
+multi=pkg/'KingMultiVideoActivity.java'
+multi.write_text(r'''package com.kingplus.social;
+
+import android.content.Intent;
+import android.graphics.Color;
+import android.graphics.Typeface;
+import android.graphics.drawable.GradientDrawable;
+import android.os.Bundle;
+import android.view.Gravity;
+import android.view.View;
+import android.widget.FrameLayout;
+import android.widget.LinearLayout;
+import android.widget.TextView;
+
+public class KingMultiVideoActivity extends androidx.fragment.app.FragmentActivity implements org.jitsi.meet.sdk.JitsiMeetActivityInterface {
+    private org.jitsi.meet.sdk.JitsiMeetView meetView;
+    private String roomId="",roomName="KING Plus Multi Video",displayName="KING User";
+
+    private int dp(int n){return (int)(n*getResources().getDisplayMetrics().density+.5f);}
+    private GradientDrawable bg(int c,int r){GradientDrawable d=new GradientDrawable();d.setColor(c);d.setCornerRadius(dp(r));return d;}
+    private TextView tv(String s,int z,int c,boolean b){TextView t=new TextView(this);t.setText(s);t.setTextSize(z);t.setTextColor(c);if(b)t.setTypeface(null,Typeface.BOLD);return t;}
+    private String safe(String s,String f){return s==null||s.trim().isEmpty()?f:s.trim();}
+
+    @Override public void onCreate(Bundle state){
+        super.onCreate(state);
+        roomId=safe(getIntent().getStringExtra("roomId"),"lobby");
+        roomName=safe(getIntent().getStringExtra("roomName"),"KING Plus Multi Video");
+        displayName=safe(getIntent().getStringExtra("displayName"),"KING User");
+
+        FrameLayout shell=new FrameLayout(this);shell.setBackgroundColor(0xff0d0b15);
+        LinearLayout body=new LinearLayout(this);body.setOrientation(LinearLayout.VERTICAL);shell.addView(body,new FrameLayout.LayoutParams(-1,-1));
+
+        LinearLayout head=new LinearLayout(this);head.setGravity(Gravity.CENTER_VERTICAL);head.setPadding(dp(10),0,dp(12),0);head.setBackgroundColor(0xff171322);
+        TextView back=tv("‹",38,Color.WHITE,false);back.setGravity(Gravity.CENTER);back.setOnClickListener(v->finish());head.addView(back,new LinearLayout.LayoutParams(dp(50),dp(58)));
+        LinearLayout info=new LinearLayout(this);info.setOrientation(LinearLayout.VERTICAL);TextView title=tv(roomName,17,Color.WHITE,true);TextView sub=tv("📹 Multi Video • KING Plus Party",11,0xffc7bdd5,true);info.addView(title,new LinearLayout.LayoutParams(-1,dp(30)));info.addView(sub,new LinearLayout.LayoutParams(-1,dp(22)));head.addView(info,new LinearLayout.LayoutParams(0,dp(58),1));
+        TextView leave=tv("Leave",12,Color.WHITE,true);leave.setGravity(Gravity.CENTER);leave.setBackground(bg(0xff7b3fd0,18));leave.setOnClickListener(v->finish());head.addView(leave,new LinearLayout.LayoutParams(dp(72),dp(38)));
+        body.addView(head,new LinearLayout.LayoutParams(-1,dp(62)));
+
+        FrameLayout stage=new FrameLayout(this);body.addView(stage,new LinearLayout.LayoutParams(-1,0,1));
+        TextView loading=tv("Connecting Multi Video…",14,0xffcfc8da,true);loading.setGravity(Gravity.CENTER);stage.addView(loading,new FrameLayout.LayoutParams(-1,-1));
+
+        try{
+            org.jitsi.meet.sdk.JitsiMeet.instantiateReactNative(this);
+            meetView=new org.jitsi.meet.sdk.JitsiMeetView(this);
+            stage.addView(meetView,new FrameLayout.LayoutParams(-1,-1));
+            String slug=("KINGPlus-"+roomId).replaceAll("[^A-Za-z0-9_-]","");
+            org.jitsi.meet.sdk.JitsiMeetUserInfo userInfo=new org.jitsi.meet.sdk.JitsiMeetUserInfo();userInfo.setDisplayName(displayName);
+            org.jitsi.meet.sdk.JitsiMeetConferenceOptions options=new org.jitsi.meet.sdk.JitsiMeetConferenceOptions.Builder()
+                .setServerURL(new java.net.URL("https://meet.jit.si"))
+                .setRoom(slug)
+                .setSubject(roomName)
+                .setAudioMuted(false)
+                .setVideoMuted(false)
+                .setUserInfo(userInfo)
+                .setFeatureFlag("welcomepage.enabled",false)
+                .setFeatureFlag("prejoinpage.enabled",false)
+                .setFeatureFlag("invite.enabled",false)
+                .setFeatureFlag("chat.enabled",false)
+                .setFeatureFlag("recording.enabled",false)
+                .setFeatureFlag("live-streaming.enabled",false)
+                .setFeatureFlag("pip.enabled",true)
+                .build();
+            meetView.join(options);loading.setVisibility(View.GONE);
+        }catch(Throwable e){loading.setText("Multi Video could not start • tap back and retry");}
+        setContentView(shell);
+    }
+
+    @Override protected void onResume(){super.onResume();org.jitsi.meet.sdk.JitsiMeetActivityDelegate.onHostResume(this);}
+    @Override protected void onStop(){org.jitsi.meet.sdk.JitsiMeetActivityDelegate.onHostPause(this);super.onStop();}
+    @Override public void onNewIntent(Intent intent){super.onNewIntent(intent);org.jitsi.meet.sdk.JitsiMeetActivityDelegate.onNewIntent(intent);}
+    @Override protected void onActivityResult(int requestCode,int resultCode,Intent data){super.onActivityResult(requestCode,resultCode,data);org.jitsi.meet.sdk.JitsiMeetActivityDelegate.onActivityResult(this,requestCode,resultCode,data);}
+    @Override public void requestPermissions(String[] permissions,int requestCode,com.facebook.react.modules.core.PermissionListener listener){org.jitsi.meet.sdk.JitsiMeetActivityDelegate.requestPermissions(this,permissions,requestCode,listener);}
+    @Override public void onRequestPermissionsResult(int requestCode,String[] permissions,int[] grantResults){org.jitsi.meet.sdk.JitsiMeetActivityDelegate.onRequestPermissionsResult(requestCode,permissions,grantResults);}
+    @Override protected void onDestroy(){try{if(meetView!=null){meetView.dispose();meetView=null;}}catch(Throwable ignored){}org.jitsi.meet.sdk.JitsiMeetActivityDelegate.onHostDestroy(this);super.onDestroy();}
+}''')
+
+manifest=root/'app/src/main/AndroidManifest.xml'
+q=manifest.read_text()
+old='''        <activity android:name=".PartyActivity" android:exported="false" />'''
+new='''        <activity android:name=".PartyActivity" android:exported="false" />
+        <activity android:name=".KingMultiVideoActivity" android:exported="false" />'''
+if old not in q: raise SystemExit('manifest Party marker missing for Multi Video')
+q=q.replace(old,new,1)
+manifest.write_text(q)
+
+party=pkg/'PartyActivity.java'
+q=party.read_text()
+old='''    private String currentLobbyTab940="Hot";'''
+new='''    private String currentLobbyTab940="Hot";
+    private FrameLayout partyShell940;'''
+if old not in q: raise SystemExit('Party lobby field marker missing for Multi Video')
+q=q.replace(old,new,1)
+
+old='''        attachInRoomVoice940(shell);'''
+new='''        partyShell940=shell;
+        attachInRoomVoice940(shell);'''
+if old not in q: raise SystemExit('Party attach inline voice marker missing for Multi Video')
+q=q.replace(old,new,1)
+
+old='''    private void openVideoRoom(){NativeMeetBridge.launch(this,roomId,roomName,safeName(),true);}'''
+new='''    private void openVideoRoom(){
+        if(!cloudRoom||roomId==null||roomId.trim().isEmpty()){toast("Join a live Party room first");return;}
+        stopInRoomVoice940(true);
+        Intent i=new Intent(this,KingMultiVideoActivity.class);i.putExtra("roomId",roomId);i.putExtra("roomName",roomName);i.putExtra("displayName",safeName());startActivity(i);
+    }'''
+if old not in q: raise SystemExit('Party openVideoRoom marker missing')
+q=q.replace(old,new,1)
+
+old='''        setInlineAudioMuted940(!(micOn&&mySeat>0));
+        if(seatsBox!=null)rebuildSeats();'''
+new='''        if(cloudRoom&&roomId!=null&&partyShell940!=null&&!inRoomVoiceJoined940)attachInRoomVoice940(partyShell940);
+        setInlineAudioMuted940(!(micOn&&mySeat>0));
+        if(seatsBox!=null)rebuildSeats();'''
+if old not in q: raise SystemExit('Party onResume inline voice marker missing for video return')
+q=q.replace(old,new,1)
+party.write_text(q)
+print('v9.4.0 dedicated in-app Multi Video room applied')
+
 print('v9.4.0 parity batch 1 applied')
