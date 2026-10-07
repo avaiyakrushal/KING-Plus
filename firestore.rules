@@ -189,6 +189,26 @@ service cloud.firestore {
           && (roomModerator(roomId) || resource.data.uid == request.auth.uid);
       }
 
+      match /video_seats/{seatId} {
+        allow read: if roomAccess(roomId);
+        allow create: if roomAccess(roomId)
+          && request.resource.data.name is string
+          && (
+            request.resource.data.uid == request.auth.uid
+            || (roomModerator(roomId)
+                && request.resource.data.uid is string)
+          );
+        allow update: if roomAccess(roomId)
+          && resource.data.uid == request.resource.data.uid
+          && (
+            (resource.data.uid == request.auth.uid
+              && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['micOn','cameraOn']))
+            || roomModerator(roomId)
+          );
+        allow delete: if roomAccess(roomId)
+          && (resource.data.uid == request.auth.uid || roomModerator(roomId));
+      }
+
       // v9.x realtime room features. Keep writes scoped to the signed-in
       // member or the room moderator so UI-only features actually work multi-user.
       match /seat_invites/{targetUid} {
