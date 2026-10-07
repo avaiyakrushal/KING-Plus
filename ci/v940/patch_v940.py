@@ -3273,10 +3273,7 @@ helper=r'''    private void showGlobalCrashDiagnostic940(){
             long at=p.getLong("lastCrashAt",0L);
             String device=p.getString("device","");
             if(crash.length()>2200)crash=crash.substring(0,2200);
-            final String message=(at>0?new java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss",java.util.Locale.US).format(new java.util.Date(at))+"
-":"")+(device==null?"":device+"
-
-")+crash;
+            final String message=(at>0?new java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss",java.util.Locale.US).format(new java.util.Date(at))+"\\n":"")+(device==null?"":device+"\\n\\n")+crash;
             p.edit().remove("lastCrash").remove("lastCrashAt").remove("lastCrashThread").apply();
             new AlertDialog.Builder(this).setTitle("KING Plus previous crash")
                 .setMessage(message)
