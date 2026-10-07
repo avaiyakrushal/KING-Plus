@@ -1830,4 +1830,30 @@ q=q.replace(marker,helpers+marker,1)
 chat.write_text(q)
 print('v9.4.0 real direct-chat peer header applied')
 
+
+# Party lobby room counts stay realtime and listener-safe.
+party=pkg/'PartyActivity.java'
+q=party.read_text()
+old='''    private FrameLayout partyShell940;'''
+new='''    private FrameLayout partyShell940;
+    private final List<ListenerRegistration> lobbyMemberCountListeners940=new ArrayList<>();'''
+if old not in q: raise SystemExit('Party shell field marker missing for live room counts')
+q=q.replace(old,new,1)
+
+old='''    private void clearListeners() {
+        stopHeartbeat900();'''
+new='''    private void clearListeners() {
+        stopHeartbeat900();
+        for(ListenerRegistration l940:new ArrayList<>(lobbyMemberCountListeners940)){try{if(l940!=null)l940.remove();}catch(Exception ignored){}}
+        lobbyMemberCountListeners940.clear();'''
+if old not in q: raise SystemExit('Party clearListeners marker missing for live room counts')
+q=q.replace(old,new,1)
+
+old='''        if(db!=null&&id!=null&&!id.isEmpty())db.collection("live_rooms").document(id).collection("members").get().addOnSuccessListener(x->count.setText(String.valueOf(Math.max(1,x.size())))).addOnFailureListener(e->count.setText("LIVE"));'''
+new='''        if(db!=null&&id!=null&&!id.isEmpty()){ListenerRegistration countListener940=db.collection("live_rooms").document(id).collection("members").addSnapshotListener((x,e)->{if(e!=null||x==null){count.setText("LIVE");return;}count.setText(String.valueOf(x.size()));});lobbyMemberCountListeners940.add(countListener940);}'''
+if old not in q: raise SystemExit('Party room one-shot member count marker missing')
+q=q.replace(old,new,1)
+party.write_text(q)
+print('v9.4.0 realtime lobby member counts applied')
+
 print('v9.4.0 parity batch 1 applied')
