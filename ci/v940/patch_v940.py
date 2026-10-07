@@ -4865,4 +4865,16 @@ if old in q:q=q.replace(old,new,1)
 party.write_text(q)
 print('v9.4.0 Wardrobe chat bubble and badge cosmetics applied')
 
+
+# Route cosmetic privilege pages to the real Wardrobe instead of generic detail placeholders.
+deep=pkg/'KingDeepFlowActivity.java'
+q=deep.read_text()
+q=q.replace('''case "profile_menu": profileMenu();break; case "privilege_pack": privilegePack();break; case "privilege_shop": privilegeShop();break;''',
+'''case "profile_menu": profileMenu();break; case "privilege_pack": privilegePack();break; case "privilege_shop": startActivity(new Intent(this,KingWardrobeActivity.class));break;''',1)
+q=q.replace('''            default:detail(route);break;''',
+'''            case "detail_frames": case "detail_entrance": case "detail_chat_bubble": case "detail_name_badge": startActivity(new Intent(this,KingWardrobeActivity.class));break;
+            default:detail(route);break;''',1)
+deep.write_text(q)
+print('v9.4.0 privilege cosmetics routed to working Wardrobe')
+
 print('v9.4.0 parity batch 1 applied')
