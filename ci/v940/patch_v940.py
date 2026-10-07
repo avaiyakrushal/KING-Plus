@@ -1734,4 +1734,18 @@ q=q.replace(old,new,1)
 party.write_text(q)
 print('v9.4.0 dedicated in-app Multi Video room applied')
 
+# Expose Multi Video as a first-class Party lobby category.
+party=pkg/'PartyActivity.java'
+q=party.read_text()
+old='''        String[] names = {"Hot","Event","Date","Music","Game"};'''
+new='''        String[] names = {"Hot","Event","Date","Music","Game","Video"};'''
+if old not in q: raise SystemExit('Party lobby tabs marker missing for Video')
+q=q.replace(old,new,1)
+old='''hot.setOnClickListener(v->{if(user!=null&&db!=null){pendingCreateCategory=selected;createRoomDialog();}else requireSignInForCreate();});'''
+new='''hot.setOnClickListener(v->{if(user!=null&&db!=null){pendingCreateCategory="Video".equalsIgnoreCase(selected)?"Multi Video":selected;createRoomDialog();}else requireSignInForCreate();});'''
+if old not in q: raise SystemExit('Party lobby create marker missing for Video')
+q=q.replace(old,new,1)
+party.write_text(q)
+print('v9.4.0 Multi Video lobby entrance applied')
+
 print('v9.4.0 parity batch 1 applied')
