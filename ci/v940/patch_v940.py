@@ -2379,4 +2379,151 @@ q=q.replace(marker,helpers+marker,1)
 party.write_text(q)
 print('v9.4.0 realtime Mic-up request queue applied')
 
+
+# Bolo-reference parity: Multi Video viewer/seat/mic/camera state synchronized through Firebase.
+multi=pkg/'KingMultiVideoActivity.java'
+multi.write_text(r'''package com.kingplus.social;
+
+import android.content.Intent;
+import android.graphics.Color;
+import android.graphics.Typeface;
+import android.graphics.drawable.GradientDrawable;
+import android.os.Bundle;
+import android.view.Gravity;
+import android.view.View;
+import android.widget.FrameLayout;
+import android.widget.LinearLayout;
+import android.widget.TextView;
+
+import androidx.localbroadcastmanager.content.LocalBroadcastManager;
+
+import com.google.firebase.auth.FirebaseAuth;
+import com.google.firebase.auth.FirebaseUser;
+import com.google.firebase.firestore.DocumentReference;
+import com.google.firebase.firestore.DocumentSnapshot;
+import com.google.firebase.firestore.FieldValue;
+import com.google.firebase.firestore.FirebaseFirestore;
+import com.google.firebase.firestore.ListenerRegistration;
+import com.google.firebase.firestore.SetOptions;
+
+import java.util.HashMap;
+import java.util.Map;
+
+public class KingMultiVideoActivity extends androidx.fragment.app.FragmentActivity implements org.jitsi.meet.sdk.JitsiMeetActivityInterface {
+    private org.jitsi.meet.sdk.JitsiMeetView meetView;
+    private String roomId="",roomName="KING Plus Multi Video",displayName="KING User";
+    private FirebaseFirestore db; private FirebaseUser me; private ListenerRegistration seatsListener,roomListener,roleListener;
+    private final Map<Integer,String> seatUids=new HashMap<>(),seatNames=new HashMap<>();
+    private int mySeat=-1; private boolean micOn=false,cameraOn=false,moderator=false;
+    private LinearLayout seatsBar,controls; private TextView stateText,seatAction,micAction,camAction;
+
+    private int dp(int n){return (int)(n*getResources().getDisplayMetrics().density+.5f);}
+    private GradientDrawable bg(int c,int r){GradientDrawable d=new GradientDrawable();d.setColor(c);d.setCornerRadius(dp(r));return d;}
+    private TextView tv(String s,int z,int c,boolean b){TextView t=new TextView(this);t.setText(s);t.setTextSize(z);t.setTextColor(c);if(b)t.setTypeface(null,Typeface.BOLD);return t;}
+    private String safe(String s,String f){return s==null||s.trim().isEmpty()?f:s.trim();}
+    private void toast(String s){if(!isFinishing())android.widget.Toast.makeText(this,s,android.widget.Toast.LENGTH_SHORT).show();}
+
+    @Override public void onCreate(Bundle state){
+        super.onCreate(state);
+        roomId=safe(getIntent().getStringExtra("roomId"),"");
+        roomName=safe(getIntent().getStringExtra("roomName"),"KING Plus Multi Video");
+        displayName=safe(getIntent().getStringExtra("displayName"),"KING User");
+        try{db=FirebaseFirestore.getInstance();me=FirebaseAuth.getInstance().getCurrentUser();}catch(Exception ignored){}
+
+        FrameLayout shell=new FrameLayout(this);shell.setBackgroundColor(0xff0d0b15);
+        LinearLayout body=new LinearLayout(this);body.setOrientation(LinearLayout.VERTICAL);shell.addView(body,new FrameLayout.LayoutParams(-1,-1));
+
+        LinearLayout head=new LinearLayout(this);head.setGravity(Gravity.CENTER_VERTICAL);head.setPadding(dp(10),0,dp(12),0);head.setBackgroundColor(0xff171322);
+        TextView back=tv("‹",38,Color.WHITE,false);back.setGravity(Gravity.CENTER);back.setOnClickListener(v->finish());head.addView(back,new LinearLayout.LayoutParams(dp(50),dp(58)));
+        LinearLayout info=new LinearLayout(this);info.setOrientation(LinearLayout.VERTICAL);TextView title=tv(roomName,17,Color.WHITE,true);stateText=tv("📹 Multi Video • viewer mode",11,0xffc7bdd5,true);info.addView(title,new LinearLayout.LayoutParams(-1,dp(30)));info.addView(stateText,new LinearLayout.LayoutParams(-1,dp(22)));head.addView(info,new LinearLayout.LayoutParams(0,dp(58),1));
+        TextView leave=tv("Leave",12,Color.WHITE,true);leave.setGravity(Gravity.CENTER);leave.setBackground(bg(0xff7b3fd0,18));leave.setOnClickListener(v->finish());head.addView(leave,new LinearLayout.LayoutParams(dp(72),dp(38)));
+        body.addView(head,new LinearLayout.LayoutParams(-1,dp(62)));
+
+        FrameLayout stage=new FrameLayout(this);body.addView(stage,new LinearLayout.LayoutParams(-1,0,1));
+        TextView loading=tv("Connecting Multi Video…",14,0xffcfc8da,true);loading.setGravity(Gravity.CENTER);stage.addView(loading,new FrameLayout.LayoutParams(-1,-1));
+
+        seatsBar=new LinearLayout(this);seatsBar.setGravity(Gravity.CENTER);seatsBar.setPadding(dp(8),dp(5),dp(8),dp(3));seatsBar.setBackgroundColor(0xff171322);body.addView(seatsBar,new LinearLayout.LayoutParams(-1,dp(68)));
+        controls=new LinearLayout(this);controls.setGravity(Gravity.CENTER);controls.setPadding(dp(6),dp(3),dp(6),dp(8));controls.setBackgroundColor(0xff171322);
+        seatAction=control("＋ Sit Down",()->toggleSeat940());micAction=control("🎤 Mic OFF",()->toggleMic940());camAction=control("📷 Camera OFF",()->toggleCamera940());
+        controls.addView(seatAction,controlLp());controls.addView(micAction,controlLp());controls.addView(camAction,controlLp());body.addView(controls,new LinearLayout.LayoutParams(-1,dp(62)));
+
+        try{
+            org.jitsi.meet.sdk.JitsiMeet.instantiateReactNative(this);
+            meetView=new org.jitsi.meet.sdk.JitsiMeetView(this);stage.addView(meetView,new FrameLayout.LayoutParams(-1,-1));
+            String slug=("KINGPlus-"+roomId).replaceAll("[^A-Za-z0-9_-]","");
+            org.jitsi.meet.sdk.JitsiMeetUserInfo userInfo=new org.jitsi.meet.sdk.JitsiMeetUserInfo();userInfo.setDisplayName(displayName);
+            org.jitsi.meet.sdk.JitsiMeetConferenceOptions options=new org.jitsi.meet.sdk.JitsiMeetConferenceOptions.Builder()
+                .setServerURL(new java.net.URL("https://meet.jit.si")).setRoom(slug).setSubject(roomName)
+                .setAudioMuted(true).setVideoMuted(true).setUserInfo(userInfo)
+                .setFeatureFlag("welcomepage.enabled",false).setFeatureFlag("prejoinpage.enabled",false)
+                .setFeatureFlag("invite.enabled",false).setFeatureFlag("chat.enabled",false)
+                .setFeatureFlag("recording.enabled",false).setFeatureFlag("live-streaming.enabled",false)
+                .setFeatureFlag("pip.enabled",true).build();
+            meetView.join(options);loading.setVisibility(View.GONE);
+        }catch(Throwable e){loading.setText("Multi Video could not start • tap back and retry");}
+        setContentView(shell);attachRealtime940();renderSeats940();refreshControls940();
+    }
+
+    private TextView control(String text,Runnable action){TextView v=tv(text,12,Color.WHITE,true);v.setGravity(Gravity.CENTER);v.setBackground(bg(0xff372b4c,15));v.setOnClickListener(x->action.run());return v;}
+    private LinearLayout.LayoutParams controlLp(){LinearLayout.LayoutParams p=new LinearLayout.LayoutParams(0,dp(48),1);p.setMargins(dp(4),0,dp(4),0);return p;}
+
+    private void attachRealtime940(){
+        if(db==null||me==null||roomId.isEmpty()){stateText.setText("📹 Multi Video • sign in required for seats");return;}
+        DocumentReference room=db.collection("live_rooms").document(roomId);
+        roomListener=room.addSnapshotListener((doc,e)->{if(e==null&&doc!=null&&doc.exists()){moderator=me.getUid().equals(doc.getString("ownerUid"));refreshControls940();}});
+        roleListener=room.collection("roles").document(me.getUid()).addSnapshotListener((doc,e)->{if(e==null&&doc!=null&&doc.exists()&&"cohost".equals(doc.getString("role")))moderator=true;refreshControls940();});
+        seatsListener=room.collection("video_seats").addSnapshotListener((snap,e)->{
+            if(e!=null||snap==null)return;seatUids.clear();seatNames.clear();mySeat=-1;micOn=false;cameraOn=false;
+            for(DocumentSnapshot d:snap.getDocuments()){int no;try{no=Integer.parseInt(d.getId());}catch(Exception ex){continue;}seatUids.put(no,d.getString("uid"));seatNames.put(no,safe(d.getString("name"),"Guest"));if(me.getUid().equals(d.getString("uid"))){mySeat=no;micOn=Boolean.TRUE.equals(d.getBoolean("micOn"));cameraOn=Boolean.TRUE.equals(d.getBoolean("cameraOn"));}}
+            applyMedia940();renderSeats940();refreshControls940();
+        });
+    }
+
+    private void renderSeats940(){
+        if(seatsBar==null)return;seatsBar.removeAllViews();
+        for(int i=1;i<=6;i++){final int seat=i;String uid=seatUids.get(i),name=seatNames.get(i);boolean mine=me!=null&&me.getUid().equals(uid);
+            TextView v=tv(uid==null?"＋":(mine?"●":safe(name,"G").substring(0,1).toUpperCase()),uid==null?18:14,mine?0xffffe500:Color.WHITE,true);v.setGravity(Gravity.CENTER);v.setBackground(bg(mine?0xff51431b:(uid==null?0xff30283b:0xff47345e),24));v.setContentDescription(uid==null?"Empty video seat "+i:"Video seat "+i+" "+name);v.setOnClickListener(x->seatTap940(seat));
+            LinearLayout.LayoutParams p=new LinearLayout.LayoutParams(0,dp(50),1);p.setMargins(dp(3),0,dp(3),0);seatsBar.addView(v,p);}
+    }
+
+    private void seatTap940(int seat){
+        String uid=seatUids.get(seat);
+        if(uid==null){if(mySeat>0){toast("Leave your current video seat first");return;}takeSeat940(seat);return;}
+        if(me!=null&&me.getUid().equals(uid)){leaveSeat940();return;}
+        if(moderator)new android.app.AlertDialog.Builder(this).setTitle(seatNames.get(seat)).setMessage("Remove this member from video seat "+seat+"?").setPositiveButton("Remove",(d,w)->removeSeat940(seat)).setNegativeButton("Cancel",null).show();
+        else toast(seatNames.get(seat)+" is on video seat "+seat);
+    }
+
+    private void toggleSeat940(){if(mySeat>0)leaveSeat940();else{for(int i=1;i<=6;i++)if(!seatUids.containsKey(i)){takeSeat940(i);return;}toast("All video seats are occupied");}}
+    private void takeSeat940(int seat){
+        if(db==null||me==null||roomId.isEmpty()){toast("Sign in required");return;}
+        Map<String,Object>s=new HashMap<>();s.put("uid",me.getUid());s.put("name",displayName);s.put("micOn",false);s.put("cameraOn",true);s.put("joinedAt",FieldValue.serverTimestamp());
+        db.collection("live_rooms").document(roomId).collection("video_seats").document(String.valueOf(seat)).set(s)
+            .addOnSuccessListener(v->toast("Video seat "+seat+" joined")).addOnFailureListener(e->toast("Seat unavailable: "+e.getMessage()));
+    }
+    private void leaveSeat940(){if(db==null||mySeat<1)return;db.collection("live_rooms").document(roomId).collection("video_seats").document(String.valueOf(mySeat)).delete().addOnFailureListener(e->toast("Could not leave seat"));}
+    private void removeSeat940(int seat){if(!moderator||db==null)return;db.collection("live_rooms").document(roomId).collection("video_seats").document(String.valueOf(seat)).delete().addOnFailureListener(e->toast("Remove failed"));}
+    private void toggleMic940(){if(mySeat<1){toast("Sit on a video seat first");return;}micOn=!micOn;syncOwnSeat940("micOn",micOn);applyAudio940(!micOn);refreshControls940();}
+    private void toggleCamera940(){if(mySeat<1){toast("Sit on a video seat first");return;}cameraOn=!cameraOn;syncOwnSeat940("cameraOn",cameraOn);applyVideo940(!cameraOn);refreshControls940();}
+    private void syncOwnSeat940(String key,boolean value){if(db==null||mySeat<1)return;db.collection("live_rooms").document(roomId).collection("video_seats").document(String.valueOf(mySeat)).update(key,value).addOnFailureListener(e->toast("Video seat sync failed"));}
+    private void applyMedia940(){applyAudio940(mySeat<1||!micOn);applyVideo940(mySeat<1||!cameraOn);}
+    private void applyAudio940(boolean muted){try{Intent i=org.jitsi.meet.sdk.BroadcastIntentHelper.buildSetAudioMutedIntent(muted);LocalBroadcastManager.getInstance(getApplicationContext()).sendBroadcast(i);}catch(Throwable ignored){}}
+    private void applyVideo940(boolean muted){try{Intent i=new Intent(org.jitsi.meet.sdk.BroadcastAction.Type.SET_VIDEO_MUTED.getAction());i.putExtra("muted",muted);LocalBroadcastManager.getInstance(getApplicationContext()).sendBroadcast(i);}catch(Throwable ignored){}}
+    private void refreshControls940(){
+        if(stateText!=null)stateText.setText(mySeat>0?("📹 Video seat "+mySeat+(moderator?" • Host controls":"")):("📹 Multi Video • viewer mode"+(moderator?" • Host controls":"")));
+        if(seatAction!=null)seatAction.setText(mySeat>0?"↥ Leave Seat":"＋ Sit Down");
+        if(micAction!=null){micAction.setText(micOn?"🎤 Mic ON":"🎤 Mic OFF");micAction.setAlpha(mySeat>0?1f:.45f);}
+        if(camAction!=null){camAction.setText(cameraOn?"📷 Camera ON":"📷 Camera OFF");camAction.setAlpha(mySeat>0?1f:.45f);}
+    }
+
+    @Override protected void onResume(){super.onResume();org.jitsi.meet.sdk.JitsiMeetActivityDelegate.onHostResume(this);}
+    @Override protected void onStop(){org.jitsi.meet.sdk.JitsiMeetActivityDelegate.onHostPause(this);super.onStop();}
+    @Override public void onNewIntent(Intent intent){super.onNewIntent(intent);org.jitsi.meet.sdk.JitsiMeetActivityDelegate.onNewIntent(intent);}
+    @Override protected void onActivityResult(int requestCode,int resultCode,Intent data){super.onActivityResult(requestCode,resultCode,data);org.jitsi.meet.sdk.JitsiMeetActivityDelegate.onActivityResult(this,requestCode,resultCode,data);}
+    @Override public void requestPermissions(String[] permissions,int requestCode,com.facebook.react.modules.core.PermissionListener listener){org.jitsi.meet.sdk.JitsiMeetActivityDelegate.requestPermissions(this,permissions,requestCode,listener);}
+    @Override public void onRequestPermissionsResult(int requestCode,String[] permissions,int[] grantResults){org.jitsi.meet.sdk.JitsiMeetActivityDelegate.onRequestPermissionsResult(requestCode,permissions,grantResults);}
+    @Override protected void onDestroy(){if(seatsListener!=null)seatsListener.remove();if(roomListener!=null)roomListener.remove();if(roleListener!=null)roleListener.remove();try{if(meetView!=null){meetView.dispose();meetView=null;}}catch(Throwable ignored){}org.jitsi.meet.sdk.JitsiMeetActivityDelegate.onHostDestroy(this);super.onDestroy();}
+}''')
+print('v9.4.0 realtime Multi Video seats and media controls applied')
+
 print('v9.4.0 parity batch 1 applied')
