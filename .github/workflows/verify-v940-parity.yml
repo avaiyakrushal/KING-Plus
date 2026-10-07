@@ -54,6 +54,8 @@ jobs:
           unzip -q /tmp/base/KING-Plus-v9.3.1-source.zip -d /tmp/src
           python3 ci/v940/patch_v940.py /tmp/src
           cp ci/v940/PARITY-MATRIX.md /tmp/src/PARITY-MATRIX-v9.4.0.md
+          cp ci/v940/PARITY-GATES.md /tmp/src/PARITY-GATES-v9.4.0.md
+          cp firestore.rules /tmp/src/firestore.rules
           python3 - <<'PY'
           from pathlib import Path
           p=Path('/tmp/src/app/build.gradle');s=p.read_text()
@@ -80,6 +82,10 @@ jobs:
           grep -F 'banUser' /tmp/src/app/src/main/java/com/kingplus/social/PartyActivity.java
           grep -F 'coHostDialog' /tmp/src/app/src/main/java/com/kingplus/social/PartyActivity.java
           grep -F 'game_votes' /tmp/src/app/src/main/java/com/kingplus/social/RoomGameActivity.java
+          grep -F 'match /ludo_matches/{matchCode}' /tmp/src/firestore.rules
+          grep -F 'match /game_state/{stateId}' /tmp/src/firestore.rules
+          grep -F 'match /music_state/{stateId}' /tmp/src/firestore.rules
+          grep -F 'match /public_profiles/{uid}' /tmp/src/firestore.rules
       - name: Compile parity development build
         working-directory: /tmp/src
         run: |
