@@ -2996,4 +2996,30 @@ public class KingMultiVideoActivity extends androidx.fragment.app.FragmentActivi
 }''')
 print('v9.4.0 production-rule compatible event-sourced Multi Video applied')
 
+
+# Harden event-sourced Multi Video for long sessions and owner/co-host listener ordering.
+multi=pkg/'KingMultiVideoActivity.java'
+q=multi.read_text()
+q=q.replace('''private int mySeat=-1; private boolean micOn=false,cameraOn=false,moderator=false,leaving940=false;''',
+'''private int mySeat=-1; private boolean micOn=false,cameraOn=false,moderator=false,owner940=false,cohost940=false,leaving940=false;''',1)
+q=q.replace('''Map<String,Object>x=new HashMap<>();x.put("seatNo",mySeat);emit940("video_presence",displayName+" is active on video seat "+mySeat,x);''',
+'''Map<String,Object>x=new HashMap<>();x.put("seatNo",mySeat);x.put("micOn",micOn);x.put("cameraOn",cameraOn);emit940("video_presence",displayName+" is active on video seat "+mySeat,x);''',1)
+q=q.replace('''roomListener=db.collection("live_rooms").document(roomId).addSnapshotListener((doc,e)->{if(e==null&&doc!=null&&doc.exists()){moderator=me.getUid().equals(doc.getString("ownerUid"));refreshControls940();}});
+        roleListener=db.collection("live_rooms").document(roomId).collection("roles").document(me.getUid()).addSnapshotListener((doc,e)->{if(e==null&&doc!=null&&doc.exists()&&"cohost".equals(doc.getString("role")))moderator=true;refreshControls940();});''',
+'''roomListener=db.collection("live_rooms").document(roomId).addSnapshotListener((doc,e)->{owner940=e==null&&doc!=null&&doc.exists()&&me.getUid().equals(doc.getString("ownerUid"));refreshModerator940();});
+        roleListener=db.collection("live_rooms").document(roomId).collection("roles").document(me.getUid()).addSnapshotListener((doc,e)->{cohost940=e==null&&doc!=null&&doc.exists()&&"cohost".equals(doc.getString("role"));refreshModerator940();});''',1)
+q=q.replace('''            if("video_seat_claim".equals(type)&&seat>=1&&seat<=6&&!actor.isEmpty()){removeUid940(actor);seatUids.put(seat,actor);seatNames.put(seat,safe(d.getString("actorName"),"Guest"));seatMics.put(seat,false);seatCameras.put(seat,true);}
+            else if("video_seat_leave".equals(type)&&seat>=1&&actor.equals(seatUids.get(seat)))clearSeat940(seat);''',
+'''            if("video_seat_claim".equals(type)&&seat>=1&&seat<=6&&!actor.isEmpty()){removeUid940(actor);seatUids.put(seat,actor);seatNames.put(seat,safe(d.getString("actorName"),"Guest"));seatMics.put(seat,false);seatCameras.put(seat,true);}
+            else if("video_presence".equals(type)&&seat>=1&&seat<=6&&!actor.isEmpty()){removeUid940(actor);seatUids.put(seat,actor);seatNames.put(seat,safe(d.getString("actorName"),"Guest"));seatMics.put(seat,Boolean.TRUE.equals(d.getBoolean("micOn")));seatCameras.put(seat,Boolean.TRUE.equals(d.getBoolean("cameraOn")));}
+            else if("video_seat_leave".equals(type)&&seat>=1&&actor.equals(seatUids.get(seat)))clearSeat940(seat);''',1)
+const marker='''    private void reduceEvents940(QuerySnapshot snap){''';
+const helper='''    private void refreshModerator940(){moderator=owner940||cohost940;refreshControls940();}
+
+''';
+if(!q.includes(marker)) throw new Error("Multi Video reducer marker missing");
+q=q.replace(marker,helper+marker,1);
+multi.write_text(q)
+print('v9.4.0 Multi Video heartbeat and moderator hardening applied')
+
 print('v9.4.0 parity batch 1 applied')
