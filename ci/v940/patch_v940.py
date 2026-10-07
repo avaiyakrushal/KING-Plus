@@ -1215,4 +1215,72 @@ q=q.replace(old,new,1)
 discover.write_text(q)
 print('v9.4.0 Discover loading/offline states applied')
 
+
+# Me/Profile realtime counters and wallet loading/error states.
+main=pkg/'MainActivity.java'
+q=main.read_text()
+old='''        TextView beans=smallBadge("💎 0",0xfffff7cc,0xff6c5b00);profileTopBalance=beans;beans.setOnClickListener(v->walletPage());top.addView(beans,new LinearLayout.LayoutParams(dp(78),dp(34)));
+        TextView coins=smallBadge("◈ 0",0xfffff7cc,0xff6c5b00);profileWalletCoins=coins;coins.setOnClickListener(v->walletPage());'''
+new='''        TextView beans=smallBadge("💎 "+Math.max(0,coinBalance),0xfffff7cc,0xff6c5b00);profileTopBalance=beans;beans.setOnClickListener(v->walletPage());top.addView(beans,new LinearLayout.LayoutParams(dp(78),dp(34)));
+        TextView coins=smallBadge("◈ "+Math.max(0,coinBalance),0xfffff7cc,0xff6c5b00);profileWalletCoins=coins;coins.setOnClickListener(v->walletPage());'''
+if old not in q: raise SystemExit('Me wallet badge marker missing')
+q=q.replace(old,new,1)
+
+old='''        LinearLayout counts=new LinearLayout(this);counts.setGravity(Gravity.CENTER);profileFollowersNumber=addProfileStat(counts,"0","Followers",()->peoplePage("Followers"));profileFollowingNumber=addProfileStat(counts,"0","Following",()->peoplePage("Following"));profileFriendsNumber=addProfileStat(counts,"0","Friends",()->peoplePage("Friends"));String coupling=getPreferences(0).getString("coupling_name","");'''
+new='''        LinearLayout counts=new LinearLayout(this);counts.setGravity(Gravity.CENTER);profileFollowersNumber=addProfileStat(counts,"…","Followers",()->peoplePage("Followers"));profileFollowingNumber=addProfileStat(counts,"…","Following",()->peoplePage("Following"));profileFriendsNumber=addProfileStat(counts,"…","Friends",()->peoplePage("Friends"));String coupling=getPreferences(0).getString("coupling_name","");'''
+if old not in q: raise SystemExit('Me social count marker missing')
+q=q.replace(old,new,1)
+
+old='''        firestore.collection("follows").whereEqualTo("followerUid",uid).get().addOnSuccessListener(out->{
+            final Set<String> followingSet=new HashSet<>();
+            for(DocumentSnapshot d:out.getDocuments()){String x=d.getString("targetUid");if(x!=null)followingSet.add(x);}
+            if(profileFollowingNumber!=null)profileFollowingNumber.setText(String.valueOf(followingSet.size()));
+            firestore.collection("follows").whereEqualTo("targetUid",uid).get().addOnSuccessListener(in->{
+                int followers=0,friends=0;
+                for(DocumentSnapshot d:in.getDocuments()){String x=d.getString("followerUid");if(x!=null){followers++;if(followingSet.contains(x))friends++;}}
+                if(profileFollowersNumber!=null)profileFollowersNumber.setText(String.valueOf(followers));
+                if(profileFriendsNumber!=null)profileFriendsNumber.setText(String.valueOf(friends));
+            });
+        });
+        refreshServerWallet();'''
+new='''        firestore.collection("follows").whereEqualTo("followerUid",uid).get().addOnSuccessListener(out->{
+            final Set<String> followingSet=new HashSet<>();
+            for(DocumentSnapshot d:out.getDocuments()){String x=d.getString("targetUid");if(x!=null)followingSet.add(x);}
+            if(profileFollowingNumber!=null)profileFollowingNumber.setText(String.valueOf(followingSet.size()));
+            firestore.collection("follows").whereEqualTo("targetUid",uid).get().addOnSuccessListener(in->{
+                int followers=0,friends=0;
+                for(DocumentSnapshot d:in.getDocuments()){String x=d.getString("followerUid");if(x!=null){followers++;if(followingSet.contains(x))friends++;}}
+                if(profileFollowersNumber!=null)profileFollowersNumber.setText(String.valueOf(followers));
+                if(profileFriendsNumber!=null)profileFriendsNumber.setText(String.valueOf(friends));
+            }).addOnFailureListener(e->{if(profileFollowersNumber!=null)profileFollowersNumber.setText("—");if(profileFriendsNumber!=null)profileFriendsNumber.setText("—");});
+        }).addOnFailureListener(e->{if(profileFollowingNumber!=null)profileFollowingNumber.setText("—");if(profileFollowersNumber!=null)profileFollowersNumber.setText("—");if(profileFriendsNumber!=null)profileFriendsNumber.setText("—");});
+        refreshServerWallet();'''
+if old not in q: raise SystemExit('Me follow load marker missing')
+q=q.replace(old,new,1)
+
+old='''    private void refreshServerWallet(){
+        if(firestore==null||firebaseAuth==null||firebaseAuth.getCurrentUser()==null)return;
+        firestore.collection("wallets").document(firebaseAuth.getCurrentUser().getUid()).get().addOnSuccessListener(doc->{
+            Object raw=doc.get("coins"); long coins=raw instanceof Number?Math.max(0,Math.round(((Number)raw).doubleValue())):0;
+            coinBalance=(int)Math.min(Integer.MAX_VALUE,coins);
+            if(profileTopBalance!=null)profileTopBalance.setText("💎 "+coins);
+            if(profileWalletCoins!=null)profileWalletCoins.setText("💎 "+coins);
+        });
+    }'''
+new='''    private void refreshServerWallet(){
+        if(profileTopBalance!=null)profileTopBalance.setText("💎 "+Math.max(0,coinBalance));
+        if(profileWalletCoins!=null)profileWalletCoins.setText("◈ "+Math.max(0,coinBalance));
+        if(firestore==null||firebaseAuth==null||firebaseAuth.getCurrentUser()==null)return;
+        firestore.collection("wallets").document(firebaseAuth.getCurrentUser().getUid()).get().addOnSuccessListener(doc->{
+            Object raw=doc.get("coins"); long coins=raw instanceof Number?Math.max(0,Math.round(((Number)raw).doubleValue())):Math.max(0,coinBalance);
+            coinBalance=(int)Math.min(Integer.MAX_VALUE,coins);
+            if(profileTopBalance!=null)profileTopBalance.setText("💎 "+coins);
+            if(profileWalletCoins!=null)profileWalletCoins.setText("◈ "+coins);
+        }).addOnFailureListener(e->{if(profileTopBalance!=null)profileTopBalance.setText("💎 "+Math.max(0,coinBalance));if(profileWalletCoins!=null)profileWalletCoins.setText("◈ "+Math.max(0,coinBalance));});
+    }'''
+if old not in q: raise SystemExit('Me wallet refresh marker missing')
+q=q.replace(old,new,1)
+main.write_text(q)
+print('v9.4.0 Me profile realtime loading states applied')
+
 print('v9.4.0 parity batch 1 applied')
