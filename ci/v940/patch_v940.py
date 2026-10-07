@@ -3022,4 +3022,90 @@ q=q.replace(marker,helper+marker,1)
 multi.write_text(q)
 print('v9.4.0 Multi Video heartbeat and moderator hardening applied')
 
+
+# Bolo-reference parity: realtime per-seat lock/unlock for host/co-host.
+party=pkg/'PartyActivity.java'
+q=party.read_text()
+
+field_marker='''    private final Map<Integer,Boolean> seatMics = new HashMap<>();'''
+field_add='''    private final Map<Integer,Boolean> seatMics = new HashMap<>();
+    private final Set<Integer> lockedSeats940 = new HashSet<>();
+    private ListenerRegistration seatLocksListener940;'''
+if field_marker not in q: raise SystemExit('Party seat field marker missing for seat locks')
+q=q.replace(field_marker,field_add,1)
+
+clear_marker='''    private void clearListeners() {'''
+clear_add='''    private void clearListeners() {
+        try{if(seatLocksListener940!=null)seatLocksListener940.remove();}catch(Exception ignored){}
+        seatLocksListener940=null;'''
+if clear_marker not in q: raise SystemExit('Party clearListeners marker missing for seat locks')
+q=q.replace(clear_marker,clear_add,1)
+
+render_old='''                TextView av=tv(mine?"👑":(n==null?"＋":"●"),mine?27:24,Color.WHITE,true);av.setGravity(Gravity.CENTER);av.setBackground(bg(mine?PURPLE:0xff4a3768,50));seat.addView(av,new LinearLayout.LayoutParams(dp(54),dp(54)));
+                String label=n==null?"Seat "+no:n; if(Boolean.FALSE.equals(seatMics.get(no))) label="🔇 "+label; TextView lab=tv(label,10,mine?Color.WHITE:MUTED,false);'''
+render_new='''                boolean locked940=lockedSeats940.contains(no);
+                TextView av=tv(mine?"👑":(n==null?(locked940?"🔒":"＋"):"●"),mine?27:24,Color.WHITE,true);av.setGravity(Gravity.CENTER);av.setBackground(bg(mine?PURPLE:(locked940?0xff6b4b45:0xff4a3768),50));seat.addView(av,new LinearLayout.LayoutParams(dp(54),dp(54)));
+                String label=n==null?(locked940?"Locked "+no:"Seat "+no):n; if(Boolean.FALSE.equals(seatMics.get(no))) label="🔇 "+label; TextView lab=tv(label,10,mine?Color.WHITE:MUTED,false);'''
+if render_old not in q: raise SystemExit('Party seat render marker missing for seat locks')
+q=q.replace(render_old,render_new,1)
+
+action_old='''    private void cloudSeatAction(int no) {
+        if(user==null||db==null)return; DocumentReference ref=db.collection("live_rooms").document(roomId).collection("seats").document(String.valueOf(no));
+        String existing=seatUids.get(no);
+        if(existing!=null&&!existing.equals(user.getUid())){toast("Seat is occupied");return;}
+        if(existing!=null){ref.delete().addOnSuccessListener(v->{mySeat=-1;micOn=false;addEvent("leave",displayName+" left mic seat");});return;}
+        Map<String,Object>d=new HashMap<>();d.put("uid",user.getUid());d.put("name",safeName());d.put("micOn",false);d.put("joinedAt",FieldValue.serverTimestamp());
+        ref.set(d).addOnSuccessListener(v->{mySeat=no;addEvent("seat",safeName()+" took seat "+no);}).addOnFailureListener(e->toast("Seat unavailable: "+msg(e)));
+    }'''
+action_new='''    private void cloudSeatAction(int no) {
+        if(user==null||db==null)return;
+        if(isModerator()&&seatUids.get(no)==null){showSeatLockMenu940(no);return;}
+        if(lockedSeats940.contains(no)&&!isModerator()){toast("This mic seat is locked by host");return;}
+        DocumentReference ref=db.collection("live_rooms").document(roomId).collection("seats").document(String.valueOf(no));
+        String existing=seatUids.get(no);
+        if(existing!=null&&!existing.equals(user.getUid())){if(isModerator())memberProfileDialog(existing,seatNames.get(no));else toast("Seat is occupied");return;}
+        if(existing!=null){ref.delete().addOnSuccessListener(v->{mySeat=-1;micOn=false;addEvent("leave",displayName+" left mic seat");});return;}
+        Map<String,Object>d=new HashMap<>();d.put("uid",user.getUid());d.put("name",safeName());d.put("micOn",false);d.put("joinedAt",FieldValue.serverTimestamp());
+        ref.set(d).addOnSuccessListener(v->{mySeat=no;addEvent("seat",safeName()+" took seat "+no);}).addOnFailureListener(e->toast("Seat unavailable: "+msg(e)));
+    }'''
+if action_old not in q: raise SystemExit('Party cloudSeatAction marker missing for seat locks')
+q=q.replace(action_old,action_new,1)
+
+members_anchor='''        membersListener=room.collection("members").addSnapshotListener'''
+lock_listener='''        seatLocksListener940=room.collection("seat_locks").addSnapshotListener((snap,e)->{if(e!=null||snap==null)return;lockedSeats940.clear();for(DocumentSnapshot d:snap.getDocuments())if(Boolean.TRUE.equals(d.getBoolean("locked"))){try{lockedSeats940.add(Integer.parseInt(d.getId()));}catch(Exception ignored){}}rebuildSeats();});
+        membersListener=room.collection("members").addSnapshotListener'''
+if members_anchor not in q: raise SystemExit('Party members listener anchor missing for seat locks')
+q=q.replace(members_anchor,lock_listener,1)
+
+owner_marker='''    private boolean isOwner(){'''
+helpers='''    private void showSeatLockMenu940(int seatNo){
+        if(!isModerator()||db==null)return;
+        boolean locked=lockedSeats940.contains(seatNo);
+        new AlertDialog.Builder(this).setTitle("Mic seat "+seatNo).setItems(new String[]{locked?"🔓 Unlock seat":"🔒 Lock seat","🎙 Take seat"},(d,w)->{
+            if(w==0)setSeatLock940(seatNo,!locked);
+            else takeModeratorSeat940(seatNo);
+        }).setNegativeButton("Cancel",null).show();
+    }
+    private void setSeatLock940(int seatNo,boolean locked){
+        if(!isModerator()||db==null)return;
+        DocumentReference ref=db.collection("live_rooms").document(roomId).collection("seat_locks").document(String.valueOf(seatNo));
+        if(locked){
+            Map<String,Object>x=new HashMap<>();x.put("locked",true);x.put("byUid",user==null?"":user.getUid());x.put("updatedAt",FieldValue.serverTimestamp());
+            ref.set(x).addOnSuccessListener(v->{toast("Seat "+seatNo+" locked");addEvent("seat_lock",safeName()+" locked mic seat "+seatNo);}).addOnFailureListener(e->toast("Seat lock failed: "+msg(e)));
+        }else ref.delete().addOnSuccessListener(v->{toast("Seat "+seatNo+" unlocked");addEvent("seat_unlock",safeName()+" unlocked mic seat "+seatNo);}).addOnFailureListener(e->toast("Seat unlock failed: "+msg(e)));
+    }
+    private void takeModeratorSeat940(int seatNo){
+        if(user==null||db==null||seatUids.get(seatNo)!=null)return;
+        DocumentReference ref=db.collection("live_rooms").document(roomId).collection("seats").document(String.valueOf(seatNo));
+        Map<String,Object>d=new HashMap<>();d.put("uid",user.getUid());d.put("name",safeName());d.put("micOn",false);d.put("joinedAt",FieldValue.serverTimestamp());
+        ref.set(d).addOnSuccessListener(v->{mySeat=seatNo;toast("Joined mic seat "+seatNo);}).addOnFailureListener(e->toast("Seat unavailable: "+msg(e)));
+    }
+
+'''
+if owner_marker not in q: raise SystemExit('Party isOwner marker missing for seat lock helpers')
+q=q.replace(owner_marker,helpers+owner_marker,1)
+
+party.write_text(q)
+print('v9.4.0 per-seat lock/unlock parity applied')
+
 print('v9.4.0 parity batch 1 applied')
