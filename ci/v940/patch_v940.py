@@ -1988,4 +1988,109 @@ q=q.replace(old,new,1)
 main.write_text(q)
 print('v9.4.0 Play Billing code and dependency removed')
 
+
+# Mobile OTP resilience: non-dismissing validation, resend token, and in-flight protection.
+main=pkg/'MainActivity.java'
+q=main.read_text()
+old='''    private String phoneVerificationId;'''
+new='''    private String phoneVerificationId;
+    private PhoneAuthProvider.ForceResendingToken phoneResendToken940;
+    private AlertDialog otpDialog940;
+    private boolean otpVerifyInFlight940;'''
+if old not in q: raise SystemExit('phone verification field marker missing')
+q=q.replace(old,new,1)
+
+old='''                @Override public void onCodeSent(String verificationId, PhoneAuthProvider.ForceResendingToken token) {
+                    phoneVerificationId = verificationId;
+                    Toast.makeText(MainActivity.this, "OTP sent", Toast.LENGTH_SHORT).show();
+                    if (!isFinishing() && !isDestroyed()) showOtpDialog(number);
+                }'''
+new='''                @Override public void onCodeSent(String verificationId, PhoneAuthProvider.ForceResendingToken token) {
+                    phoneVerificationId = verificationId;
+                    phoneResendToken940 = token;
+                    Toast.makeText(MainActivity.this, "OTP sent", Toast.LENGTH_SHORT).show();
+                    if (!isFinishing() && !isDestroyed()) showOtpDialog(number);
+                }'''
+if old not in q: raise SystemExit('phone onCodeSent marker missing')
+q=q.replace(old,new,1)
+
+old='''    private void showOtpDialog(String number) {
+        final EditText otp = new EditText(this); otp.setHint("6-digit OTP"); otp.setSingleLine(true);
+        otp.setInputType(InputType.TYPE_CLASS_NUMBER | InputType.TYPE_NUMBER_VARIATION_PASSWORD);
+        new AlertDialog.Builder(this).setTitle("Verify " + number).setMessage("Enter the SMS OTP sent by Firebase.")
+            .setView(otp).setNegativeButton("Cancel", null).setPositiveButton("Verify", (d,w) -> {
+                String code = otp.getText().toString().trim();
+                if (phoneVerificationId == null || code.length() < 6) { Toast.makeText(this, "Enter the 6-digit OTP", Toast.LENGTH_SHORT).show(); return; }
+                signInWithPhoneCredential(PhoneAuthProvider.getCredential(phoneVerificationId, code), number);
+            }).show();
+    }'''
+new='''    private void showOtpDialog(String number) {
+        if(otpDialog940!=null&&otpDialog940.isShowing())otpDialog940.dismiss();
+        final EditText otp = new EditText(this); otp.setHint("6-digit OTP"); otp.setSingleLine(true);otp.setMaxLines(1);
+        otp.setInputType(InputType.TYPE_CLASS_NUMBER | InputType.TYPE_NUMBER_VARIATION_PASSWORD);
+        otpDialog940=new AlertDialog.Builder(this).setTitle("Verify " + number).setMessage("Enter the 6-digit SMS OTP. You can resend if it does not arrive.")
+            .setView(otp).setNegativeButton("Cancel",(d,w)->{otpVerifyInFlight940=false;otpDialog940=null;})
+            .setNeutralButton("Resend OTP",null).setPositiveButton("Verify",null).create();
+        otpDialog940.setOnShowListener(x->{
+            Button verify=otpDialog940.getButton(AlertDialog.BUTTON_POSITIVE);
+            Button resend=otpDialog940.getButton(AlertDialog.BUTTON_NEUTRAL);
+            verify.setOnClickListener(v->{
+                if(otpVerifyInFlight940)return;
+                String code=otp.getText().toString().trim();
+                if(phoneVerificationId==null||!code.matches("[0-9]{6}")){otp.setError("Enter the 6-digit OTP");return;}
+                otpVerifyInFlight940=true;verify.setEnabled(false);verify.setText("Verifying…");
+                signInWithPhoneCredential(PhoneAuthProvider.getCredential(phoneVerificationId,code),number);
+            });
+            resend.setOnClickListener(v->{if(!otpVerifyInFlight940)resendRealOtp940(number,resend);});
+        });
+        otpDialog940.setOnDismissListener(d->{if(otpDialog940!=null&&!otpVerifyInFlight940)otpDialog940=null;});
+        otpDialog940.show();
+    }
+    private void resendRealOtp940(String number,Button resend){
+        if(firebaseAuth==null||phoneResendToken940==null){Toast.makeText(this,"Resend is not ready yet",Toast.LENGTH_SHORT).show();return;}
+        resend.setEnabled(false);resend.setText("Sending…");
+        try{
+            PhoneAuthOptions options=PhoneAuthOptions.newBuilder(firebaseAuth).setPhoneNumber(number).setTimeout(60L,TimeUnit.SECONDS).setActivity(this)
+                .setForceResendingToken(phoneResendToken940)
+                .setCallbacks(new PhoneAuthProvider.OnVerificationStateChangedCallbacks(){
+                    @Override public void onVerificationCompleted(PhoneAuthCredential credential){signInWithPhoneCredential(credential,number);}
+                    @Override public void onVerificationFailed(com.google.firebase.FirebaseException e){runOnUiThread(()->{resend.setEnabled(true);resend.setText("Resend OTP");showPhoneError(e.getLocalizedMessage());});}
+                    @Override public void onCodeSent(String verificationId,PhoneAuthProvider.ForceResendingToken token){phoneVerificationId=verificationId;phoneResendToken940=token;runOnUiThread(()->{resend.setEnabled(true);resend.setText("Resend OTP");Toast.makeText(MainActivity.this,"New OTP sent",Toast.LENGTH_SHORT).show();});}
+                }).build();
+            PhoneAuthProvider.verifyPhoneNumber(options);
+        }catch(RuntimeException e){resend.setEnabled(true);resend.setText("Resend OTP");showPhoneError(e.getLocalizedMessage());}
+    }'''
+if old not in q: raise SystemExit('OTP dialog marker missing')
+q=q.replace(old,new,1)
+
+old='''    private void signInWithPhoneCredential(PhoneAuthCredential credential, String number) {
+        firebaseAuth.signInWithCredential(credential).addOnCompleteListener(this, task -> {
+            if (!task.isSuccessful()) {
+                Toast.makeText(this, "OTP verification failed: " + (task.getException() == null ? "Invalid OTP" : task.getException().getMessage()), Toast.LENGTH_LONG).show();
+                return;
+            }
+            String shortNumber = number.length() > 4 ? "KING " + number.substring(number.length() - 4) : "KING User";
+            saveLocalSession(shortNumber, "Mobile");
+        });
+    }'''
+new='''    private void signInWithPhoneCredential(PhoneAuthCredential credential, String number) {
+        if(firebaseAuth==null){otpVerifyInFlight940=false;showPhoneError("Firebase Authentication is unavailable.");return;}
+        firebaseAuth.signInWithCredential(credential).addOnCompleteListener(this, task -> {
+            if (!task.isSuccessful()) {
+                otpVerifyInFlight940=false;
+                if(otpDialog940!=null&&otpDialog940.isShowing()){Button verify=otpDialog940.getButton(AlertDialog.BUTTON_POSITIVE);if(verify!=null){verify.setEnabled(true);verify.setText("Verify");}}
+                Toast.makeText(this, "OTP verification failed: " + (task.getException() == null ? "Invalid OTP" : task.getException().getMessage()), Toast.LENGTH_LONG).show();
+                return;
+            }
+            otpVerifyInFlight940=false;
+            if(otpDialog940!=null&&otpDialog940.isShowing())otpDialog940.dismiss();otpDialog940=null;
+            String shortNumber = number.length() > 4 ? "KING " + number.substring(number.length() - 4) : "KING User";
+            saveLocalSession(shortNumber, "Mobile");
+        });
+    }'''
+if old not in q: raise SystemExit('phone credential sign-in marker missing')
+q=q.replace(old,new,1)
+main.write_text(q)
+print('v9.4.0 resilient mobile OTP verification and resend applied')
+
 print('v9.4.0 parity batch 1 applied')
