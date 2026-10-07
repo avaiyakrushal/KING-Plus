@@ -3119,7 +3119,17 @@ print('v9.4.0 per-seat lock/unlock parity applied')
 main=pkg/'MainActivity.java'
 q=main.read_text()
 
-old='''        if (displayName.isEmpty()) login(); else home();
+old='''        boolean forceLogin = getIntent() != null && getIntent().getBooleanExtra("forceLogin", false);
+        if (forceLogin) login();
+        else if (displayName.isEmpty()) login();
+        else {
+            int openTab = getIntent() == null ? 0 : getIntent().getIntExtra("openTab", 0);
+            if (openTab == 1) games();
+            else if (openTab == 2) discover();
+            else if (openTab == 3) messages();
+            else if (openTab == 4) profile();
+            else home();
+        }
         String crash = getPreferences(0).getString("last_crash", "");
         if (!crash.isEmpty()) {
             getPreferences(0).edit().remove("last_crash").apply();
@@ -3127,8 +3137,18 @@ old='''        if (displayName.isEmpty()) login(); else home();
                 .setMessage(crash).setPositiveButton("OK", null).show();
         }'''
 new='''        String previousCrash940=getPreferences(0).getString("last_crash","");
+        boolean forceLogin = getIntent() != null && getIntent().getBooleanExtra("forceLogin", false);
         try{
-            if(displayName.isEmpty())login();else home();
+            if(forceLogin)login();
+            else if(displayName.isEmpty())login();
+            else{
+                int openTab=getIntent()==null?0:getIntent().getIntExtra("openTab",0);
+                if(openTab==1)games();
+                else if(openTab==2)discover();
+                else if(openTab==3)messages();
+                else if(openTab==4)profile();
+                else home();
+            }
         }catch(Throwable startupError940){
             String trace940=android.util.Log.getStackTraceString(startupError940);
             if(trace940.length()>3500)trace940=trace940.substring(0,3500);
@@ -3145,7 +3165,7 @@ new='''        String previousCrash940=getPreferences(0).getString("last_crash",
                     .setMessage(crash940).setPositiveButton("OK",null).show();
             });
         }'''
-if old not in q: raise SystemExit('Main startup navigation/crash-report marker missing')
+if old not in q: raise SystemExit('Main startup routing/crash-report marker missing')
 q=q.replace(old,new,1)
 
 marker='''    private void installCrashReport() {'''
