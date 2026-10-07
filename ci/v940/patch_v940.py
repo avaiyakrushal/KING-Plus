@@ -2639,4 +2639,43 @@ q=q.replace('''@Override protected void onDestroy(){if(seatsListener!=null)seats
 multi.write_text(q)
 print('v9.4.0 Multi Video sit-down invitation flow applied')
 
+
+# Bolo-reference parity: visual Gift Wall backed by real room gift events.
+party=pkg/'PartyActivity.java'
+q=party.read_text()
+old='''    private void giftWall620(){
+        if(!cloudRoom||db==null){new AlertDialog.Builder(this).setTitle("🎁 Gift Wall").setMessage("Gift Wall becomes live inside a Firebase room. Gifts sent in this test room still appear in chat.").setPositiveButton("Gift Shop",(d,w)->giftShopPanel()).setNegativeButton("Close",null).show();return;}
+        db.collection("live_rooms").document(roomId).collection("events").orderBy("createdAt",Query.Direction.DESCENDING).limit(250).get().addOnSuccessListener(snap->{Map<String,Long> giftValue=new HashMap<>();Map<String,Integer> giftCount=new HashMap<>();long total=0;int events=0;for(DocumentSnapshot d:snap.getDocuments())if("gift".equals(d.getString("type"))){String g=str(d,"giftIcon","🎁")+" "+str(d,"giftName","Gift");Long v=d.getLong("giftValue");long value=v==null?0:Math.max(0,v);giftValue.put(g,(giftValue.containsKey(g)?giftValue.get(g):0L)+value);giftCount.put(g,(giftCount.containsKey(g)?giftCount.get(g):0)+1);total+=value;events++;}List<Map.Entry<String,Long>> list=new ArrayList<>(giftValue.entrySet());java.util.Collections.sort(list,(a,b)->Long.compare(b.getValue(),a.getValue()));StringBuilder out=new StringBuilder();out.append("Room gifts: ").append(events).append("   •   Value: 💎").append(compactNumber(total)).append("\n\n");int rank=1;for(Map.Entry<String,Long> e:list){out.append(rank++).append(". ").append(e.getKey()).append("  ×").append(giftCount.get(e.getKey())).append("  • 💎").append(compactNumber(e.getValue())).append("\n");if(rank>12)break;}if(events==0)out.append("No gifts yet");new AlertDialog.Builder(this).setTitle("🎁 Gift Wall").setMessage(out.toString()).setPositiveButton("Gift Shop",(d,w)->giftShopPanel()).setNeutralButton("Ranking",(d,w)->roomRankingDialog()).setNegativeButton("Close",null).show();}).addOnFailureListener(e->toast("Gift Wall unavailable: "+msg(e)));
+    }'''
+new='''    private void giftWall620(){
+        if(!cloudRoom||db==null){new AlertDialog.Builder(this).setTitle("🎁 Gift Wall").setMessage("Gift Wall becomes live inside a Firebase room.").setPositiveButton("Gift Shop",(d,w)->giftShopPanel()).setNegativeButton("Close",null).show();return;}
+        db.collection("live_rooms").document(roomId).collection("events").orderBy("createdAt",Query.Direction.DESCENDING).limit(250).get().addOnSuccessListener(snap->{
+            Map<String,Long> giftValue=new HashMap<>();Map<String,Integer> giftCount=new HashMap<>();long total=0;int events=0;
+            for(DocumentSnapshot d:snap.getDocuments())if("gift".equals(d.getString("type"))){String g=str(d,"giftIcon","🎁")+" "+str(d,"giftName","Gift");Long v=d.getLong("giftValue");long value=v==null?0:Math.max(0,v);giftValue.put(g,(giftValue.containsKey(g)?giftValue.get(g):0L)+value);giftCount.put(g,(giftCount.containsKey(g)?giftCount.get(g):0)+1);total+=value;events++;}
+            List<Map.Entry<String,Long>> list=new ArrayList<>(giftValue.entrySet());java.util.Collections.sort(list,(a,b)->Long.compare(b.getValue(),a.getValue()));
+            LinearLayout root=new LinearLayout(this);root.setOrientation(LinearLayout.VERTICAL);root.setPadding(dp(14),dp(10),dp(14),dp(14));root.setBackgroundColor(0xff171320);
+            LinearLayout summary=new LinearLayout(this);summary.setGravity(Gravity.CENTER);summary.setBackground(bg(0xff261c36,16));
+            TextView totalGifts=tv("🎁 "+events,17,Color.WHITE,true);totalGifts.setGravity(Gravity.CENTER);summary.addView(totalGifts,new LinearLayout.LayoutParams(0,dp(58),1));
+            TextView totalValue=tv("💎 "+compactNumber(total),17,0xffffd35a,true);totalValue.setGravity(Gravity.CENTER);summary.addView(totalValue,new LinearLayout.LayoutParams(0,dp(58),1));root.addView(summary,new LinearLayout.LayoutParams(-1,dp(62)));
+            ScrollView scroll=new ScrollView(this);LinearLayout grid=new LinearLayout(this);grid.setOrientation(LinearLayout.VERTICAL);grid.setPadding(0,dp(8),0,dp(6));scroll.addView(grid);
+            if(list.isEmpty()){TextView empty=tv("No gifts in this room yet",14,MUTED,true);empty.setGravity(Gravity.CENTER);grid.addView(empty,new LinearLayout.LayoutParams(-1,dp(100)));}
+            LinearLayout row=null;int col=0,shown=0;
+            for(Map.Entry<String,Long> e:list){if(shown++>=12)break;if(row==null||col==3){row=new LinearLayout(this);row.setGravity(Gravity.TOP);grid.addView(row,new LinearLayout.LayoutParams(-1,dp(116)));col=0;}
+                String gift=e.getKey();Integer cnt=giftCount.get(gift);LinearLayout card=new LinearLayout(this);card.setOrientation(LinearLayout.VERTICAL);card.setGravity(Gravity.CENTER);card.setPadding(dp(3),dp(4),dp(3),dp(4));card.setBackground(bg(0xff282235,14));
+                String icon="🎁",name=gift;int sp=gift.indexOf(' ');if(sp>0){icon=gift.substring(0,sp);name=gift.substring(sp+1);}
+                TextView iv=tv(icon,31,Color.WHITE,false);iv.setGravity(Gravity.CENTER);card.addView(iv,new LinearLayout.LayoutParams(-1,dp(43)));
+                TextView nm=tv(name,10,Color.WHITE,true);nm.setGravity(Gravity.CENTER);nm.setSingleLine(true);card.addView(nm,new LinearLayout.LayoutParams(-1,dp(22)));
+                TextView meta=tv("×"+(cnt==null?0:cnt)+"   💎"+compactNumber(e.getValue()),9,0xffffd35a,true);meta.setGravity(Gravity.CENTER);card.addView(meta,new LinearLayout.LayoutParams(-1,dp(24)));
+                LinearLayout.LayoutParams cp=new LinearLayout.LayoutParams(0,dp(108),1);cp.setMargins(dp(3),dp(3),dp(3),dp(3));row.addView(card,cp);col++;
+            }
+            if(row!=null&&col>0&&col<3)for(int i=col;i<3;i++){View spacer=new View(this);LinearLayout.LayoutParams ep=new LinearLayout.LayoutParams(0,dp(108),1);ep.setMargins(dp(3),dp(3),dp(3),dp(3));row.addView(spacer,ep);}
+            root.addView(scroll,new LinearLayout.LayoutParams(-1,Math.min(dp(420),Math.max(dp(120),((list.size()+2)/3)*dp(116)+dp(14)))));
+            new AlertDialog.Builder(this).setTitle("🎁 Gift Wall").setView(root).setPositiveButton("Gift Shop",(d,w)->giftShopPanel()).setNeutralButton("Ranking",(d,w)->roomRankingDialog()).setNegativeButton("Close",null).show();
+        }).addOnFailureListener(e->toast("Gift Wall unavailable: "+msg(e)));
+    }'''
+if old not in q: raise SystemExit('Gift Wall base marker missing')
+q=q.replace(old,new,1)
+party.write_text(q)
+print('v9.4.0 visual Gift Wall cards applied')
+
 print('v9.4.0 parity batch 1 applied')
