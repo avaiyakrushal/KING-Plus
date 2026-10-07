@@ -1300,4 +1300,14 @@ q=q.replace(old,new,1)
 deep.write_text(q)
 print('v9.4.0 DeepFlow games routed to Party multiplayer')
 
+# Party More menu parity: present it as a bottom drawer rather than a centered modal.
+party=pkg/'PartyActivity.java'
+q=party.read_text()
+old='''holder[0]=new AlertDialog.Builder(this).setView(scroll).create();holder[0].setOnShowListener(v->{android.view.Window w=holder[0].getWindow();if(w!=null){w.setBackgroundDrawable(bg(Color.WHITE,18));w.setGravity(Gravity.CENTER);w.setLayout((int)(getResources().getDisplayMetrics().widthPixels*.90f),(int)(getResources().getDisplayMetrics().heightPixels*.88f));}});holder[0].show();'''
+new='''holder[0]=new AlertDialog.Builder(this).setView(scroll).create();holder[0].setOnShowListener(v->{android.view.Window w=holder[0].getWindow();if(w!=null){w.setBackgroundDrawable(bg(Color.WHITE,24));w.setGravity(Gravity.BOTTOM);w.setLayout(-1,(int)(getResources().getDisplayMetrics().heightPixels*.72f));android.view.WindowManager.LayoutParams lp=w.getAttributes();lp.dimAmount=.28f;w.setAttributes(lp);w.addFlags(android.view.WindowManager.LayoutParams.FLAG_DIM_BEHIND);}});holder[0].show();'''
+if old not in q: raise SystemExit('Party More centered-dialog marker missing')
+q=q.replace(old,new,1)
+party.write_text(q)
+print('v9.4.0 Party More bottom drawer visual parity applied')
+
 print('v9.4.0 parity batch 1 applied')
