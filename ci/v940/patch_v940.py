@@ -3666,4 +3666,74 @@ q=q.replace(old,new,1)
 party.write_text(q)
 print('v9.4.0 non-seated member moderation parity applied')
 
+
+# Bolo-reference parity: Family Lucky Bag on existing family activities rules.
+hub=pkg/'CommunityHubActivity.java'
+q=hub.read_text()
+
+old='''body.addView(acts);body.addView(tv("Members",16,DARK,true));'''
+new='''body.addView(acts);TextView luckyBag940=button("🧧 Family Lucky Bag",()->familyLuckyBag940(code));LinearLayout.LayoutParams lbp940=new LinearLayout.LayoutParams(-1,dp(48));lbp940.setMargins(0,dp(8),0,dp(8));body.addView(luckyBag940,lbp940);body.addView(tv("Members",16,DARK,true));'''
+if old not in q: raise SystemExit('Family actions marker missing for Lucky Bag')
+q=q.replace(old,new,1)
+
+marker='''    private void relationships(){'''
+helpers=r'''    private int familyBagReward940(String packetId,int total,int slots){
+        String key=packetId+":"+me.getUid();int h=key.hashCode()&0x7fffffff;
+        int avg=Math.max(1,total/Math.max(1,slots));int low=Math.max(1,avg/2),high=Math.max(low,avg+Math.max(1,avg/2));
+        return low+(h%Math.max(1,high-low+1));
+    }
+    private void familyLuckyBag940(String code){
+        if(!cloud()||code==null||code.isEmpty()){toast("Family sign-in required");return;}
+        final DocumentReference family=db.collection("families").document(code);
+        family.collection("activities").orderBy("createdAt",Query.Direction.DESCENDING).limit(100).get().addOnSuccessListener(s->{
+            DocumentSnapshot active=null;long now=System.currentTimeMillis();
+            for(DocumentSnapshot d:s.getDocuments()){
+                if(!"lucky_bag".equals(d.getString("type")))continue;
+                Long exp=d.getLong("expiresAtMs");if(exp!=null&&exp>now){active=d;break;}
+            }
+            if(active==null){
+                new AlertDialog.Builder(this).setTitle("🧧 Family Lucky Bag").setMessage("No active Lucky Bag.\n\nRewards are TEST coins only and have no cash value.")
+                    .setPositiveButton("Create Lucky Bag",(d,w)->createFamilyLuckyBag940(code)).setNegativeButton("Close",null).show();return;
+            }
+            String pid=safe(active.getString("packetId"),active.getId());Long totalRaw=active.getLong("totalCoins"),slotsRaw=active.getLong("slots");int total=totalRaw==null?0:totalRaw.intValue(),slots=slotsRaw==null?1:Math.max(1,slotsRaw.intValue());
+            int claimed=0;boolean mine=false;for(DocumentSnapshot d:s.getDocuments()){if(!pid.equals(d.getString("packetId"))||!"lucky_bag_claim".equals(d.getString("type")))continue;claimed++;if(me.getUid().equals(d.getString("uid")))mine=true;}
+            int left=Math.max(0,slots-claimed);String sender=safe(active.getString("name"),"Family member");
+            AlertDialog.Builder b=new AlertDialog.Builder(this).setTitle("🧧 Family Lucky Bag").setMessage("From: "+sender+"\nTEST coins: "+total+"\nClaims left: "+left+"/"+slots+"\n\nNo real money or billing.");
+            if(!mine&&left>0)b.setPositiveButton("Open",(d,w)->claimFamilyLuckyBag940(code,pid,total,slots));
+            else b.setPositiveButton(mine?"Already opened":"Finished",null);
+            b.setNeutralButton("Create new",(d,w)->createFamilyLuckyBag940(code)).setNegativeButton("Close",null).show();
+        }).addOnFailureListener(e->toast("Lucky Bag unavailable"));
+    }
+    private void createFamilyLuckyBag940(String code){
+        final EditText amount=new EditText(this);amount.setHint("Total TEST coins (10–1000)");amount.setInputType(android.text.InputType.TYPE_CLASS_NUMBER);
+        final EditText slots=new EditText(this);slots.setHint("Claims (1–20)");slots.setInputType(android.text.InputType.TYPE_CLASS_NUMBER);
+        LinearLayout box=new LinearLayout(this);box.setOrientation(LinearLayout.VERTICAL);box.setPadding(dp(22),0,dp(22),0);box.addView(amount,new LinearLayout.LayoutParams(-1,dp(54)));box.addView(slots,new LinearLayout.LayoutParams(-1,dp(54)));
+        new AlertDialog.Builder(this).setTitle("Create Family Lucky Bag").setView(box).setNegativeButton("Cancel",null).setPositiveButton("Create",(d,w)->{
+            int total,n;try{total=Integer.parseInt(amount.getText().toString().trim());n=Integer.parseInt(slots.getText().toString().trim());}catch(Exception e){toast("Enter valid numbers");return;}
+            if(total<10||total>1000||n<1||n>20||total<n){toast("Use 10–1000 coins and 1–20 claims");return;}
+            String pid=String.valueOf(System.currentTimeMillis())+"_"+me.getUid().substring(0,Math.min(6,me.getUid().length()));
+            Map<String,Object>x=new HashMap<>();x.put("uid",me.getUid());x.put("name",displayName);x.put("type","lucky_bag");x.put("packetId",pid);x.put("totalCoins",total);x.put("slots",n);x.put("expiresAtMs",System.currentTimeMillis()+300000L);x.put("createdAt",FieldValue.serverTimestamp());
+            db.collection("families").document(code).collection("activities").document("bag_"+pid).set(x).addOnSuccessListener(v->{toast("Family Lucky Bag created");familyLuckyBag940(code);}).addOnFailureListener(e->toast("Could not create Lucky Bag"));
+        }).show();
+    }
+    private void claimFamilyLuckyBag940(String code,String packetId,int total,int slots){
+        DocumentReference activities=db.collection("families").document(code).collection("activities").document("claim_"+packetId+"_"+me.getUid());
+        activities.get().addOnSuccessListener(existing->{
+            if(existing.exists()){toast("You already opened this Lucky Bag");return;}
+            db.collection("families").document(code).collection("activities").orderBy("createdAt",Query.Direction.DESCENDING).limit(100).get().addOnSuccessListener(s->{
+                int claimed=0;for(DocumentSnapshot d:s.getDocuments())if(packetId.equals(d.getString("packetId"))&&"lucky_bag_claim".equals(d.getString("type")))claimed++;
+                if(claimed>=slots){toast("Lucky Bag is finished");return;}
+                int reward=familyBagReward940(packetId,total,slots);Map<String,Object>x=new HashMap<>();x.put("uid",me.getUid());x.put("name",displayName);x.put("type","lucky_bag_claim");x.put("packetId",packetId);x.put("reward",reward);x.put("createdAt",FieldValue.serverTimestamp());
+                activities.set(x).addOnSuccessListener(v->{SharedPreferences p=getSharedPreferences("MainActivity",MODE_PRIVATE);int coins=p.getInt("coins",2500);p.edit().putInt("coins",coins+reward).apply();toast("Lucky Bag +"+reward+" TEST coins");}).addOnFailureListener(e->toast("Lucky Bag claim failed"));
+            }).addOnFailureListener(e->toast("Could not check Lucky Bag"));
+        }).addOnFailureListener(e->toast("Could not check your claim"));
+    }
+
+'''
+if marker not in q: raise SystemExit('Relationship marker missing for Family Lucky Bag helpers')
+q=q.replace(marker,helpers+marker,1)
+
+hub.write_text(q)
+print('v9.4.0 Family Lucky Bag parity applied')
+
 print('v9.4.0 parity batch 1 applied')
