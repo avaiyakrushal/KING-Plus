@@ -4433,4 +4433,82 @@ q=q.replace(marker,helper+marker,1)
 party.write_text(q)
 print('v9.4.0 KTV completed queue + history parity applied')
 
+
+# Bolo-reference parity: realtime Pick Me waiting queue + host/co-host stage selection.
+party=pkg/'PartyActivity.java'
+q=party.read_text()
+
+old='''    private void startRoomTemplate(String name){
+        if(cloudRoom&&!isModerator()){toast("Host/co-host selects the room template");return;}'''
+new='''    private void startRoomTemplate(String name){
+        if("Pick Me!".equals(name)){pickMePanel940();return;}
+        if(cloudRoom&&!isModerator()){toast("Host/co-host selects the room template");return;}'''
+if old not in q: raise SystemExit('startRoomTemplate marker missing for Pick Me queue')
+q=q.replace(old,new,1)
+
+marker='''    private void eventsPanel(){'''
+helper=r'''    private void pickMePanel940(){
+        if(!cloudRoom||db==null||user==null||roomId==null){
+            List<String> pool=new ArrayList<>();pool.addAll(memberNames);if(pool.isEmpty())pool.addAll(seatNames.values());
+            if(pool.isEmpty()){toast("No room members yet");return;}
+            String picked=pool.get(new java.util.Random().nextInt(pool.size()));
+            new AlertDialog.Builder(this).setTitle("💘 Pick Me!").setMessage("Selected: "+picked).setPositiveButton("Again",(d,w)->pickMePanel940()).setNegativeButton("Close",null).show();return;
+        }
+        CollectionReference queue=db.collection("live_rooms").document(roomId).collection("game_ready");
+        queue.get().addOnSuccessListener(snap->{
+            List<DocumentSnapshot> docs=new ArrayList<>();List<String> names=new ArrayList<>();boolean joined=false;
+            for(DocumentSnapshot d:snap.getDocuments()){
+                if(!"pick_me".equals(d.getString("gameType")))continue;
+                String uid=d.getString("uid");if(uid==null||uid.isEmpty())continue;
+                docs.add(d);names.add(str(d,"name","KING User"));if(uid.equals(user.getUid()))joined=true;
+            }
+            List<String> actions=new ArrayList<>();
+            if(!isModerator())actions.add(joined?"💔 Leave waiting queue":"💘 Join waiting queue");
+            actions.add("👥 View waiting queue ("+docs.size()+")");
+            if(isModerator()){actions.add("🎯 Pick one now");actions.add("🗑 Clear waiting queue");}
+            final boolean alreadyJoined=joined;
+            new AlertDialog.Builder(this).setTitle("💘 Pick Me! • Waiting Stage").setItems(actions.toArray(new String[0]),(dlg,w)->{
+                String x=actions.get(w);
+                if(x.contains("Join waiting"))pickMeJoin940(queue);
+                else if(x.contains("Leave waiting"))pickMeLeave940(queue);
+                else if(x.contains("View waiting"))pickMeQueueList940(docs,names);
+                else if(x.contains("Pick one"))pickMeSelect940(queue,docs,names);
+                else if(x.contains("Clear waiting"))pickMeClear940(queue,docs);
+            }).setNegativeButton("Close",null).show();
+        }).addOnFailureListener(e->toast("Pick Me queue unavailable: "+msg(e)));
+    }
+    private void pickMeJoin940(CollectionReference queue){
+        Map<String,Object>d=new HashMap<>();d.put("uid",user.getUid());d.put("name",safeName());d.put("gameType","pick_me");d.put("ready",true);d.put("updatedAt",FieldValue.serverTimestamp());
+        queue.document(user.getUid()).set(d).addOnSuccessListener(v->{addEvent("pick_me_join",safeName()+" joined Pick Me waiting queue 💘");toast("Joined Pick Me waiting queue");}).addOnFailureListener(e->toast("Could not join queue: "+msg(e)));
+    }
+    private void pickMeLeave940(CollectionReference queue){
+        queue.document(user.getUid()).delete().addOnSuccessListener(v->{addEvent("pick_me_leave",safeName()+" left Pick Me waiting queue");toast("Left Pick Me waiting queue");}).addOnFailureListener(e->toast("Could not leave queue: "+msg(e)));
+    }
+    private void pickMeQueueList940(List<DocumentSnapshot> docs,List<String> names){
+        if(docs.isEmpty()){new AlertDialog.Builder(this).setTitle("💘 Waiting Queue").setMessage("No one is waiting yet.").setPositiveButton("OK",null).show();return;}
+        String[] rows=new String[names.size()];for(int i=0;i<names.size();i++)rows[i]=(i+1)+".  "+names.get(i);
+        new AlertDialog.Builder(this).setTitle("💘 Waiting Queue • "+rows.length).setItems(rows,null).setNegativeButton("Close",null).show();
+    }
+    private void pickMeSelect940(CollectionReference queue,List<DocumentSnapshot> docs,List<String> names){
+        if(!isModerator()){toast("Host/co-host only");return;}
+        if(docs.isEmpty()){toast("Waiting queue is empty");return;}
+        int pick=new java.util.Random().nextInt(docs.size());DocumentSnapshot chosen=docs.get(pick);String uid=chosen.getString("uid"),name=names.get(pick);
+        Map<String,Object>state=new HashMap<>();state.put("active",true);state.put("selectedUid",uid==null?"":uid);state.put("selectedName",name);state.put("selectedAt",FieldValue.serverTimestamp());state.put("selectedBy",user.getUid());
+        db.collection("live_rooms").document(roomId).collection("game_state").document("pick_me").set(state,SetOptions.merge())
+            .addOnSuccessListener(v->{chosen.getReference().delete().addOnFailureListener(e->{});addEvent("pick_me_result","💘 Pick Me selected "+name);new AlertDialog.Builder(this).setTitle("💘 Pick Me!").setMessage("Selected: "+name).setPositiveButton("Pick again",(d,w)->pickMePanel940()).setNegativeButton("Close",null).show();})
+            .addOnFailureListener(e->toast("Pick Me selection failed: "+msg(e)));
+    }
+    private void pickMeClear940(CollectionReference queue,List<DocumentSnapshot> docs){
+        if(!isModerator()){toast("Host/co-host only");return;}
+        if(docs.isEmpty()){toast("Waiting queue is already empty");return;}
+        WriteBatch batch=db.batch();for(DocumentSnapshot d:docs)batch.delete(d.getReference());
+        batch.commit().addOnSuccessListener(v->{addEvent("pick_me_clear",safeName()+" cleared Pick Me waiting queue");toast("Pick Me queue cleared");}).addOnFailureListener(e->toast("Could not clear queue: "+msg(e)));
+    }
+
+'''
+if marker not in q: raise SystemExit('eventsPanel marker missing for Pick Me helpers')
+q=q.replace(marker,helper+marker,1)
+party.write_text(q)
+print('v9.4.0 realtime Pick Me waiting queue parity applied')
+
 print('v9.4.0 parity batch 1 applied')
