@@ -3756,4 +3756,56 @@ q=q.replace(old,new,1)
 party.write_text(q)
 print('v9.4.0 Party More actions grid parity applied')
 
+
+# Bolo-reference parity: visual realtime Radio Mic queue using existing room queueEnabled + seat_requests.
+party=pkg/'PartyActivity.java'
+q=party.read_text()
+radio_start=q.find("    private void radioMicPanel(){")
+radio_end=q.find("    private void luckyGiftPanel()",radio_start)
+if radio_start<0 or radio_end<0: raise SystemExit('Radio Mic method boundary missing')
+radio_method=r'''    private void radioMicPanel(){
+        if(!cloudRoom||db==null||user==null){
+            boolean queueOn=prefs.getBoolean("queue_"+roomId,false);
+            String msg="Mic queue: "+(queueOn?"ON":"OFF")+"\n\n"+(mySeat>0?"You are on mic seat "+mySeat:"You are in the audience");
+            new AlertDialog.Builder(this).setTitle("📻 Radio Mic").setMessage(msg)
+                .setPositiveButton(isModerator()?(queueOn?"Disable queue":"Enable queue"):"View seats",(d,w)->{if(isModerator())toggleSeatQueue();else roomSeatPanel();})
+                .setNeutralButton(isModerator()?"Seat requests":"Request mic",(d,w)->{if(isModerator())allSeatRequestsDialog();else{for(int i=1;i<=maxSeats;i++)if(seatNames.get(i)==null&&!lockedSeats.contains(i)){requestSeat(i);return;}toast("No empty mic seat");}})
+                .setNegativeButton("Close",null).show();return;
+        }
+        DocumentReference room=db.collection("live_rooms").document(roomId);
+        room.get().addOnSuccessListener(doc->{
+            boolean queueOn=Boolean.TRUE.equals(doc.getBoolean("queueEnabled"));
+            room.collection("seat_requests").limit(50).get().addOnSuccessListener(reqs->{
+                int waiting=reqs==null?0:reqs.size();
+                LinearLayout root=new LinearLayout(this);root.setOrientation(LinearLayout.VERTICAL);root.setPadding(dp(14),dp(10),dp(14),dp(14));root.setBackgroundColor(0xff151722);
+                LinearLayout hero=new LinearLayout(this);hero.setOrientation(LinearLayout.VERTICAL);hero.setGravity(Gravity.CENTER);hero.setBackground(bg(queueOn?0xff263c55:0xff342d3d,18));
+                TextView icon=tv("📻",34,Color.WHITE,false);icon.setGravity(Gravity.CENTER);hero.addView(icon,new LinearLayout.LayoutParams(-1,dp(50)));
+                TextView title=tv(queueOn?"Radio Mic Queue is OPEN":"Radio Mic Queue is CLOSED",17,queueOn?0xff8fe6ff:0xffffcfdb,true);title.setGravity(Gravity.CENTER);hero.addView(title,new LinearLayout.LayoutParams(-1,dp(32)));
+                TextView status=tv("Waiting "+waiting+"   •   Seats "+seatNames.size()+"/"+maxSeats,12,MUTED,true);status.setGravity(Gravity.CENTER);hero.addView(status,new LinearLayout.LayoutParams(-1,dp(30)));root.addView(hero,new LinearLayout.LayoutParams(-1,dp(118)));
+
+                LinearLayout meRow=new LinearLayout(this);meRow.setGravity(Gravity.CENTER_VERTICAL);meRow.setPadding(dp(12),dp(6),dp(10),dp(6));meRow.setBackground(bg(0xff252737,14));
+                TextView myIcon=tv(mySeat>0?"🎙":"👤",24,Color.WHITE,false);myIcon.setGravity(Gravity.CENTER);meRow.addView(myIcon,new LinearLayout.LayoutParams(dp(48),dp(52)));
+                LinearLayout info=new LinearLayout(this);info.setOrientation(LinearLayout.VERTICAL);TextView myName=tv(safeName(),13,Color.WHITE,true);TextView myState=tv(mySeat>0?("On mic seat "+mySeat+(micOn?" • Mic ON":" • Mic OFF")):(queueOn?"Audience • request a mic seat":"Audience • queue closed"),11,MUTED,false);info.addView(myName,new LinearLayout.LayoutParams(-1,dp(26)));info.addView(myState,new LinearLayout.LayoutParams(-1,dp(22)));meRow.addView(info,new LinearLayout.LayoutParams(0,dp(52),1));root.addView(meRow,new LinearLayout.LayoutParams(-1,dp(64)));
+
+                TextView hint=tv(isModerator()?"Host/co-host can open requests, assign seats and toggle the queue.":"Request an empty mic seat. Host/co-host approves before you go on stage.",11,MUTED,false);hint.setPadding(dp(4),dp(8),dp(4),dp(8));root.addView(hint,new LinearLayout.LayoutParams(-1,dp(58)));
+
+                LinearLayout actions=new LinearLayout(this);actions.setGravity(Gravity.CENTER);
+                if(isModerator()){
+                    TextView requests=tv("📥 Requests "+waiting,11,Color.WHITE,true);requests.setGravity(Gravity.CENTER);requests.setBackground(bg(0xff4b3b6a,12));requests.setOnClickListener(v->allSeatRequestsDialog());LinearLayout.LayoutParams p=new LinearLayout.LayoutParams(0,dp(46),1);p.setMargins(dp(3),0,dp(3),0);actions.addView(requests,p);
+                    TextView toggle=tv(queueOn?"✋ Close Queue":"✋ Open Queue",11,Color.WHITE,true);toggle.setGravity(Gravity.CENTER);toggle.setBackground(bg(queueOn?0xff744353:0xff315f57,12));toggle.setOnClickListener(v->toggleSeatQueue());actions.addView(toggle,new LinearLayout.LayoutParams(p));
+                    TextView seats=tv("🪑 Seats",11,Color.WHITE,true);seats.setGravity(Gravity.CENTER);seats.setBackground(bg(0xff3c4b65,12));seats.setOnClickListener(v->roomSeatPanel());actions.addView(seats,new LinearLayout.LayoutParams(p));
+                }else{
+                    TextView request=tv(queueOn?"✋ Request Mic":"🔒 Queue Closed",11,Color.WHITE,true);request.setGravity(Gravity.CENTER);request.setBackground(bg(queueOn?0xff315f57:0xff4a414a,12));request.setEnabled(queueOn);request.setOnClickListener(v->{for(int i=1;i<=maxSeats;i++)if(seatNames.get(i)==null&&!lockedSeats.contains(i)){requestSeat(i);return;}toast("No empty mic seat");});LinearLayout.LayoutParams p=new LinearLayout.LayoutParams(0,dp(46),1);p.setMargins(dp(3),0,dp(3),0);actions.addView(request,p);
+                    TextView seats=tv("🪑 View Seats",11,Color.WHITE,true);seats.setGravity(Gravity.CENTER);seats.setBackground(bg(0xff3c4b65,12));seats.setOnClickListener(v->roomSeatPanel());actions.addView(seats,new LinearLayout.LayoutParams(p));
+                }
+                root.addView(actions,new LinearLayout.LayoutParams(-1,dp(52)));
+                new AlertDialog.Builder(this).setTitle("📻 Radio Mic").setView(root).setPositiveButton("Refresh",(d,w)->radioMicPanel()).setNegativeButton("Close",null).show();
+            }).addOnFailureListener(e->toast("Mic queue unavailable: "+msg(e)));
+        }).addOnFailureListener(e->toast("Radio room state unavailable: "+msg(e)));
+    }
+'''
+q=q[:radio_start]+radio_method+"\n\n"+q[radio_end:]
+party.write_text(q)
+print('v9.4.0 realtime Radio Mic visual parity applied')
+
 print('v9.4.0 parity batch 1 applied')
