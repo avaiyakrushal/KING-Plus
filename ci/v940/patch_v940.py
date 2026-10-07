@@ -1499,4 +1499,49 @@ q=q.replace(old,new,1)
 inbox.write_text(q)
 print('v9.4.0 Discover and Messages network auto-recovery applied')
 
+
+# Messages system channels: load real backend notification feed and make actionable invites/messages/follows.
+inbox=pkg/'InboxActivity.java'
+q=inbox.read_text()
+old='''    private void addSystemRows940(){addSystemRow940("🔔","Interactive notifications","Follows, gifts and room activity",this::showNotifications);addSystemRow940("👑","KING Official","Safety, events and app notices",this::showNotifications);addSystemRow940("🎤","Room invitations","Party and game invitations",this::showNotifications);}'''
+new='''    private void addSystemRows940(){addSystemRow940("🔔","Interactive notifications","Follows, gifts and room activity",()->showCloudNotifications940(""));addSystemRow940("👑","KING Official","Safety, events and app notices",()->showCloudNotifications940(""));addSystemRow940("🎤","Room invitations","Party and game invitations",()->showCloudNotifications940("room_invite"));}'''
+if old not in q: raise SystemExit('Inbox system row actions marker missing')
+q=q.replace(old,new,1)
+
+old='''    private void showNotifications(){
+        String[] items={"Follow activity","Likes & gifts","Room invitations","KING Plus updates"};
+        new AlertDialog.Builder(this).setTitle("Notifications").setItems(items,(d,w)->Toast.makeText(this,items[w],Toast.LENGTH_SHORT).show()).setNegativeButton("Close",null).show();
+    }'''
+new='''    private void showNotifications(){showCloudNotifications940("");}
+    private void showCloudNotifications940(String filter){
+        if(me==null||db==null){new AlertDialog.Builder(this).setTitle("Notifications").setMessage("Sign in to load your real KING Plus notifications.").setPositiveButton("OK",null).show();return;}
+        db.collection("notifications").document(me.getUid()).collection("items").orderBy("createdAt",com.google.firebase.firestore.Query.Direction.DESCENDING).limit(50).get()
+            .addOnSuccessListener(snap->{
+                List<DocumentSnapshot> docs=new ArrayList<>();List<String> rows=new ArrayList<>();
+                for(DocumentSnapshot n:snap.getDocuments()){
+                    Object dataObj=n.get("data");String type="";if(dataObj instanceof Map){Object t=((Map<?,?>)dataObj).get("type");if(t!=null)type=String.valueOf(t);}
+                    if(filter!=null&&!filter.isEmpty()&&!filter.equals(type))continue;
+                    docs.add(n);String title=n.getString("title"),body=n.getString("body");Timestamp at=n.getTimestamp("createdAt");
+                    String when=formatTime(at);rows.add((title==null?"KING Plus":title)+(when.isEmpty()?"":"  •  "+when)+"\n"+(body==null?"":body));
+                }
+                if(rows.isEmpty()){new AlertDialog.Builder(this).setTitle(filter!=null&&!filter.isEmpty()?"Room invitations":"Notifications").setMessage(filter!=null&&!filter.isEmpty()?"No room invitations yet.":"No notifications yet.").setPositiveButton("OK",null).show();return;}
+                new AlertDialog.Builder(this).setTitle(filter!=null&&!filter.isEmpty()?"Room invitations":"Notifications").setItems(rows.toArray(new String[0]),(d,w)->openNotification940(docs.get(w))).setNegativeButton("Close",null).show();
+            }).addOnFailureListener(e->new AlertDialog.Builder(this).setTitle("Notifications").setMessage("Notification feed is unavailable right now.").setPositiveButton("Retry",(d,w)->showCloudNotifications940(filter)).setNegativeButton("Close",null).show());
+    }
+    private void openNotification940(DocumentSnapshot n){
+        Object dataObj=n.get("data");if(!(dataObj instanceof Map)){return;}Map<?,?> data=(Map<?,?>)dataObj;String type=data.get("type")==null?"":String.valueOf(data.get("type"));
+        if("room_invite".equals(type)){
+            String rid=data.get("roomId")==null?"":String.valueOf(data.get("roomId"));if(rid.isEmpty()){Toast.makeText(this,"Room invite is missing its room ID",Toast.LENGTH_SHORT).show();return;}
+            db.collection("live_rooms").document(rid).get().addOnSuccessListener(room->{if(room==null||!room.exists()||Boolean.TRUE.equals(room.getBoolean("closed"))){Toast.makeText(this,"This Party room is no longer available",Toast.LENGTH_SHORT).show();return;}Intent i=new Intent(this,PartyActivity.class);i.putExtra("directRoomId",rid);i.putExtra("directRoomName",room.getString("name"));i.putExtra("directOwnerUid",room.getString("ownerUid"));i.putExtra("directOwnerName",room.getString("ownerName"));i.putExtra("directPrivate",Boolean.TRUE.equals(room.getBoolean("isPrivate")));i.putExtra("directPassword",Boolean.TRUE.equals(room.getBoolean("hasPassword")));startActivity(i);});
+        }else if("direct_message".equals(type)){
+            String uid=data.get("senderUid")==null?"":String.valueOf(data.get("senderUid"));String name=n.getString("title");openChat(name==null?"KING Friend":name,uid);
+        }else if("follow".equals(type)){
+            String uid=data.get("followerUid")==null?"":String.valueOf(data.get("followerUid"));if(uid.isEmpty())return;Intent i=new Intent(this,KingPublicProfileActivity.class);i.putExtra("uid",uid);startActivity(i);
+        }else Toast.makeText(this,n.getString("body")==null?"KING Plus notification":n.getString("body"),Toast.LENGTH_SHORT).show();
+    }'''
+if old not in q: raise SystemExit('Inbox static notification marker missing')
+q=q.replace(old,new,1)
+inbox.write_text(q)
+print('v9.4.0 real Firebase notification feed applied')
+
 print('v9.4.0 parity batch 1 applied')
