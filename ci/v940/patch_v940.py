@@ -2156,4 +2156,63 @@ q=q.replace(marker,insert,1)
 inbox.write_text(q)
 print('v9.4.0 video-reference Messages banner applied')
 
+
+# Video-reference first-login profile completion: name + gender + Continue before Home.
+main=pkg/'MainActivity.java'
+q=main.read_text()
+
+old='''                if(!existing)syncPublicProfile();
+                finishGoogleIdentity931(navigateHome,true);'''
+new='''                if(!existing){showFirstProfileSetup940(user,canonicalName,canonicalPhoto,navigateHome);return;}
+                getPreferences(0).edit().putBoolean("profile_complete_"+user.getUid(),true).apply();
+                finishGoogleIdentity931(navigateHome,true);'''
+if old not in q: raise SystemExit('Google new-profile branch marker missing for onboarding')
+q=q.replace(old,new,1)
+
+old='''            String shortNumber = number.length() > 4 ? "KING " + number.substring(number.length() - 4) : "KING User";
+            saveLocalSession(shortNumber, "Mobile");'''
+new='''            String shortNumber = number.length() > 4 ? "KING " + number.substring(number.length() - 4) : "KING User";
+            FirebaseUser phoneUser940=firebaseAuth.getCurrentUser();
+            if(phoneUser940!=null&&firestore!=null){
+                firestore.collection("public_profiles").document(phoneUser940.getUid()).get().addOnSuccessListener(doc->{
+                    if(doc!=null&&doc.exists()){getPreferences(0).edit().putBoolean("profile_complete_"+phoneUser940.getUid(),true).apply();saveLocalSession(shortNumber,"Mobile");}
+                    else showFirstProfileSetup940(phoneUser940,shortNumber,"",true);
+                }).addOnFailureListener(e->saveLocalSession(shortNumber,"Mobile"));
+            }else if(phoneUser940!=null&&!getPreferences(0).getBoolean("profile_complete_"+phoneUser940.getUid(),false))showFirstProfileSetup940(phoneUser940,shortNumber,"",true);
+            else saveLocalSession(shortNumber,"Mobile");'''
+if old not in q: raise SystemExit('Mobile sign-in success marker missing for onboarding')
+q=q.replace(old,new,1)
+
+marker='''    private void saveLocalSession(String name, String provider) {'''
+helpers=r'''    private void showFirstProfileSetup940(FirebaseUser user,String suggestedName,String photoUrl,boolean navigateHome){
+        if(user==null){if(navigateHome)home();return;}
+        screen="profile_setup";stopMic();
+        final String[] selectedGender940={getPreferences(0).getString("gender","Male")};
+        LinearLayout root=new LinearLayout(this);root.setOrientation(LinearLayout.VERTICAL);root.setBackgroundColor(Color.WHITE);root.setPadding(dp(22),dp(32),dp(22),dp(26));
+        TextView skipTitle940=new TextView(this);skipTitle940.setText("Complete your profile");skipTitle940.setTextSize(20);skipTitle940.setTypeface(null,Typeface.BOLD);skipTitle940.setTextColor(0xff222222);skipTitle940.setGravity(Gravity.CENTER);root.addView(skipTitle940,new LinearLayout.LayoutParams(-1,dp(46)));
+
+        android.widget.FrameLayout avatarWrap940=new android.widget.FrameLayout(this);TextView avatar940=new TextView(this);String n0=(suggestedName==null||suggestedName.trim().isEmpty())?"K":suggestedName.trim().substring(0,1).toUpperCase();avatar940.setText(n0);avatar940.setTextSize(34);avatar940.setTypeface(null,Typeface.BOLD);avatar940.setTextColor(Color.WHITE);avatar940.setGravity(Gravity.CENTER);avatar940.setBackground(background(0xff27a9ad,52));avatarWrap940.addView(avatar940,new android.widget.FrameLayout.LayoutParams(-1,-1));LinearLayout.LayoutParams avp940=new LinearLayout.LayoutParams(dp(104),dp(104));avp940.gravity=Gravity.CENTER_HORIZONTAL;avp940.setMargins(0,dp(8),0,dp(18));root.addView(avatarWrap940,avp940);
+
+        EditText name940=new EditText(this);name940.setHint("Your name");name940.setSingleLine(true);name940.setText(suggestedName==null?"":suggestedName);name940.setTextColor(0xff222222);name940.setHintTextColor(0xff9a9a9a);name940.setPadding(dp(14),0,dp(14),0);name940.setBackground(background(0xfff5f5f7,10));root.addView(name940,new LinearLayout.LayoutParams(-1,dp(54)));
+
+        TextView sexLabel940=new TextView(this);sexLabel940.setText("Your sex");sexLabel940.setTextSize(14);sexLabel940.setTypeface(null,Typeface.BOLD);sexLabel940.setTextColor(0xff555555);sexLabel940.setPadding(dp(2),dp(18),0,dp(8));root.addView(sexLabel940,new LinearLayout.LayoutParams(-1,dp(52)));
+        LinearLayout genders940=new LinearLayout(this);genders940.setGravity(Gravity.CENTER);
+        TextView male940=new TextView(this);male940.setText("♂  Male");male940.setTextSize(14);male940.setGravity(Gravity.CENTER);male940.setTypeface(null,Typeface.BOLD);
+        TextView female940=new TextView(this);female940.setText("♀  Female");female940.setTextSize(14);female940.setGravity(Gravity.CENTER);female940.setTypeface(null,Typeface.BOLD);
+        Runnable refreshGender940=()->{boolean male="Male".equals(selectedGender940[0]);male940.setTextColor(male?0xff3f67dc:0xff777777);female940.setTextColor(male?0xff777777:0xffd85ba2);male940.setBackground(background(male?0xffeef2ff:0xfff5f5f5,10));female940.setBackground(background(male?0xfff5f5f5:0xffffeef7,10));};
+        male940.setOnClickListener(v->{selectedGender940[0]="Male";refreshGender940.run();});female940.setOnClickListener(v->{selectedGender940[0]="Female";refreshGender940.run();});refreshGender940.run();
+        LinearLayout.LayoutParams gp940=new LinearLayout.LayoutParams(0,dp(54),1);gp940.setMargins(dp(4),0,dp(4),0);genders940.addView(male940,gp940);genders940.addView(female940,new LinearLayout.LayoutParams(gp940));root.addView(genders940,new LinearLayout.LayoutParams(-1,dp(58)));
+
+        Space flex940=new Space(this);root.addView(flex940,new LinearLayout.LayoutParams(-1,0,1));
+        TextView cont940=new TextView(this);cont940.setText("Continue");cont940.setTextSize(16);cont940.setTypeface(null,Typeface.BOLD);cont940.setTextColor(0xff171717);cont940.setGravity(Gravity.CENTER);cont940.setBackground(background(0xffffe500,10));
+        cont940.setOnClickListener(v->{String name=name940.getText().toString().trim();if(name.isEmpty()){name940.setError("Name required");return;}displayName=name;SharedPreferences.Editor ed=getPreferences(0).edit().putString("name",name).putString("gender",selectedGender940[0]).putString("firebase_uid",user.getUid()).putBoolean("profile_complete_"+user.getUid(),true);if(photoUrl!=null&&!photoUrl.trim().isEmpty())ed.putString("profile_photo_cloud",photoUrl.trim());ed.apply();syncPublicProfile();if(navigateHome)home();});
+        root.addView(cont940,new LinearLayout.LayoutParams(-1,dp(56)));setContentView(root);
+    }
+
+'''
+if marker not in q: raise SystemExit('saveLocalSession marker missing for onboarding helper')
+q=q.replace(marker,helpers+marker,1)
+main.write_text(q)
+print('v9.4.0 first-login profile completion applied')
+
 print('v9.4.0 parity batch 1 applied')
