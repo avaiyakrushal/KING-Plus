@@ -88,6 +88,12 @@ jobs:
           grep -F 'Mic ON • live inside Party room' /tmp/src/app/src/main/java/com/kingplus/social/PartyActivity.java
           grep -F 'seenLiveEmojiEventsV530.size()>80' /tmp/src/app/src/main/java/com/kingplus/social/PartyActivity.java
           grep -F 'openRoomGames740()' /tmp/src/app/src/main/java/com/kingplus/social/PartyActivity.java
+          grep -F 'normalizeRoomGame940' /tmp/src/app/src/main/java/com/kingplus/social/RoomGameActivity.java
+          grep -F 'KingRoomCoverView createCover940' /tmp/src/app/src/main/java/com/kingplus/social/PartyActivity.java
+          grep -F 'rows940=(pendingCreateSeats+3)/4' /tmp/src/app/src/main/java/com/kingplus/social/PartyActivity.java
+          grep -F 'openCommunityHub700("Family")' /tmp/src/app/src/main/java/com/kingplus/social/PartyActivity.java
+          grep -F 'safeLocalName.isEmpty()?googleName:safeLocalName' /tmp/src/app/src/main/java/com/kingplus/social/MainActivity.java
+          grep -F 'safeLocalPhoto.isEmpty()?googlePhoto:safeLocalPhoto' /tmp/src/app/src/main/java/com/kingplus/social/MainActivity.java
           grep -F 'kickUser' /tmp/src/app/src/main/java/com/kingplus/social/PartyActivity.java
           grep -F 'banUser' /tmp/src/app/src/main/java/com/kingplus/social/PartyActivity.java
           grep -F 'coHostDialog' /tmp/src/app/src/main/java/com/kingplus/social/PartyActivity.java
