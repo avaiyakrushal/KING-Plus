@@ -58,7 +58,9 @@ service cloud.firestore {
       allow read: if signedIn();
       allow create: if activeUser()
         && request.resource.data.ownerUid == request.auth.uid
-        && request.resource.data.isPrivate != true;
+        && request.resource.data.name is string
+        && request.resource.data.name.size() > 0
+        && request.resource.data.name.size() <= 120;
       allow update: if activeUser() && (
         resource.data.ownerUid == request.auth.uid
         || (roomCoHost(roomId)
@@ -176,6 +178,94 @@ service cloud.firestore {
           && (roomModerator(roomId) || resource.data.uid == request.auth.uid);
       }
 
+      // v9.x realtime room features. Keep writes scoped to the signed-in
+      // member or the room moderator so UI-only features actually work multi-user.
+      match /seat_invites/{targetUid} {
+        allow read: if signedIn()
+          && (targetUid == request.auth.uid || roomModerator(roomId));
+        allow create, update: if roomModerator(roomId)
+          && request.resource.data.targetUid == targetUid
+          && request.resource.data.invitedByUid == request.auth.uid;
+        allow delete: if signedIn()
+          && (targetUid == request.auth.uid || roomModerator(roomId));
+      }
+
+      match /game_ready/{playerUid} {
+        allow read: if roomAccess(roomId);
+        allow create, update: if roomAccess(roomId)
+          && roomMember(roomId)
+          && playerUid == request.auth.uid
+          && request.resource.data.uid == request.auth.uid;
+        allow delete: if signedIn()
+          && (playerUid == request.auth.uid || roomModerator(roomId));
+      }
+
+      match /game_moves/{playerUid} {
+        allow read: if roomAccess(roomId);
+        allow create, update: if roomAccess(roomId)
+          && roomMember(roomId)
+          && playerUid == request.auth.uid
+          && request.resource.data.uid == request.auth.uid;
+        allow delete: if signedIn()
+          && (playerUid == request.auth.uid || roomModerator(roomId));
+      }
+
+      match /game_state/{stateId} {
+        allow read: if roomAccess(roomId);
+        allow create, update, delete: if roomModerator(roomId);
+      }
+
+      match /game_votes/{playerUid} {
+        allow read: if roomAccess(roomId)
+          && (playerUid == request.auth.uid || roomModerator(roomId));
+        allow create, update: if roomAccess(roomId)
+          && roomMember(roomId)
+          && playerUid == request.auth.uid
+          && request.resource.data.uid == request.auth.uid;
+        allow delete: if signedIn()
+          && (playerUid == request.auth.uid || roomModerator(roomId));
+      }
+
+      match /room_invites/{inviteId} {
+        allow read: if signedIn()
+          && (roomModerator(roomId)
+              || resource.data.recipientUid == request.auth.uid);
+        allow create, update: if roomModerator(roomId)
+          && request.resource.data.senderUid == request.auth.uid
+          && request.resource.data.recipientUid is string;
+        allow delete: if signedIn()
+          && (roomModerator(roomId)
+              || resource.data.recipientUid == request.auth.uid);
+      }
+
+      match /room_settings/{settingId} {
+        allow read: if roomAccess(roomId);
+        allow create, update, delete: if roomModerator(roomId);
+      }
+
+      match /room_templates/{templateId} {
+        allow read: if roomAccess(roomId);
+        allow create, update: if roomModerator(roomId)
+          && request.resource.data.actorUid == request.auth.uid;
+        allow delete: if roomModerator(roomId);
+      }
+
+      match /music_playlist/{songId} {
+        allow read: if roomAccess(roomId);
+        allow create: if roomModerator(roomId)
+          && request.resource.data.ownerUid == request.auth.uid
+          && request.resource.data.url is string
+          && request.resource.data.name is string;
+        allow update, delete: if roomModerator(roomId);
+      }
+
+      match /music_state/{stateId} {
+        allow read: if roomAccess(roomId);
+        allow create, update: if roomModerator(roomId)
+          && request.resource.data.actorUid == request.auth.uid;
+        allow delete: if roomModerator(roomId);
+      }
+
       match /access/{accessUid} {
         // Access markers are intentionally not client-readable. roomAccess() only needs exists().
         allow read: if false;
@@ -196,6 +286,65 @@ service cloud.firestore {
           && request.resource.data.uid == accessUid;
         allow delete: if roomModerator(roomId);
       }
+    }
+
+    match /public_profiles/{uid} {
+      allow read: if signedIn();
+      allow create, update: if owner(uid)
+        && request.resource.data.uid == uid;
+      allow delete: if owner(uid);
+
+      match /visitors/{visitorUid} {
+        allow read: if signedIn() && request.auth.uid == uid;
+        allow create, update: if activeUser()
+          && visitorUid == request.auth.uid
+          && request.resource.data.uid == request.auth.uid;
+        allow delete: if signedIn()
+          && (request.auth.uid == uid || request.auth.uid == visitorUid);
+      }
+    }
+
+    match /discover_stats/{uid} {
+      allow read: if signedIn();
+      allow create, update: if owner(uid);
+      allow delete: if owner(uid);
+    }
+
+    match /blocks/{blockId} {
+      allow read: if signedIn()
+        && resource.data.ownerUid == request.auth.uid;
+      allow create: if activeUser()
+        && request.resource.data.ownerUid == request.auth.uid
+        && request.resource.data.targetUid is string
+        && request.resource.data.targetUid != request.auth.uid;
+      allow update: if false;
+      allow delete: if signedIn()
+        && resource.data.ownerUid == request.auth.uid;
+    }
+
+    match /ludo_matches/{matchCode} {
+      // Room-code discovery requires signed-in players to read before joining.
+      allow read: if activeUser();
+      allow create: if activeUser()
+        && request.resource.data.code == matchCode
+        && request.resource.data.ownerUid == request.auth.uid
+        && request.resource.data.actorUid == request.auth.uid
+        && request.resource.data.players is list
+        && request.resource.data.players.size() == 4
+        && request.resource.data.players[0] == request.auth.uid
+        && request.resource.data.capacity in [2, 4];
+      allow update: if activeUser()
+        && request.resource.data.code == resource.data.code
+        && request.resource.data.players is list
+        && request.resource.data.players.size() == 4
+        && request.resource.data.actorUid == request.auth.uid
+        && (
+          request.auth.uid in resource.data.players
+          || (resource.data.phase == 'lobby'
+              && request.auth.uid in request.resource.data.players)
+        );
+      allow delete: if activeUser()
+        && resource.data.ownerUid == request.auth.uid;
     }
 
     match /direct_threads/{threadId} {
