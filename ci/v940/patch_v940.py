@@ -3943,4 +3943,48 @@ q=q.replace(marker,helpers+marker,1)
 party.write_text(q)
 print('v9.4.0 recent/favorite room parity applied')
 
+
+# Bolo-reference parity: persistent Channel / Group profile on existing room_settings rules.
+party=pkg/'PartyActivity.java'
+q=party.read_text()
+old='''else if(x.contains("profile"))hostProfileDialog();else if(x.contains("Robot"))roomRobotDialog();'''
+new='''else if(x.contains("profile"))channelProfile940();else if(x.contains("Robot"))roomRobotDialog();'''
+if old not in q: raise SystemExit('Channel profile handler marker missing')
+q=q.replace(old,new,1)
+marker='''    private void roomRobotDialog(){'''
+helpers=r'''    private void channelProfile940(){
+        if(!cloudRoom||db==null||roomId==null){
+            new AlertDialog.Builder(this).setTitle("👥 Channel Profile").setMessage("Channel: "+roomName+"\nMembers: "+Math.max(1,seatNames.size())+"\n\nLive group profile is available in Firebase Party rooms.").setPositiveButton("OK",null).show();return;
+        }
+        DocumentReference ref=db.collection("live_rooms").document(roomId).collection("room_settings").document("group_profile");
+        ref.get().addOnSuccessListener(doc->{
+            String groupName=doc!=null&&doc.exists()?str(doc,"name",roomName):roomName;
+            String description=doc!=null&&doc.exists()?str(doc,"description","KING Plus Party group"):"KING Plus Party group";
+            String code=shortId(roomId);
+            String msg="👥 "+groupName+"\n\n"+description+"\n\nGroup code: "+code+"\nOnline members: "+liveMemberCount+"\nHost: "+(ownerName==null?"KING Host":ownerName);
+            AlertDialog.Builder b=new AlertDialog.Builder(this).setTitle("Channel / Group Profile").setMessage(msg)
+                .setPositiveButton("Share",(d,w)->shareText("Join "+groupName+" on KING Plus • Room "+roomId))
+                .setNegativeButton("Close",null);
+            if(isModerator())b.setNeutralButton("Edit",(d,w)->editChannelProfile940(ref,groupName,description));
+            b.show();
+        }).addOnFailureListener(e->toast("Channel profile unavailable: "+msg(e)));
+    }
+    private void editChannelProfile940(DocumentReference ref,String currentName,String currentDescription){
+        if(!isModerator()){toast("Host/co-host only");return;}
+        LinearLayout box=new LinearLayout(this);box.setOrientation(LinearLayout.VERTICAL);box.setPadding(dp(20),0,dp(20),0);
+        EditText name=new EditText(this);name.setHint("Channel / group name");name.setSingleLine(true);name.setText(currentName);box.addView(name,new LinearLayout.LayoutParams(-1,dp(54)));
+        EditText desc=new EditText(this);desc.setHint("Description");desc.setText(currentDescription);desc.setMinLines(2);desc.setMaxLines(4);box.addView(desc,new LinearLayout.LayoutParams(-1,dp(92)));
+        new AlertDialog.Builder(this).setTitle("Edit Channel Profile").setView(box).setNegativeButton("Cancel",null).setPositiveButton("Save",(d,w)->{
+            String n=name.getText().toString().trim(),s=desc.getText().toString().trim();if(n.length()<2){toast("Enter a group name");return;}if(n.length()>40)n=n.substring(0,40);if(s.length()>180)s=s.substring(0,180);
+            Map<String,Object>x=new HashMap<>();x.put("name",n);x.put("description",s);x.put("actorUid",user==null?"":user.getUid());x.put("updatedAt",FieldValue.serverTimestamp());
+            ref.set(x,SetOptions.merge()).addOnSuccessListener(v->{addEvent("group_profile",safeName()+" updated the Channel profile");toast("Channel profile updated");}).addOnFailureListener(e->toast("Could not update Channel profile: "+msg(e)));
+        }).show();
+    }
+
+'''
+if marker not in q: raise SystemExit('roomRobot marker missing for Channel Profile')
+q=q.replace(marker,helpers+marker,1)
+party.write_text(q)
+print('v9.4.0 persistent Channel profile parity applied')
+
 print('v9.4.0 parity batch 1 applied')
