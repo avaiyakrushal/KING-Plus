@@ -4173,4 +4173,43 @@ q=q.replace(marker,helpers+marker,1)
 party.write_text(q)
 print('v9.4.0 real Fan Club parity applied')
 
+
+# Bolo-reference parity: room notice history from immutable room events.
+party=pkg/'PartyActivity.java'
+q=party.read_text()
+old='''    private void roomNoticePanel(){
+        String msg=(announcement==null||announcement.trim().isEmpty())?"No room notice":announcement;
+        new AlertDialog.Builder(this).setTitle("📢 Room Notice").setMessage(msg).setPositiveButton(isModerator()?"Edit":"OK",(d,w)->{if(isModerator())editAnnouncement();}).setNeutralButton("Billboard",(d,w)->roomBillboardDialog()).setNegativeButton("Close",null).show();
+    }'''
+new='''    private void roomNoticePanel(){
+        String msg=(announcement==null||announcement.trim().isEmpty())?"No room notice":announcement;
+        AlertDialog.Builder b=new AlertDialog.Builder(this).setTitle("📢 Room Notice").setMessage(msg)
+            .setPositiveButton(isModerator()?"Edit":"OK",(d,w)->{if(isModerator())editAnnouncement();})
+            .setNeutralButton("History",(d,w)->roomNoticeHistory940())
+            .setNegativeButton("Close",null);
+        b.show();
+    }
+    private void roomNoticeHistory940(){
+        if(!cloudRoom||db==null||roomId==null){new AlertDialog.Builder(this).setTitle("📢 Notice History").setMessage(announcement==null?"No room notice":announcement).setPositiveButton("OK",null).show();return;}
+        db.collection("live_rooms").document(roomId).collection("events").orderBy("createdAt",Query.Direction.DESCENDING).limit(120).get().addOnSuccessListener(snap->{
+            List<String> rows=new ArrayList<>();
+            for(DocumentSnapshot d:snap.getDocuments()){
+                if(!"notice".equals(d.getString("type")))continue;
+                String text=d.getString("text");if(text==null||text.trim().isEmpty())continue;
+                com.google.firebase.Timestamp at=d.getTimestamp("createdAt");String when=at==null?"":new java.text.SimpleDateFormat("dd MMM • HH:mm",java.util.Locale.US).format(at.toDate());
+                rows.add((when.isEmpty()?"":when+"  •  ")+text);if(rows.size()>=30)break;
+            }
+            if(rows.isEmpty())rows.add("Current notice: "+((announcement==null||announcement.trim().isEmpty())?"No room notice":announcement));
+            new AlertDialog.Builder(this).setTitle("📢 Notice History").setItems(rows.toArray(new String[0]),null).setNegativeButton("Close",null).show();
+        }).addOnFailureListener(e->toast("Notice history unavailable: "+msg(e)));
+    }'''
+if old not in q: raise SystemExit('roomNoticePanel marker missing for notice history')
+q=q.replace(old,new,1)
+old='''    private void editAnnouncement(){final EditText e=new EditText(this);e.setText(announcement);new AlertDialog.Builder(this).setTitle("Room announcement").setView(e).setNegativeButton("Cancel",null).setPositiveButton("Save",(d,w)->{String s=e.getText().toString().trim();if(s.isEmpty())return;if(cloudRoom)setRoomValue("announcement",s);else{announcement=s;prefs.edit().putString("notice_"+roomId,s).apply();announcementLabel.setText("📢  "+s);}}).show();}'''
+new='''    private void editAnnouncement(){final EditText e=new EditText(this);e.setText(announcement);new AlertDialog.Builder(this).setTitle("Room announcement").setView(e).setNegativeButton("Cancel",null).setPositiveButton("Save",(d,w)->{String s=e.getText().toString().trim();if(s.isEmpty())return;if(s.length()>220)s=s.substring(0,220);final String notice940=s;if(cloudRoom){setRoomValue("announcement",notice940);addEvent("notice",safeName()+" • "+notice940);}else{announcement=notice940;prefs.edit().putString("notice_"+roomId,notice940).apply();if(announcementLabel!=null)announcementLabel.setText("📢  "+notice940);}}).show();}'''
+if old not in q: raise SystemExit('editAnnouncement marker missing for notice history')
+q=q.replace(old,new,1)
+party.write_text(q)
+print('v9.4.0 room notice history parity applied')
+
 print('v9.4.0 parity batch 1 applied')
