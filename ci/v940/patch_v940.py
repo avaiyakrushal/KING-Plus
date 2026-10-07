@@ -925,4 +925,42 @@ if old in q:q=q.replace(old,new,1)
 party.write_text(q)
 print('v9.4.0 real Family routing applied')
 
+# Robust Create Party visual pass using stable, granular markers.
+party=pkg/'PartyActivity.java'
+q=party.read_text()
+
+old='''FrameLayout cover=new FrameLayout(this);cover.setBackground(bg(0x22000000,10));ImageView preview=new ImageView(this);'''
+new='''FrameLayout cover=new FrameLayout(this);cover.setBackground(bg(0x33000000,18));KingRoomCoverView createCover940=new KingRoomCoverView(this,pendingCreateCategory,safeName()+"'s Party");cover.addView(createCover940,new FrameLayout.LayoutParams(-1,-1));ImageView preview=new ImageView(this);'''
+if old not in q: raise SystemExit('Create Party cover marker missing')
+q=q.replace(old,new,1)
+
+q=q.replace('''TextView coverText=tv("▣\\nChange cover",14,Color.WHITE,true);coverText.setGravity(Gravity.CENTER);cover.addView(coverText,new FrameLayout.LayoutParams(-1,-1));''','''TextView coverText=tv("▣\\nChange cover",13,Color.WHITE,true);coverText.setGravity(Gravity.CENTER);coverText.setBackground(bg(0x44000000,18));cover.addView(coverText,new FrameLayout.LayoutParams(-1,-1));''',1)
+q=q.replace('''LinearLayout.LayoutParams cp=new LinearLayout.LayoutParams(dp(110),dp(110));cp.setMargins(0,dp(8),0,dp(8));''','''LinearLayout.LayoutParams cp=new LinearLayout.LayoutParams(dp(134),dp(134));cp.setMargins(0,dp(10),0,dp(6));''',1)
+q=q.replace('''if(pendingCreateCoverUri!=null){try{preview.setImageURI(pendingCreateCoverUri);coverText.setText("");}catch(Exception ignored){}}''','''if(pendingCreateCoverUri!=null){try{preview.setImageURI(pendingCreateCoverUri);coverText.setText("✎");coverText.setGravity(Gravity.RIGHT|Gravity.BOTTOM);coverText.setPadding(0,0,dp(10),dp(8));}catch(Exception ignored){}}''',1)
+
+old='''LinearLayout flags=new LinearLayout(this);flags.setGravity(Gravity.CENTER);TextView pub=tv(pendingCreatePrivate?"🔒 Private":"🔓 Public",13,Color.WHITE,true);pub.setGravity(Gravity.CENTER);pub.setOnClickListener(v->{pendingCreatePrivate=!pendingCreatePrivate;renderCreateRoomPage();});flags.addView(pub,new LinearLayout.LayoutParams(0,dp(42),1));TextView seat=tv("Seat: "+pendingCreateSeats,13,Color.WHITE,true);seat.setGravity(Gravity.CENTER);seat.setOnClickListener(v->{int[] vals={8,10,12};int idx=0;for(int i=0;i<vals.length;i++)if(vals[i]==pendingCreateSeats)idx=i;pendingCreateSeats=vals[(idx+1)%vals.length];renderCreateRoomPage();});flags.addView(seat,new LinearLayout.LayoutParams(0,dp(42),1));body.addView(flags,new LinearLayout.LayoutParams(-1,dp(48)));'''
+new='''LinearLayout flags=new LinearLayout(this);flags.setGravity(Gravity.CENTER);TextView pub=tv(pendingCreatePrivate?"🔒  Private":"🔓  Public",13,Color.WHITE,true);pub.setGravity(Gravity.CENTER);pub.setBackground(bg(0x224fd0aa,14));pub.setOnClickListener(v->{pendingCreatePrivate=!pendingCreatePrivate;renderCreateRoomPage();});LinearLayout.LayoutParams pubLp940=new LinearLayout.LayoutParams(0,dp(44),1);pubLp940.setMargins(dp(3),0,dp(5),0);flags.addView(pub,pubLp940);TextView seat=tv("🎙  Seat: "+pendingCreateSeats,13,Color.WHITE,true);seat.setGravity(Gravity.CENTER);seat.setBackground(bg(0x224fd0aa,14));seat.setOnClickListener(v->{int[] vals={8,10,12};int idx=0;for(int i=0;i<vals.length;i++)if(vals[i]==pendingCreateSeats)idx=i;pendingCreateSeats=vals[(idx+1)%vals.length];renderCreateRoomPage();});LinearLayout.LayoutParams seatLp940=new LinearLayout.LayoutParams(0,dp(44),1);seatLp940.setMargins(dp(5),0,dp(3),0);flags.addView(seat,seatLp940);body.addView(flags,new LinearLayout.LayoutParams(-1,dp(50)));'''
+if old not in q: raise SystemExit('Create Party flags marker missing')
+q=q.replace(old,new,1)
+
+old='''final EditText name=new EditText(this);name.setHint("Room name");name.setHintTextColor(0xff9cb8ae);name.setTextColor(Color.WHITE);name.setTextSize(18);name.setSingleLine(true);name.setBackgroundColor(Color.TRANSPARENT);name.setPadding(dp(4),dp(10),dp(4),dp(10));String defaultRoomName921=safeName().trim();if(defaultRoomName921.isEmpty())defaultRoomName921="KING";name.setText(defaultRoomName921+"'s Party");name.setSelection(name.getText().length());body.addView(name,new LinearLayout.LayoutParams(-1,dp(58)));View line=new View(this);line.setBackgroundColor(0x446bd8b4);body.addView(line,new LinearLayout.LayoutParams(-1,dp(1)));'''
+new='''LinearLayout nameBox940=new LinearLayout(this);nameBox940.setOrientation(LinearLayout.VERTICAL);nameBox940.setPadding(dp(12),dp(5),dp(12),dp(4));nameBox940.setBackground(bg(0x18000000,12));TextView nameLabel940=tv("Room name",11,0xff93b8ac,true);nameBox940.addView(nameLabel940,new LinearLayout.LayoutParams(-1,dp(24)));final EditText name=new EditText(this);name.setHint("Room name");name.setHintTextColor(0xff9cb8ae);name.setTextColor(Color.WHITE);name.setTextSize(17);name.setSingleLine(true);name.setBackgroundColor(Color.TRANSPARENT);name.setPadding(0,0,0,0);String defaultRoomName921=safeName().trim();if(defaultRoomName921.isEmpty())defaultRoomName921="KING";name.setText(defaultRoomName921+"'s Party");name.setSelection(name.getText().length());nameBox940.addView(name,new LinearLayout.LayoutParams(-1,dp(42)));body.addView(nameBox940,new LinearLayout.LayoutParams(-1,dp(70)));'''
+if old not in q: raise SystemExit('Create Party name marker missing')
+q=q.replace(old,new,1)
+
+old='''TextView type=tv("Room type: "+pendingCreateCategory+"  ›",13,0xffd5eee5,true);type.setGravity(Gravity.CENTER_VERTICAL);type.setPadding(dp(4),0,0,0);type.setOnClickListener(v->{String[] cats={"Chat","Event","Date","Music","Game","KTV","Radio","PK","Pick Me","Family","Multi Video"};'''
+new='''TextView type=tv("Room type:  "+pendingCreateCategory+"   ›",13,0xffe4f5ef,true);type.setGravity(Gravity.CENTER_VERTICAL);type.setPadding(dp(12),0,dp(10),0);type.setBackground(bg(0x18000000,12));type.setOnClickListener(v->{String[] cats={"Hot","Chat","Event","Date","Music","Game","KTV","Radio","PK","Pick Me","Family","Multi Video"};'''
+if old not in q: raise SystemExit('Create Party type marker missing')
+q=q.replace(old,new,1)
+
+old='''LinearLayout seats=new LinearLayout(this);seats.setOrientation(LinearLayout.VERTICAL);for(int r=0;r<2;r++){LinearLayout rr=new LinearLayout(this);rr.setGravity(Gravity.CENTER);for(int c=0;c<4;c++){int no=r*4+c+1;TextView bubble=tv("+\\nNO."+no,11,0xffcce8de,true);bubble.setGravity(Gravity.CENTER);bubble.setBackground(bg(0x224fd0aa,45));LinearLayout.LayoutParams bp=new LinearLayout.LayoutParams(0,dp(72),1);bp.setMargins(dp(5),dp(5),dp(5),dp(5));rr.addView(bubble,bp);}seats.addView(rr,new LinearLayout.LayoutParams(-1,dp(82)));}body.addView(seats,new LinearLayout.LayoutParams(-1,dp(168)));'''
+new='''LinearLayout seats=new LinearLayout(this);seats.setOrientation(LinearLayout.VERTICAL);int rows940=(pendingCreateSeats+3)/4;int seatNo940=1;for(int r=0;r<rows940;r++){LinearLayout rr=new LinearLayout(this);rr.setGravity(Gravity.CENTER);for(int c=0;c<4;c++){if(seatNo940<=pendingCreateSeats){TextView bubble=tv("+\\nNO."+seatNo940,11,0xffd8eee7,true);bubble.setGravity(Gravity.CENTER);bubble.setBackground(bg(0x2b4fd0aa,45));LinearLayout.LayoutParams bp=new LinearLayout.LayoutParams(0,dp(70),1);bp.setMargins(dp(6),dp(5),dp(6),dp(5));rr.addView(bubble,bp);seatNo940++;}else{View empty940=new View(this);rr.addView(empty940,new LinearLayout.LayoutParams(0,dp(70),1));}}seats.addView(rr,new LinearLayout.LayoutParams(-1,dp(80)));}body.addView(seats,new LinearLayout.LayoutParams(-1,rows940*dp(80)));'''
+if old not in q: raise SystemExit('Create Party seats marker missing')
+q=q.replace(old,new,1)
+
+q=q.replace('''TextView start=tv(roomCreateInFlight921?"Creating Party…":"🎉 Start Room",15,0xff171717,true);start.setGravity(Gravity.CENTER);start.setBackground(bg(roomCreateInFlight921?0xffb9ad48:0xffffee00,10));''','''TextView start=tv(roomCreateInFlight921?"Creating Party…":"🎉  Start Room",16,0xff171717,true);start.setGravity(Gravity.CENTER);start.setBackground(bg(roomCreateInFlight921?0xffb9ad48:0xffffee00,14));''',1)
+
+party.write_text(q)
+print('v9.4.0 robust Create Party visual pass applied')
+
 print('v9.4.0 parity batch 1 applied')
