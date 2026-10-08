@@ -26,3 +26,14 @@ Reference: Bolo Hi user-provided APK; independently implement features. No propr
 - [ ] Run final two-account/two-device smoke test before marking Bolo-reference parity complete.
 
 Acceptance: passing Gradle/static/lint checks is necessary but not sufficient. Do not claim crash-free or full parity until the runtime/device gates pass.
+
+
+## v9.4.3 final-parity pass progress
+- [x] Removed repeated Firebase getCurrentUser()/UID race windows in Main wallet/profile/visitor/recommendation paths by snapshotting the user once.
+- [x] Party microphone permission now resumes the mic action automatically after grant.
+- [x] Added original KING Plus Party ambient visual strip.
+- [x] Added animated host/mine/active-mic seat halos around real Party avatars, while retaining equipped frames/photos.
+- [x] Added synchronized game-round visual card for Party games without changing multiplayer state rules.
+- [x] Revalidated synchronized Werewolf, Spy, Draw & Guess, Tic-Tac-Toe and Ludo routing in generated source.
+- [x] Compile, crash/route audit and Android lint pass in v9.4.3 build run 37717278174.
+- [ ] Real two-account/two-device runtime smoke tests remain required before claiming crash-free/full parity.
