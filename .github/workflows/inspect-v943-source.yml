@@ -1,0 +1,43 @@
+name: Inspect KING Plus v9.4.3 Generated Source
+
+on:
+  push:
+    branches: ['build/v9.4.3-final-parity-pass']
+    paths: ['.github/workflows/inspect-v943-source.yml']
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  inspect:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Recover v9.4.3 generated source
+        env:
+          GH_TOKEN: \${{ github.token }}
+        run: |
+          mkdir -p /tmp/a /tmp/src
+          gh run download 37716717489 -n KING-Plus-v9.4.3-final-parity-pass-source -D /tmp/a
+          unzip -q /tmp/a/KING-Plus-v9.4.3-final-parity-pass-source.zip -d /tmp/src
+      - name: Print targeted method windows
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          targets={
+            'PartyActivity.java':['private void rebuildSeats','private void showGiftEffect','private void showLiveEmojiEffect560','private void ktvQueuePanel','private void audioPkPanel700'],
+            'RoomGameActivity.java':['private void renderState','private void startRound','private void startRequestedGame940'],
+          }
+          base=Path('/tmp/src/app/src/main/java/com/kingplus/social')
+          for fn,needles in targets.items():
+              lines=(base/fn).read_text(errors='replace').splitlines()
+              print('\n########',fn,'########')
+              for needle in needles:
+                  for i,line in enumerate(lines):
+                      if needle in line:
+                          print('\n###',needle,'line',i+1)
+                          for n in range(max(0,i-6),min(len(lines),i+95)):
+                              print(f'{n+1:04d}: {lines[n]}')
+                          break
+          PY
