@@ -74,6 +74,9 @@ jobs:
           if "firebase-firestore" not in s:
               s = s.replace("implementation 'com.google.firebase:firebase-auth'", "implementation 'com.google.firebase:firebase-auth'\n    implementation 'com.google.firebase:firebase-firestore'")
               gradle.write_text(s)
+          if "firebase-messaging" not in s:
+              s = s.replace("implementation 'com.google.firebase:firebase-auth'", "implementation 'com.google.firebase:firebase-auth'\n    implementation 'com.google.firebase:firebase-messaging'")
+              gradle.write_text(s)
           manifest = Path('app/src/main/AndroidManifest.xml')
           s = manifest.read_text()
           if 'android:name=".VoiceWebActivity"' not in s:
