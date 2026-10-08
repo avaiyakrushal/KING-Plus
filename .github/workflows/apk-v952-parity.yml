@@ -1,0 +1,128 @@
+name: Build KING Plus v9.5.2 Parity Batch 3
+
+on:
+  push:
+    branches: ['build/v9.5.2-parity-batch3']
+    paths:
+      - '.github/workflows/apk-v952-parity.yml'
+      - 'ci/v952/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: king-plus-v952-parity
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: build/v9.5.2-parity-batch3
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+
+      - name: Recover verified v9.5.0 source with retry
+        env:
+          GH_TOKEN: \${{ github.token }}
+        run: |
+          set -euo pipefail
+          rm -rf /tmp/base /tmp/src
+          mkdir -p /tmp/base /tmp/src
+          ok=0
+          for attempt in 1 2 3 4; do
+            rm -rf /tmp/base/* /tmp/src/*
+            if gh run download 37708708041 -n KING-Plus-v9.5.0-parity-batch1-source -D /tmp/base; then
+              ok=1
+              break
+            fi
+            echo "artifact download attempt $attempt failed"
+            sleep $((attempt*15))
+          done
+          if [ "$ok" != "1" ]; then
+            gh api repos/\${GITHUB_REPOSITORY}/actions/artifacts/11520708490/zip > /tmp/base/artifact.zip
+            unzip -q /tmp/base/artifact.zip -d /tmp/base
+          fi
+          test -f /tmp/base/KING-Plus-v9.5.0-parity-batch1-source.zip
+          unzip -q /tmp/base/KING-Plus-v9.5.0-parity-batch1-source.zip -d /tmp/src
+
+      - name: Apply parity batches 2 and 3
+        run: |
+          python3 ci/v951/patch_v951.py /tmp/src
+          python3 ci/v952/patch_v952.py /tmp/src
+
+      - name: Parity gates
+        working-directory: /tmp/src
+        run: |
+          set -euo pipefail
+          grep -F "versionCode 143; versionName '9.5.2-parity-batch3'" app/build.gradle
+          grep -F 'Loading KTV stage and queue' app/src/main/java/com/kingplus/social/PartyActivity.java
+          grep -F 'Relationship / CP' app/src/main/java/com/kingplus/social/CommunityHubActivity.java
+          grep -F 'Recent visitors' app/src/main/java/com/kingplus/social/CommunityHubActivity.java
+          grep -F 'Collection Center' app/src/main/java/com/kingplus/social/CommunityHubActivity.java
+          grep -F 'showGlobalRank952' app/src/main/java/com/kingplus/social/MainActivity.java
+
+      - name: Compile APK
+        working-directory: /tmp/src
+        run: gradle :app:assembleDebug --no-daemon
+
+      - name: Runtime activity and source audit
+        working-directory: /tmp/src
+        run: |
+          python3 - <<'PY'
+          import pathlib,re
+          root=pathlib.Path('app/src/main')
+          manifest=(root/'AndroidManifest.xml').read_text(errors='ignore')
+          declared=set(re.findall(r'<activity[^>]+android:name="\.([^"]+)"',manifest))
+          intents=set()
+          for p in (root/'java/com/kingplus/social').glob('*.java'):
+              t=p.read_text(errors='ignore')
+              intents.update(re.findall(r'new Intent\(this,\s*([A-Za-z0-9_]+)\.class\)',t))
+          missing=sorted(x for x in intents if x not in declared and x!='MainActivity')
+          print('Missing activity registrations:',missing)
+          if missing: raise SystemExit('Missing activities: '+','.join(missing))
+          checks={
+            'CommunityHubActivity.java':['Find People','Recent visitors','Open Wardrobe','Open VIP Center'],
+            'MainActivity.java':['KING Rankings','showGlobalRank952','Top KING progress preview'],
+          }
+          for fn,marks in checks.items():
+              t=(root/'java/com/kingplus/social'/fn).read_text(errors='ignore')
+              for mark in marks:
+                  if mark not in t: raise SystemExit(fn+' missing '+mark)
+          print('Batch 3 audit passed')
+          PY
+
+      - name: Android lint
+        working-directory: /tmp/src
+        continue-on-error: true
+        run: gradle :app:lintDebug --no-daemon
+
+      - name: Package APK and source
+        run: |
+          set -euo pipefail
+          cp /tmp/src/app/build/outputs/apk/debug/app-debug.apk /tmp/KING-Plus-v9.5.2-parity-batch3.apk
+          cd /tmp/src
+          zip -qr /tmp/KING-Plus-v9.5.2-parity-batch3-source.zip .
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: KING-Plus-v9.5.2-parity-batch3-APK
+          path: /tmp/KING-Plus-v9.5.2-parity-batch3.apk
+          if-no-files-found: error
+          retention-days: 7
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: KING-Plus-v9.5.2-parity-batch3-source
+          path: /tmp/KING-Plus-v9.5.2-parity-batch3-source.zip
+          if-no-files-found: error
+          retention-days: 7
