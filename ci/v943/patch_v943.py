@@ -153,6 +153,9 @@ perm_new='''@android.annotation.SuppressLint("MissingSuperCall")
     }'''
 q,count=re.subn(perm_pat,perm_new,q,count=1,flags=re.S)
 if count!=1: raise SystemExit('PartyActivity permission delegate regex missing')
+back_marker='''    @Override public void onBackPressed(){if(roomId!=null){confirmLeave940();return;}if(isTaskRoot())KingNav.confirmExit(this);else finish();}'''
+if back_marker in q and '@android.annotation.SuppressLint("MissingSuperCall")\n'+back_marker not in q:
+    q=q.replace(back_marker,'@android.annotation.SuppressLint("MissingSuperCall")\n'+back_marker,1)
 
 # Direct room fetch failure becomes retryable rather than silently dumping user back to lobby.
 q=q.replace('''.addOnFailureListener(e->{toast("Could not open Party room");renderLobby("Hot");});''',
