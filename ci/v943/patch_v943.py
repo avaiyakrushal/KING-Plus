@@ -139,9 +139,8 @@ if marker not in q: raise SystemExit('PartyActivity badges marker missing')
 q=q.replace(marker,ambient,1)
 
 # Permission result: requestCode 942 belongs to Party mic, Jitsi keeps all other requests.
-old='''    @android.annotation.SuppressLint("MissingSuperCall")
-    @Override public void onRequestPermissionsResult(int requestCode,String[] permissions,int[] grantResults){org.jitsi.meet.sdk.JitsiMeetActivityDelegate.onRequestPermissionsResult(requestCode,permissions,grantResults);}'''
-new='''    @android.annotation.SuppressLint("MissingSuperCall")
+perm_pat=r'''@android\.annotation\.SuppressLint\("MissingSuperCall"\)\s*\n?\s*@Override\s+public\s+void\s+onRequestPermissionsResult\(int requestCode,String\[\] permissions,int\[\] grantResults\)\s*\{.*?org\.jitsi\.meet\.sdk\.JitsiMeetActivityDelegate\.onRequestPermissionsResult\(requestCode,permissions,grantResults\);\s*\}'''
+perm_new='''@android.annotation.SuppressLint("MissingSuperCall")
     @Override public void onRequestPermissionsResult(int requestCode,String[] permissions,int[] grantResults){
         if(requestCode==942){
             boolean granted=grantResults!=null&&grantResults.length>0&&grantResults[0]==android.content.pm.PackageManager.PERMISSION_GRANTED;
@@ -151,8 +150,8 @@ new='''    @android.annotation.SuppressLint("MissingSuperCall")
         }
         org.jitsi.meet.sdk.JitsiMeetActivityDelegate.onRequestPermissionsResult(requestCode,permissions,grantResults);
     }'''
-if old not in q: raise SystemExit('PartyActivity permission delegate marker missing')
-q=q.replace(old,new,1)
+q,count=re.subn(perm_pat,perm_new,q,count=1,flags=re.S)
+if count!=1: raise SystemExit('PartyActivity permission delegate regex missing')
 
 # Direct room fetch failure becomes retryable rather than silently dumping user back to lobby.
 q=q.replace('''.addOnFailureListener(e->{toast("Could not open Party room");renderLobby("Hot");});''',
