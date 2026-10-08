@@ -1,0 +1,138 @@
+name: Build KING Plus v9.4.6 Final Polish
+
+on:
+  push:
+    branches: ['build/v9.4.6-final-polish']
+    paths:
+      - '.github/workflows/apk-v946-final.yml'
+      - 'ci/v946/patch_v946.py'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: king-plus-v946-final
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: build/v9.4.6-final-polish
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+
+      - name: Recover verified v9.4.1 source
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          rm -rf /tmp/v941 /tmp/src
+          mkdir -p /tmp/v941 /tmp/src
+          gh run download 37657265816 -n KING-Plus-v9.4.1-stability-source -D /tmp/v941
+          unzip -q /tmp/v941/KING-Plus-v9.4.1-stability-source.zip -d /tmp/src
+
+      - name: Apply all current parity/runtime patches
+        run: |
+          python3 ci/v942/patch_v942.py /tmp/src
+          python3 ci/v943/patch_v943.py /tmp/src
+          python3 ci/v944/patch_v944.py /tmp/src
+          python3 ci/v945/patch_v945.py /tmp/src
+          python3 ci/v946/patch_v946.py /tmp/src
+
+      - name: v9.4.6 feature gates
+        working-directory: /tmp/src
+        run: |
+          set -euo pipefail
+          grep -F "versionCode 145; versionName '9.4.6-final-polish'" app/build.gradle
+          ! grep -F 'new java.util.Random().nextInt(91)' app/src/main/java/com/kingplus/social/PartyActivity.java
+          grep -F 'boolean fullGiftFx946=KingEffectBudget.allow(this,"gift")' app/src/main/java/com/kingplus/social/PartyActivity.java
+          grep -F 'showCompactEmoji946' app/src/main/java/com/kingplus/social/PartyActivity.java
+          grep -F 'announceForAccessibility' app/src/main/java/com/kingplus/social/PartyActivity.java
+          grep -F 'KTV history unavailable' app/src/main/java/com/kingplus/social/PartyActivity.java
+          grep -F 'Room Battle unavailable' app/src/main/java/com/kingplus/social/PartyActivity.java
+          grep -F 'Offline • People will reconnect automatically' app/src/main/java/com/kingplus/social/SocialActivity.java
+          grep -F '↻ Retry Profile' app/src/main/java/com/kingplus/social/KingPublicProfileActivity.java
+          grep -F 'Offline • Multi Video seats will reconnect automatically' app/src/main/java/com/kingplus/social/KingMultiVideoActivity.java
+          grep -F '↻ Reconnect Room' app/src/main/java/com/kingplus/social/OnlineLudoActivity.java
+
+      - name: Compile v9.4.6 APK
+        working-directory: /tmp/src
+        run: gradle :app:assembleDebug --no-daemon
+
+      - name: Static final parity audit
+        working-directory: /tmp/src
+        run: |
+          python3 - <<'PY'
+          import pathlib,re
+          root=pathlib.Path('app/src/main')
+          manifest=(root/'AndroidManifest.xml').read_text(errors='ignore')
+          declared=set(re.findall(r'<activity[^>]+android:name="\.([^"]+)"',manifest))
+          intents=set()
+          for p in (root/'java/com/kingplus/social').glob('*.java'):
+              t=p.read_text(errors='ignore')
+              intents.update(re.findall(r'new (?:android\.content\.)?Intent\(this,\s*([A-Za-z0-9_]+)\.class\)',t))
+          missing=sorted(x for x in intents if x not in declared and x!='MainActivity')
+          print('Missing manifest targets:',missing)
+          if missing: raise SystemExit(1)
+
+          party=(root/'java/com/kingplus/social/PartyActivity.java').read_text()
+          required=[
+            'requestMicSeat940','showGiftEffect','showLiveEmojiEffect560','ktvQueuePanel',
+            'audioPkPanel700','Room Battle uses real live-room gift/activity data',
+            'showCompactEmoji946','Back online • reconnecting Party room'
+          ]
+          absent=[x for x in required if x not in party]
+          print('Missing Party gates:',absent)
+          if absent: raise SystemExit(1)
+          if 'new java.util.Random().nextInt(91)' in party:
+              raise SystemExit('Fabricated Room Battle fallback remains')
+
+          room=(root/'java/com/kingplus/social/RoomGameActivity.java').read_text()
+          if 'gameNetworkCallback943' not in room or 'Rematch' not in room:
+              raise SystemExit('Room game reconnect/rematch missing')
+          ludo=(root/'java/com/kingplus/social/OnlineLudoActivity.java').read_text()
+          if 'Reconnect Room' not in ludo:
+              raise SystemExit('Ludo reconnect missing')
+          social=(root/'java/com/kingplus/social/SocialActivity.java').read_text()
+          if 'showRetry945' not in social or 'socialNetworkCallback945' not in social:
+              raise SystemExit('Social retry/reconnect missing')
+          print('v9.4.6 final static audit passed')
+          PY
+
+      - name: Android lint
+        working-directory: /tmp/src
+        continue-on-error: false
+        run: gradle :app:lintDebug --no-daemon
+
+      - name: Package APK and source
+        run: |
+          set -euo pipefail
+          cp /tmp/src/app/build/outputs/apk/debug/app-debug.apk /tmp/KING-Plus-v9.4.6-final-polish.apk
+          cd /tmp/src
+          zip -qr /tmp/KING-Plus-v9.4.6-final-polish-source.zip .
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: KING-Plus-v9.4.6-final-polish-APK
+          path: /tmp/KING-Plus-v9.4.6-final-polish.apk
+          retention-days: 7
+          if-no-files-found: error
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: KING-Plus-v9.4.6-final-polish-source
+          path: /tmp/KING-Plus-v9.4.6-final-polish-source.zip
+          retention-days: 7
+          if-no-files-found: error
