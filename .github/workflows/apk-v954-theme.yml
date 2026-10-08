@@ -1,0 +1,128 @@
+name: Build KING Plus v9.5.4 Theme Polish
+
+on:
+  push:
+    branches: ['build/v9.5.4-theme-polish']
+    paths:
+      - '.github/workflows/apk-v954-theme.yml'
+      - 'ci/v951/**'
+      - 'ci/v952/**'
+      - 'ci/v953/**'
+      - 'ci/v954/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: king-plus-v954-theme
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: build/v9.5.4-theme-polish
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+
+      - name: Recover verified v9.5.0 source
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          rm -rf /tmp/base /tmp/src
+          mkdir -p /tmp/base /tmp/src
+          ok=0
+          for attempt in 1 2 3 4; do
+            rm -rf /tmp/base/* /tmp/src/*
+            if gh run download 37708708041 -n KING-Plus-v9.5.0-parity-batch1-source -D /tmp/base; then
+              ok=1
+              break
+            fi
+            sleep $((attempt*15))
+          done
+          if [ "$ok" != "1" ]; then
+            gh api repos/${GITHUB_REPOSITORY}/actions/artifacts/11520708490/zip > /tmp/base/artifact.zip
+            unzip -q /tmp/base/artifact.zip -d /tmp/base
+          fi
+          test -f /tmp/base/KING-Plus-v9.5.0-parity-batch1-source.zip
+          unzip -q /tmp/base/KING-Plus-v9.5.0-parity-batch1-source.zip -d /tmp/src
+
+      - name: Apply parity batches 2 through theme polish
+        run: |
+          python3 ci/v951/patch_v951.py /tmp/src
+          python3 ci/v952/patch_v952.py /tmp/src
+          python3 ci/v953/patch_v953.py /tmp/src
+          python3 ci/v954/patch_v954.py /tmp/src
+
+      - name: Theme and parity gates
+        working-directory: /tmp/src
+        run: |
+          set -euo pipefail
+          grep -F "versionCode 145; versionName '9.5.4-theme-polish'" app/build.gradle
+          grep -F 'String[] names954={"Classic","KTV","PK","Love","Game","Royal","Neon","Galaxy","Festival","Ice"}' app/src/main/java/com/kingplus/social/PartyActivity.java
+          grep -F 'themeChip954' app/src/main/java/com/kingplus/social/PartyActivity.java
+          grep -F 'themeAccent954()' app/src/main/java/com/kingplus/social/PartyActivity.java
+          grep -F 'Loading room activity' app/src/main/java/com/kingplus/social/PartyActivity.java
+          grep -F 'renderCreateSeatPreview953' app/src/main/java/com/kingplus/social/PartyActivity.java
+          grep -F 'showPublicCollection953' app/src/main/java/com/kingplus/social/KingPublicProfileActivity.java
+
+      - name: Compile APK
+        working-directory: /tmp/src
+        run: gradle :app:assembleDebug --no-daemon
+
+      - name: Runtime activity and parity audit
+        working-directory: /tmp/src
+        run: |
+          python3 - <<'PY'
+          import pathlib,re
+          root=pathlib.Path('app/src/main')
+          manifest=(root/'AndroidManifest.xml').read_text(errors='ignore')
+          declared=set(re.findall(r'<activity[^>]+android:name="\.([^"]+)"',manifest))
+          intents=set()
+          for p in (root/'java/com/kingplus/social').glob('*.java'):
+              t=p.read_text(errors='ignore')
+              intents.update(re.findall(r'new Intent\(this,\s*([A-Za-z0-9_]+)\.class\)',t))
+          missing=sorted(x for x in intents if x not in declared and x!='MainActivity')
+          print('Missing activities:',missing)
+          if missing: raise SystemExit('Missing activities: '+','.join(missing))
+          party=(root/'java/com/kingplus/social/PartyActivity.java').read_text(errors='ignore')
+          for name in ['Classic','KTV','PK','Love','Game','Royal','Neon','Galaxy','Festival','Ice']:
+              if name not in party: raise SystemExit('Theme missing: '+name)
+          print('v9.5.4 runtime/theme audit passed')
+          PY
+
+      - name: Android lint
+        working-directory: /tmp/src
+        continue-on-error: true
+        run: gradle :app:lintDebug --no-daemon
+
+      - name: Package APK and source
+        run: |
+          set -euo pipefail
+          cp /tmp/src/app/build/outputs/apk/debug/app-debug.apk /tmp/KING-Plus-v9.5.4-theme-polish.apk
+          cd /tmp/src
+          zip -qr /tmp/KING-Plus-v9.5.4-theme-polish-source.zip .
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: KING-Plus-v9.5.4-theme-polish-APK
+          path: /tmp/KING-Plus-v9.5.4-theme-polish.apk
+          if-no-files-found: error
+          retention-days: 7
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: KING-Plus-v9.5.4-theme-polish-source
+          path: /tmp/KING-Plus-v9.5.4-theme-polish-source.zip
+          if-no-files-found: error
+          retention-days: 7
