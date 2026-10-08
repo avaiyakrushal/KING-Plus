@@ -1,0 +1,64 @@
+name: Inspect KING Plus parity batch 2 source
+on:
+  push:
+    branches: ['build/v9.5.0-parity-batch1']
+    paths: ['.github/workflows/inspect-batch2-source.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  inspect:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: build/v9.5.0-parity-batch1
+      - name: Recover and patch source
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          rm -rf /tmp/base /tmp/src
+          mkdir -p /tmp/base /tmp/src
+          gh run download 37657265816 -n KING-Plus-v9.4.1-stability-source -D /tmp/base
+          unzip -q /tmp/base/KING-Plus-v9.4.1-stability-source.zip -d /tmp/src
+          python3 ci/v950/patch_v950.py /tmp/src
+      - name: Print complete target methods
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          pkg=Path('/tmp/src/app/src/main/java/com/kingplus/social')
+          targets={
+            'PartyActivity.java':['ktvQueuePanel','ktvHistory940','audioPkPanel700','pkHistory940','roomRankingDialog','familyPartyPanel610'],
+            'CommunityHubActivity.java':['family','familyJoinCreate','createFamily','joinFamily','showFamily','relationships','visitors750','collection'],
+            'MainActivity.java':['rankingsPage','profileV600','loadRealProfileData','profileAboutPage'],
+          }
+          def method(text,name):
+              marker=' '+name+'('
+              starts=[]
+              for sig in ['private void '+name+'(','private View '+name+'(','private TextView '+name+'(','private int '+name+'(','private String '+name+'(']:
+                  k=text.find(sig)
+                  if k>=0: starts.append(k)
+              if not starts:return None
+              s=min(starts); brace=text.find('{',s)
+              depth=0; ins=False; esc=False; quote=''
+              for i in range(brace,len(text)):
+                  ch=text[i]
+                  if ins:
+                      if esc: esc=False
+                      elif ch=='\\': esc=True
+                      elif ch==quote: ins=False
+                      continue
+                  if ch in ('"',"'"): ins=True;quote=ch;continue
+                  if ch=='{':depth+=1
+                  elif ch=='}':
+                      depth-=1
+                      if depth==0:return text[s:i+1]
+              return text[s:]
+          for fn,names in targets.items():
+              t=(pkg/fn).read_text(errors='ignore')
+              for n in names:
+                  print('\n===== '+fn+' :: '+n+' =====')
+                  print(method(t,n) or 'NOT FOUND')
+          PY
