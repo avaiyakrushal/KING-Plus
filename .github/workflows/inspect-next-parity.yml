@@ -1,0 +1,48 @@
+name: Inspect KING Plus next parity areas
+on:
+  push:
+    branches: ['build/v9.5.0-parity-batch1']
+    paths: ['.github/workflows/inspect-next-parity.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  inspect:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: build/v9.5.0-parity-batch1
+      - name: Recover v9.4.1 source
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          rm -rf /tmp/base /tmp/src
+          mkdir -p /tmp/base /tmp/src
+          gh run download 37657265816 -n KING-Plus-v9.4.1-stability-source -D /tmp/base
+          unzip -q /tmp/base/KING-Plus-v9.4.1-stability-source.zip -d /tmp/src
+      - name: Inspect profile family rank collection flows
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          pkg=Path('/tmp/src/app/src/main/java/com/kingplus/social')
+          files=['MainActivity.java','KingPublicProfileActivity.java','KingDeepFlowActivity.java','CommunityHubActivity.java','PartyActivity.java','SocialActivity.java']
+          keys=['profile','relationship','family','rank','collection','wardrobe','noble','privilege','wallet','level_center','visitor','moment','square']
+          for fn in files:
+              p=pkg/fn
+              print('\n===== '+fn+' =====')
+              if not p.exists(): continue
+              lines=p.read_text(errors='ignore').splitlines()
+              printed=set()
+              for i,line in enumerate(lines):
+                  low=line.lower()
+                  if ('private void ' in line or 'private View ' in line or 'private LinearLayout ' in line) and any(k in low for k in keys):
+                      lo=max(0,i-4);hi=min(len(lines),i+45)
+                      key=(lo,hi)
+                      if key in printed: continue
+                      printed.add(key)
+                      print('\n--- context ---')
+                      for n in range(lo,hi): print(f'{n+1:05d}: {lines[n]}')
+          PY
