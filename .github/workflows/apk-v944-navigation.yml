@@ -1,0 +1,139 @@
+name: Build KING Plus v9.4.4 Navigation Guard
+
+on:
+  push:
+    branches: ['build/v9.4.2-parity-next']
+    paths:
+      - '.github/workflows/apk-v943-stability.yml'
+      - 'ci/v944/**'
+      - 'ci/v943/**'
+      - 'ci/v942/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: king-plus-v943-stability
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: build/v9.4.2-parity-next
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+
+      - name: Recover verified v9.4.1 source
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          rm -rf /tmp/v941 /tmp/src
+          mkdir -p /tmp/v941 /tmp/src
+          gh run download 37657265816 -n KING-Plus-v9.4.1-stability-source -D /tmp/v941
+          test -f /tmp/v941/KING-Plus-v9.4.1-stability-source.zip
+          unzip -q /tmp/v941/KING-Plus-v9.4.1-stability-source.zip -d /tmp/src
+
+      - name: Apply v9.4.2 consolidated parity/runtime patch
+        run: python3 ci/v942/patch_v942.py /tmp/src
+
+      - name: Apply v9.4.3 followup
+        run: python3 ci/v943/patch_v943.py /tmp/src
+
+      - name: Apply v9.4.4 navigation guard
+        run: python3 ci/v944/patch_v944.py /tmp/src
+
+      - name: Stage gates
+        working-directory: /tmp/src
+        run: |
+          set -euo pipefail
+          grep -F "versionCode 143; versionName '9.4.4-navigation-guard'" app/build.gradle
+          grep -F 'Allow microphone permission, then tap Mic again' app/src/main/java/com/kingplus/social/PartyActivity.java
+          grep -F 'Back online • reconnecting Party room' app/src/main/java/com/kingplus/social/PartyActivity.java
+          grep -F 'KingUiState.error' app/src/main/java/com/kingplus/social/PartyActivity.java
+          grep -F 'requestMicSeat940' app/src/main/java/com/kingplus/social/PartyActivity.java
+          grep -F 'normalizeRoomGame940' app/src/main/java/com/kingplus/social/RoomGameActivity.java
+          grep -F 'KingLudoLobbyActivity' app/src/main/java/com/kingplus/social/MainActivity.java
+          ! grep -n 'private void openPlayableGame' -A8 app/src/main/java/com/kingplus/social/MainActivity.java | grep -F 'GamePlayActivity.class'
+          grep -F 'KingEffectBudget.allow(this,"gift")' app/src/main/java/com/kingplus/social/PartyActivity.java
+          grep -F 'KingEffectBudget.allow(this,"emoji")' app/src/main/java/com/kingplus/social/PartyActivity.java
+          grep -F 'seenLiveEmojiEventsV530.size()>80' app/src/main/java/com/kingplus/social/PartyActivity.java
+          grep -F 'KTV queue unavailable' app/src/main/java/com/kingplus/social/PartyActivity.java
+          grep -F 'PK scores unavailable' app/src/main/java/com/kingplus/social/PartyActivity.java
+          grep -F 'document("audio_pk")' app/src/main/java/com/kingplus/social/PartyActivity.java
+          grep -F 'document("ktv")' app/src/main/java/com/kingplus/social/PartyActivity.java
+          grep -F 'Discover unavailable • tap to retry' app/src/main/java/com/kingplus/social/DiscoverActivity.java
+          test -f app/src/main/java/com/kingplus/social/KingPublicProfileActivity.java
+          test -f app/src/main/java/com/kingplus/social/KingVipVisualActivity.java
+          grep -F 'Open Family Center' app/src/main/java/com/kingplus/social/PartyActivity.java
+          grep -F 'SOFT_INPUT_ADJUST_RESIZE' app/src/main/java/com/kingplus/social/MainActivity.java
+          grep -F 'SOFT_INPUT_ADJUST_RESIZE' app/src/main/java/com/kingplus/social/PartyActivity.java
+          grep -F 'SOFT_INPUT_ADJUST_RESIZE' app/src/main/java/com/kingplus/social/ChatActivity.java
+
+      - name: Verify all runtime feature routes
+        run: python3 ci/v942/verify_runtime_routes.py /tmp/src
+
+      - name: Compile v9.4.4 APK
+        working-directory: /tmp/src
+        run: gradle :app:assembleDebug --no-daemon
+
+      - name: Static crash and route audit
+        working-directory: /tmp/src
+        run: |
+          python3 - <<'PY'
+          import pathlib,re
+          root=pathlib.Path('app/src/main')
+          mt=(root/'AndroidManifest.xml').read_text(errors='ignore')
+          declared=set(re.findall(r'<activity[^>]+android:name="\.([^"]+)"',mt))
+          java=list((root/'java/com/kingplus/social').glob('*.java'))
+          intents=set()
+          risky=[]
+          for p in java:
+              t=p.read_text(errors='ignore')
+              intents.update(re.findall(r'new Intent\(this,\s*([A-Za-z0-9_]+)\.class\)',t))
+              for n,line in enumerate(t.splitlines(),1):
+                  if 'getCurrentUser().getUid()' in line and 'getCurrentUser()!=null' not in line and 'getCurrentUser() != null' not in line:
+                      risky.append(f'{p.name}:{n}:{line.strip()}')
+          missing=sorted(x for x in intents if x not in declared and x!='MainActivity')
+          print('Missing manifest targets:',missing)
+          print('Potential current-user dereferences:',len(risky))
+          if missing: raise SystemExit('Missing manifest activity targets: '+','.join(missing))
+          PY
+
+      - name: Android lint crash-risk scan
+        working-directory: /tmp/src
+        continue-on-error: true
+        run: gradle :app:lintDebug --no-daemon
+
+      - name: Package APK and source
+        run: |
+          set -euo pipefail
+          cp /tmp/src/app/build/outputs/apk/debug/app-debug.apk /tmp/KING-Plus-v9.4.4-navigation-guard.apk
+          cd /tmp/src
+          zip -qr /tmp/KING-Plus-v9.4.4-navigation-guard-source.zip .
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: KING-Plus-v9.4.4-navigation-guard-APK
+          path: /tmp/KING-Plus-v9.4.4-navigation-guard.apk
+          retention-days: 7
+          if-no-files-found: error
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: KING-Plus-v9.4.4-navigation-guard-source
+          path: /tmp/KING-Plus-v9.4.4-navigation-guard-source.zip
+          retention-days: 7
+          if-no-files-found: error
