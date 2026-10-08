@@ -2,6 +2,7 @@ from pathlib import Path
 import sys
 root=Path(sys.argv[1])/'app/src/main/java/com/kingplus/social'
 targets={
+ 'SocialActivity.java':['onCreate(','load','renderProfiles','addOnFailureListener','private void'],
  'KingPublicProfileActivity.java':['onCreate(','load','toggleFollow','followers','addOnFailureListener','private void'],
  'CommunityHubActivity.java':['onCreate(','Family','load','addOnFailureListener','private void'],
  'KingVipVisualActivity.java':['onCreate(','private void','VIP','load'],
