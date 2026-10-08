@@ -1,0 +1,125 @@
+name: Build KING Plus v9.4.3 Final Parity Pass
+
+on:
+  push:
+    branches: ['build/v9.4.3-final-parity-pass']
+    paths:
+      - '.github/workflows/apk-v943-final.yml'
+      - 'ci/v943/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: king-plus-v943-final
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: build/v9.4.3-final-parity-pass
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+
+      - name: Recover verified v9.4.2 generated source
+        env:
+          GH_TOKEN: \${{ github.token }}
+        run: |
+          set -euo pipefail
+          rm -rf /tmp/v942 /tmp/src
+          mkdir -p /tmp/v942 /tmp/src
+          gh run download 37710930921 -n KING-Plus-v9.4.2-parity-runtime-source -D /tmp/v942
+          test -f /tmp/v942/KING-Plus-v9.4.2-parity-runtime-source.zip
+          unzip -q /tmp/v942/KING-Plus-v9.4.2-parity-runtime-source.zip -d /tmp/src
+
+      - name: Apply v9.4.3 parity batch A
+        run: python3 ci/v943/patch_v943.py /tmp/src
+
+      - name: Source gates
+        working-directory: /tmp/src
+        run: |
+          set -euo pipefail
+          grep -F "versionCode 142; versionName '9.4.3-final-parity-pass'" app/build.gradle
+          test -f app/src/main/java/com/kingplus/social/KingAuth.java
+          test -f app/src/main/java/com/kingplus/social/KingPartyAmbientView.java
+          grep -F 'publicIdOrName943' app/src/main/java/com/kingplus/social/MainActivity.java
+          grep -F 'walletUser943' app/src/main/java/com/kingplus/social/MainActivity.java
+          grep -F 'statsUser943' app/src/main/java/com/kingplus/social/MainActivity.java
+          grep -F 'walletRefreshUser943' app/src/main/java/com/kingplus/social/MainActivity.java
+          grep -F 'recommendUser943' app/src/main/java/com/kingplus/social/MainActivity.java
+          grep -F 'KingPartyAmbientView ambient943' app/src/main/java/com/kingplus/social/PartyActivity.java
+          grep -F 'requestCode==942' app/src/main/java/com/kingplus/social/PartyActivity.java
+          grep -F 'mic-permission-granted' app/src/main/java/com/kingplus/social/PartyActivity.java
+          grep -F 'Back online • reconnecting Party room' app/src/main/java/com/kingplus/social/PartyActivity.java
+          grep -F 'KingEffectBudget.allow(this,"gift")' app/src/main/java/com/kingplus/social/PartyActivity.java
+          grep -F 'KingEffectBudget.allow(this,"emoji")' app/src/main/java/com/kingplus/social/PartyActivity.java
+          grep -F 'normalizeRoomGame940' app/src/main/java/com/kingplus/social/RoomGameActivity.java
+          grep -F 'document("ktv")' app/src/main/java/com/kingplus/social/PartyActivity.java
+          grep -F 'document("audio_pk")' app/src/main/java/com/kingplus/social/PartyActivity.java
+
+      - name: Compile v9.4.3 APK
+        working-directory: /tmp/src
+        run: gradle :app:assembleDebug --no-daemon
+
+      - name: Crash route and auth audit
+        working-directory: /tmp/src
+        run: |
+          python3 - <<'PY'
+          import pathlib,re
+          root=pathlib.Path('app/src/main')
+          manifest=(root/'AndroidManifest.xml').read_text(errors='ignore')
+          declared=set(re.findall(r'<activity[^>]+android:name="\.([^"]+)"',manifest))
+          intents=set()
+          raw=[]
+          for p in (root/'java/com/kingplus/social').glob('*.java'):
+              t=p.read_text(errors='ignore')
+              intents.update(re.findall(r'new Intent\(this,\s*([A-Za-z0-9_]+)\.class\)',t))
+              for n,line in enumerate(t.splitlines(),1):
+                  if 'getCurrentUser().getUid()' in line:
+                      raw.append((p.name,n,line.strip()))
+          missing=sorted(x for x in intents if x not in declared and x!='MainActivity')
+          print('Missing manifest targets:',missing)
+          print('Remaining raw getCurrentUser().getUid() occurrences:',len(raw))
+          for item in raw[:30]: print(item)
+          if missing: raise SystemExit('Missing activity registrations')
+          main=(root/'java/com/kingplus/social/MainActivity.java').read_text(errors='ignore')
+          for token in ['publicIdOrName943','walletUser943','statsUser943','walletRefreshUser943','recommendUser943']:
+              if token not in main: raise SystemExit('Missing auth hardening token '+token)
+          PY
+
+      - name: Android lint
+        working-directory: /tmp/src
+        run: gradle :app:lintDebug --no-daemon
+
+      - name: Package
+        run: |
+          set -euo pipefail
+          cp /tmp/src/app/build/outputs/apk/debug/app-debug.apk /tmp/KING-Plus-v9.4.3-final-parity-pass.apk
+          cd /tmp/src
+          zip -qr /tmp/KING-Plus-v9.4.3-final-parity-pass-source.zip .
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: KING-Plus-v9.4.3-final-parity-pass-APK
+          path: /tmp/KING-Plus-v9.4.3-final-parity-pass.apk
+          retention-days: 7
+          if-no-files-found: error
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: KING-Plus-v9.4.3-final-parity-pass-source
+          path: /tmp/KING-Plus-v9.4.3-final-parity-pass-source.zip
+          retention-days: 7
+          if-no-files-found: error
