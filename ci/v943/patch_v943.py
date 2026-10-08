@@ -139,7 +139,7 @@ if marker not in q: raise SystemExit('PartyActivity badges marker missing')
 q=q.replace(marker,ambient,1)
 
 # Permission result: requestCode 942 belongs to Party mic, Jitsi keeps all other requests.
-perm_pat=r'''@android\.annotation\.SuppressLint\("MissingSuperCall"\)\s*\n?\s*@Override\s+public\s+void\s+onRequestPermissionsResult\(int requestCode,String\[\] permissions,int\[\] grantResults\)\s*\{.*?org\.jitsi\.meet\.sdk\.JitsiMeetActivityDelegate\.onRequestPermissionsResult\(requestCode,permissions,grantResults\);\s*\}'''
+perm_pat=r'''@android\.annotation\.SuppressLint\("MissingSuperCall"\)\s*.*?@Override\s+public\s+void\s+onRequestPermissionsResult\(int requestCode,String\[\] permissions,int\[\] grantResults\)\s*\{.*?(?=\n\s*@Override\s+public\s+void\s+onBackPressed)'''
 perm_new='''@android.annotation.SuppressLint("MissingSuperCall")
     @Override public void onRequestPermissionsResult(int requestCode,String[] permissions,int[] grantResults){
         if(requestCode==942){
@@ -148,7 +148,8 @@ perm_new='''@android.annotation.SuppressLint("MissingSuperCall")
             else toast("Microphone permission is required to speak on a Party seat");
             return;
         }
-        org.jitsi.meet.sdk.JitsiMeetActivityDelegate.onRequestPermissionsResult(requestCode,permissions,grantResults);
+        try{org.jitsi.meet.sdk.JitsiMeetActivityDelegate.onRequestPermissionsResult(requestCode,permissions,grantResults);}
+        catch(Throwable e){KingStability.nonFatal(this,"party-jitsi-permission-result",e);}
     }'''
 q,count=re.subn(perm_pat,perm_new,q,count=1,flags=re.S)
 if count!=1: raise SystemExit('PartyActivity permission delegate regex missing')
