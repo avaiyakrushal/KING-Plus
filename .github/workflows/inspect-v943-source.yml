@@ -16,7 +16,7 @@ jobs:
       - uses: actions/checkout@v4
       - name: Recover v9.4.3 generated source
         env:
-          GH_TOKEN: \${{ github.token }}
+          GH_TOKEN: ${{ github.token }}
         run: |
           mkdir -p /tmp/a /tmp/src
           gh run download 37716717489 -n KING-Plus-v9.4.3-final-parity-pass-source -D /tmp/a
