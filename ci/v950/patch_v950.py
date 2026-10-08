@@ -35,14 +35,14 @@ s=s.replace(old,new,1);p.write_text(s)
 p=pkg/'RoomGameActivity.java'; s=p.read_text()
 old='''    private LinearLayout page,controls,movesBox,readyBox; private TextView stateText,roleText;
 '''
-new='''    private LinearLayout page,controls,movesBox,readyBox; private TextView stateText,roleText,phaseHint950,connection950; private ProgressBar syncSpinner950;
+new='''    private LinearLayout page,controls,movesBox,readyBox; private TextView stateText,roleText,phaseHint950,connection950; private android.widget.ProgressBar syncSpinner950;
 '''
 if old not in s: raise SystemExit('RoomGame field marker missing')
 s=s.replace(old,new,1)
 old='''        roleText=tv("Checking room role…",12,MUTED,false);page.addView(roleText);
 '''
 new='''        roleText=tv("Checking room role…",12,MUTED,false);page.addView(roleText);
-        LinearLayout sync950=new LinearLayout(this);sync950.setGravity(Gravity.CENTER_VERTICAL);sync950.setPadding(dp(4),0,dp(4),0);syncSpinner950=new ProgressBar(this);sync950.addView(syncSpinner950,new LinearLayout.LayoutParams(dp(30),dp(30)));connection950=tv("Connecting to Party game state…",12,MUTED,true);sync950.addView(connection950,new LinearLayout.LayoutParams(0,dp(44),1));page.addView(sync950,new LinearLayout.LayoutParams(-1,dp(44)));
+        LinearLayout sync950=new LinearLayout(this);sync950.setGravity(Gravity.CENTER_VERTICAL);sync950.setPadding(dp(4),0,dp(4),0);syncSpinner950=new android.widget.ProgressBar(this);sync950.addView(syncSpinner950,new LinearLayout.LayoutParams(dp(30),dp(30)));connection950=tv("Connecting to Party game state…",12,MUTED,true);sync950.addView(connection950,new LinearLayout.LayoutParams(0,dp(44),1));page.addView(sync950,new LinearLayout.LayoutParams(-1,dp(44)));
         phaseHint950=tv("Loading multiplayer state…",13,0xffe8ddf7,true);phaseHint950.setGravity(Gravity.CENTER);phaseHint950.setBackground(bg(0xff291d3d,14));LinearLayout.LayoutParams ph950=new LinearLayout.LayoutParams(-1,dp(54));ph950.setMargins(0,dp(4),0,dp(4));page.addView(phaseHint950,ph950);
 '''
 if old not in s: raise SystemExit('RoomGame role marker missing')
@@ -82,14 +82,14 @@ s=s.replace(marker,helper+marker,1);p.write_text(s)
 p=pkg/'OnlineLudoActivity.java'; s=p.read_text()
 old='''    private TextView statusText,codeText,turnText; private EditText codeInput;
 '''
-new='''    private TextView statusText,codeText,turnText,networkChip950; private ProgressBar sync950; private EditText codeInput;
+new='''    private TextView statusText,codeText,turnText,networkChip950; private android.widget.ProgressBar sync950; private EditText codeInput;
 '''
 if old not in s: raise SystemExit('OnlineLudo field marker missing')
 s=s.replace(old,new,1)
 old='''        statusText=tv("Create a room or join with a 6-character code",15,GOLD,true);statusText.setGravity(Gravity.CENTER);statusText.setBackground(bg(CARD,16));LinearLayout.LayoutParams st=new LinearLayout.LayoutParams(-1,-2);st.setMargins(0,dp(6),0,dp(10));page.addView(statusText,st);
 '''
 new='''        statusText=tv("Create a room or join with a 6-character code",15,GOLD,true);statusText.setGravity(Gravity.CENTER);statusText.setBackground(bg(CARD,16));LinearLayout.LayoutParams st=new LinearLayout.LayoutParams(-1,-2);st.setMargins(0,dp(6),0,dp(6));page.addView(statusText,st);
-        LinearLayout net950=new LinearLayout(this);net950.setGravity(Gravity.CENTER_VERTICAL);sync950=new ProgressBar(this);sync950.setVisibility(View.GONE);net950.addView(sync950,new LinearLayout.LayoutParams(dp(28),dp(28)));networkChip950=tv("● Ready",11,GREEN,true);net950.addView(networkChip950,new LinearLayout.LayoutParams(0,dp(36),1));page.addView(net950,new LinearLayout.LayoutParams(-1,dp(38)));
+        LinearLayout net950=new LinearLayout(this);net950.setGravity(Gravity.CENTER_VERTICAL);sync950=new android.widget.ProgressBar(this);sync950.setVisibility(View.GONE);net950.addView(sync950,new LinearLayout.LayoutParams(dp(28),dp(28)));networkChip950=tv("● Ready",11,GREEN,true);net950.addView(networkChip950,new LinearLayout.LayoutParams(0,dp(36),1));page.addView(net950,new LinearLayout.LayoutParams(-1,dp(38)));
 '''
 if old not in s: raise SystemExit('OnlineLudo status marker missing')
 s=s.replace(old,new,1)
