@@ -607,7 +607,7 @@ public class MainActivity extends Activity {
 
     private void addBottomNav(LinearLayout root,int selected){
         LinearLayout nav=new LinearLayout(this); nav.setGravity(Gravity.CENTER); nav.setBackgroundColor(Color.WHITE); String[] ni={"⌂\nParty","♟\nGame","◇\nDiscover","✉\nMessages","●\nMe"};
-        for(int i=0;i<ni.length;i++){TextView n=new TextView(this);n.setText(ni[i]);n.setTextSize(12);n.setGravity(Gravity.CENTER);n.setTextColor(i==selected?0xff8a43ff:0xff777777);final int k=i;n.setOnClickListener(v->{if(k==0)home();else if(k==1)games();else if(k==2)discover();else if(k==3)messages();else profile();});nav.addView(n,new LinearLayout.LayoutParams(0,dp(62),1));} root.addView(nav);
+        for(int i=0;i<ni.length;i++){TextView n=new TextView(this);n.setText(ni[i]);n.setTextSize(12);n.setGravity(Gravity.CENTER);n.setTextColor(i==selected?0xff8a43ff:0xff777777);final int k=i;n.setOnClickListener(v->{if(k==0)home();else if(k==1)games();else if(k==2)discover();else if(k==3)messages();else openProfileSafely();});nav.addView(n,new LinearLayout.LayoutParams(0,dp(62),1));} root.addView(nav);
     }
 
     private void games(){
@@ -770,6 +770,22 @@ public class MainActivity extends Activity {
         if(blocked.isEmpty()) text("No blocked users",14,MUTED,false); else for(String n:blocked) button("🚫 "+n+"  • tap to unblock",CARD,()->{Set<String>b=new HashSet<>(getPreferences(0).getStringSet("blocked",new HashSet<>()));b.remove(n);getPreferences(0).edit().putStringSet("blocked",b).apply();privacySafetyPage();});
         text("Reports submitted: "+getPreferences(0).getInt("reports",0),15,MUTED,false);
         button("Back to Settings",PURPLE,this::settingsPage);
+    }
+
+    private void openProfileSafely() {
+        try {
+            profile();
+        } catch (RuntimeException error) {
+            android.util.Log.e("KINGPlus", "Me/Profile navigation failed", error);
+            String detail = android.util.Log.getStackTraceString(error);
+            if (detail.length() > 1800) detail = detail.substring(0, 1800);
+            getPreferences(0).edit().putString("last_crash", detail).apply();
+            new AlertDialog.Builder(this)
+                .setTitle("Me/Profile could not open")
+                .setMessage("The error was saved locally. Return to Home and retry.\n\n" + detail)
+                .setPositiveButton("Home", (dialog, which) -> home())
+                .setNegativeButton("Close", null).show();
+        }
     }
 
     private void profile() {
