@@ -1,0 +1,58 @@
+name: Inspect KING Plus v9.5.0 Parity Batch 1
+
+on:
+  push:
+    branches: ['build/v9.5.0-parity-batch1']
+    paths:
+      - '.github/workflows/inspect-v950.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  inspect:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: build/v9.5.0-parity-batch1
+      - name: Recover v9.4.1 generated source
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          rm -rf /tmp/base /tmp/src
+          mkdir -p /tmp/base /tmp/src
+          gh run download 37657265816 -n KING-Plus-v9.4.1-stability-source -D /tmp/base
+          unzip -q /tmp/base/KING-Plus-v9.4.1-stability-source.zip -d /tmp/src
+      - name: Print targeted source context
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          pkg=Path('/tmp/src/app/src/main/java/com/kingplus/social')
+          targets={
+            'PartyActivity.java':['giftShopPanel','showLiveEmojiPanelV530','openRoomGames740','ktvQueuePanel','audioPkPanel700','partyDataPanel','roomSettingsPanel','atmospherePanel','roomRankingDialog','friendBroadcast610'],
+            'RoomGameActivity.java':['onCreate','showGameHistory940','normalizeRoomGame940','render','result','start'],
+            'OnlineLudoActivity.java':['onCreate','Play Rematch','render','showResult','start','join'],
+            'KingLudoLobbyActivity.java':['onCreate','Online','Championship','Offline'],
+            'KingVipVisualActivity.java':['onCreate','First VIP Reward Pack'],
+            'DiscoverActivity.java':['addDiscoverEntrances940','loadProfileGrid940'],
+            'MainActivity.java':['profile','games','drawer','wallet'],
+          }
+          for fn, needles in targets.items():
+              p=pkg/fn
+              print('\n===== FILE',fn,'=====')
+              if not p.exists():
+                  print('MISSING'); continue
+              lines=p.read_text(errors='ignore').splitlines()
+              for needle in needles:
+                  hits=[i for i,l in enumerate(lines) if needle in l]
+                  print(f'\n--- {needle} hits={len(hits)} ---')
+                  for i in hits[:4]:
+                      lo=max(0,i-10); hi=min(len(lines),i+35)
+                      for n in range(lo,hi):
+                          print(f'{n+1:05d}: {lines[n]}')
+                      print('---')
+          PY
