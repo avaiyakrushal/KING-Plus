@@ -68,8 +68,8 @@ marker='''    private void showGameHistory940(){
 helper='''    private void updatePhase950(){
         if(phaseHint950==null)return;
         String game=type==null||type.isEmpty()?"Room game":type.replace('_',' ').toUpperCase(java.util.Locale.US);
-        if("active".equals(status))phaseHint950.setText("● LIVE  •  "+game+"\nMoves sync instantly with Party room players");
-        else if("finished".equals(status))phaseHint950.setText("🏁 ROUND FINISHED  •  "+game+"\nReview the result or start the next round");
+        if("active".equals(status))phaseHint950.setText("● LIVE  •  "+game+"\\nMoves sync instantly with Party room players");
+        else if("finished".equals(status))phaseHint950.setText("🏁 ROUND FINISHED  •  "+game+"\\nReview the result or start the next round");
         else if("closed".equals(status)||type==null||type.isEmpty())phaseHint950.setText("Choose a room game • players can Ready before the host starts");
         else phaseHint950.setText(game+"  •  "+status.toUpperCase(java.util.Locale.US));
     }
