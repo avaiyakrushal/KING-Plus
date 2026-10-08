@@ -6,6 +6,7 @@ on:
     paths:
       - '.github/workflows/apk-v953-parity.yml'
       - 'ci/v953/**'
+      - 'ci/v952/**'
   workflow_dispatch:
 
 permissions:
