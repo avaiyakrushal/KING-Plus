@@ -31,21 +31,19 @@ jobs:
         with:
           gradle-version: '8.9'
 
-      - name: Recover verified v9.4.1 source
+      - name: Recover verified v9.5.0 source
         env:
           GH_TOKEN: \${{ github.token }}
         run: |
           set -euo pipefail
           rm -rf /tmp/base /tmp/src
           mkdir -p /tmp/base /tmp/src
-          gh run download 37657265816 -n KING-Plus-v9.4.1-stability-source -D /tmp/base
-          test -f /tmp/base/KING-Plus-v9.4.1-stability-source.zip
-          unzip -q /tmp/base/KING-Plus-v9.4.1-stability-source.zip -d /tmp/src
+          gh run download 37708708041 -n KING-Plus-v9.5.0-parity-batch1-source -D /tmp/base
+          test -f /tmp/base/KING-Plus-v9.5.0-parity-batch1-source.zip
+          unzip -q /tmp/base/KING-Plus-v9.5.0-parity-batch1-source.zip -d /tmp/src
 
-      - name: Apply parity batches 1 and 2
-        run: |
-          python3 ci/v950/patch_v950.py /tmp/src
-          python3 ci/v951/patch_v951.py /tmp/src
+      - name: Apply parity batch 2
+        run: python3 ci/v951/patch_v951.py /tmp/src
 
       - name: Parity gates
         working-directory: /tmp/src
