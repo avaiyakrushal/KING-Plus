@@ -18,16 +18,18 @@ party.write_text(s)
 # Ensure multiplayer room-game normalization runs after resume where available.
 rg=pkg/'RoomGameActivity.java'; q=rg.read_text()
 if 'protected void onResume()' not in q:
-    marker='''    @Override
-    protected void onCreate(Bundle savedInstanceState) {'''
-    if marker not in q: raise SystemExit('RoomGameActivity onCreate marker missing')
-    q=q.replace(marker,'''    @Override
+    marker='onCreate('
+    pos=q.find(marker)
+    if pos<0: raise SystemExit('RoomGameActivity onCreate marker missing')
+    line=q.rfind('\\n',0,pos)+1
+    block='''    @Override
     protected void onResume(){
         super.onResume();
         try{normalizeRoomGame940();}catch(Throwable ignored){}
     }
 
-'''+marker,1)
+'''
+    q=q[:line]+block+q[line:]
     rg.write_text(q)
 # Version
 g=root/'app/build.gradle'; x=g.read_text()
