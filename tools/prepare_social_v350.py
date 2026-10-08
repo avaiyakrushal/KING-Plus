@@ -18,7 +18,9 @@ replacements = [
 ]
 for old,new in replacements:
     if old not in src:
-        if new in src:\n            continue\n        raise SystemExit('v3.5.0 MainActivity template changed: '+old[:48])
+        if new in src:
+            continue
+        raise SystemExit('v3.5.0 MainActivity template changed: '+old[:48])
     src = src.replace(old,new,1)
 MAIN.write_text(src,encoding='utf-8')
 
