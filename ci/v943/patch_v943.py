@@ -192,4 +192,115 @@ Completed:
 
 Still requires real device/multi-account verification before any crash-free/full-parity claim.
 ''')
+
+# ---------- Batch B: Party seat live decoration + game visual state ----------
+(pkg/'KingSeatPulseView.java').write_text(r'''package com.kingplus.social;
+
+import android.animation.ValueAnimator;
+import android.content.Context;
+import android.graphics.*;
+import android.view.View;
+import android.view.animation.LinearInterpolator;
+
+public final class KingSeatPulseView extends View {
+    private final Paint p=new Paint(Paint.ANTI_ALIAS_FLAG);
+    private ValueAnimator anim;
+    private float phase=.25f;
+    private boolean host,mine,active;
+    public KingSeatPulseView(Context c){super(c);}
+    public void setState(boolean isHost,boolean isMine,boolean isActive){
+        host=isHost;mine=isMine;active=isActive;sync();invalidate();
+    }
+    private void sync(){
+        if(!active){if(anim!=null){anim.cancel();anim=null;}phase=.25f;return;}
+        if(anim!=null)return;
+        anim=ValueAnimator.ofFloat(0f,1f);anim.setDuration(host?950:1250);anim.setRepeatCount(ValueAnimator.INFINITE);anim.setRepeatMode(ValueAnimator.REVERSE);anim.setInterpolator(new LinearInterpolator());
+        anim.addUpdateListener(a->{phase=(Float)a.getAnimatedValue();invalidate();});anim.start();
+    }
+    @Override protected void onDetachedFromWindow(){if(anim!=null){anim.cancel();anim=null;}super.onDetachedFromWindow();}
+    @Override protected void onDraw(Canvas c){
+        super.onDraw(c);float w=getWidth(),h=getHeight(),cx=w/2f,cy=h/2f,min=Math.min(w,h);
+        int base=host?0xffffd75a:mine?0xff55e5c1:0xffa77dff;
+        p.setStyle(Paint.Style.STROKE);p.setStrokeWidth(Math.max(2f,min*.045f));p.setColor((0x70+(int)(0x70*phase))<<24 | (base&0x00ffffff));
+        c.drawCircle(cx,cy,min*(.37f+.08f*phase),p);
+        p.setStrokeWidth(Math.max(1f,min*.025f));p.setColor((0x32+(int)(0x55*(1f-phase)))<<24 | (base&0x00ffffff));
+        c.drawCircle(cx,cy,min*(.46f-.04f*phase),p);
+    }
+}
+''')
+
+(pkg/'KingGameRoundVisualView.java').write_text(r'''package com.kingplus.social;
+
+import android.content.Context;
+import android.graphics.*;
+import android.view.View;
+
+public final class KingGameRoundVisualView extends View {
+    private final Paint p=new Paint(Paint.ANTI_ALIAS_FLAG);
+    private String type="",status="",prompt="";
+    public KingGameRoundVisualView(Context c){super(c);}
+    public void setState(String t,String s,String text){type=t==null?"":t;status=s==null?"":s;prompt=text==null?"":text;invalidate();}
+    private String icon(){
+        if("ttt".equals(type))return "❌⭕";if("rps".equals(type))return "✊";if("dice".equals(type))return "🎲";if("number".equals(type))return "🔢";
+        if("coin".equals(type))return "🪙";if("wheel".equals(type))return "🎡";if("bingo".equals(type))return "🎯";if("slot".equals(type))return "🎰";
+        if("reaction".equals(type))return "⚡";if("highlow".equals(type))return "🃏";if("sheep".equals(type))return "🐑";if("zoo".equals(type))return "🦁";
+        if("memory".equals(type))return "🧠";if("domino".equals(type))return "🁣";if("werewolf".equals(type))return "🐺";if("spy".equals(type))return "🕵";if("draw".equals(type))return "🎨";return "🎮";
+    }
+    @Override protected void onDraw(Canvas c){
+        float w=getWidth(),h=getHeight();if(w<=0||h<=0)return;int hash=Math.abs(type.hashCode());
+        int a=Color.rgb(42+(hash%50),29+((hash/5)%45),78+((hash/11)%70));int b=Color.rgb(90+((hash/13)%80),43+((hash/17)%60),125+((hash/19)%80));
+        p.setShader(new LinearGradient(0,0,w,h,a,b,Shader.TileMode.CLAMP));c.drawRoundRect(new RectF(0,0,w,h),22,22,p);p.setShader(null);
+        p.setTextAlign(Paint.Align.CENTER);p.setColor(Color.WHITE);p.setTypeface(Typeface.DEFAULT_BOLD);p.setTextSize(Math.max(34f,h*.34f));c.drawText(icon(),w*.18f,h*.58f,p);
+        p.setTextAlign(Paint.Align.LEFT);p.setTextSize(Math.max(20f,h*.18f));c.drawText(type.isEmpty()?"PARTY GAME":type.toUpperCase(),w*.34f,h*.42f,p);
+        p.setTypeface(Typeface.DEFAULT);p.setColor(0xddffffff);p.setTextSize(Math.max(15f,h*.13f));
+        String sub=("active".equals(status)?"LIVE ROUND":status.isEmpty()?"READY":status.toUpperCase())+(prompt.isEmpty()?"":" • "+(prompt.length()>34?prompt.substring(0,34)+"…":prompt));
+        c.drawText(sub,w*.34f,h*.69f,p);
+    }
+}
+''')
+
+party=pkg/'PartyActivity.java'
+q=party.read_text()
+old='''                FrameLayout avatarFrame=new FrameLayout(this);avatarFrame.setBackground(KingCosmetics.avatarFrame(this,frame730,hostVisualV532));avatarFrame.setPadding(dp(4),dp(4),dp(4),dp(4));avatarFrame.setClipToOutline(true);ImageView photo=new ImageView(this);photo.setScaleType(ImageView.ScaleType.CENTER_CROP);avatarFrame.addView(photo,new FrameLayout.LayoutParams(-1,-1));avatarFrame.addView(av,new FrameLayout.LayoutParams(-1,-1));seat.addView(avatarFrame,new LinearLayout.LayoutParams(dp(56),dp(56)));'''
+new='''                FrameLayout halo943=new FrameLayout(this);KingSeatPulseView pulse943=new KingSeatPulseView(this);boolean speaking943=n!=null&&!Boolean.FALSE.equals(seatMics.get(no));pulse943.setState(hostVisualV532,mine,speaking943);halo943.addView(pulse943,new FrameLayout.LayoutParams(-1,-1));
+                FrameLayout avatarFrame=new FrameLayout(this);avatarFrame.setBackground(KingCosmetics.avatarFrame(this,frame730,hostVisualV532));avatarFrame.setPadding(dp(4),dp(4),dp(4),dp(4));avatarFrame.setClipToOutline(true);ImageView photo=new ImageView(this);photo.setScaleType(ImageView.ScaleType.CENTER_CROP);avatarFrame.addView(photo,new FrameLayout.LayoutParams(-1,-1));avatarFrame.addView(av,new FrameLayout.LayoutParams(-1,-1));FrameLayout.LayoutParams avatarLp943=new FrameLayout.LayoutParams(dp(52),dp(52));avatarLp943.gravity=Gravity.CENTER;halo943.addView(avatarFrame,avatarLp943);halo943.setContentDescription((n==null?"Empty seat "+no:n)+(speaking943?" microphone on":" microphone off"));seat.addView(halo943,new LinearLayout.LayoutParams(dp(60),dp(60)));'''
+if old not in q: raise SystemExit('Party seat avatar marker missing for live decoration')
+q=q.replace(old,new,1)
+party.write_text(q)
+
+rg=pkg/'RoomGameActivity.java'
+q=rg.read_text()
+class_pat=r'(public\s+class\s+RoomGameActivity[^{]*\{)'
+q,count=re.subn(class_pat,r'''\1
+    private KingGameRoundVisualView roundVisual943;''',q,count=1)
+if count!=1: raise SystemExit('RoomGameActivity class marker missing')
+
+old='''        stateText=tv("Waiting for active round",18,GOLD,true);stateText.setGravity(Gravity.CENTER);stateText.setBackground(bg(CARD,18));LinearLayout.LayoutParams sp=new LinearLayout.LayoutParams(-1,-2);sp.setMargins(0,dp(8),0,dp(8));page.addView(stateText,sp);'''
+new='''        roundVisual943=new KingGameRoundVisualView(this);roundVisual943.setState(type,status,prompt);LinearLayout.LayoutParams visual943=new LinearLayout.LayoutParams(-1,dp(92));visual943.setMargins(0,dp(8),0,dp(6));page.addView(roundVisual943,visual943);
+        stateText=tv("Waiting for active round",18,GOLD,true);stateText.setGravity(Gravity.CENTER);stateText.setBackground(bg(CARD,18));LinearLayout.LayoutParams sp=new LinearLayout.LayoutParams(-1,-2);sp.setMargins(0,dp(4),0,dp(8));page.addView(stateText,sp);'''
+if old not in q: raise SystemExit('RoomGame stateText marker missing for visual card')
+q=q.replace(old,new,1)
+
+old='''    private void renderState(){if(roundId==0||!"active".equals(status)){stateText.setText(result.isEmpty()?"No active multiplayer round":"Last result\\n"+result);return;}if("ttt".equals(type)){String turn=tttTurnUid864.equals(tttXUid864)?tttXName864:tttTurnUid864.equals(tttOUid864)?tttOName864:"Player";stateText.setText("❌⭕  "+tttXName864+" vs "+tttOName864+"\\nTurn: "+turn+"\\n"+tttBoardText864());return;}stateText.setText(gameIcon(type)+"  "+prompt+(result.isEmpty()?"":"\\n"+result));}'''
+new='''    private void renderState(){
+        if(roundVisual943!=null)roundVisual943.setState(type,status,prompt);
+        if(roundId==0||!"active".equals(status)){stateText.setText(result.isEmpty()?"No active multiplayer round":"Last result\\n"+result);return;}
+        if("ttt".equals(type)){String turn=tttTurnUid864.equals(tttXUid864)?tttXName864:tttTurnUid864.equals(tttOUid864)?tttOName864:"Player";stateText.setText("❌⭕  "+tttXName864+" vs "+tttOName864+"\\nTurn: "+turn+"\\n"+tttBoardText864());return;}
+        stateText.setText(gameIcon(type)+"  "+prompt+(result.isEmpty()?"":"\\n"+result));
+    }'''
+if old not in q: raise SystemExit('RoomGame renderState marker missing for visual card')
+q=q.replace(old,new,1)
+rg.write_text(q)
+
+work=root/'V9.4.3-WORKLOG.md'
+w=work.read_text() if work.exists() else ''
+work.write_text(w+'''\
+Batch B:
+- animated mic/host/mine seat halo around real Party avatars
+- accessibility seat state descriptions
+- original KING game round visual card synchronized to live game type/status
+- preserves synchronized Werewolf/Spy/Draw/Ludo/Tic-Tac-Toe and existing game mechanics
+''')
+print('v9.4.3 parity batch B applied')
+
 print('v9.4.3 parity batch A applied')
