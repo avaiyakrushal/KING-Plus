@@ -36,3 +36,7 @@ jobs:
           grep -nE 'private void (family|collection|visitors|moments|relationships)' app/src/main/java/com/kingplus/social/CommunityHubActivity.java
           echo '=== Error/empty markers ==='
           grep -nEi 'unavailable|no .* yet|retry|empty|loading' app/src/main/java/com/kingplus/social/CommunityHubActivity.java | head -n 200 || true
+          echo '=== Ranking body ==='
+          nl -ba app/src/main/java/com/kingplus/social/MainActivity.java | sed -n '1705,1765p'
+          echo '=== Community body ==='
+          nl -ba app/src/main/java/com/kingplus/social/CommunityHubActivity.java | sed -n '55,205p'
