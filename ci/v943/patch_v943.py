@@ -33,9 +33,9 @@ main.write_text(q)
 # Party: permission result must return to the mic action instead of only going to Jitsi.
 party=pkg/'PartyActivity.java'
 q=party.read_text()
-perm_pat=r'(?s)    @(?:android\\.annotation\\.SuppressLint\\("MissingSuperCall"\\)\\s*)?Override public void onRequestPermissionsResult\\(int requestCode,String\\[\\] permissions,int\\[\\] grantResults\\)\\{.*?JitsiMeetActivityDelegate\\.onRequestPermissionsResult\\(requestCode,permissions,grantResults\\);\\}'
-perm_new='''    @Override public void onRequestPermissionsResult(int requestCode,String[] permissions,int[] grantResults){
-        if(requestCode==942){
+perm_call='org.jitsi.meet.sdk.JitsiMeetActivityDelegate.onRequestPermissionsResult(requestCode,permissions,grantResults);'
+if perm_call not in q: raise SystemExit('Party Jitsi permission delegate call missing')
+perm_guard='''if(requestCode==942){
             boolean granted=grantResults!=null&&grantResults.length>0&&grantResults[0]==android.content.pm.PackageManager.PERMISSION_GRANTED;
             if(granted){
                 toast("Microphone allowed");
@@ -43,11 +43,8 @@ perm_new='''    @Override public void onRequestPermissionsResult(int requestCode
             }else toast("Microphone permission is required to turn the Party mic on");
             return;
         }
-        org.jitsi.meet.sdk.JitsiMeetActivityDelegate.onRequestPermissionsResult(requestCode,permissions,grantResults);
-    }'''
-q2,n=re.subn(perm_pat,perm_new,q,count=1)
-if n!=1: raise SystemExit('Party permission callback marker missing')
-q=q2
+        '''
+q=q.replace(perm_call,perm_guard+perm_call,1)
 
 # Add original lightweight animated atmosphere behind the Party UI.
 marker='''        setSafeContentView(shell);'''
