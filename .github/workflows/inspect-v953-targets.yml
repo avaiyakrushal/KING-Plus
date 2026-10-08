@@ -1,0 +1,84 @@
+name: Inspect KING Plus v9.5.3 targets
+
+on:
+  push:
+    branches: ['build/v9.5.2-parity-batch3']
+    paths: ['.github/workflows/inspect-v953-targets.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  inspect:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: build/v9.5.2-parity-batch3
+      - name: Recover v9.5.0 source
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          rm -rf /tmp/base /tmp/src
+          mkdir -p /tmp/base /tmp/src
+          gh run download 37708708041 -n KING-Plus-v9.5.0-parity-batch1-source -D /tmp/base
+          unzip -q /tmp/base/KING-Plus-v9.5.0-parity-batch1-source.zip -d /tmp/src
+          python3 ci/v951/patch_v951.py /tmp/src
+          python3 ci/v952/patch_v952.py /tmp/src
+      - name: Print target method signatures and bodies
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+          pkg=Path('/tmp/src/app/src/main/java/com/kingplus/social')
+          targets={
+            'PartyActivity.java':['create','theme','seat','cover'],
+            'KingPublicProfileActivity.java':['profile','collection','relationship','gift','medal'],
+            'MainActivity.java':['profilev','profileabout','vip','noble','settings','help'],
+            'KingDeepFlowActivity.java':['detail','noble','privilege','settings','help','rules'],
+          }
+          def bounds(t,start):
+              b=t.find('{',start)
+              if b<0:return None
+              depth=0;state='code';quote='';esc=False;i=b
+              while i<len(t):
+                  ch=t[i];nx=t[i+1] if i+1<len(t) else ''
+                  if state=='str':
+                      if esc:esc=False
+                      elif ch=='\\':esc=True
+                      elif ch==quote:state='code'
+                  elif state=='line':
+                      if ch=='\n':state='code'
+                  elif state=='block':
+                      if ch=='*' and nx=='/':state='code';i+=1
+                  else:
+                      if ch=='/' and nx=='/':state='line';i+=1
+                      elif ch=='/' and nx=='*':state='block';i+=1
+                      elif ch in ('"',"'"):state='str';quote=ch
+                      elif ch=='{':depth+=1
+                      elif ch=='}':
+                          depth-=1
+                          if depth==0:return (start,i+1)
+                  i+=1
+              return None
+          for fn,keys in targets.items():
+              p=pkg/fn
+              if not p.exists():continue
+              t=p.read_text(errors='ignore')
+              print('\n===== FILE '+fn+' =====')
+              sigs=list(re.finditer(r'(?m)^\s*(?:private|public|protected)\s+[\w<>\[\].?]+\s+(\w+)\s*\([^;]*?\)\s*\{',t))
+              shown=0
+              for m in sigs:
+                  name=m.group(1);low=name.lower()
+                  if not any(k in low for k in keys):continue
+                  bo=bounds(t,m.start())
+                  if not bo:continue
+                  src=t[bo[0]:bo[1]]
+                  print('\n===== METHOD '+fn+' :: '+name+' =====')
+                  print(src[:18000])
+                  shown+=1
+                  if shown>=24:break
+          PY
