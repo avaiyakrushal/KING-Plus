@@ -27,3 +27,5 @@ old="versionCode 142; versionName '9.4.3-stability-followup'"
 if old not in s: raise SystemExit('version marker missing')
 g.write_text(s.replace(old,"versionCode 143; versionName '9.4.4-navigation-guard'",1))
 print('v9.4.4 navigation guard applied',n)
+
+# build trigger 2026-10-08
