@@ -1,0 +1,105 @@
+name: Build KING Plus v9.4.4 Visual Depth
+
+on:
+  push:
+    branches: ['build/v9.4.4-visual-depth']
+    paths:
+      - '.github/workflows/apk-v944-visual-depth.yml'
+      - 'ci/v943/KingPartyAmbientView.java'
+      - 'ci/v944/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: build/v9.4.4-visual-depth
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+
+      - name: Recover verified v9.4.3 source
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          rm -rf /tmp/v943 /tmp/src
+          mkdir -p /tmp/v943 /tmp/src
+          gh run download 37713804913 -n KING-Plus-v9.4.3-final-parity-source -D /tmp/v943
+          test -f /tmp/v943/KING-Plus-v9.4.3-final-parity-source.zip
+          unzip -q /tmp/v943/KING-Plus-v9.4.3-final-parity-source.zip -d /tmp/src
+
+      - name: Apply v9.4.4 visual-depth patch
+        run: python3 ci/v944/patch_v944.py /tmp/src
+
+      - name: Visual-depth gates
+        working-directory: /tmp/src
+        run: |
+          set -euo pipefail
+          grep -F "versionCode 143; versionName '9.4.4-visual-depth'" app/build.gradle
+          grep -F 'new KingPartyAmbientView(this,roomTheme)' app/src/main/java/com/kingplus/social/PartyActivity.java
+          grep -F '"🌌 Galaxy"' app/src/main/java/com/kingplus/social/PartyActivity.java
+          grep -F '"❄ Ice"' app/src/main/java/com/kingplus/social/PartyActivity.java
+          grep -F 'micState944' app/src/main/java/com/kingplus/social/PartyActivity.java
+          grep -F 'if("Royal".equalsIgnoreCase(theme))' app/src/main/java/com/kingplus/social/KingPartyAmbientView.java
+          grep -F 'showEntranceEffect730' app/src/main/java/com/kingplus/social/PartyActivity.java
+          grep -F 'GiftBurstView' app/src/main/java/com/kingplus/social/PartyActivity.java
+          grep -F 'KingCosmetics.avatarFrame' app/src/main/java/com/kingplus/social/PartyActivity.java
+
+      - name: Compile v9.4.4 APK
+        working-directory: /tmp/src
+        run: gradle :app:assembleDebug --no-daemon
+
+      - name: Static crash and route audit
+        working-directory: /tmp/src
+        run: |
+          python3 - <<'PY'
+          import pathlib,re
+          root=pathlib.Path('app/src/main')
+          mt=(root/'AndroidManifest.xml').read_text(errors='ignore')
+          declared=set(re.findall(r'<activity[^>]+android:name="\.([^"]+)"',mt))
+          intents=set()
+          for p in (root/'java/com/kingplus/social').glob('*.java'):
+              t=p.read_text(errors='ignore')
+              intents.update(re.findall(r'new Intent\(this,\s*([A-Za-z0-9_]+)\.class\)',t))
+          missing=sorted(x for x in intents if x not in declared and x!='MainActivity')
+          print('Missing manifest targets:',missing)
+          if missing: raise SystemExit('Missing manifest activity targets')
+          PY
+
+      - name: Android lint
+        working-directory: /tmp/src
+        run: gradle :app:lintDebug --no-daemon
+
+      - name: Package v9.4.4
+        run: |
+          set -euo pipefail
+          cp /tmp/src/app/build/outputs/apk/debug/app-debug.apk /tmp/KING-Plus-v9.4.4-visual-depth.apk
+          cd /tmp/src
+          zip -qr /tmp/KING-Plus-v9.4.4-visual-depth-source.zip .
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: KING-Plus-v9.4.4-visual-depth-APK
+          path: /tmp/KING-Plus-v9.4.4-visual-depth.apk
+          retention-days: 7
+          if-no-files-found: error
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: KING-Plus-v9.4.4-visual-depth-source
+          path: /tmp/KING-Plus-v9.4.4-visual-depth-source.zip
+          retention-days: 7
+          if-no-files-found: error
