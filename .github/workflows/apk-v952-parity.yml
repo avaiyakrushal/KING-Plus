@@ -33,7 +33,7 @@ jobs:
 
       - name: Recover verified v9.5.0 source with retry
         env:
-          GH_TOKEN: \${{ github.token }}
+          GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
           rm -rf /tmp/base /tmp/src
@@ -49,7 +49,7 @@ jobs:
             sleep $((attempt*15))
           done
           if [ "$ok" != "1" ]; then
-            gh api repos/\${GITHUB_REPOSITORY}/actions/artifacts/11520708490/zip > /tmp/base/artifact.zip
+            gh api repos/${GITHUB_REPOSITORY}/actions/artifacts/11520708490/zip > /tmp/base/artifact.zip
             unzip -q /tmp/base/artifact.zip -d /tmp/base
           fi
           test -f /tmp/base/KING-Plus-v9.5.0-parity-batch1-source.zip
