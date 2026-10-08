@@ -4,7 +4,8 @@ on:
   push:
     branches: ['build/v9.4.2-parity-next']
     paths:
-      - '.github/workflows/apk-v943-stability.yml'
+      - '.github/workflows/apk-v944-navigation.yml'
+      - 'ci/v945/**'
       - 'ci/v944/**'
       - 'ci/v943/**'
       - 'ci/v942/**'
@@ -15,7 +16,7 @@ permissions:
   actions: read
 
 concurrency:
-  group: king-plus-v943-stability
+  group: king-plus-v945-party-multiplayer
   cancel-in-progress: true
 
 jobs:
@@ -55,11 +56,14 @@ jobs:
       - name: Apply v9.4.4 navigation guard
         run: python3 ci/v944/patch_v944.py /tmp/src
 
+      - name: Apply v9.4.5 Party + multiplayer hardening
+        run: python3 ci/v945/patch_v945.py /tmp/src
+
       - name: Stage gates
         working-directory: /tmp/src
         run: |
           set -euo pipefail
-          grep -F "versionCode 143; versionName '9.4.4-navigation-guard'" app/build.gradle
+          grep -F "versionCode 144; versionName '9.4.5-party-multiplayer'" app/build.gradle
           grep -F 'Allow microphone permission, then tap Mic again' app/src/main/java/com/kingplus/social/PartyActivity.java
           grep -F 'Back online • reconnecting Party room' app/src/main/java/com/kingplus/social/PartyActivity.java
           grep -F 'KingUiState.error' app/src/main/java/com/kingplus/social/PartyActivity.java
@@ -85,7 +89,7 @@ jobs:
       - name: Verify all runtime feature routes
         run: python3 ci/v942/verify_runtime_routes.py /tmp/src
 
-      - name: Compile v9.4.4 APK
+      - name: Compile v9.4.5 APK
         working-directory: /tmp/src
         run: gradle :app:assembleDebug --no-daemon
 
@@ -120,20 +124,20 @@ jobs:
       - name: Package APK and source
         run: |
           set -euo pipefail
-          cp /tmp/src/app/build/outputs/apk/debug/app-debug.apk /tmp/KING-Plus-v9.4.4-navigation-guard.apk
+          cp /tmp/src/app/build/outputs/apk/debug/app-debug.apk /tmp/KING-Plus-v9.4.5-party-multiplayer.apk
           cd /tmp/src
-          zip -qr /tmp/KING-Plus-v9.4.4-navigation-guard-source.zip .
+          zip -qr /tmp/KING-Plus-v9.4.5-party-multiplayer-source.zip .
 
       - uses: actions/upload-artifact@v4
         with:
-          name: KING-Plus-v9.4.4-navigation-guard-APK
-          path: /tmp/KING-Plus-v9.4.4-navigation-guard.apk
+          name: KING-Plus-v9.4.5-party-multiplayer-APK
+          path: /tmp/KING-Plus-v9.4.5-party-multiplayer.apk
           retention-days: 7
           if-no-files-found: error
 
       - uses: actions/upload-artifact@v4
         with:
-          name: KING-Plus-v9.4.4-navigation-guard-source
-          path: /tmp/KING-Plus-v9.4.4-navigation-guard-source.zip
+          name: KING-Plus-v9.4.5-party-multiplayer-source
+          path: /tmp/KING-Plus-v9.4.5-party-multiplayer-source.zip
           retention-days: 7
           if-no-files-found: error
