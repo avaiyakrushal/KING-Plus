@@ -1,0 +1,71 @@
+name: KING Plus v9.4.4 Emulator Smoke
+
+on:
+  push:
+    branches: ['build/v9.4.4-visual-depth']
+    paths:
+      - '.github/workflows/v944-emulator-smoke.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  smoke:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download v9.4.4 APK
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/apk
+          gh run download 37714563622 -n KING-Plus-v9.4.4-visual-depth-APK -D /tmp/apk
+          test -f /tmp/apk/KING-Plus-v9.4.4-visual-depth.apk
+
+      - name: Emulator install and navigation smoke
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 35
+          arch: x86_64
+          profile: pixel_6
+          disable-animations: true
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim
+          script: |
+            set -euo pipefail
+            adb install -r /tmp/apk/KING-Plus-v9.4.4-visual-depth.apk
+            adb logcat -c
+            adb shell monkey -p com.kingplus.social -c android.intent.category.LAUNCHER 1
+            sleep 4
+            adb shell monkey -p com.kingplus.social --pct-syskeys 0 --pct-appswitch 0 --throttle 120 180 || true
+            sleep 2
+            adb logcat -d > /tmp/kingplus-logcat.txt
+            python3 - <<'PY'
+            from pathlib import Path
+            s=Path('/tmp/kingplus-logcat.txt').read_text(errors='replace')
+            bad=[]
+            lines=s.splitlines()
+            for i,line in enumerate(lines):
+                if 'FATAL EXCEPTION' in line:
+                    block='\n'.join(lines[i:i+28])
+                    if 'com.kingplus.social' in block:
+                        bad.append(block)
+                if 'ANR in com.kingplus.social' in line:
+                    bad.append(line)
+            print('KING Plus fatal/ANR blocks:',len(bad))
+            if bad:
+                print('\n\n'.join(bad[:5]))
+                raise SystemExit('KING Plus emulator smoke detected a fatal crash or ANR')
+            print('KING Plus emulator launch/navigation smoke passed')
+            PY
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: KING-Plus-v9.4.4-emulator-logcat
+          path: /tmp/kingplus-logcat.txt
+          if-no-files-found: ignore
+          retention-days: 7
