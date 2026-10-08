@@ -1,0 +1,120 @@
+name: Build KING Plus v9.4.4 Party Video Runtime
+
+on:
+  push:
+    branches: ['build/v9.4.4-party-video-social']
+    paths:
+      - '.github/workflows/apk-v944-party-video.yml'
+      - 'ci/v944/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: king-plus-v944-party-video
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: build/v9.4.4-party-video-social
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+
+      - name: Recover verified v9.4.1 source
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          rm -rf /tmp/v941 /tmp/src
+          mkdir -p /tmp/v941 /tmp/src
+          gh run download 37657265816 -n KING-Plus-v9.4.1-stability-source -D /tmp/v941
+          unzip -q /tmp/v941/KING-Plus-v9.4.1-stability-source.zip -d /tmp/src
+
+      - name: Apply v9.4.2 base
+        run: python3 ci/v942/patch_v942.py /tmp/src
+
+      - name: Apply v9.4.3 games/reconnect
+        run: python3 ci/v943/patch_v943.py /tmp/src
+
+      - name: Apply v9.4.4 Party/Multi Video
+        run: python3 ci/v944/patch_v944.py /tmp/src
+
+      - name: v9.4.4 feature gates
+        working-directory: /tmp/src
+        run: |
+          set -euo pipefail
+          grep -F "versionCode 143; versionName '9.4.4-party-video-social'" app/build.gradle
+          grep -F 'Offline • Party room will reconnect automatically' app/src/main/java/com/kingplus/social/PartyActivity.java
+          grep -F 'updatePartyConnection944' app/src/main/java/com/kingplus/social/PartyActivity.java
+          grep -F 'videoNetworkCallback944' app/src/main/java/com/kingplus/social/KingMultiVideoActivity.java
+          grep -F 'Offline • Multi Video seats will reconnect automatically' app/src/main/java/com/kingplus/social/KingMultiVideoActivity.java
+          grep -F 'detachRealtime944' app/src/main/java/com/kingplus/social/KingMultiVideoActivity.java
+          grep -F '↻ Reconnect Room' app/src/main/java/com/kingplus/social/OnlineLudoActivity.java
+          grep -F 'Round complete • waiting for Host / Co-host rematch' app/src/main/java/com/kingplus/social/RoomGameActivity.java
+
+      - name: Compile v9.4.4 APK
+        working-directory: /tmp/src
+        run: gradle :app:assembleDebug --no-daemon
+
+      - name: Static runtime audit
+        working-directory: /tmp/src
+        run: |
+          python3 - <<'PY'
+          import pathlib,re
+          root=pathlib.Path('app/src/main')
+          manifest=(root/'AndroidManifest.xml').read_text(errors='ignore')
+          declared=set(re.findall(r'<activity[^>]+android:name="\.([^"]+)"',manifest))
+          intents=set()
+          for p in (root/'java/com/kingplus/social').glob('*.java'):
+              t=p.read_text(errors='ignore')
+              intents.update(re.findall(r'new Intent\(this,\s*([A-Za-z0-9_]+)\.class\)',t))
+          missing=sorted(x for x in intents if x not in declared and x!='MainActivity')
+          print('Missing manifest targets:',missing)
+          if missing: raise SystemExit(1)
+          mv=(root/'java/com/kingplus/social/KingMultiVideoActivity.java').read_text()
+          if mv.count('detachRealtime944();') < 2:
+              raise SystemExit('Multi Video detach/reconnect coverage incomplete')
+          party=(root/'java/com/kingplus/social/PartyActivity.java').read_text()
+          if 'updatePartyConnection944(online)' not in party:
+              raise SystemExit('Party network banner callback missing')
+          print('v9.4.4 runtime audit passed')
+          PY
+
+      - name: Android lint
+        working-directory: /tmp/src
+        continue-on-error: true
+        run: gradle :app:lintDebug --no-daemon
+
+      - name: Package APK and source
+        run: |
+          set -euo pipefail
+          cp /tmp/src/app/build/outputs/apk/debug/app-debug.apk /tmp/KING-Plus-v9.4.4-party-video-runtime.apk
+          cd /tmp/src
+          zip -qr /tmp/KING-Plus-v9.4.4-party-video-runtime-source.zip .
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: KING-Plus-v9.4.4-party-video-runtime-APK
+          path: /tmp/KING-Plus-v9.4.4-party-video-runtime.apk
+          retention-days: 7
+          if-no-files-found: error
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: KING-Plus-v9.4.4-party-video-runtime-source
+          path: /tmp/KING-Plus-v9.4.4-party-video-runtime-source.zip
+          retention-days: 7
+          if-no-files-found: error
