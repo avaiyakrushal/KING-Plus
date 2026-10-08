@@ -1,0 +1,38 @@
+name: Audit KING Plus v9.4.4
+
+on:
+  push:
+    branches: ['build/v9.4.4-community-finalize']
+    paths:
+      - '.github/workflows/audit-v944.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: build/v9.4.4-community-finalize
+      - name: Recover verified v9.4.3 source
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          rm -rf /tmp/v943 /tmp/src
+          mkdir -p /tmp/v943 /tmp/src
+          gh run download 37711910804 -n KING-Plus-v9.4.3-session-social-source -D /tmp/v943
+          unzip -q /tmp/v943/KING-Plus-v9.4.3-session-social-source.zip -d /tmp/src
+      - name: Inspect next stage
+        working-directory: /tmp/src
+        run: |
+          echo '=== Main community/rank methods ==='
+          grep -nE 'private void (rankingsPage|familyAgencyPage|backpackPage|vipPage)' app/src/main/java/com/kingplus/social/MainActivity.java
+          echo '=== Community methods ==='
+          grep -nE 'private void (family|collection|visitors|moments|relationships)' app/src/main/java/com/kingplus/social/CommunityHubActivity.java
+          echo '=== Error/empty markers ==='
+          grep -nEi 'unavailable|no .* yet|retry|empty|loading' app/src/main/java/com/kingplus/social/CommunityHubActivity.java | head -n 200 || true
