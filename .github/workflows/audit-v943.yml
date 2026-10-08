@@ -1,0 +1,52 @@
+name: Audit KING Plus v9.4.3 Next Stage
+
+on:
+  push:
+    branches: ['build/v9.4.3-next-stage']
+    paths:
+      - '.github/workflows/audit-v943.yml'
+      - 'ci/v943/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: build/v9.4.3-next-stage
+      - name: Recover verified v9.4.2 source
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          rm -rf /tmp/v942 /tmp/src
+          mkdir -p /tmp/v942 /tmp/src
+          gh run download 37710317465 -n KING-Plus-v9.4.2-parity-runtime-source -D /tmp/v942
+          unzip -q /tmp/v942/KING-Plus-v9.4.2-parity-runtime-source.zip -d /tmp/src
+      - name: Print session/auth risk points
+        working-directory: /tmp/src
+        run: |
+          python3 - <<'PY'
+          import pathlib
+          root=pathlib.Path('app/src/main/java/com/kingplus/social')
+          hits=[]
+          for p in root.glob('*.java'):
+              for n,line in enumerate(p.read_text(errors='ignore').splitlines(),1):
+                  if 'getCurrentUser().getUid()' in line and 'getCurrentUser()!=null' not in line and 'getCurrentUser() != null' not in line:
+                      hits.append((p.name,n,line.strip()))
+          print('RISK_COUNT',len(hits))
+          for h in hits: print('RISK',*h,sep=' | ')
+          PY
+      - name: Print next-stage social/UI markers
+        working-directory: /tmp/src
+        run: |
+          set -euo pipefail
+          for f in MainActivity.java DiscoverActivity.java SocialActivity.java CommunityHubActivity.java KingPublicProfileActivity.java KingVipVisualActivity.java KingWardrobeActivity.java PartyActivity.java; do
+            echo "===== $f ====="
+            grep -nE 'loading|unavailable|empty|retry|Family|VIP|Rank|Wardrobe|Collection|followers|following|getCurrentUser\(\)\.getUid' app/src/main/java/com/kingplus/social/$f | head -n 120 || true
+          done
