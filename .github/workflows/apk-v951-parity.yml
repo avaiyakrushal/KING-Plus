@@ -38,7 +38,21 @@ jobs:
           set -euo pipefail
           rm -rf /tmp/base /tmp/src
           mkdir -p /tmp/base /tmp/src
-          gh run download 37708708041 -n KING-Plus-v9.5.0-parity-batch1-source -D /tmp/base
+          ok=0
+          for attempt in 1 2 3 4; do
+            rm -rf /tmp/base/* /tmp/src/*
+            if gh run download 37708708041 -n KING-Plus-v9.5.0-parity-batch1-source -D /tmp/base; then
+              ok=1
+              break
+            fi
+            echo "artifact download attempt $attempt failed"
+            sleep $((attempt*15))
+          done
+          if [ "$ok" != "1" ]; then
+            echo "using direct artifact API fallback"
+            gh api repos/${GITHUB_REPOSITORY}/actions/artifacts/11520708490/zip > /tmp/base/artifact.zip
+            unzip -q /tmp/base/artifact.zip -d /tmp/base
+          fi
           test -f /tmp/base/KING-Plus-v9.5.0-parity-batch1-source.zip
           unzip -q /tmp/base/KING-Plus-v9.5.0-parity-batch1-source.zip -d /tmp/src
 
