@@ -52,10 +52,12 @@ new='''        Map<String,Object>m=new HashMap<>();m.put("uid",me.getUid());m.pu
 if old not in s: raise SystemExit('RoomGame membership version')
 s=s.replace(old,new,1)
 
-old='''    private void renderState(){if(roundId==0||!"active".equals(status)){stateText.setText(result.isEmpty()?"No active multiplayer round":"Last result\n"+result);return;}if("ttt".equals(type)){String turn=tttTurnUid864.equals(tttXUid864)?tttXName864:tttTurnUid864.equals(tttOUid864)?tttOName864:"Player";stateText.setText("❌⭕  "+tttXName864+" vs "+tttOName864+"\nTurn: "+turn+"\n"+tttBoardText864());return;}stateText.setText(gameIcon(type)+"  "+prompt+(result.isEmpty()?"":"\n"+result));}'''
-new='''    private void renderState(){if(roundId==0||!"active".equals(status)){if(result.isEmpty()){stateText.setText("🎮 No active multiplayer round\nChoose a game or wait for the host");stateText.setTextColor(MUTED);}else{stateText.setText("🏁 ROUND COMPLETE\n"+result+"\n↻ Host / Co-host can start a rematch");stateText.setTextColor(GOLD);}return;}stateText.setTextColor(GOLD);if("ttt".equals(type)){String turn=tttTurnUid864.equals(tttXUid864)?tttXName864:tttTurnUid864.equals(tttOUid864)?tttOName864:"Player";stateText.setText("❌⭕  "+tttXName864+" vs "+tttOName864+"\nTurn: "+turn+"\n"+tttBoardText864());return;}stateText.setText(gameIcon(type)+"  "+prompt+(result.isEmpty()?"":"\n"+result));}'''
-if old not in s: raise SystemExit('RoomGame renderState')
-s=s.replace(old,new,1)
+rs=s.find("    private void renderState(){")
+re=s.find("    private String gameIcon",rs)
+if rs<0 or re<0: raise SystemExit('RoomGame renderState boundary')
+new_render='''    private void renderState(){if(roundId==0||!"active".equals(status)){if(result.isEmpty()){stateText.setText("🎮 No active multiplayer round\\nChoose a game or wait for the host");stateText.setTextColor(MUTED);}else{stateText.setText("🏁 ROUND COMPLETE\\n"+result+"\\n↻ Host / Co-host can start a rematch");stateText.setTextColor(GOLD);}return;}stateText.setTextColor(GOLD);if("ttt".equals(type)){String turn=tttTurnUid864.equals(tttXUid864)?tttXName864:tttTurnUid864.equals(tttOUid864)?tttOName864:"Player";stateText.setText("❌⭕  "+tttXName864+" vs "+tttOName864+"\\nTurn: "+turn+"\\n"+tttBoardText864());return;}stateText.setText(gameIcon(type)+"  "+prompt+(result.isEmpty()?"":"\\n"+result));}
+'''
+s=s[:rs]+new_render+s[re:]
 
 old='''            if(roundId>0&&!"active".equals(status)){LinearLayout rr=new LinearLayout(this);Button rem=button("↻ Rematch");rem.setOnClickListener(v->rematch750());rr.addView(rem,new LinearLayout.LayoutParams(0,dp(50),1));Button reset=button("Clear Ready");reset.setOnClickListener(v->clearReady750());LinearLayout.LayoutParams rp=new LinearLayout.LayoutParams(0,dp(50),1);rp.setMargins(dp(6),0,0,0);rr.addView(reset,rp);controls.addView(rr);}
         }
