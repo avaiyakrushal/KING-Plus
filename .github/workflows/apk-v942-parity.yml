@@ -74,6 +74,9 @@ jobs:
           grep -F 'SOFT_INPUT_ADJUST_RESIZE' app/src/main/java/com/kingplus/social/PartyActivity.java
           grep -F 'SOFT_INPUT_ADJUST_RESIZE' app/src/main/java/com/kingplus/social/ChatActivity.java
 
+      - name: Verify all runtime feature routes
+        run: python3 ci/v942/verify_runtime_routes.py /tmp/src
+
       - name: Compile v9.4.2 APK
         working-directory: /tmp/src
         run: gradle :app:assembleDebug --no-daemon
