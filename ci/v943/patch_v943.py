@@ -18,6 +18,18 @@ if marker not in q: raise SystemExit('Main wallet marker missing for session hel
 if 'currentSessionUser943()' not in q:
     q=q.replace(marker,helper+marker,1)
 
+# Remove the last direct FirebaseAuth UID dereferences from menu/profile header.
+old='''()->shareText("Join me on KING Plus. My ID: "+(firebaseAuth!=null&&firebaseAuth.getCurrentUser()!=null?publicId(firebaseAuth.getCurrentUser().getUid()):displayName))'''
+new='''()->{com.google.firebase.auth.FirebaseUser u943=currentSessionUser943();shareText("Join me on KING Plus. My ID: "+(u943!=null?publicId(u943.getUid()):displayName));}'''
+if old not in q: raise SystemExit('side-menu invite auth marker missing')
+q=q.replace(old,new,1)
+
+old='''        final String uid=(firebaseAuth!=null&&firebaseAuth.getCurrentUser()!=null)?publicId(firebaseAuth.getCurrentUser().getUid()):roomId(displayName);'''
+new='''        final com.google.firebase.auth.FirebaseUser profileHeaderUser943=currentSessionUser943();
+        final String uid=profileHeaderUser943!=null?publicId(profileHeaderUser943.getUid()):roomId(displayName);'''
+if old not in q: raise SystemExit('profile header auth marker missing')
+q=q.replace(old,new,1)
+
 old='''        if(firestore!=null&&firebaseAuth!=null&&firebaseAuth.getCurrentUser()!=null){
             firestore.collection("wallets").document(firebaseAuth.getCurrentUser().getUid()).get().addOnSuccessListener(doc->{Object raw=doc.get("coins");long c=raw instanceof Number?Math.max(0,Math.round(((Number)raw).doubleValue())):0;coinBalance=(int)Math.min(Integer.MAX_VALUE,c);bal.setText("💎 "+c+" Diamonds");});
         }'''
