@@ -33,7 +33,7 @@ jobs:
 
       - name: Recover verified v9.5.0 source
         env:
-          GH_TOKEN: \${{ github.token }}
+          GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
           rm -rf /tmp/base /tmp/src
