@@ -107,10 +107,9 @@ helper='''    private void detachRealtime944(){
 if marker not in s: raise SystemExit('MultiVideo reducer marker missing')
 s=s.replace(marker,helper+marker,1)
 
-old='''    @Override protected void onDestroy(){heartbeat940.removeCallbacks(heartbeatTask940);if(eventsListener!=null)eventsListener.remove();if(roomListener!=null)roomListener.remove();if(roleListener!=null)roleListener.remove();try{if(meetView!=null){meetView.dispose();meetView=null;}}catch(Throwable ignored){}org.jitsi.meet.sdk.JitsiMeetActivityDelegate.onHostDestroy(this);super.onDestroy();}'''
-new='''    @Override protected void onDestroy(){KingNetwork.unwatch(this,videoNetworkCallback944);videoNetworkCallback944=null;heartbeat940.removeCallbacks(heartbeatTask940);detachRealtime944();try{if(meetView!=null){meetView.dispose();meetView=null;}}catch(Throwable ignored){}org.jitsi.meet.sdk.JitsiMeetActivityDelegate.onHostDestroy(this);super.onDestroy();}'''
-if old not in s: raise SystemExit('MultiVideo onDestroy marker missing')
-s=s.replace(old,new,1)
+destroy='''    @Override protected void onDestroy(){'''
+if destroy not in s: raise SystemExit('MultiVideo onDestroy marker missing')
+s=s.replace(destroy,destroy+'''KingNetwork.unwatch(this,videoNetworkCallback944);videoNetworkCallback944=null;detachRealtime944();''',1)
 p.write_text(s)
 
 # Version bump.
