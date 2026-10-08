@@ -33,8 +33,8 @@ main.write_text(q)
 # Party: permission result must return to the mic action instead of only going to Jitsi.
 party=pkg/'PartyActivity.java'
 q=party.read_text()
-old='''    @Override public void onRequestPermissionsResult(int requestCode,String[] permissions,int[] grantResults){org.jitsi.meet.sdk.JitsiMeetActivityDelegate.onRequestPermissionsResult(requestCode,permissions,grantResults);}'''
-new='''    @Override public void onRequestPermissionsResult(int requestCode,String[] permissions,int[] grantResults){
+perm_pat=r'(?s)    @(?:android\\.annotation\\.SuppressLint\\("MissingSuperCall"\\)\\s*)?Override public void onRequestPermissionsResult\\(int requestCode,String\\[\\] permissions,int\\[\\] grantResults\\)\\{.*?JitsiMeetActivityDelegate\\.onRequestPermissionsResult\\(requestCode,permissions,grantResults\\);\\}'
+perm_new='''    @Override public void onRequestPermissionsResult(int requestCode,String[] permissions,int[] grantResults){
         if(requestCode==942){
             boolean granted=grantResults!=null&&grantResults.length>0&&grantResults[0]==android.content.pm.PackageManager.PERMISSION_GRANTED;
             if(granted){
@@ -45,8 +45,9 @@ new='''    @Override public void onRequestPermissionsResult(int requestCode,Stri
         }
         org.jitsi.meet.sdk.JitsiMeetActivityDelegate.onRequestPermissionsResult(requestCode,permissions,grantResults);
     }'''
-if old not in q: raise SystemExit('Party Jitsi permission marker missing')
-q=q.replace(old,new,1)
+q2,n=re.subn(perm_pat,perm_new,q,count=1)
+if n!=1: raise SystemExit('Party permission callback marker missing')
+q=q2
 
 # Add original lightweight animated atmosphere behind the Party UI.
 marker='''        setSafeContentView(shell);'''
