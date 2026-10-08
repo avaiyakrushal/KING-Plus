@@ -1,0 +1,118 @@
+name: Build KING Plus v9.5.0 Parity Batch 1
+
+on:
+  push:
+    branches: ['build/v9.5.0-parity-batch1']
+    paths:
+      - '.github/workflows/apk-v950-parity.yml'
+      - 'ci/v950/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: king-plus-v950-parity
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: build/v9.5.0-parity-batch1
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+
+      - name: Recover verified v9.4.1 source
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          rm -rf /tmp/base /tmp/src
+          mkdir -p /tmp/base /tmp/src
+          gh run download 37657265816 -n KING-Plus-v9.4.1-stability-source -D /tmp/base
+          test -f /tmp/base/KING-Plus-v9.4.1-stability-source.zip
+          unzip -q /tmp/base/KING-Plus-v9.4.1-stability-source.zip -d /tmp/src
+
+      - name: Apply v9.5.0 parity batch 1
+        run: python3 ci/v950/patch_v950.py /tmp/src
+
+      - name: Parity gates
+        working-directory: /tmp/src
+        run: |
+          set -euo pipefail
+          grep -F "versionCode 141; versionName '9.5.0-parity-batch1'" app/build.gradle
+          grep -F 'KingOfflineLudoActivity' app/src/main/AndroidManifest.xml
+          grep -F 'openOffline()' app/src/main/java/com/kingplus/social/KingLudoLobbyActivity.java
+          grep -F 'pass-and-play' app/src/main/java/com/kingplus/social/KingOfflineLudoActivity.java
+          grep -F 'updatePhase950' app/src/main/java/com/kingplus/social/RoomGameActivity.java
+          grep -F 'Realtime room game connected' app/src/main/java/com/kingplus/social/RoomGameActivity.java
+          grep -F 'connection950' app/src/main/java/com/kingplus/social/OnlineLudoActivity.java
+          grep -F 'Reconnecting • actions paused' app/src/main/java/com/kingplus/social/OnlineLudoActivity.java
+          grep -F 'giftQuick950' app/src/main/java/com/kingplus/social/PartyActivity.java
+          grep -F 'Not enough test diamonds' app/src/main/java/com/kingplus/social/PartyActivity.java
+          grep -F 'h950=Math.min(dp(560)' app/src/main/java/com/kingplus/social/PartyActivity.java
+
+      - name: Compile APK
+        working-directory: /tmp/src
+        run: gradle :app:assembleDebug --no-daemon
+
+      - name: Runtime activity and crash audit
+        working-directory: /tmp/src
+        run: |
+          python3 - <<'PY'
+          import pathlib,re
+          root=pathlib.Path('app/src/main')
+          manifest=(root/'AndroidManifest.xml').read_text(errors='ignore')
+          declared=set(re.findall(r'<activity[^>]+android:name="\.([^"]+)"',manifest))
+          intents=set()
+          risky=[]
+          for p in (root/'java/com/kingplus/social').glob('*.java'):
+              t=p.read_text(errors='ignore')
+              intents.update(re.findall(r'new Intent\(this,\s*([A-Za-z0-9_]+)\.class\)',t))
+              if p.name in {'KingOfflineLudoActivity.java','OnlineLudoActivity.java','RoomGameActivity.java'}:
+                  for n,line in enumerate(t.splitlines(),1):
+                      if 'getCurrentUser().getUid()' in line and 'getCurrentUser()!=null' not in line and 'getCurrentUser() != null' not in line:
+                          risky.append(f'{p.name}:{n}:{line.strip()}')
+          missing=sorted(x for x in intents if x not in declared and x!='MainActivity')
+          print('Missing activity registrations:',missing)
+          print('Risky direct auth dereferences:',*risky,sep='\n  ')
+          if missing: raise SystemExit('Missing Activity registrations: '+','.join(missing))
+          if risky: raise SystemExit('Risky direct auth dereference found')
+          PY
+
+      - name: Android lint
+        working-directory: /tmp/src
+        continue-on-error: true
+        run: gradle :app:lintDebug --no-daemon
+
+      - name: Package APK and source
+        run: |
+          set -euo pipefail
+          cp /tmp/src/app/build/outputs/apk/debug/app-debug.apk /tmp/KING-Plus-v9.5.0-parity-batch1.apk
+          cd /tmp/src
+          zip -qr /tmp/KING-Plus-v9.5.0-parity-batch1-source.zip .
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: KING-Plus-v9.5.0-parity-batch1-APK
+          path: /tmp/KING-Plus-v9.5.0-parity-batch1.apk
+          if-no-files-found: error
+          retention-days: 7
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: KING-Plus-v9.5.0-parity-batch1-source
+          path: /tmp/KING-Plus-v9.5.0-parity-batch1-source.zip
+          if-no-files-found: error
+          retention-days: 7
