@@ -6,10 +6,10 @@ p=pkg/'PartyActivity.java'
 s=p.read_text()
 
 # 1) Room Battle must never fabricate a result outside a real synced Party room.
-old='''        if(db==null||!cloudRoom){int a=10+new java.util.Random().nextInt(91),b=10+new java.util.Random().nextInt(91);new AlertDialog.Builder(this).setTitle("⚔ Room Battle").setMessage("Team KING  "+a+"  vs  Guest  "+b+"\n\n"+(a>=b?"🏆 Team KING wins":"🏆 Guest wins")).setPositiveButton("Again",(d,w)->pkBattle()).setNegativeButton("Close",null).show();return;}'''
+pattern=r'        if\(db==null\|\|!cloudRoom\)\{int a=.*?return;\}'
 new='''        if(db==null||!cloudRoom||roomId==null){new AlertDialog.Builder(this).setTitle("⚔ Room Battle").setMessage("Room Battle uses real live-room gift/activity data. Join or create a live Party room first.").setPositiveButton("Open Party Lobby",(d,w)->renderLobby("Hot")).setNegativeButton("Close",null).show();return;}'''
-if old not in s: raise SystemExit('Party pkBattle fake fallback marker missing')
-s=s.replace(old,new,1)
+s,count=re.subn(pattern,new,s,count=1)
+if count!=1: raise SystemExit('Party pkBattle fake fallback marker missing')
 
 # 2) Gift bursts: throttle only the expensive full-screen layer, never lose the compact event.
 old='''    private void showGiftEffect(String actor,String target,String gift,String icon,long qty,long value){
