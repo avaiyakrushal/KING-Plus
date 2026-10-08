@@ -2,7 +2,7 @@ name: Build KING Plus v3.6.0 Economy
 
 on:
   push:
-    branches: [main]
+    branches: [main, fix/family-v955-recovery]
   workflow_dispatch:
 
 permissions:
@@ -64,6 +64,22 @@ jobs:
 
       - name: Prepare v3.6.0 gifts, wallet, levels, VIP and frames
         run: python3 tools/prepare_economy_v360.py
+
+      - name: Ensure Party dependencies and Voice activity registration
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          gradle = Path('app/build.gradle')
+          s = gradle.read_text()
+          if "firebase-firestore" not in s:
+              s = s.replace("implementation 'com.google.firebase:firebase-auth'", "implementation 'com.google.firebase:firebase-auth'\n    implementation 'com.google.firebase:firebase-firestore'")
+              gradle.write_text(s)
+          manifest = Path('app/src/main/AndroidManifest.xml')
+          s = manifest.read_text()
+          if 'android:name=".VoiceWebActivity"' not in s:
+              s = s.replace('<activity android:name=".PartyActivity"', '<activity android:name=".VoiceWebActivity" android:exported="false" />\n        <activity android:name=".PartyActivity"')
+              manifest.write_text(s)
+          PY
 
       - name: Production smoke checks
         run: |
