@@ -1,0 +1,77 @@
+name: Inspect KING Plus responsive targets
+
+on:
+  push:
+    branches: ['build/v9.5.5-family-settings-polish']
+    paths: ['.github/workflows/inspect-v956-responsive.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  inspect:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: build/v9.5.5-family-settings-polish
+      - name: Recover current generated source
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          rm -rf /tmp/base /tmp/src
+          mkdir -p /tmp/base /tmp/src
+          gh run download 37708708041 -n KING-Plus-v9.5.0-parity-batch1-source -D /tmp/base
+          unzip -q /tmp/base/KING-Plus-v9.5.0-parity-batch1-source.zip -d /tmp/src
+          python3 ci/v951/patch_v951.py /tmp/src
+          python3 ci/v952/patch_v952.py /tmp/src
+          python3 ci/v953/patch_v953.py /tmp/src
+          python3 ci/v954/patch_v954.py /tmp/src
+          python3 ci/v955/patch_v955.py /tmp/src
+      - name: Print responsive/navigation methods
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+          files=['PartyActivity.java','MainActivity.java','KingNav.java','DiscoverActivity.java','InboxActivity.java','CommunityHubActivity.java']
+          keys=['setsafecontentview','safecontent','base','bottom','navigation','nav','inset','keyboard']
+          def body(t,m):
+              b=t.find('{',m.start());depth=0;state='code';quote='';esc=False;i=b
+              while i<len(t):
+                  ch=t[i];nx=t[i+1] if i+1<len(t) else ''
+                  if state=='str':
+                      if esc:esc=False
+                      elif ch=='\\':esc=True
+                      elif ch==quote:state='code'
+                  elif state=='line':
+                      if ch=='\n':state='code'
+                  elif state=='block':
+                      if ch=='*' and nx=='/':state='code';i+=1
+                  else:
+                      if ch=='/' and nx=='/':state='line';i+=1
+                      elif ch=='/' and nx=='*':state='block';i+=1
+                      elif ch in ('"',"'"):state='str';quote=ch
+                      elif ch=='{':depth+=1
+                      elif ch=='}':
+                          depth-=1
+                          if depth==0:return t[m.start():i+1]
+                  i+=1
+              return t[m.start():]
+          pkg=Path('/tmp/src/app/src/main/java/com/kingplus/social')
+          for fn in files:
+              p=pkg/fn
+              if not p.exists():continue
+              t=p.read_text(errors='ignore')
+              print('\n===== '+fn+' =====')
+              sigs=list(re.finditer(r'(?m)^\s*(?:private|public|protected)\s+[\w<>\[\].?]+\s+(\w+)\s*\([^;]*?\)\s*\{',t))
+              n=0
+              for m in sigs:
+                  nm=m.group(1).lower()
+                  if any(k in nm for k in keys):
+                      print('\n===== METHOD '+fn+' :: '+m.group(1)+' =====')
+                      print(body(t,m)[:24000]);n+=1
+                      if n>=20:break
+          PY
