@@ -1,0 +1,52 @@
+name: KING Plus v9.4.3 Crash Audit
+
+on:
+  push:
+    branches: ['build/v9.4.2-parity-next']
+    paths:
+      - '.github/workflows/v943-crash-audit.yml'
+      - 'ci/v943/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: build/v9.4.2-parity-next
+
+      - name: Recover v9.4.2 generated source
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          rm -rf /tmp/v942 /tmp/src
+          mkdir -p /tmp/v942 /tmp/src
+          gh run download 37710317465 -n KING-Plus-v9.4.2-parity-runtime-source -D /tmp/v942
+          unzip -q /tmp/v942/KING-Plus-v9.4.2-parity-runtime-source.zip -d /tmp/src
+
+      - name: Audit Firebase auth crash risks
+        working-directory: /tmp/src
+        run: python3 "$GITHUB_WORKSPACE/ci/v943/crash_audit.py" .
+
+      - name: Print risky source context
+        working-directory: /tmp/src
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+          root=Path('app/src/main/java/com/kingplus/social')
+          for p in sorted(root.glob('*.java')):
+              lines=p.read_text(errors='replace').splitlines()
+              for i,line in enumerate(lines):
+                  if 'getCurrentUser().getUid()' not in line: continue
+                  lo=max(0,i-5); hi=min(len(lines),i+4)
+                  print('\n###',p.name,'line',i+1)
+                  for n in range(lo,hi):
+                      print(f'{n+1:04d}: {lines[n]}')
+          PY
