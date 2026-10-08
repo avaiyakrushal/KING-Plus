@@ -9,8 +9,8 @@ src = MAIN.read_text(encoding='utf-8')
 replacements = [
     ('if(w==0)searchCommunity();else if(w==1)createRoomDialog();else notificationsCenter();',
      'if(w==0)startActivity(new Intent(this,SocialActivity.class));else if(w==1)createRoomDialog();else notificationsCenter();'),
-    ('else if(k==3)messages();else profile();',
-     'else if(k==3)startActivity(new Intent(this,InboxActivity.class));else profile();'),
+    ('else if(k==3)messages();else openProfileSafely();',
+     'else if(k==3)startActivity(new Intent(this,InboxActivity.class));else openProfileSafely();'),
     ('cardLine(list,"👥  Find Friends","Discover new people in the community",()->peoplePage("Discover People"));',
      'cardLine(list,"👥  Find Friends","Search, follow, make friends and message",()->startActivity(new Intent(this,SocialActivity.class)));'),
     ('else if(w==2)peoplePage("Friends");else if(w==3)peoplePage("Followers");',
