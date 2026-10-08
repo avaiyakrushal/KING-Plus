@@ -42,6 +42,12 @@ jobs:
           print('RISK_COUNT',len(hits))
           for h in hits: print('RISK',*h,sep=' | ')
           PY
+      - name: Print MainActivity risk context
+        working-directory: /tmp/src
+        run: |
+          nl -ba app/src/main/java/com/kingplus/social/MainActivity.java | sed -n '1325,1540p'
+          echo '===== recommendations ====='
+          nl -ba app/src/main/java/com/kingplus/social/MainActivity.java | sed -n '1668,1692p'
       - name: Print next-stage social/UI markers
         working-directory: /tmp/src
         run: |
