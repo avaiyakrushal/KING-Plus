@@ -1,0 +1,34 @@
+name: Probe KING Plus v9.4.3 Source
+
+on:
+  push:
+    branches: ['build/v9.4.2-parity-next']
+    paths:
+      - '.github/workflows/probe-v943.yml'
+      - 'ci/v943/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: build/v9.4.2-parity-next
+      - name: Recover verified v9.4.1 source
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          rm -rf /tmp/v941 /tmp/src
+          mkdir -p /tmp/v941 /tmp/src
+          gh run download 37657265816 -n KING-Plus-v9.4.1-stability-source -D /tmp/v941
+          unzip -q /tmp/v941/KING-Plus-v9.4.1-stability-source.zip -d /tmp/src
+      - name: Apply v9.4.2 patch
+        run: python3 ci/v942/patch_v942.py /tmp/src
+      - name: Print next-stage source regions
+        run: python3 ci/v943/source_probe.py /tmp/src
