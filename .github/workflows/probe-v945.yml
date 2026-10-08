@@ -1,0 +1,37 @@
+name: Probe KING Plus v9.4.5 Social Source
+
+on:
+  push:
+    branches: ['build/v9.4.4-party-video-social']
+    paths:
+      - '.github/workflows/probe-v945.yml'
+      - 'ci/v945/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: build/v9.4.4-party-video-social
+      - name: Recover verified v9.4.1 source
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          rm -rf /tmp/v941 /tmp/src
+          mkdir -p /tmp/v941 /tmp/src
+          gh run download 37657265816 -n KING-Plus-v9.4.1-stability-source -D /tmp/v941
+          unzip -q /tmp/v941/KING-Plus-v9.4.1-stability-source.zip -d /tmp/src
+      - name: Apply current patches
+        run: |
+          python3 ci/v942/patch_v942.py /tmp/src
+          python3 ci/v943/patch_v943.py /tmp/src
+          python3 ci/v944/patch_v944.py /tmp/src
+      - name: Print social/profile/VIP/family regions
+        run: python3 ci/v945/source_probe.py /tmp/src
