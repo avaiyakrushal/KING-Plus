@@ -87,7 +87,33 @@ public class PartyActivity extends Activity {
         displayName = getIntent().getStringExtra("displayName");
         if (displayName == null || displayName.trim().isEmpty()) displayName = safeName();
         localCoins = prefs.getInt("coins", 2500);
-        renderLobby("Hot");
+        try {
+            renderLobby("Hot");
+        } catch (RuntimeException error) {
+            showPartyRecovery(error);
+        }
+    }
+
+    private void showPartyRecovery(RuntimeException error) {
+        android.util.Log.e("KINGPlusParty", "Party room failed to open", error);
+        String detail = android.util.Log.getStackTraceString(error);
+        if (detail.length() > 1800) detail = detail.substring(0, 1800);
+        getSharedPreferences("king_party", MODE_PRIVATE).edit()
+            .putString("last_party_error", detail).apply();
+        LinearLayout recovery = new LinearLayout(this);
+        recovery.setOrientation(LinearLayout.VERTICAL);
+        recovery.setPadding(dp(24), dp(48), dp(24), dp(24));
+        recovery.setBackgroundColor(Color.WHITE);
+        TextView title = tv("Party Room could not open", 22, Color.BLACK, true);
+        recovery.addView(title);
+        TextView details = tv("An error was saved on this phone. You can return to Home safely.\n\n" + detail,
+            13, 0xff555555, false);
+        recovery.addView(details);
+        Button back = new Button(this);
+        back.setText("Back to Home");
+        back.setOnClickListener(v -> finish());
+        recovery.addView(back);
+        setContentView(recovery);
     }
 
     private int dp(int n) { return (int)(n * getResources().getDisplayMetrics().density + .5f); }
