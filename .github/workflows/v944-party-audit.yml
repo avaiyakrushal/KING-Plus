@@ -1,0 +1,59 @@
+name: Audit v9.4.3 Party Visual Depth
+
+on:
+  push:
+    branches: ['build/v9.4.4-visual-depth']
+    paths:
+      - '.github/workflows/v944-party-audit.yml'
+      - 'ci/v944/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: build/v9.4.4-visual-depth
+
+      - name: Recover v9.4.3 generated source
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          rm -rf /tmp/v943 /tmp/src
+          mkdir -p /tmp/v943 /tmp/src
+          gh run download 37713804913 -n KING-Plus-v9.4.3-final-parity-source -D /tmp/v943
+          unzip -q /tmp/v943/KING-Plus-v9.4.3-final-parity-source.zip -d /tmp/src
+
+      - name: Print Party visual/state methods
+        working-directory: /tmp/src
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+          p=Path('app/src/main/java/com/kingplus/social/PartyActivity.java')
+          s=p.read_text(errors='replace')
+          terms=[
+            'private void renderParty',
+            'private void rebuildSeats',
+            'private void showEntranceEffect',
+            'private void themeRoomPanel',
+            'private void renderLobby',
+            'private void showGiftEffect',
+            'private void showLiveEmojiEffect560',
+            'private void refreshMicControl',
+            'private void roomSeatPanel',
+          ]
+          for term in terms:
+              i=s.find(term)
+              print('\n===== '+term+' =====')
+              if i<0:
+                  print('MISSING')
+                  continue
+              print(s[i:i+9000])
+          PY
