@@ -1,0 +1,116 @@
+name: Build KING Plus v9.4.4 Community Finalize
+
+on:
+  push:
+    branches: ['build/v9.4.4-community-finalize']
+    paths:
+      - '.github/workflows/apk-v944.yml'
+      - 'ci/v944/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: king-plus-v944
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: build/v9.4.4-community-finalize
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+
+      - name: Recover verified v9.4.3 source
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          rm -rf /tmp/v943 /tmp/src
+          mkdir -p /tmp/v943 /tmp/src
+          gh run download 37711910804 -n KING-Plus-v9.4.3-session-social-source -D /tmp/v943
+          unzip -q /tmp/v943/KING-Plus-v9.4.3-session-social-source.zip -d /tmp/src
+
+      - name: Apply v9.4.4 community finalization
+        run: python3 ci/v944/patch_v944.py /tmp/src
+
+      - name: Community gates
+        working-directory: /tmp/src
+        run: |
+          set -euo pipefail
+          grep -F "versionCode 143; versionName '9.4.4-community-finalize'" app/build.gradle
+          grep -F 'Community Rankings' app/src/main/java/com/kingplus/social/MainActivity.java
+          grep -F 'rankLevel943' app/src/main/java/com/kingplus/social/MainActivity.java
+          grep -F 'Open Family Center' app/src/main/java/com/kingplus/social/MainActivity.java
+          grep -F '.orderBy("visitedAt",Query.Direction.DESCENDING)' app/src/main/java/com/kingplus/social/CommunityHubActivity.java
+          grep -F 'communityRetry943' app/src/main/java/com/kingplus/social/CommunityHubActivity.java
+          grep -F 'No Family messages yet.' app/src/main/java/com/kingplus/social/CommunityHubActivity.java
+          ! grep -F '.orderBy("updatedAt",Query.Direction.DESCENDING).limit(50).get()' app/src/main/java/com/kingplus/social/CommunityHubActivity.java
+          python3 - <<'PY'
+          import pathlib
+          root=pathlib.Path('app/src/main/java/com/kingplus/social')
+          hits=[]
+          for p in root.glob('*.java'):
+              for n,line in enumerate(p.read_text(errors='ignore').splitlines(),1):
+                  if 'getCurrentUser().getUid()' in line:hits.append((p.name,n,line.strip()))
+          print('DIRECT_CURRENTUSER_UID_COUNT',len(hits))
+          if hits:
+              print(hits)
+              raise SystemExit('direct Firebase UID dereference returned')
+          PY
+
+      - name: Compile v9.4.4 APK
+        working-directory: /tmp/src
+        run: gradle :app:assembleDebug --no-daemon
+
+      - name: Route manifest audit
+        working-directory: /tmp/src
+        run: |
+          python3 - <<'PY'
+          import pathlib,re
+          root=pathlib.Path('app/src/main')
+          mt=(root/'AndroidManifest.xml').read_text(errors='ignore')
+          declared=set(re.findall(r'<activity[^>]+android:name="\.([^"]+)"',mt))
+          intents=set()
+          for p in (root/'java/com/kingplus/social').glob('*.java'):
+              t=p.read_text(errors='ignore')
+              intents.update(re.findall(r'new Intent\(this,\s*([A-Za-z0-9_]+)\.class\)',t))
+          missing=sorted(x for x in intents if x not in declared and x!='MainActivity')
+          print('Missing manifest targets:',missing)
+          if missing: raise SystemExit('Missing manifest targets')
+          PY
+
+      - name: Android lint
+        working-directory: /tmp/src
+        run: gradle :app:lintDebug --no-daemon
+
+      - name: Package APK and source
+        run: |
+          set -euo pipefail
+          cp /tmp/src/app/build/outputs/apk/debug/app-debug.apk /tmp/KING-Plus-v9.4.4-community-finalize.apk
+          cd /tmp/src
+          zip -qr /tmp/KING-Plus-v9.4.4-community-finalize-source.zip .
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: KING-Plus-v9.4.4-community-finalize-APK
+          path: /tmp/KING-Plus-v9.4.4-community-finalize.apk
+          retention-days: 7
+          if-no-files-found: error
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: KING-Plus-v9.4.4-community-finalize-source
+          path: /tmp/KING-Plus-v9.4.4-community-finalize-source.zip
+          retention-days: 7
+          if-no-files-found: error
