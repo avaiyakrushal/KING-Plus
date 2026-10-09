@@ -1,0 +1,47 @@
+name: KING Plus Secure Diamond Economy Tests (No Billing)
+on:
+  push:
+    branches: ['work/reference-completion']
+    paths:
+      - '.github/workflows/test-recharge-gift-policy.yml'
+      - 'functions/v3.js'
+      - 'functions/recharge-policy.js'
+      - 'functions/recharge-policy.test.js'
+      - 'functions/gift-catalog.js'
+      - 'functions/gift-catalog.test.js'
+      - 'functions/king-vip-level.js'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  security:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: work/reference-completion
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Test purchase verification, VIP and Gift prices
+        run: |
+          set -euo pipefail
+          node --check functions/v3.js
+          node functions/king-vip-level.test.js
+          node functions/recharge-policy.test.js
+          node functions/gift-catalog.test.js
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('functions/v3.js').read_text()
+          assert 'purchase.obfuscatedExternalAccountId !== expectedAccount' in p
+          assert 'priceFor(giftName)' in p
+          assert 'cost !== officialGift.total' in p
+          assert "tx.set(receiverRef, { giftScore:" in p
+          assert 'vipPointsEarned: 0' in p
+          assert 'vipPointsEarned: coins' in p
+          assert 'tx.set(receiptRef' in p
+          assert 'rechargeDiamondsTotal: next.rechargeDiamondsTotal' in p
+          assert "function applyVerifiedRecharge" in Path('functions/recharge-policy.js').read_text()
+          assert "function applyGiftDebit" in Path('functions/recharge-policy.js').read_text()
+          print("PASS: verified recharge grows VIP; paid Gifts debit verified Diamonds at official prices; no P2P cash")
+          PY
