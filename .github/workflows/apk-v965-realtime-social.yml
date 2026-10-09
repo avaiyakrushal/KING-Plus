@@ -1,0 +1,105 @@
+name: Build KING Plus v9.6.5 Realtime Social Identity
+
+on:
+  push:
+    branches: ['work/reference-completion']
+    paths:
+      - '.github/workflows/apk-v965-realtime-social.yml'
+      - 'ci/v965/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: king-plus-v965-social-identity
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: work/reference-completion
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+      - name: Test canonical KING ID and Follow mapping
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/social-tests
+          javac -d /tmp/social-tests ci/v965/KingSocialIdentity965.java ci/v965/KingSocialIdentity965Test.java
+          java -cp /tmp/social-tests com.kingplus.social.KingSocialIdentity965Test
+      - name: Restore last successfully built Android v9.6.4 source
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/source-artifact /tmp/src
+          gh run download 37903811801 -n KING-Plus-v9.6.4-party-memory-social-ids-source -D /tmp/source-artifact
+          test -f /tmp/source-artifact/KING-Plus-v9.6.4-party-memory-social-ids-source.zip
+          unzip -q /tmp/source-artifact/KING-Plus-v9.6.4-party-memory-social-ids-source.zip -d /tmp/src
+      - name: Apply Follow/Profile realtime v9.6.5 patch
+        run: python3 ci/v965/patch_v965.py /tmp/src
+      - name: Validate repaired old/new identity and prior features
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          pkg=Path('/tmp/src/app/src/main/java/com/kingplus/social')
+          main=(pkg/'MainActivity.java').read_text()
+          pub=(pkg/'KingPublicProfileActivity.java').read_text()
+          social=(pkg/'SocialActivity.java').read_text()
+          party=(pkg/'PartyActivity.java').read_text()
+          gradle=Path('/tmp/src/app/build.gradle').read_text()
+          rules=Path('/tmp/src/firestore.rules').read_text()
+          assert "versionCode 156; versionName '9.6.5-realtime-social-identity'" in gradle
+          for s in (main,pub,social):
+            assert 'KingSocialIdentity965.publicId(uid)' in s
+          assert 'KingSocialIdentity965.followId(me.getUid(),uid)' in pub
+          assert 'KingSocialIdentity965.followId(a,b)' in social
+          assert 'migrateLegacyFollow965();' in pub
+          assert 'oldRef.delete()' in pub
+          assert 'startProfileFollowUpdates965(uid)' in main
+          assert 'stopProfileFollowUpdates965()' in main
+          assert 'drawPublicFollowCounts965()' in pub
+          assert 'removePublicFollowListeners965()' in pub
+          assert 'refreshSocialView965()' in social
+          assert 'addSnapshotListener' in pub and 'addSnapshotListener' in main
+          assert 'Same KING account' not in party
+          assert 'Both phones use the same KING account' in party
+          assert 'joinRoomByCode964' in party
+          assert 'roomImageExecutor964.shutdownNow()' in party
+          assert 'activeRoomForEmoji960' in party
+          assert 'KingLudoTurn962.canSkip(' in (pkg/'OnlineLudoActivity.java').read_text()
+          assert 'KingCrashWatch958' in main
+          assert 'match /follows/{followId}' in rules
+          print('PASS cross-phone ID, legacy follow migration, realtime counts and stability features')
+          PY
+      - name: Compile KING Plus APK
+        working-directory: /tmp/src
+        run: gradle :app:assembleDebug --no-daemon
+      - name: Package APK and source
+        run: |
+          set -euo pipefail
+          cp /tmp/src/app/build/outputs/apk/debug/app-debug.apk /tmp/KING-Plus-v9.6.5-realtime-social-identity.apk
+          cd /tmp/src
+          zip -qr /tmp/KING-Plus-v9.6.5-realtime-social-identity-source.zip .
+      - uses: actions/upload-artifact@v4
+        with:
+          name: KING-Plus-v9.6.5-realtime-social-identity-APK
+          path: /tmp/KING-Plus-v9.6.5-realtime-social-identity.apk
+          if-no-files-found: error
+          retention-days: 7
+      - uses: actions/upload-artifact@v4
+        with:
+          name: KING-Plus-v9.6.5-realtime-social-identity-source
+          path: /tmp/KING-Plus-v9.6.5-realtime-social-identity-source.zip
+          if-no-files-found: error
+          retention-days: 7
