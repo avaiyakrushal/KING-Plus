@@ -86,8 +86,8 @@ s=once(s,
  'Party gift unit cost is zero')
 
 s=once(s,
- 'return giftIcons[i]+"  "+giftNames[i]+"  •  x"+Math.max(1,giftQuantity)+"  •  💎"+compactNumber(total)+"\nTo: "+giftTargetName;',
- 'return giftIcons[i]+"  "+giftNames[i]+"  •  x"+Math.max(1,giftQuantity)+"  • FREE (no coins)"+"\nTo: "+giftTargetName;',
+ '+"  •  💎"+compactNumber(total)',
+ '+"  • FREE (no coins)"',
  'Gift selection shows FREE instead of fake currency')
 
 s=once(s,
