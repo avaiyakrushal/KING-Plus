@@ -1,0 +1,59 @@
+name: Deploy KING Plus verified Gift VIP Cloud Function
+on:
+  push:
+    branches: ['work/reference-completion']
+    paths:
+      - '.github/workflows/deploy-v972-verified-gifts.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  verify-and-deploy:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: work/reference-completion
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Verify safe VIP server thresholds and callable syntax
+        run: |
+          set -euo pipefail
+          node functions/king-vip-level.test.js
+          node --check functions/v3.js
+          node --check functions/index.js
+          grep -q "main.*v3.js" functions/package.json
+          grep -q 'const secureSendGift = onCall' functions/v3.js
+          grep -q 'vipPoints: verifiedVipPoints' functions/v3.js
+          grep -q 'requestIdHash:' functions/v3.js
+          grep -q 'sendGift: secureSendGift' functions/v3.js
+          echo "PASS: only Cloud Functions can award verified VIP points and debit wallet"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: functions/package-lock.json
+        continue-on-error: true
+      - name: Install supported Firebase Functions deploy tools
+        run: |
+          set -euo pipefail
+          npm install --global firebase-tools --no-audit --no-fund
+          npm install --prefix functions --no-audit --no-fund
+      - name: Prepare minimal temporary service account credentials
+        env:
+          FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_JSON }}
+        run: |
+          set -euo pipefail
+          test -n "$FIREBASE_SERVICE_ACCOUNT_JSON" || (echo "Missing Firebase service-account GitHub secret" && exit 1)
+          printf '%s' "$FIREBASE_SERVICE_ACCOUNT_JSON" > "$RUNNER_TEMP/firebase-service-account.json"
+          chmod 600 "$RUNNER_TEMP/firebase-service-account.json"
+          echo "GOOGLE_APPLICATION_CREDENTIALS=$RUNNER_TEMP/firebase-service-account.json" >> "$GITHUB_ENV"
+      - name: Deploy only secure verified Gift Cloud Function
+        run: |
+          set -euo pipefail
+          firebase deploy --project king-plus-2f365 --only functions:sendGift --non-interactive
+          echo 'FUNCTIONS_DEPLOY_SUCCESS=sendGift verified VIP wallet'
+      - name: Remove service account credentials
+        if: always()
+        run: rm -f "$RUNNER_TEMP/firebase-service-account.json"
