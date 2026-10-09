@@ -241,7 +241,7 @@ replace_once(
 
 start='    private void loadDiscover() {'
 end='    private void renderProfiles('
-a0=s.index(start))
+a0=s.index(start)
 s=s[:a0]+r'''    private void loadDiscover() {
         activeSocialScreen965="discover";
         if(!currentAccount970()){showLocalDemo();return;}
