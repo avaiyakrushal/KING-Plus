@@ -26,6 +26,7 @@ public final class KingCrashWatch958 {
     private static volatile boolean installed;
     private static String previousStage = "";
     private static long previousStageAt;
+    private static long previousHeapUsedMb;
 
     private KingCrashWatch958() {}
 
@@ -36,6 +37,7 @@ public final class KingCrashWatch958 {
             SharedPreferences p = application.getSharedPreferences(PREF, Context.MODE_PRIVATE);
             previousStage = p.getString("stage", "");
             previousStageAt = p.getLong("stageAt", 0);
+            previousHeapUsedMb = p.getLong("javaHeapUsedMb", 0);
         } catch (Throwable ignored) {}
 
         application.registerActivityLifecycleCallbacks(new Application.ActivityLifecycleCallbacks() {
@@ -108,8 +110,9 @@ public final class KingCrashWatch958 {
             String report = "Android process exit: " + label(reason)
                 + "\nLast screen: " + stage
                 + "\nExit time (ms): " + relevant.getTimestamp()
-                + "\nPeak PSS: " + relevant.getPss() + " KB"
-                + "\nPeak RSS: " + relevant.getRss() + " KB"
+                + "\nJava heap at last stage: " + previousHeapUsedMb + " MB"
+                + "\nLast sampled PSS: " + relevant.getPss() + " KB"
+                + "\nLast sampled RSS: " + relevant.getRss() + " KB"
                 + "\nBuild: 9.5.8";
             String desc = relevant.getDescription();
             if (desc != null && !desc.trim().isEmpty()) {
@@ -134,8 +137,8 @@ public final class KingCrashWatch958 {
     }
 
     private static boolean isAbnormal(int reason) {
-        return reason == ApplicationExitInfo.REASON_CRASH
-            || reason == ApplicationExitInfo.REASON_CRASH_NATIVE
+        // Java crashes are already handled by the existing previous-crash dialog.
+        return reason == ApplicationExitInfo.REASON_CRASH_NATIVE
             || reason == ApplicationExitInfo.REASON_ANR
             || reason == ApplicationExitInfo.REASON_LOW_MEMORY
             || reason == ApplicationExitInfo.REASON_EXCESSIVE_RESOURCE_USAGE
