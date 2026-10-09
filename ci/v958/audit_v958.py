@@ -59,3 +59,21 @@ for name in ['app/build.gradle','app/src/main/AndroidManifest.xml']:
   if re.search(r'jitsi|firebase|kotlin|heap|largeHeap|hardwareAccelerated|application|KingApplication|versionName|crashlytics|targetSdk|compileSdk|activity',line,re.I):
    print(f'{i+1}: {line[:220]}')
 print('=== END STATIC AUDIT; DEVICE RUNTIME CRASH NOT VERIFIED ===',flush=True)
+
+# Focused review of delayed tasks, crash handler and native/lifecycle ordering.
+for name,ranges in {
+ "KingApplication.java":[(1,36)],
+ "KingStability.java":[(1,46)],
+ "GamePlayActivity.java":[(104,151),(185,207)],
+ "RoomGameActivity.java":[(246,274)],
+ "PartyActivity.java":[(310,337),(255,275),(1330,1350),(3879,3959),(4035,4052)],
+ "MainActivity.java":[(205,231),(1415,1431),(1474,1524),(1673,1691)],
+ "KingMultiVideoActivity.java":[(165,183)]
+}.items():
+ p=pkg/name
+ if not p.exists():continue
+ rows=p.read_text(errors='replace').splitlines()
+ for start,end in ranges:
+  print('=== DEEP',name,start,end,'===')
+  for index in range(max(0,start-1),min(len(rows),end)):
+   print(f'{index+1}: {rows[index][:360]}')
