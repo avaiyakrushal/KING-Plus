@@ -1,0 +1,35 @@
+name: Inspect KING Plus v9.6.9 Social & Room IDs for v9.7.0
+on:
+  push:
+    branches: ['work/reference-completion']
+    paths:
+      - '.github/workflows/inspect-v970-social.yml'
+      - 'ci/v970/inspect_social_v970.py'
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  inspect:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: work/reference-completion
+      - name: Restore v9.6.9 tested Android source
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/a /tmp/src
+          gh run download 37947132564 -n KING-Plus-v9.6.9-party-memory-pressure-source -D /tmp/a
+          unzip -q /tmp/a/KING-Plus-v9.6.9-party-memory-pressure-source.zip -d /tmp/src
+      - name: Inspect follow/profile and room ID flows
+        run: |
+          python3 ci/v970/inspect_social_v970.py /tmp/src > /tmp/social-audit-v970.txt
+          head -c 125000 /tmp/social-audit-v970.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: KING-Plus-v970-social-source-audit
+          path: /tmp/social-audit-v970.txt
+          retention-days: 7
