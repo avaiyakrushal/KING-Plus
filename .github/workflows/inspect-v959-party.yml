@@ -33,4 +33,4 @@ jobs:
           retention-days: 7
       - name: Show Party source summary
         run: |
-          grep -E '^METHOD|^==================|^=== MANIFEST ===' /tmp/party-inspect.txt
+          head -c 60000 /tmp/party-inspect.txt
