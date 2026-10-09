@@ -25,3 +25,13 @@ r=Path('/tmp/src/firestore.rules').read_text(errors='replace').splitlines()
 for i,s in enumerate(r):
  if 'emoji' in s.lower() or 'reaction' in s.lower() or 'event' in s.lower() or 'members' in s.lower():
   print(f'{i+1}: {s[:460]}')
+
+print("=== EMOJI DEEP SOURCE ===")
+for lo,hi in [(1130,1158),(1198,1233),(1298,1336),(317,337)]:
+ print("===== PartyActivity",lo,hi)
+ for i in range(lo-1,hi):print(f'{i+1}: {party[i][:650]}')
+for fn in ['LiveEmojiView.java','ReferenceEmojiView.java']:
+ p=pkg/fn
+ print("===== FILE",fn)
+ for i,line in enumerate(p.read_text(errors='replace').splitlines()):
+  print(f'{i+1}: {line[:750]}')
