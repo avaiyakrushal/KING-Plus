@@ -1,0 +1,30 @@
+name: Inspect KING Plus v9.6.7 Party Mic and Seats
+on:
+  push:
+    branches: ['work/reference-completion']
+    paths:
+      - '.github/workflows/inspect-v968-mic-seat.yml'
+      - 'ci/v968/inspect_mic_seat_v968.py'
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  inspect:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: work/reference-completion
+      - name: Recover last successful 9.6.7 source
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/archive /tmp/src
+          gh run download 37944223717 -n KING-Plus-v9.6.7-live-room-presence-source -D /tmp/archive
+          unzip -q /tmp/archive/KING-Plus-v9.6.7-live-room-presence-source.zip -d /tmp/src
+      - name: Inspect Party voice and seat methods
+        run: |
+          python3 ci/v968/inspect_mic_seat_v968.py /tmp/src > /tmp/inspect968.txt
+          head -c 110000 /tmp/inspect968.txt
