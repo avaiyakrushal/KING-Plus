@@ -27,8 +27,8 @@ jobs:
           unzip -q /tmp/archive/KING-Plus-v9.7.0-realtime-social-room-id-source.zip -d /tmp/src
       - name: Audit actual code without private keys
         run: |
-          python3 ci/v971/focus_gift_family.py /tmp/src > /tmp/gifts-family-audit.txt
-          head -c 152000 /tmp/gifts-family-audit.txt
+          python3 ci/v971/exact_gift_lines.py /tmp/src > /tmp/gifts-family-audit.txt
+          head -c 128000 /tmp/gifts-family-audit.txt
       - uses: actions/upload-artifact@v4
         with:
           name: KING-Plus-v971-gift-vip-family-source-audit
