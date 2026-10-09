@@ -50,5 +50,14 @@ function applyGiftDebit(senderWallet,cost){
       ?levelFromVerifiedSpend(senderWallet.vipPoints):0
   });
 }
-module.exports={DIAMOND_PRODUCTS,purchaseAmount,applyVerifiedRecharge,applyGiftDebit,
+// Gift receivers earn non-redeemable recognition, not spendable diamonds.
+// This avoids peer-to-peer currency transfers, withdrawals, or cash-out.
+function applyGiftReception(receiverWallet,cost){
+  if(!isInt(cost,1,100000))throw new Error('Invalid gift cost');
+  const score=receiverWallet&&receiverWallet.giftScore!=null?receiverWallet.giftScore:0;
+  if(!isInt(score,0,WALLET_MAX_DIAMONDS)||score>WALLET_MAX_DIAMONDS-cost)
+    throw new Error('Recipient Gift score upper limit reached');
+  return Object.freeze({giftScore:score+cost});
+}
+module.exports={DIAMOND_PRODUCTS,purchaseAmount,applyVerifiedRecharge,applyGiftDebit,applyGiftReception,
   VIP_MAX_POINTS,WALLET_MAX_DIAMONDS};
