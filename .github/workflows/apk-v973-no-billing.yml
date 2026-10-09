@@ -1,0 +1,109 @@
+name: Build KING Plus v9.7.3 NO BILLING Free Gifts
+on:
+  push:
+    branches: ['work/reference-completion']
+    paths:
+      - '.github/workflows/apk-v973-no-billing.yml'
+      - 'ci/v973/**'
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: kingplus-v973-no-billing
+  cancel-in-progress: true
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: work/reference-completion
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+      - name: Test zero coins and bounded FREE gifts
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/test-free973
+          javac -d /tmp/test-free973 ci/v973/KingFreeGift973.java ci/v973/KingFreeGift973Test.java
+          java -cp /tmp/test-free973 com.kingplus.social.KingFreeGift973Test
+          python3 -m py_compile ci/v973/patch_no_billing_v973.py
+      - name: Restore successfully built KING Plus v9.7.2 source
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/src-archive /tmp/src
+          gh run download 37960320102 -n KING-Plus-v9.7.2-verified-vip-private-chat-gifts-source -D /tmp/src-archive
+          unzip -q /tmp/src-archive/KING-Plus-v9.7.2-verified-vip-private-chat-gifts-source.zip -d /tmp/src
+      - name: Make all regular Gift interactions FREE without paid Cloud Functions
+        run: python3 ci/v973/patch_no_billing_v973.py /tmp/src
+      - name: Verify NO BILLING / features regression
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          root=Path('/tmp/src')
+          pkg=root/'app/src/main/java/com/kingplus/social'
+          party=(pkg/'PartyActivity.java').read_text()
+          chat=(pkg/'ChatActivity.java').read_text()
+          vip=(pkg/'KingVipVisualActivity.java').read_text()
+          gradle=(root/'app/build.gradle').read_text()
+          assert "versionCode 164; versionName '9.7.3-no-billing-free-gifts'" in gradle
+          assert 'KingFreeGift973.allowed(' in party
+          assert 'addGiftEvent(targetUid,targetName,gift,icon,0,quantity,KingFreeGift973.giftValue())' in party
+          assert 'event971.put("freeGift",true)' in party
+          assert 'event971.put("giftValue",0)' in party
+          assert 'event971.put("giftUnitCost",0)' in party
+          assert 'FREE • No billing' in party and 'FREE • No billing' in chat
+          assert 'KingFreeGift973.validDirect(' in chat
+          assert 'gift973.put("giftValue",0)' in chat
+          assert 'gift973.put("type","text")' in chat
+          assert 'Paid VIP is paused' in vip
+          # These two primary gift actions must be independent of Cloud Functions.
+          start=party.index('private void sendGiftQuantity(')
+          end=party.index('private void addGiftEvent(',start)
+          roomGift=party[start:end]
+          start=chat.index('private boolean sendDirectGift620(')
+          end=chat.index('private void syncDirectProgress700(',start)
+          directGift=chat[start:end]
+          for method in (roomGift,directGift):
+            assert 'CloudBackend.sendGift(' not in method
+            assert 'LevelSystem.gift(' not in method
+            assert 'wallet_operations' not in method
+          assert 'KingGiftSafety971' in party
+          assert 'sendLiveEmojiV530(' in party
+          assert 'KingPartyMic968.canToggle(' in party
+          assert 'KingSocialRealtime970.activeAccount(' in (pkg/'SocialActivity.java').read_text()
+          assert 'KingPartyMemory969.overEffectLimit(' in party
+          assert 'KingRoomPresence967.isActive(' in party
+          assert 'KingPartyJoin966.current(' in party
+          assert 'KingLudoTurn962.canSkip(' in (pkg/'OnlineLudoActivity.java').read_text()
+          print('PASS: No paid API call, zero coin Gift events, Spark-friendly existing Firestore rules, prior features intact')
+          PY
+      - name: Compile No Billing Android APK
+        working-directory: /tmp/src
+        run: gradle :app:assembleDebug --no-daemon
+      - name: Package free APK and source
+        run: |
+          set -euo pipefail
+          cp /tmp/src/app/build/outputs/apk/debug/app-debug.apk /tmp/KING-Plus-v9.7.3-no-billing-free-gifts.apk
+          cd /tmp/src
+          zip -qr /tmp/KING-Plus-v9.7.3-no-billing-free-gifts-source.zip .
+      - uses: actions/upload-artifact@v4
+        with:
+          name: KING-Plus-v9.7.3-no-billing-free-gifts-APK
+          path: /tmp/KING-Plus-v9.7.3-no-billing-free-gifts.apk
+          if-no-files-found: error
+          retention-days: 7
+      - uses: actions/upload-artifact@v4
+        with:
+          name: KING-Plus-v9.7.3-no-billing-free-gifts-source
+          path: /tmp/KING-Plus-v9.7.3-no-billing-free-gifts-source.zip
+          if-no-files-found: error
+          retention-days: 7
