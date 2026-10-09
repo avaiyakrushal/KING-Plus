@@ -1,0 +1,101 @@
+name: Build KING Plus v9.6.4 Party Memory and Real IDs
+
+on:
+  push:
+    branches: ['work/reference-completion']
+    paths:
+      - '.github/workflows/apk-v964-party-social-stability.yml'
+      - 'ci/v964/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: kingplus-v964-party-social
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: work/reference-completion
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+      - name: Test real UID versus numeric alias
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/identity-test
+          javac -d /tmp/identity-test ci/v964/KingIdentity964.java ci/v964/KingIdentity964Test.java
+          java -cp /tmp/identity-test com.kingplus.social.KingIdentity964Test
+      - name: Restore successful v9.6.3 source
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/outer /tmp/src
+          gh run download 37874422705 -n KING-Plus-v9.6.3-online-ludo-modes-source -D /tmp/outer
+          test -f /tmp/outer/KING-Plus-v9.6.3-online-ludo-modes-source.zip
+          unzip -q /tmp/outer/KING-Plus-v9.6.3-online-ludo-modes-source.zip -d /tmp/src
+      - name: Apply Party memory and social ID fixes
+        run: python3 ci/v964/patch_v964.py /tmp/src
+      - name: Verify stability and cross-phone consistency
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          root=Path('/tmp/src')
+          pkg=root/'app/src/main/java/com/kingplus/social'
+          party=(pkg/'PartyActivity.java').read_text()
+          social=(pkg/'SocialActivity.java').read_text()
+          public=(pkg/'KingPublicProfileActivity.java').read_text()
+          main=(pkg/'MainActivity.java').read_text()
+          gradle=(root/'app/build.gradle').read_text()
+          assert "versionCode 155; versionName '9.6.4-party-memory-social-ids'" in gradle
+          assert 'new android.util.LruCache<String,Bitmap>(6*1024*1024)' in party
+          assert 'options.inPreferredConfig=Bitmap.Config.RGB_565' in party
+          assert 'roomImageExecutor964.shutdownNow()' in party
+          assert 'joinRoomByCode964(String code964)' in party
+          assert 'whereEqualTo("joinCode",code964).limit(10).get()' in party
+          assert 'openRoomDoc891(live964.get(index))' in party
+          assert 'showJoiningRoom964()' in party
+          assert 'db.collection("public_profiles").whereEqualTo("publicId",raw).limit(15).get()' in social
+          assert 'db.collection("public_profiles").document(raw).get()' in social
+          assert 'String uid=d.getId()' in social
+          assert 'My verified account UID:' in social
+          assert 'Verified Firebase UID: ' in public
+          assert 'roomVoiceOptedIn957' in party
+          assert 'activeRoomForEmoji960' in party
+          assert 'KingLudoTurn962.canSkip(' in (pkg/'OnlineLudoActivity.java').read_text()
+          assert 'KingCrashWatch958' in main
+          assert 'function roomAccess(roomId)' in (root/'firestore.rules').read_text()
+          print('PASS ID consistency, code-join, image cache, Firestore and retained features')
+          PY
+      - name: Compile debug APK
+        working-directory: /tmp/src
+        run: gradle :app:assembleDebug --no-daemon
+      - name: Package APK and Android source
+        run: |
+          set -euo pipefail
+          cp /tmp/src/app/build/outputs/apk/debug/app-debug.apk /tmp/KING-Plus-v9.6.4-party-memory-social-ids.apk
+          cd /tmp/src
+          zip -qr /tmp/KING-Plus-v9.6.4-party-memory-social-ids-source.zip .
+      - uses: actions/upload-artifact@v4
+        with:
+          name: KING-Plus-v9.6.4-party-memory-social-ids-APK
+          path: /tmp/KING-Plus-v9.6.4-party-memory-social-ids.apk
+          if-no-files-found: error
+          retention-days: 7
+      - uses: actions/upload-artifact@v4
+        with:
+          name: KING-Plus-v9.6.4-party-memory-social-ids-source
+          path: /tmp/KING-Plus-v9.6.4-party-memory-social-ids-source.zip
+          if-no-files-found: error
+          retention-days: 7
