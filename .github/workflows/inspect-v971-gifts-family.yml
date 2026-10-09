@@ -4,7 +4,7 @@ on:
     branches: ['work/reference-completion']
     paths:
       - '.github/workflows/inspect-v971-gifts-family.yml'
-      - 'ci/v971/inspect_gifts_vip_family_chat.py'
+      - 'ci/v971/**'
   workflow_dispatch:
 permissions:
   contents: read
@@ -27,8 +27,8 @@ jobs:
           unzip -q /tmp/archive/KING-Plus-v9.7.0-realtime-social-room-id-source.zip -d /tmp/src
       - name: Audit actual code without private keys
         run: |
-          python3 ci/v971/inspect_gifts_vip_family_chat.py /tmp/src > /tmp/gifts-family-audit.txt
-          head -c 122000 /tmp/gifts-family-audit.txt
+          python3 ci/v971/focus_gift_family.py /tmp/src > /tmp/gifts-family-audit.txt
+          head -c 152000 /tmp/gifts-family-audit.txt
       - uses: actions/upload-artifact@v4
         with:
           name: KING-Plus-v971-gift-vip-family-source-audit
