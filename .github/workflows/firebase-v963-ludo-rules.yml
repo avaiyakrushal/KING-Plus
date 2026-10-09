@@ -1,0 +1,59 @@
+name: Deploy KING Plus Ludo v9.6.2 Firebase Rules
+
+on:
+  push:
+    branches: ['work/reference-completion']
+    paths:
+      - '.github/workflows/firebase-v963-ludo-rules.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: kingplus-live-firestore-rules
+  cancel-in-progress: false
+
+jobs:
+  deploy-ludo-rules:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: work/reference-completion
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Confirm project and security checks
+        run: |
+          set -euo pipefail
+          grep -F '"default": "king-plus-2f365"' .firebaserc
+          grep -F "match /ludo_matches/{matchCode}" firestore.rules
+          grep -F "duration.value(60,'s')" firestore.rules
+          grep -F 'request.resource.data.revision == resource.data.revision + 1' firestore.rules
+          grep -F "request.resource.data.action != 'start'" firestore.rules
+          grep -F 'match /live_rooms/{roomId}' firestore.rules
+          grep -F 'match /test_wallet_snapshots/{uid}' firestore.rules
+          echo "Rule source preflight PASS; deploy only existing Firestore rules."
+      - name: Verify configured Google service account
+        env:
+          FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_JSON }}
+        run: |
+          set -euo pipefail
+          if [ -z "$FIREBASE_SERVICE_ACCOUNT_JSON" ]; then
+            echo "BLOCKED: secret FIREBASE_SERVICE_ACCOUNT_JSON not configured"
+            exit 1
+          fi
+          printf '%s' "$FIREBASE_SERVICE_ACCOUNT_JSON" | jq -e '.type=="service_account" and .project_id=="king-plus-2f365"' >/dev/null
+          printf '%s' "$FIREBASE_SERVICE_ACCOUNT_JSON" > "$RUNNER_TEMP/kingplus-service-account.json"
+          chmod 600 "$RUNNER_TEMP/kingplus-service-account.json"
+          echo "GOOGLE_APPLICATION_CREDENTIALS=$RUNNER_TEMP/kingplus-service-account.json" >> "$GITHUB_ENV"
+      - name: Install Firebase rules deployment CLI
+        run: npm install --global firebase-tools
+      - name: Validate rules before deployment
+        run: firebase deploy --project king-plus-2f365 --only firestore:rules --non-interactive --dry-run
+      - name: Deploy Firestore rules for Ludo
+        run: firebase deploy --project king-plus-2f365 --only firestore:rules --non-interactive
+      - name: Delete temporary credentials
+        if: always()
+        run: rm -f "$RUNNER_TEMP/kingplus-service-account.json"
