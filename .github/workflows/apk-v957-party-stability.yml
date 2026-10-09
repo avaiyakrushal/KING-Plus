@@ -1,0 +1,77 @@
+name: Build KING Plus v9.5.7 Party Crash Isolation
+on:
+  push:
+    branches: ['work/reference-completion']
+    paths:
+      - '.github/workflows/apk-v957-party-stability.yml'
+      - 'ci/v957/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: king-plus-v957-party-crash-isolation
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: work/reference-completion
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+      - name: Recover built v9.5.6 source
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/base /tmp/src
+          if ! gh run download 37864276464 -n KING-Plus-v9.5.6-family-live-fix-source -D /tmp/base; then
+            gh api repos/${GITHUB_REPOSITORY}/actions/artifacts/11587109660/zip > /tmp/base/artifact.zip
+            unzip -q /tmp/base/artifact.zip -d /tmp/base
+          fi
+          test -f /tmp/base/KING-Plus-v9.5.6-family-live-fix-source.zip
+          unzip -q /tmp/base/KING-Plus-v9.5.6-family-live-fix-source.zip -d /tmp/src
+      - name: Apply Party native crash-isolation patch
+        run: python3 ci/v957/patch_v957.py /tmp/src
+      - name: Check diagnostic gates
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('/tmp/src/app/src/main/java/com/kingplus/social/PartyActivity.java').read_text()
+          g=Path('/tmp/src/app/build.gradle').read_text()
+          assert 'if(roomVoiceOptedIn957)attachInRoomVoice940(shell);' in p
+          assert 'if(micOn){roomVoiceOptedIn957=true;' in p
+          assert "versionCode 148; versionName '9.5.7-party-voice-isolation'" in g
+          print('Voice isolation diagnostic checks passed.')
+          PY
+      - name: Compile diagnostic APK
+        working-directory: /tmp/src
+        run: gradle :app:assembleDebug --no-daemon
+      - name: Package diagnostic APK and source
+        run: |
+          set -euo pipefail
+          cp /tmp/src/app/build/outputs/apk/debug/app-debug.apk /tmp/KING-Plus-v9.5.7-party-crash-isolation.apk
+          cd /tmp/src
+          zip -qr /tmp/KING-Plus-v9.5.7-party-crash-isolation-source.zip .
+      - uses: actions/upload-artifact@v4
+        with:
+          name: KING-Plus-v9.5.7-party-crash-isolation-APK
+          path: /tmp/KING-Plus-v9.5.7-party-crash-isolation.apk
+          if-no-files-found: error
+          retention-days: 7
+      - uses: actions/upload-artifact@v4
+        with:
+          name: KING-Plus-v9.5.7-party-crash-isolation-source
+          path: /tmp/KING-Plus-v9.5.7-party-crash-isolation-source.zip
+          if-no-files-found: error
+          retention-days: 7
