@@ -1,0 +1,116 @@
+name: Build KING Plus v9.7.0 Realtime Social and Room IDs
+
+on:
+  push:
+    branches: ['work/reference-completion']
+    paths:
+      - '.github/workflows/apk-v970-social-room-ids.yml'
+      - 'ci/v970/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: kingplus-v970-social-room-ids
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: work/reference-completion
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+      - name: Test cross-phone follower sets, ID callbacks, and account changes
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/social970
+          javac -d /tmp/social970 ci/v970/KingSocialRealtime970.java ci/v970/KingSocialRealtime970Test.java
+          java -cp /tmp/social970 com.kingplus.social.KingSocialRealtime970Test
+          python3 -m py_compile ci/v970/patch_v970.py
+      - name: Restore successfully compiled v9.6.9 Android source
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/archive /tmp/src
+          gh run download 37947132564 -n KING-Plus-v9.6.9-party-memory-pressure-source -D /tmp/archive
+          test -f /tmp/archive/KING-Plus-v9.6.9-party-memory-pressure-source.zip
+          unzip -q /tmp/archive/KING-Plus-v9.6.9-party-memory-pressure-source.zip -d /tmp/src
+      - name: Apply v9.7.0 realtime Follow, cloud profile and room ID fixes
+        run: python3 ci/v970/patch_v970.py /tmp/src
+      - name: Check Firestore authorization, async guards, existing feature regression
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          root=Path('/tmp/src')
+          pkg=root/'app/src/main/java/com/kingplus/social'
+          s=(pkg/'SocialActivity.java').read_text()
+          p=(pkg/'PartyActivity.java').read_text()
+          m=(pkg/'MainActivity.java').read_text()
+          rules=(root/'firestore.rules').read_text()
+          gradle=(root/'app/build.gradle').read_text()
+          assert "versionCode 161; versionName '9.7.0-realtime-social-room-id'" in gradle
+          assert 'startLiveRelations970()' in s
+          assert 'stopLiveRelations970()' in s
+          assert 'renderLiveRelations970()' in s
+          assert 'whereEqualTo("followerUid",owner970)' in s
+          assert 'whereEqualTo("targetUid",owner970)' in s
+          assert 'KingSocialRealtime970.friends(following970,followers970)' in s
+          assert 'currentSearch970(generation970,raw)' in s
+          assert 'isCurrentView(' in s
+          assert 'db.runTransaction(tx970->' in s
+          assert 'pendingFollows970.add(uid)' in s
+          assert 'socialPhotoWorker970.shutdownNow()' in s
+          assert 'inJustDecodeBounds=true' in s
+          assert 'socialPhotoCache970' in s
+          assert 'profile970.set(patch970,com.google.firebase.firestore.SetOptions.merge())' in s
+          assert 'if(!existing970.exists())' in s
+          assert 'db.collection("follows").whereEqualTo("followerUid",me.getUid()).get()' not in s
+          assert 'db.collection("follows").whereEqualTo("targetUid",me.getUid()).get()' not in s
+          assert 'new Thread(()->' not in s
+          assert 'String joinCode=shortId(ref.getId());' in p
+          assert 'legacy.put("joinCode",joinCode)' in p
+          assert 'd.getReference().update("joinCode",shortId(d.getId()))' in p
+          assert 'joinRoomByCode964(String code964)' in p
+          assert 'KingPartyMic968.canToggle(' in p
+          assert 'KingPartyMemory969.overEffectLimit(' in p
+          assert 'KingRoomPresence967.isActive(' in p
+          assert 'KingPartyJoin966.current(' in p
+          assert 'KingSocialIdentity965.publicId(uid)' in m
+          assert 'KingLudoTurn962.canSkip(' in (pkg/'OnlineLudoActivity.java').read_text()
+          assert 'match /follows/{followId}' in rules
+          assert 'match /public_profiles/{uid}' in rules
+          assert 'match /live_rooms/{roomId}' in rules
+          print('PASS: realtime social, stale result guards, profile persistence, Room code, prior features')
+          PY
+      - name: Compile KING Plus debug APK
+        working-directory: /tmp/src
+        run: gradle :app:assembleDebug --no-daemon
+      - name: Package APK and complete patched Android source
+        run: |
+          set -euo pipefail
+          cp /tmp/src/app/build/outputs/apk/debug/app-debug.apk /tmp/KING-Plus-v9.7.0-realtime-social-room-id.apk
+          cd /tmp/src
+          zip -qr /tmp/KING-Plus-v9.7.0-realtime-social-room-id-source.zip .
+      - uses: actions/upload-artifact@v4
+        with:
+          name: KING-Plus-v9.7.0-realtime-social-room-id-APK
+          path: /tmp/KING-Plus-v9.7.0-realtime-social-room-id.apk
+          if-no-files-found: error
+          retention-days: 7
+      - uses: actions/upload-artifact@v4
+        with:
+          name: KING-Plus-v9.7.0-realtime-social-room-id-source
+          path: /tmp/KING-Plus-v9.7.0-realtime-social-room-id-source.zip
+          if-no-files-found: error
+          retention-days: 7
