@@ -1,0 +1,108 @@
+name: Build KING Plus v9.6.7 Stable Party Presence
+
+on:
+  push:
+    branches: ['work/reference-completion']
+    paths:
+      - '.github/workflows/apk-v967-live-room-presence.yml'
+      - 'ci/v967/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: kingplus-v967-live-room-presence
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: work/reference-completion
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+      - name: Test per-phone Party presence and safe leave
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/presence-tests
+          javac -d /tmp/presence-tests ci/v967/KingRoomPresence967.java ci/v967/KingRoomPresence967Test.java
+          java -cp /tmp/presence-tests com.kingplus.social.KingRoomPresence967Test
+      - name: Restore successfully compiled v9.6.6 Android source
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/download /tmp/src
+          gh run download 37942312714 -n KING-Plus-v9.6.6-party-join-null-crash-fix-source -D /tmp/download
+          test -f /tmp/download/KING-Plus-v9.6.6-party-join-null-crash-fix-source.zip
+          unzip -q /tmp/download/KING-Plus-v9.6.6-party-join-null-crash-fix-source.zip -d /tmp/src
+      - name: Patch multi-phone Party presence, heartbeat and cleanup
+        run: python3 ci/v967/patch_v967.py /tmp/src
+      - name: Assert no stale presence operations or cross-room callbacks
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          root=Path('/tmp/src')
+          pkg=root/'app/src/main/java/com/kingplus/social'
+          p=(pkg/'PartyActivity.java').read_text()
+          g=(root/'app/build.gradle').read_text()
+          rules=(root/'firestore.rules').read_text()
+          assert "versionCode 158; versionName '9.6.7-live-room-presence'" in g
+          assert 'KingRoomPresence967.isActive(' in p
+          assert 'KingRoomPresence967.canRemove(' in p
+          assert 'KingRoomPresence967.isStale(' in p
+          assert 'java.util.UUID.randomUUID().toString()' in p
+          assert 'd.put("sessionId",presenceSession967)' in p
+          assert 'm.put("sessionId",presenceSession967)' in p
+          assert '++presenceGeneration967; // Existing callback requests belong to the old room.' in p
+          assert '@Override protected void onDestroy(){++roomJoinGeneration966;++presenceGeneration967;' in p
+          assert 'db.runTransaction(tx->' in p
+          assert 'final DocumentReference leavingMember967' in p
+          assert 'String base=str(m,"name","User"),uid=m.getId();' in p
+          assert 'final String memberRoom967=room.getId();' in p
+          assert 'get(com.google.firebase.firestore.Source.SERVER)' in p
+          assert 'expectedRoomRef967.collection("seats")' in p
+          assert 'if(removedSeats967>0)seatBatch967.commit()' in p
+          assert 'if(removed967>0)removedMembers967.commit()' in p
+          assert 'isActivePresence967(requestedRoom967,requestedUid967,requestedGeneration967)' in p
+          assert 'getPackageManager().getPackageInfo(getPackageName(),0).versionName' in p
+          assert 'KingPartyJoin966.current(' in p
+          assert 'joinRoomByCode964(String code964)' in p
+          assert 'roomImageExecutor964.shutdownNow()' in p
+          assert 'KingSocialIdentity965' in (pkg/'SocialActivity.java').read_text()
+          assert 'KingCrashWatch958' in (pkg/'MainActivity.java').read_text()
+          assert 'KingLudoTurn962.canSkip(' in (pkg/'OnlineLudoActivity.java').read_text()
+          assert 'match /live_rooms/{roomId}' in rules
+          print('PASS member-presence, session cleanup, server reads, authoritative UID and all prior features')
+          PY
+      - name: Compile KING Plus Android debug APK
+        working-directory: /tmp/src
+        run: gradle :app:assembleDebug --no-daemon
+      - name: Package tested APK and patched source
+        run: |
+          set -euo pipefail
+          cp /tmp/src/app/build/outputs/apk/debug/app-debug.apk /tmp/KING-Plus-v9.6.7-live-room-presence.apk
+          cd /tmp/src
+          zip -qr /tmp/KING-Plus-v9.6.7-live-room-presence-source.zip .
+      - uses: actions/upload-artifact@v4
+        with:
+          name: KING-Plus-v9.6.7-live-room-presence-APK
+          path: /tmp/KING-Plus-v9.6.7-live-room-presence.apk
+          if-no-files-found: error
+          retention-days: 7
+      - uses: actions/upload-artifact@v4
+        with:
+          name: KING-Plus-v9.6.7-live-room-presence-source
+          path: /tmp/KING-Plus-v9.6.7-live-room-presence-source.zip
+          if-no-files-found: error
+          retention-days: 7
