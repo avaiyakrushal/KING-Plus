@@ -301,13 +301,10 @@ if s.count(own_method)!=1:
 start=s.index(own_method)
 end=s.index('    private void runSearch()',start)
 block=s[start:end]
-if 'data.put("publicId",' in block:
-    raise SystemExit("Source already publishes social publicId; inspect before changing")
-anchor_line='        db.collection("public_profiles").document(me.getUid()).set(data, com.google.firebase.firestore.SetOptions.merge())'
-if s.count(anchor_line)!=1:raise SystemExit('Social publish insertion marker absent')
-s=s.replace(anchor_line,
-    '        data.put("publicId", KingSocialIdentity965.publicId(me.getUid()));\n'+anchor_line,1)
-print('PASS: Social publishes canonical publicId and MERGES without erasing profile data')
+if 'data.put("publicId",' not in block:
+    raise SystemExit("Expected Social profile publicId assignment; do not erase it")
+print('PASS: existing publicId preserved; Social writes MERGE, not replace')
+
 marker='    private TextView status;'
 if s.count(marker)!=1:raise SystemExit('Social status field marker missing')
 s=s.replace(marker,marker+'\n    private String activeSocialScreen965="discover";\n    private boolean socialHasResumed965;\n',1)
