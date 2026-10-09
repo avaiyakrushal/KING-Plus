@@ -1,7 +1,7 @@
 const base = require('./index');
 const crypto = require('crypto');
 const {levelFromVerifiedSpend} = require('./king-vip-level');
-const {DIAMOND_PRODUCTS, purchaseAmount, applyVerifiedRecharge, applyGiftDebit, WALLET_MAX_DIAMONDS} = require('./recharge-policy');
+const {DIAMOND_PRODUCTS, purchaseAmount, applyVerifiedRecharge, applyGiftDebit, applyGiftReception, WALLET_MAX_DIAMONDS} = require('./recharge-policy');
 const { onCall, HttpsError } = require('firebase-functions/v2/https');
 const { onDocumentCreated } = require('firebase-functions/v2/firestore');
 const { getFirestore, FieldValue } = require('firebase-admin/firestore');
@@ -97,19 +97,15 @@ const secureSendGift = onCall(async request => {
     const receiverSnap = await tx.get(receiverRef);
     const currentSender = senderSnap.exists ? senderSnap.data() : {};
     const senderAfter = applyGiftDebit(currentSender, cost);
-    const receiverCoins = receiverSnap.exists ? Number(receiverSnap.get('coins') || 0) : 0;
-    if (!Number.isSafeInteger(receiverCoins) || receiverCoins < 0 ||
-        receiverCoins > WALLET_MAX_DIAMONDS - cost)
-      throw new HttpsError('failed-precondition', 'Recipient wallet limit exceeded.');
-
+    const recipientAfter = applyGiftReception(receiverSnap.exists ? receiverSnap.data() : {}, cost);
     senderBalance = senderAfter.coins;
     // The sender's VIP is NOT incremented when sending Gifts.
     // VIP increases only after a verified Google Play Diamond recharge.
     tx.set(senderRef, { coins: senderBalance, updatedAt: FieldValue.serverTimestamp() }, { merge: true });
-    tx.set(receiverRef, { coins: receiverCoins + cost, updatedAt: FieldValue.serverTimestamp() }, { merge: true });
+    tx.set(receiverRef, { giftScore: recipientAfter.giftScore, updatedAt: FieldValue.serverTimestamp() }, { merge: true });
     tx.set(ledgerRef, {
       type: 'gift', senderUid, targetUid, giftName, cost,
-      vipPointsEarned: 0, requestIdHash: hash(requestId),
+      vipPointsEarned: 0, nonRedeemable: true, requestIdHash: hash(requestId),
       createdAt: FieldValue.serverTimestamp()
     });
     tx.set(operationRef, {
