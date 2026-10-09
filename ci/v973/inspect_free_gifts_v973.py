@@ -9,7 +9,7 @@ targets={
 "CommunityHubActivity.java":["    private void","    @Override","collection(\"families\")","collection(\"members\")"],
 }
 for fn, needles in targets.items():
- f=p/f
+ f=p/fn
  if not f.exists(): print("NO FILE",fn);continue
  s=f.read_text(errors='replace');lines=s.splitlines()
  print("==",fn,"size",len(s),"lines",len(lines))
