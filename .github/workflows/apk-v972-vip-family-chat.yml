@@ -1,0 +1,114 @@
+name: Build KING Plus v9.7.2 VIP Family and Real Chat
+
+on:
+  push:
+    branches: ['work/reference-completion']
+    paths:
+      - '.github/workflows/apk-v972-vip-family-chat.yml'
+      - 'ci/v972/KingFamilyChat972.java'
+      - 'ci/v972/KingFamilyChat972Test.java'
+      - 'ci/v972/patch_vip_family_chat_v972.py'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: kingplus-v972-vip-family-chat
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: work/reference-completion
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+      - name: Test verified chat IDs, family messages and server direct gifts
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/king972
+          javac -d /tmp/king972 ci/v972/KingFamilyChat972.java ci/v972/KingFamilyChat972Test.java
+          java -cp /tmp/king972 com.kingplus.social.KingFamilyChat972Test
+          python3 -m py_compile ci/v972/patch_vip_family_chat_v972.py
+      - name: Restore successfully built v9.7.1 secure gifts and emoji Android source
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/a /tmp/src
+          gh run download 37951725170 -n KING-Plus-v9.7.1-secure-live-gifts-emoji-source -D /tmp/a
+          test -f /tmp/a/KING-Plus-v9.7.1-secure-live-gifts-emoji-source.zip
+          unzip -q /tmp/a/KING-Plus-v9.7.1-secure-live-gifts-emoji-source.zip -d /tmp/src
+      - name: Patch VIP verification, real Chat Gifts, family realtime and authentic IDs
+        run: python3 ci/v972/patch_vip_family_chat_v972.py /tmp/src
+      - name: Reject fake gifts and regressions
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          root=Path('/tmp/src')
+          p=root/'app/src/main/java/com/kingplus/social'
+          chat=(p/'ChatActivity.java').read_text()
+          family=(p/'CommunityHubActivity.java').read_text()
+          vip=(p/'KingVipVisualActivity.java').read_text()
+          inbox=(p/'InboxActivity.java').read_text()
+          party=(p/'PartyActivity.java').read_text()
+          g=(root/'app/build.gradle').read_text()
+          assert "versionCode 163; versionName '9.7.2-vip-family-realtime-chat'" in g
+          assert 'KingFamilyChat972.validDirectGift(' in chat
+          assert 'CloudBackend.sendGift(recipientUid972,' in chat
+          assert 'if(!ok)' in chat
+          assert 'TEST preview only • no real Gift or VIP progress' in chat
+          assert 'pendingDirectGift972' in chat
+          assert 'familyMembers972=r.collection("members").addSnapshotListener(' in family
+          assert 'familySending972[0]=true;' in family
+          assert 'KingFamilyChat972.validMessage(' in family
+          assert 'familyMembers972.remove();' in family
+          assert 'KingIdentity964.sixDigits(value972)' in inbox
+          assert 'KingIdentity964.firebaseUid(value972)' in inbox
+          assert 'openVerifiedChat972(' in inbox
+          assert 'KingFamilyChat972.validPeer(' in inbox
+          assert 'verifiedVipPoints972' in vip
+          assert 'document(requestedUid972)' in vip
+          assert 'LevelSystem.vipFor(vipProgress972)' in vip
+          assert 'LOCAL VIP PREVIEW ONLY' in vip
+          assert 'VERIFIED VIP' in vip
+          assert 'vipWalletListener972.remove();' in vip
+          assert 'KingGiftSafety971.validCloudGift(' in party
+          assert 'KingGiftSafety971.validLiveEmoji(' in party
+          assert 'KingPartyMemory969.overEffectLimit(' in party
+          assert 'KingPartyMic968.canToggle(' in party
+          assert 'KingRoomPresence967.isActive(' in party
+          assert 'KingSocialRealtime970.activeAccount(' in (p/'SocialActivity.java').read_text()
+          assert 'KingLudoTurn962.canSkip(' in (p/'OnlineLudoActivity.java').read_text()
+          print('PASS verified family/chat recipient, realtime family, VIP wallet, secure gifts and earlier features')
+          PY
+      - name: Compile Android debug APK
+        working-directory: /tmp/src
+        run: gradle :app:assembleDebug --no-daemon
+      - name: Package APK and patched Android source
+        run: |
+          set -euo pipefail
+          cp /tmp/src/app/build/outputs/apk/debug/app-debug.apk /tmp/KING-Plus-v9.7.2-vip-family-realtime-chat.apk
+          cd /tmp/src
+          zip -qr /tmp/KING-Plus-v9.7.2-vip-family-realtime-chat-source.zip .
+      - uses: actions/upload-artifact@v4
+        with:
+          name: KING-Plus-v9.7.2-vip-family-realtime-chat-APK
+          path: /tmp/KING-Plus-v9.7.2-vip-family-realtime-chat.apk
+          if-no-files-found: error
+          retention-days: 7
+      - uses: actions/upload-artifact@v4
+        with:
+          name: KING-Plus-v9.7.2-vip-family-realtime-chat-source
+          path: /tmp/KING-Plus-v9.7.2-vip-family-realtime-chat-source.zip
+          if-no-files-found: error
+          retention-days: 7
