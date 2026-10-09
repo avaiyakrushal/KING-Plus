@@ -1,0 +1,36 @@
+name: Inspect KING Plus v9.6.1 Multiplayer Games
+on:
+  push:
+    branches: ['work/reference-completion']
+    paths:
+      - '.github/workflows/inspect-v962-games.yml'
+      - 'ci/v962/inspect_games_v962.py'
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  inspect:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: work/reference-completion
+      - name: Restore successful v9.6.1 source
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/download /tmp/src
+          gh run download 37871959900 -n KING-Plus-v9.6.1-native-crash-attribution-source -D /tmp/download
+          unzip -q /tmp/download/KING-Plus-v9.6.1-native-crash-attribution-source.zip -d /tmp/src
+      - name: Inspect original multiplayer code
+        run: python3 ci/v962/inspect_games_v962.py /tmp/src > /tmp/game-audit.txt
+      - name: Print concise game audit
+        run: |
+          sed -n '1,630p' /tmp/game-audit.txt | cut -c 1-700
+      - uses: actions/upload-artifact@v4
+        with:
+          name: KING-Plus-v9.6.1-game-audit
+          path: /tmp/game-audit.txt
+          retention-days: 7
