@@ -1,0 +1,37 @@
+name: Audit KING Plus Whole App v9.5.7
+on:
+  push:
+    branches: ['work/reference-completion']
+    paths:
+      - '.github/workflows/audit-v958-whole-app.yml'
+      - 'ci/v958/audit_v958.py'
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  audit:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: work/reference-completion
+      - name: Restore compiled v9.5.7 app sources
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/source /tmp/src
+          if ! gh run download 37866616727 -n KING-Plus-v9.5.7-party-crash-isolation-source -D /tmp/source; then
+            gh api repos/${GITHUB_REPOSITORY}/actions/artifacts/11588363300/zip > /tmp/source/artifact.zip
+            unzip -q /tmp/source/artifact.zip -d /tmp/source
+          fi
+          test -f /tmp/source/KING-Plus-v9.5.7-party-crash-isolation-source.zip
+          unzip -q /tmp/source/KING-Plus-v9.5.7-party-crash-isolation-source.zip -d /tmp/src
+      - name: Whole app crash risk audit
+        run: python3 ci/v958/audit_v958.py | tee /tmp/whole-app-crash-audit.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: KING-Plus-v9.5.7-whole-app-crash-audit
+          path: /tmp/whole-app-crash-audit.txt
+          retention-days: 7
