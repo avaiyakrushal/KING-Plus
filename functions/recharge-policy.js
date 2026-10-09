@@ -37,7 +37,7 @@ function applyVerifiedRecharge(wallet,productId){
   });
 }
 function applyGiftDebit(senderWallet,cost){
-  if(!isInt(cost,1,100000))throw new Error('Invalid gift cost');
+  if(!isInt(cost,1,1000000))throw new Error('Invalid gift cost');
   const balance=senderWallet&&senderWallet.coins!=null?senderWallet.coins:0;
   if(!isInt(balance,0,WALLET_MAX_DIAMONDS)||balance<cost)
     throw new Error('Insufficient verified Diamond balance');
@@ -53,7 +53,7 @@ function applyGiftDebit(senderWallet,cost){
 // Gift receivers earn non-redeemable recognition, not spendable diamonds.
 // This avoids peer-to-peer currency transfers, withdrawals, or cash-out.
 function applyGiftReception(receiverWallet,cost){
-  if(!isInt(cost,1,100000))throw new Error('Invalid gift cost');
+  if(!isInt(cost,1,1000000))throw new Error('Invalid gift cost');
   const score=receiverWallet&&receiverWallet.giftScore!=null?receiverWallet.giftScore:0;
   if(!isInt(score,0,WALLET_MAX_DIAMONDS)||score>WALLET_MAX_DIAMONDS-cost)
     throw new Error('Recipient Gift score upper limit reached');
