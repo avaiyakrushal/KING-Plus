@@ -5,7 +5,7 @@ on:
     branches: ['work/reference-completion']
     paths:
       - '.github/workflows/inspect-v964-social-party.yml'
-      - 'ci/v964/inspect_v964.py'
+      - 'ci/v964/**'
   workflow_dispatch:
 
 permissions:
@@ -30,7 +30,11 @@ jobs:
       - name: Inspect user ID, follow and party memory
         run: python3 ci/v964/inspect_v964.py /tmp/src > /tmp/v964-findings.txt
       - name: Show first section
-        run: head -c 65000 /tmp/v964-findings.txt
+        run: python3 ci/v964/inspect_focus_v964.py /tmp/src > /tmp/v964-focus.txt
+          echo '=== FOCUS START ==='
+          head -c 45000 /tmp/v964-focus.txt
+          echo '=== FOCUS END ==='
+          tail -c 65000 /tmp/v964-focus.txt
       - uses: actions/upload-artifact@v4
         with:
           name: KING-Plus-v964-party-social-audit
