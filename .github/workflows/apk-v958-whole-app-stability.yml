@@ -1,0 +1,103 @@
+name: Build KING Plus v9.5.8 Whole App Stability
+on:
+  push:
+    branches: ['work/reference-completion']
+    paths:
+      - '.github/workflows/apk-v958-whole-app-stability.yml'
+      - 'ci/v958/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: king-plus-v958-whole-app-stability
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: work/reference-completion
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+      - name: Restore v9.5.7 tested-source baseline
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/archive /tmp/src
+          if ! gh run download 37866616727 -n KING-Plus-v9.5.7-party-crash-isolation-source -D /tmp/archive; then
+            gh api repos/${GITHUB_REPOSITORY}/actions/artifacts/11588363300/zip > /tmp/archive/artifact.zip
+            unzip -q /tmp/archive/artifact.zip -d /tmp/archive
+          fi
+          test -f /tmp/archive/KING-Plus-v9.5.7-party-crash-isolation-source.zip
+          unzip -q /tmp/archive/KING-Plus-v9.5.7-party-crash-isolation-source.zip -d /tmp/src
+      - name: Apply whole-app crash diagnostics and Jitsi lifecycle guards
+        run: python3 ci/v958/patch_v958.py /tmp/src
+      - name: Verify all application stability patches
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('/tmp/src/app/src/main/java/com/kingplus/social')
+          gradle=Path('/tmp/src/app/build.gradle').read_text()
+          app=(p/'KingApplication.java').read_text()
+          main=(p/'MainActivity.java').read_text()
+          party=(p/'PartyActivity.java').read_text()
+          watch=(p/'KingCrashWatch958.java').read_text()
+          video=(p/'KingMultiVideoActivity.java').read_text()
+          assert "versionCode 149; versionName '9.5.8-whole-app-stability'" in gradle
+          assert 'KingCrashWatch958.install(this)' in app
+          assert 'KingCrashWatch958.showPreviousExit(this)' in main
+          assert '        installCrashReport();' not in main
+          assert 'KingCrashWatch958.mark(this,"party-jitsi-init")' in party
+          assert 'if(inRoomVoiceJoined940)try{org.jitsi.meet.sdk.JitsiMeetActivityDelegate.onHostResume(this);}' in party
+          assert 'if(inRoomVoiceJoined940)try{org.jitsi.meet.sdk.JitsiMeetActivityDelegate.onHostPause(this);}' in party
+          assert 'KingCrashWatch958.mark(this,"video-jitsi-init")' in video
+          assert 'getHistoricalProcessExitReasons' in watch
+          assert 'REASON_CRASH_NATIVE' in watch and 'REASON_LOW_MEMORY' in watch and 'REASON_ANR' in watch
+          assert '.putString("device", Build.MANUFACTURER + " " + Build.MODEL + " / Android " + Build.VERSION.RELEASE)\n                    .commit();' in app
+          print('Whole-app code safety gates PASS')
+          PY
+      - name: Compile new diagnostic APK
+        working-directory: /tmp/src
+        run: gradle :app:assembleDebug --no-daemon
+      - name: Full app static risk audit
+        run: |
+          set -euo pipefail
+          python3 ci/v958/audit_v958.py > /tmp/KING-Plus-v9.5.8-crash-audit.txt
+          grep -F '=== END STATIC AUDIT; DEVICE RUNTIME CRASH NOT VERIFIED ===' /tmp/KING-Plus-v9.5.8-crash-audit.txt
+          grep -E '^JAVA_FILES|^MANIFEST_ACTIVITIES|^FILE (PartyActivity|MainActivity|KingMultiVideoActivity)' /tmp/KING-Plus-v9.5.8-crash-audit.txt
+      - name: Package APK, source and crash audit
+        run: |
+          set -euo pipefail
+          cp /tmp/src/app/build/outputs/apk/debug/app-debug.apk /tmp/KING-Plus-v9.5.8-whole-app-stability.apk
+          cd /tmp/src
+          zip -qr /tmp/KING-Plus-v9.5.8-whole-app-stability-source.zip .
+      - uses: actions/upload-artifact@v4
+        with:
+          name: KING-Plus-v9.5.8-whole-app-stability-APK
+          path: /tmp/KING-Plus-v9.5.8-whole-app-stability.apk
+          if-no-files-found: error
+          retention-days: 7
+      - uses: actions/upload-artifact@v4
+        with:
+          name: KING-Plus-v9.5.8-whole-app-stability-source
+          path: /tmp/KING-Plus-v9.5.8-whole-app-stability-source.zip
+          if-no-files-found: error
+          retention-days: 7
+      - uses: actions/upload-artifact@v4
+        with:
+          name: KING-Plus-v9.5.8-whole-app-crash-audit
+          path: /tmp/KING-Plus-v9.5.8-crash-audit.txt
+          if-no-files-found: error
+          retention-days: 7
