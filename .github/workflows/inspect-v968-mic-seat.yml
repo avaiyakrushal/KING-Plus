@@ -27,4 +27,4 @@ jobs:
       - name: Inspect Party voice and seat methods
         run: |
           python3 ci/v968/inspect_mic_seat_v968.py /tmp/src > /tmp/inspect968.txt
-          head -c 110000 /tmp/inspect968.txt
+          tail -c 64000 /tmp/inspect968.txt
