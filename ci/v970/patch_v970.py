@@ -240,7 +240,8 @@ replace_once(
  'guard name search failures')
 
 start='    private void loadDiscover() {'
-end='    private void renderProfiles(',a0=s.index(start))
+end='    private void renderProfiles('
+a0=s.index(start))
 s=s[:a0]+r'''    private void loadDiscover() {
         activeSocialScreen965="discover";
         if(!currentAccount970()){showLocalDemo();return;}
