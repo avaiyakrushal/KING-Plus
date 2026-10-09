@@ -1,0 +1,36 @@
+name: Inspect KING Plus v9.5.9 Live Emoji
+on:
+  push:
+    branches: ['work/reference-completion']
+    paths:
+      - '.github/workflows/inspect-v960-live-emoji.yml'
+      - 'ci/v960/inspect_emoji_v960.py'
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  inspect:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: work/reference-completion
+      - name: Restore v9.5.9 built source
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/base /tmp/src
+          gh run download 37869325218 -n KING-Plus-v9.5.9-party-invite-links-source -D /tmp/base
+          unzip -q /tmp/base/KING-Plus-v9.5.9-party-invite-links-source.zip -d /tmp/src
+      - name: Inspect Live Emoji code, assets and rules
+        run: |
+          set -euo pipefail
+          python3 ci/v960/inspect_emoji_v960.py > /tmp/emoji-audit-v960.txt
+          head -c 44000 /tmp/emoji-audit-v960.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: KING-Plus-v9.5.9-emoji-audit
+          path: /tmp/emoji-audit-v960.txt
+          retention-days: 7
