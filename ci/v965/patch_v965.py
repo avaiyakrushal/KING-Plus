@@ -288,6 +288,26 @@ print('PASS Public Profile realtime follows + legacy follow migration + lifecycl
 # Social cards should refresh after a follow or unfollow and upon returning from another profile.
 social=pkg/'SocialActivity.java'
 s=social.read_text()
+# Source audit: Social's own-profile publish used set(data), which deletes existing
+# publicId/photo/level fields. Keep the canonical profile, and provide ID search.
+old_publish='db.collection("public_profiles").document(me.getUid()).set(data)'
+if s.count(old_publish)!=1:
+    raise SystemExit("Expected one destructive Social public-profile publish; found "+str(s.count(old_publish)))
+s=s.replace(old_publish,
+    'db.collection("public_profiles").document(me.getUid()).set(data, com.google.firebase.firestore.SetOptions.merge())',1)
+own_method='    private void publishOwnProfile()'
+if s.count(own_method)!=1:
+    raise SystemExit("Social profile publish method not found")
+start=s.index(own_method)
+end=s.index('    private void runSearch()',start)
+block=s[start:end]
+if 'data.put("publicId",' in block:
+    raise SystemExit("Source already publishes social publicId; inspect before changing")
+anchor_line='        db.collection("public_profiles").document(me.getUid()).set(data, com.google.firebase.firestore.SetOptions.merge())'
+if s.count(anchor_line)!=1:raise SystemExit('Social publish insertion marker absent')
+s=s.replace(anchor_line,
+    '        data.put("publicId", KingSocialIdentity965.publicId(me.getUid()));\n'+anchor_line,1)
+print('PASS: Social publishes canonical publicId and MERGES without erasing profile data')
 marker='    private TextView status;'
 if s.count(marker)!=1:raise SystemExit('Social status field marker missing')
 s=s.replace(marker,marker+'\n    private String activeSocialScreen965="discover";\n    private boolean socialHasResumed965;\n',1)
