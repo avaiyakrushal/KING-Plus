@@ -4,7 +4,7 @@ on:
     branches: ['work/reference-completion']
     paths:
       - '.github/workflows/inspect-v970-social.yml'
-      - 'ci/v970/inspect_social_v970.py'
+      - 'ci/v970/**'
   workflow_dispatch:
 permissions:
   contents: read
@@ -26,8 +26,8 @@ jobs:
           unzip -q /tmp/a/KING-Plus-v9.6.9-party-memory-pressure-source.zip -d /tmp/src
       - name: Inspect follow/profile and room ID flows
         run: |
-          python3 ci/v970/inspect_social_v970.py /tmp/src > /tmp/social-audit-v970.txt
-          head -c 125000 /tmp/social-audit-v970.txt
+          python3 ci/v970/dump_social_v970.py /tmp/src > /tmp/social-audit-v970.txt
+          head -c 122000 /tmp/social-audit-v970.txt
       - uses: actions/upload-artifact@v4
         with:
           name: KING-Plus-v970-social-source-audit
