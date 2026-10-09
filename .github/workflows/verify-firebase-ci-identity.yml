@@ -1,0 +1,37 @@
+name: Identify Firebase CI Service Account
+
+on:
+  push:
+    branches: ['work/reference-completion']
+    paths:
+      - '.github/workflows/verify-firebase-ci-identity.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  identify:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Print account identity only (not credential)
+        env:
+          FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_JSON }}
+        run: |
+          set -euo pipefail
+          if [[ -z "$FIREBASE_SERVICE_ACCOUNT_JSON" ]]; then
+            echo "ERROR: Firebase service account secret is missing"
+            exit 1
+          fi
+          account=$(printf '%s' "$FIREBASE_SERVICE_ACCOUNT_JSON" | jq -er '.client_email')
+          project=$(printf '%s' "$FIREBASE_SERVICE_ACCOUNT_JSON" | jq -er '.project_id')
+          [[ "$project" == 'king-plus-2f365' ]]
+          echo "FIREBASE_PROJECT=$project"
+          echo "FIREBASE_CI_ACCOUNT=$account"
+          if [[ "$account" == 'firebase-adminsdk-fbsvc@king-plus-2f365.iam.gserviceaccount.com' ]]; then
+            echo "MATCHES_SCREENSHOT_FIREBASE_ADMINSDK_ACCOUNT=yes"
+          else
+            echo "MATCHES_SCREENSHOT_FIREBASE_ADMINSDK_ACCOUNT=no"
+          fi
+          echo "No private key or secret has been printed."
