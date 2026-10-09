@@ -1,0 +1,97 @@
+name: Build KING Plus v9.7.1 Secure Gifts and Live Emoji
+
+on:
+  push:
+    branches: ['work/reference-completion']
+    paths:
+      - '.github/workflows/apk-v971-live-gifts-emoji.yml'
+      - 'ci/v971/**'
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: kingplus-v971-gifts-emoji
+  cancel-in-progress: true
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: work/reference-completion
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+      - name: Validate server-backed gifting boundaries and live emoji
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/tests971
+          javac -d /tmp/tests971 ci/v971/KingGiftSafety971.java ci/v971/KingGiftSafety971Test.java
+          java -cp /tmp/tests971 com.kingplus.social.KingGiftSafety971Test
+          python3 -m py_compile ci/v971/patch_gifts_v971.py
+      - name: Restore last green Android v9.7.0 source
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/archive /tmp/src
+          gh run download 37949379736 -n KING-Plus-v9.7.0-realtime-social-room-id-source -D /tmp/archive
+          unzip -q /tmp/archive/KING-Plus-v9.7.0-realtime-social-room-id-source.zip -d /tmp/src
+      - name: Apply secure gifts and live emoji patch
+        run: python3 ci/v971/patch_gifts_v971.py /tmp/src
+      - name: Assert no fake cloud gifts, no VIP points on TEST coins
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          root=Path('/tmp/src')
+          pkg=root/'app/src/main/java/com/kingplus/social'
+          p=(pkg/'PartyActivity.java').read_text()
+          b=(pkg/'CloudBackend.java').read_text()
+          g=(root/'app/build.gradle').read_text()
+          assert "versionCode 162; versionName '9.7.1-secure-live-gifts-emoji'" in g
+          assert 'KingGiftSafety971.validCloudGift(' in p
+          assert 'KingGiftSafety971.validLiveEmoji(' in p
+          assert 'if(giftSendPending971)' in p
+          assert 'if(!ok)' in p and 'Gift NOT sent' in p
+          assert 'TEST animation only • no real gift or VIP points awarded' in p
+          assert 'if(!cloudRoom)' in p
+          assert 'awardGiftProgress700(totalCost)' in p
+          assert 'if(!isActivePresence967(giftRoom971,sender971,expectedPresence971))' in p
+          assert 'batch971.commit().addOnFailureListener' in p
+          assert 'lastLiveEmojiSend971' in p
+          assert 'giftFxActive971<3' in p
+          assert 'str(d,"giftIcon",giftIconFor(gift))' in p
+          assert 'Boolean.FALSE.equals(((Map<?,?>)payload).get("ok"))' in b
+          assert 'KingPartyMemory969.overEffectLimit(' in p
+          assert 'KingPartyMic968.canToggle(' in p
+          assert 'KingRoomPresence967.isActive(' in p
+          assert 'KingSocialRealtime970.activeAccount(' in (pkg/'SocialActivity.java').read_text()
+          assert 'KingLudoTurn962.canSkip(' in (pkg/'OnlineLudoActivity.java').read_text()
+          print('PASS Gift fail-closed, no fake VIP, Emoji sync, bounded effects and previous features')
+          PY
+      - name: Compile KING Plus debug APK
+        working-directory: /tmp/src
+        run: gradle :app:assembleDebug --no-daemon
+      - name: Package tested APK and complete source
+        run: |
+          set -euo pipefail
+          cp /tmp/src/app/build/outputs/apk/debug/app-debug.apk /tmp/KING-Plus-v9.7.1-secure-live-gifts-emoji.apk
+          cd /tmp/src
+          zip -qr /tmp/KING-Plus-v9.7.1-secure-live-gifts-emoji-source.zip .
+      - uses: actions/upload-artifact@v4
+        with:
+          name: KING-Plus-v9.7.1-secure-live-gifts-emoji-APK
+          path: /tmp/KING-Plus-v9.7.1-secure-live-gifts-emoji.apk
+          if-no-files-found: error
+          retention-days: 7
+      - uses: actions/upload-artifact@v4
+        with:
+          name: KING-Plus-v9.7.1-secure-live-gifts-emoji-source
+          path: /tmp/KING-Plus-v9.7.1-secure-live-gifts-emoji-source.zip
+          if-no-files-found: error
+          retention-days: 7
