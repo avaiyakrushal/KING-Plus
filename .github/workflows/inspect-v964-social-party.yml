@@ -30,7 +30,8 @@ jobs:
       - name: Inspect user ID, follow and party memory
         run: python3 ci/v964/inspect_v964.py /tmp/src > /tmp/v964-findings.txt
       - name: Show first section
-        run: python3 ci/v964/inspect_focus_v964.py /tmp/src > /tmp/v964-focus.txt
+        run: |
+          python3 ci/v964/inspect_focus_v964.py /tmp/src > /tmp/v964-focus.txt
           echo '=== FOCUS START ==='
           head -c 45000 /tmp/v964-focus.txt
           echo '=== FOCUS END ==='
