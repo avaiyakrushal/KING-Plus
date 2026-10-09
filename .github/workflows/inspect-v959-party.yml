@@ -1,0 +1,36 @@
+name: Inspect KING Plus v9.5.8 Party invite flow
+on:
+  push:
+    branches: ['work/reference-completion']
+    paths:
+      - '.github/workflows/inspect-v959-party.yml'
+      - 'ci/v959/inspect_v959.py'
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  inspect:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: work/reference-completion
+      - name: Recover v9.5.8 source
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/from /tmp/src
+          gh run download 37867792188 -n KING-Plus-v9.5.8-whole-app-stability-source -D /tmp/from
+          unzip -q /tmp/from/KING-Plus-v9.5.8-whole-app-stability-source.zip -d /tmp/src
+      - name: Inspect Party and Home code
+        run: python3 ci/v959/inspect_v959.py /tmp/src > /tmp/party-inspect.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: KING-Plus-v9.5.8-party-invite-inspect
+          path: /tmp/party-inspect.txt
+          retention-days: 7
+      - name: Show Party source summary
+        run: |
+          grep -E '^METHOD|^==================|^=== MANIFEST ===' /tmp/party-inspect.txt
