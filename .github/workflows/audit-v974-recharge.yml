@@ -1,0 +1,54 @@
+name: KING Plus v9.7.4 Diamond Recharge Backend and Android Audit
+on:
+  push:
+    branches: ['work/reference-completion']
+    paths:
+      - '.github/workflows/audit-v974-recharge.yml'
+      - 'ci/v974/inspect_recharge_android.py'
+      - 'functions/recharge-policy.js'
+      - 'functions/recharge-policy.test.js'
+      - 'functions/v3.js'
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  test-and-inspect:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: work/reference-completion
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Test verified Diamond Recharge and VIP calculation
+        run: |
+          set -euo pipefail
+          node --check functions/v3.js
+          node functions/king-vip-level.test.js
+          node functions/recharge-policy.test.js
+          python3 - <<'PY'
+          from pathlib import Path
+          s=Path('functions/v3.js').read_text()
+          assert 'const next = applyVerifiedRecharge(' in s
+          assert "vipPointsEarned: 0" in s
+          assert 'purchase.obfuscatedExternalAccountId !== expectedAccount' in s
+          assert "const coins = purchaseAmount(productId);" in s
+          assert 'tx.set(receiptRef' in s and 'tx.set(walletRef' in s
+          assert "tx.set(ledgerRef" in s
+          assert 'tx.set(senderRef, { coins: senderBalance, updatedAt:' in s
+          print("PASS recharge verification, UID binding, one receipt per purchase token, Gift does not award VIP")
+          PY
+      - name: Restore latest successful KING Plus v9.7.3 source for client audit
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/apk-archive /tmp/android
+          gh run download 37963787509 -n KING-Plus-v9.7.3-no-billing-free-gifts-source -D /tmp/apk-archive
+          unzip -q /tmp/apk-archive/KING-Plus-v9.7.3-no-billing-free-gifts-source.zip -d /tmp/android
+      - name: Audit Android recharge UI and wallet hooks
+        run: |
+          python3 ci/v974/inspect_recharge_android.py /tmp/android > /tmp/recharge-v974-audit.txt
+          head -c 130000 /tmp/recharge-v974-audit.txt
