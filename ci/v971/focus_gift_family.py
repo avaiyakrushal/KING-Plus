@@ -41,7 +41,7 @@ targets={
 'KingVipVisualActivity.java':['private void render(','private void','public void onCreate('],
 'LevelSystem.java':['public static Snapshot gift(', 'public static Snapshot read(', 'private static','public static long vipThreshold('],
 'CloudBackend.java':['static void sendGift(', 'void sendGift(', 'sendGift(', 'class CloudBackend'],
-'CommunityHubActivity.java':['private void family(', 'private void familyChat(', 'private void familyJoinCreate(', 'private void createFamily(', 'private void joinFamily(', 'private void showFamily(', 'private void sendFamilyMessage(', 'private void familyMembers(', 'private void familyLuckyBag940(', 'private void leaveFamily(',
+'CommunityHubActivity.java':['private void family(', 'private void familyChat(', 'private void familyJoinCreate(', 'private void createFamily(', 'private void joinFamily(', 'private void showFamily(', 'private void sendFamilyMessage(', 'private void familyMembers(', 'private void familyLuckyBag940(', 'private void leaveFamily('],
 'MainActivity.java':['private void family(', 'private void showFamily(', 'private void openFamily(', 'Family', 'KingVipVisualActivity'],
 'InboxActivity.java':['private void newChatDialog(', 'private void openChat('],
 }
