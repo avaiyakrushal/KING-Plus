@@ -1,0 +1,108 @@
+name: Build KING Plus v9.6.6 Party Join Crash Fix
+
+on:
+  push:
+    branches: ['work/reference-completion']
+    paths:
+      - '.github/workflows/apk-v966-party-join-crash.yml'
+      - 'ci/v966/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: kingplus-v966-party-join-crash
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: work/reference-completion
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+      - name: Test Firebase join session gates
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/join966
+          javac -d /tmp/join966 ci/v966/KingPartyJoin966.java ci/v966/KingPartyJoin966Test.java
+          java -cp /tmp/join966 com.kingplus.social.KingPartyJoin966Test
+      - name: Recover last successful Android v9.6.5 source
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/archive /tmp/src
+          gh run download 37940447647 -n KING-Plus-v9.6.5-realtime-social-identity-source -D /tmp/archive
+          test -f /tmp/archive/KING-Plus-v9.6.5-realtime-social-identity-source.zip
+          unzip -q /tmp/archive/KING-Plus-v9.6.5-realtime-social-identity-source.zip -d /tmp/src
+      - name: Apply precise Party NullPointerException fix
+        run: python3 ci/v966/patch_v966.py /tmp/src
+      - name: Regress exact reported stacktrace path and retained functionality
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          root=Path('/tmp/src')
+          pkg=root/'app/src/main/java/com/kingplus/social'
+          p=(pkg/'PartyActivity.java').read_text()
+          m=(pkg/'MainActivity.java').read_text()
+          social=(pkg/'SocialActivity.java').read_text()
+          g=(root/'app/build.gradle').read_text()
+          assert "versionCode 157; versionName '9.6.6-party-join-null-crash-fix'" in g
+          assert 'KingPartyJoin966.current(' in p
+          assert 'final String requestedRoom966=roomId;' in p
+          assert 'final String requestedUid966=user.getUid();' in p
+          assert 'final int requestToken966=++roomJoinGeneration966;' in p
+          assert 'final DocumentReference requestedRoomRef966=db.collection("live_rooms").document(requestedRoom966);' in p
+          assert '++roomJoinGeneration966; // Invalidate all pending Firebase room-join callbacks.' in p
+          assert '@Override protected void onDestroy(){++roomJoinGeneration966;' in p
+          assert 'retryMinimalMember921(ref,error,requestedRoom966,requestedUid966,requestToken966)' in p
+          start=p.index('    private void checkCrowdCapacity930(DocumentReference expectedRoom966,')
+          end=p.index('    private Map<String,Object> minimalMember921()',start)
+          scope=p[start:end]
+          assert '.document(roomId)' not in scope
+          assert 'expectedRoom966.get()' in scope
+          assert 'expectedRoom966.collection("members").get()' in scope
+          assert scope.count('isCurrentPartyJoin966(')>=5
+          assert 'addOnFailureListener(error->join.run())' not in scope
+          assert 'renderLobby("Hot")' in p
+          assert 'joinRoomByCode964(String code964)' in p
+          assert 'roomImageExecutor964.shutdownNow()' in p
+          assert 'activeRoomForEmoji960' in p
+          assert 'KingSocialIdentity965.publicId(uid)' in m
+          assert 'refreshSocialView965()' in social
+          assert 'KingCrashWatch958' in m
+          assert 'KingLudoTurn962.canSkip(' in (pkg/'OnlineLudoActivity.java').read_text()
+          print('PASS: stale/null-room async callbacks cannot call document(null), earlier Social/Party/Ludo retained')
+          PY
+      - name: Compile debug Android APK
+        working-directory: /tmp/src
+        run: gradle :app:assembleDebug --no-daemon
+      - name: Bundle APK and complete patched source
+        run: |
+          set -euo pipefail
+          cp /tmp/src/app/build/outputs/apk/debug/app-debug.apk /tmp/KING-Plus-v9.6.6-party-join-null-crash-fix.apk
+          cd /tmp/src
+          zip -qr /tmp/KING-Plus-v9.6.6-party-join-null-crash-fix-source.zip .
+      - uses: actions/upload-artifact@v4
+        with:
+          name: KING-Plus-v9.6.6-party-join-null-crash-fix-APK
+          path: /tmp/KING-Plus-v9.6.6-party-join-null-crash-fix.apk
+          if-no-files-found: error
+          retention-days: 7
+      - uses: actions/upload-artifact@v4
+        with:
+          name: KING-Plus-v9.6.6-party-join-null-crash-fix-source
+          path: /tmp/KING-Plus-v9.6.6-party-join-null-crash-fix-source.zip
+          if-no-files-found: error
+          retention-days: 7
