@@ -28,7 +28,7 @@ jobs:
         run: |
           set -euo pipefail
           python3 ci/v960/inspect_emoji_v960.py > /tmp/emoji-audit-v960.txt
-          head -c 44000 /tmp/emoji-audit-v960.txt
+          tail -c 30000 /tmp/emoji-audit-v960.txt
       - uses: actions/upload-artifact@v4
         with:
           name: KING-Plus-v9.5.9-emoji-audit
