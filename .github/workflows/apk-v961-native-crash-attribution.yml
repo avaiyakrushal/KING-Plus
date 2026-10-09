@@ -1,0 +1,95 @@
+name: Build KING Plus v9.6.1 Native Crash Attribution
+
+on:
+  push:
+    branches: ['work/reference-completion']
+    paths:
+      - '.github/workflows/apk-v961-native-crash-attribution.yml'
+      - 'ci/v961/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: king-plus-v961-native-crash
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: work/reference-completion
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+      - name: Restore successful v9.6.0 source
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/base /tmp/src
+          if ! gh run download 37870928793 -n KING-Plus-v9.6.0-live-emoji-stability-source -D /tmp/base; then
+            gh api repos/${GITHUB_REPOSITORY}/actions/artifacts/11590841115/zip > /tmp/base/source-artifact.zip
+            unzip -q /tmp/base/source-artifact.zip -d /tmp/base
+          fi
+          test -f /tmp/base/KING-Plus-v9.6.0-live-emoji-stability-source.zip
+          unzip -q /tmp/base/KING-Plus-v9.6.0-live-emoji-stability-source.zip -d /tmp/src
+      - name: Apply current-version-only native crash watcher
+        run: python3 ci/v961/patch_v961.py /tmp/src
+      - name: Check crash-report logic and features retained
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          root=Path('/tmp/src')
+          pkg=root/'app/src/main/java/com/kingplus/social'
+          watcher=(pkg/'KingCrashWatch958.java').read_text()
+          app=(pkg/'KingApplication.java').read_text()
+          main=(pkg/'MainActivity.java').read_text()
+          party=(pkg/'PartyActivity.java').read_text()
+          gradle=(root/'app/build.gradle').read_text()
+          assert "versionCode 152; versionName '9.6.1-native-crash-attribution'" in gradle
+          assert 'item.getTimestamp() < oldest' in watcher
+          assert 'long oldest = Math.max(installedAt,' in watcher
+          assert 'pkg.lastUpdateTime' in watcher
+          assert 'pkg.versionName' in watcher
+          assert 'previousPid == relevant.getPid()' in watcher
+          assert 'isAbnormal(item.getReason())' in watcher
+          assert 'item.getTimestamp() <= alreadySeen' in watcher
+          assert 'Copy details' in watcher
+          assert 'Build: 9.5.8' not in watcher
+          assert 'KingCrashWatch958.install(this)' in app
+          assert 'KingCrashWatch958.showPreviousExit(this)' in main
+          assert 'roomVoiceOptedIn957' in party
+          assert 'activeRoomForEmoji960' in party
+          assert 'joinRoomLinkDialog959' in party
+          print('PASS: native crash attribution fixes, Party links, Voice and Emoji preserved')
+          PY
+      - name: Compile v9.6.1 APK
+        working-directory: /tmp/src
+        run: gradle :app:assembleDebug --no-daemon
+      - name: Package APK and source
+        run: |
+          set -euo pipefail
+          cp /tmp/src/app/build/outputs/apk/debug/app-debug.apk /tmp/KING-Plus-v9.6.1-native-crash-attribution.apk
+          cd /tmp/src
+          zip -qr /tmp/KING-Plus-v9.6.1-native-crash-attribution-source.zip .
+      - uses: actions/upload-artifact@v4
+        with:
+          name: KING-Plus-v9.6.1-native-crash-attribution-APK
+          path: /tmp/KING-Plus-v9.6.1-native-crash-attribution.apk
+          if-no-files-found: error
+          retention-days: 7
+      - uses: actions/upload-artifact@v4
+        with:
+          name: KING-Plus-v9.6.1-native-crash-attribution-source
+          path: /tmp/KING-Plus-v9.6.1-native-crash-attribution-source.zip
+          if-no-files-found: error
+          retention-days: 7
