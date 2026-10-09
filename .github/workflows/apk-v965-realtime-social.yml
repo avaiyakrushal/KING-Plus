@@ -71,6 +71,8 @@ jobs:
           assert 'drawPublicFollowCounts965()' in pub
           assert 'removePublicFollowListeners965()' in pub
           assert 'refreshSocialView965()' in social
+          assert 'data.put("publicId", KingSocialIdentity965.publicId(me.getUid()));' in social
+          assert 'db.collection("public_profiles").document(me.getUid()).set(data, com.google.firebase.firestore.SetOptions.merge())' in social
           assert 'addSnapshotListener' in pub and 'addSnapshotListener' in main
           assert 'Same KING account' not in party
           assert 'Both phones use the same KING account' in party
