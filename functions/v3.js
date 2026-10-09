@@ -1,6 +1,7 @@
 const base = require('./index');
 const crypto = require('crypto');
 const {levelFromVerifiedSpend} = require('./king-vip-level');
+const {DIAMOND_PRODUCTS, purchaseAmount, applyVerifiedRecharge, applyGiftDebit, WALLET_MAX_DIAMONDS} = require('./recharge-policy');
 const { onCall, HttpsError } = require('firebase-functions/v2/https');
 const { onDocumentCreated } = require('firebase-functions/v2/firestore');
 const { getFirestore, FieldValue } = require('firebase-admin/firestore');
@@ -9,11 +10,8 @@ const { google } = require('googleapis');
 
 const db = getFirestore();
 const PACKAGE_NAME = 'com.kingplus.social';
-const PRODUCT_COINS = Object.freeze({
-  king_coins_100: 100,
-  king_coins_600: 600,
-  king_coins_1300: 1300,
-});
+// Google Play Console must register these exact consumable one-time product IDs.
+const PRODUCT_COINS = DIAMOND_PRODUCTS;
 
 function requireAuth(request) {
   if (!request.auth) throw new HttpsError('unauthenticated', 'Sign in required.');
@@ -97,21 +95,21 @@ const secureSendGift = onCall(async request => {
 
     const senderSnap = await tx.get(senderRef);
     const receiverSnap = await tx.get(receiverRef);
-    const senderCoins = senderSnap.exists ? Number(senderSnap.get('coins') || 0) : 0;
+    const currentSender = senderSnap.exists ? senderSnap.data() : {};
+    const senderAfter = applyGiftDebit(currentSender, cost);
     const receiverCoins = receiverSnap.exists ? Number(receiverSnap.get('coins') || 0) : 0;
-    if (senderCoins < cost) throw new HttpsError('failed-precondition', 'Not enough server coins.');
+    if (!Number.isSafeInteger(receiverCoins) || receiverCoins < 0 ||
+        receiverCoins > WALLET_MAX_DIAMONDS - cost)
+      throw new HttpsError('failed-precondition', 'Recipient wallet limit exceeded.');
 
-    senderBalance = senderCoins - cost;
-    const rawVip = senderSnap.exists ? Number(senderSnap.get('vipPoints') || 0) : 0;
-    const priorVip = Number.isSafeInteger(rawVip) && rawVip >= 0 ? rawVip : 0;
-    const verifiedVipPoints = Math.min(1000000000, priorVip + cost);
-    const verifiedVipLevel = levelFromVerifiedSpend(verifiedVipPoints);
-    tx.set(senderRef, { coins: senderBalance, vipPoints: verifiedVipPoints,
-      vipLevel: verifiedVipLevel, updatedAt: FieldValue.serverTimestamp() }, { merge: true });
+    senderBalance = senderAfter.coins;
+    // The sender's VIP is NOT incremented when sending Gifts.
+    // VIP increases only after a verified Google Play Diamond recharge.
+    tx.set(senderRef, { coins: senderBalance, updatedAt: FieldValue.serverTimestamp() }, { merge: true });
     tx.set(receiverRef, { coins: receiverCoins + cost, updatedAt: FieldValue.serverTimestamp() }, { merge: true });
     tx.set(ledgerRef, {
       type: 'gift', senderUid, targetUid, giftName, cost,
-      vipPointsEarned: cost, requestIdHash: hash(requestId),
+      vipPointsEarned: 0, requestIdHash: hash(requestId),
       createdAt: FieldValue.serverTimestamp()
     });
     tx.set(operationRef, {
@@ -143,7 +141,7 @@ const verifyPlayPurchase = onCall(async request => {
   const uid = requireAuth(request);
   const productId = cleanText(request.data && request.data.productId, 120);
   const purchaseToken = cleanText(request.data && request.data.purchaseToken, 4096);
-  const coins = PRODUCT_COINS[productId];
+  const coins = purchaseAmount(productId);
   if (!coins || !purchaseToken) throw new HttpsError('invalid-argument', 'Unknown Play product or missing purchase token.');
 
   const auth = new google.auth.GoogleAuth({ scopes: ['https://www.googleapis.com/auth/androidpublisher'] });
@@ -164,8 +162,13 @@ const verifyPlayPurchase = onCall(async request => {
   if (Number(purchase.purchaseState) !== 0) throw new HttpsError('failed-precondition', 'Purchase is not in PURCHASED state.');
 
   const expectedAccount = hash(uid);
-  if (purchase.obfuscatedExternalAccountId && purchase.obfuscatedExternalAccountId !== expectedAccount) {
-    throw new HttpsError('permission-denied', 'Purchase belongs to a different KING Plus account.');
+  // Mandatory account binding (the Android BillingFlowParams sets SHA-256 UID).
+  // Do not credit an unbound token: another signed-in person could replay it.
+  if (purchase.obfuscatedExternalAccountId !== expectedAccount) {
+    throw new HttpsError('permission-denied', 'Verified purchase does not belong to this KING Plus account.');
+  }
+  if (Number(purchase.quantity || 1) !== 1) {
+    throw new HttpsError('failed-precondition', 'Unsupported multi-quantity Play purchase. Contact support.');
   }
 
   const tokenHash = hash(purchaseToken);
@@ -184,19 +187,29 @@ const verifyPlayPurchase = onCall(async request => {
     }
 
     const walletSnap = await tx.get(walletRef);
-    const current = walletSnap.exists ? Number(walletSnap.get('coins') || 0) : 0;
-    balance = current + coins;
+    const next = applyVerifiedRecharge(walletSnap.exists ? walletSnap.data() : {}, productId);
+    balance = next.coins;
     newlyCredited = true;
 
-    tx.set(walletRef, { coins: balance, updatedAt: FieldValue.serverTimestamp() }, { merge: true });
+    // A single Firestore transaction binds verified Play token -> exactly one
+    // Diamond credit + Recharge VIP grant + immutable receipt/ledger.
+    tx.set(walletRef, {
+      coins: balance,
+      vipPoints: next.vipPoints,
+      rechargeDiamondsTotal: next.rechargeDiamondsTotal,
+      vipLevel: next.vipLevel,
+      updatedAt: FieldValue.serverTimestamp()
+    }, { merge: true });
     tx.set(receiptRef, {
       uid, productId, coins, orderId: purchase.orderId || null,
       purchaseTimeMillis: purchase.purchaseTimeMillis || null,
       purchaseTokenHash: tokenHash, balanceAfter: balance,
+      vipPointsEarned: coins, vipLevelAfter: next.vipLevel,
       verifiedAt: FieldValue.serverTimestamp()
     });
     tx.set(ledgerRef, {
       type: 'play_purchase', targetUid: uid, productId, coins,
+      vipPointsEarned: coins, vipLevelAfter: next.vipLevel,
       orderId: purchase.orderId || null, purchaseTokenHash: tokenHash,
       createdAt: FieldValue.serverTimestamp()
     });
@@ -209,7 +222,12 @@ const verifyPlayPurchase = onCall(async request => {
   }
 
   if (newlyCredited) {
-    await sendUserNotification(uid, 'Recharge complete', `${coins} coins added`, { type: 'play_purchase', productId });
+    try {
+      await sendUserNotification(uid, 'Recharge complete', `${coins} Diamonds and VIP recharge progress added`, { type: 'play_purchase', productId });
+    } catch (err) {
+      // Payment/credit are already committed; notification delivery is best-effort.
+      console.warn('Recharge credited, notification pending', err);
+    }
   }
 
   return {
