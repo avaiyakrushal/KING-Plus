@@ -2,6 +2,7 @@ const base = require('./index');
 const crypto = require('crypto');
 const {levelFromVerifiedSpend} = require('./king-vip-level');
 const {DIAMOND_PRODUCTS, purchaseAmount, applyVerifiedRecharge, applyGiftDebit, applyGiftReception, WALLET_MAX_DIAMONDS} = require('./recharge-policy');
+const {priceFor, MAX_VALUE} = require('./gift-catalog');
 const { onCall, HttpsError } = require('firebase-functions/v2/https');
 const { onDocumentCreated } = require('firebase-functions/v2/firestore');
 const { getFirestore, FieldValue } = require('firebase-admin/firestore');
@@ -71,7 +72,9 @@ const secureSendGift = onCall(async request => {
   const requestId = cleanText(request.data && request.data.requestId, 120) || crypto.randomUUID();
 
   if (!targetUid || targetUid === senderUid) throw new HttpsError('invalid-argument', 'Choose another user.');
-  if (!Number.isInteger(cost) || cost < 1 || cost > 100000) throw new HttpsError('invalid-argument', 'Invalid gift cost.');
+  const officialGift = priceFor(giftName);
+  if (!officialGift || !Number.isSafeInteger(cost) || cost !== officialGift.total || cost > MAX_VALUE)
+    throw new HttpsError('invalid-argument', 'Unknown Gift or price does not match the verified KING catalog.');
 
   const operationId = `${senderUid}_${hash(requestId)}`;
   const operationRef = db.collection('wallet_operations').doc(operationId);
@@ -104,7 +107,8 @@ const secureSendGift = onCall(async request => {
     tx.set(senderRef, { coins: senderBalance, updatedAt: FieldValue.serverTimestamp() }, { merge: true });
     tx.set(receiverRef, { giftScore: recipientAfter.giftScore, updatedAt: FieldValue.serverTimestamp() }, { merge: true });
     tx.set(ledgerRef, {
-      type: 'gift', senderUid, targetUid, giftName, cost,
+      type: 'gift', senderUid, targetUid, giftName: officialGift.giftName,
+      quantity: officialGift.quantity, cost,
       vipPointsEarned: 0, nonRedeemable: true, requestIdHash: hash(requestId),
       createdAt: FieldValue.serverTimestamp()
     });
