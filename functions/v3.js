@@ -1,5 +1,6 @@
 const base = require('./index');
 const crypto = require('crypto');
+const {levelFromVerifiedSpend} = require('./king-vip-level');
 const { onCall, HttpsError } = require('firebase-functions/v2/https');
 const { onDocumentCreated } = require('firebase-functions/v2/firestore');
 const { getFirestore, FieldValue } = require('firebase-admin/firestore');
@@ -85,6 +86,10 @@ const secureSendGift = onCall(async request => {
   await db.runTransaction(async tx => {
     const opSnap = await tx.get(operationRef);
     if (opSnap.exists) {
+      if (opSnap.get('targetUid') !== targetUid ||
+          (opSnap.get('giftCost') != null && Number(opSnap.get('giftCost')) !== cost)) {
+        throw new HttpsError('already-exists', 'Gift request ID already belongs to a different purchase.');
+      }
       alreadyProcessed = true;
       senderBalance = Number(opSnap.get('senderBalance') || 0);
       return;
@@ -97,20 +102,31 @@ const secureSendGift = onCall(async request => {
     if (senderCoins < cost) throw new HttpsError('failed-precondition', 'Not enough server coins.');
 
     senderBalance = senderCoins - cost;
-    tx.set(senderRef, { coins: senderBalance, updatedAt: FieldValue.serverTimestamp() }, { merge: true });
+    const rawVip = senderSnap.exists ? Number(senderSnap.get('vipPoints') || 0) : 0;
+    const priorVip = Number.isSafeInteger(rawVip) && rawVip >= 0 ? rawVip : 0;
+    const verifiedVipPoints = Math.min(1000000000, priorVip + cost);
+    const verifiedVipLevel = levelFromVerifiedSpend(verifiedVipPoints);
+    tx.set(senderRef, { coins: senderBalance, vipPoints: verifiedVipPoints,
+      vipLevel: verifiedVipLevel, updatedAt: FieldValue.serverTimestamp() }, { merge: true });
     tx.set(receiverRef, { coins: receiverCoins + cost, updatedAt: FieldValue.serverTimestamp() }, { merge: true });
     tx.set(ledgerRef, {
       type: 'gift', senderUid, targetUid, giftName, cost,
-      requestIdHash: hash(requestId), createdAt: FieldValue.serverTimestamp()
+      vipPointsEarned: cost, requestIdHash: hash(requestId),
+      createdAt: FieldValue.serverTimestamp()
     });
     tx.set(operationRef, {
-      type: 'gift', senderUid, targetUid, senderBalance,
+      type: 'gift', senderUid, targetUid, senderBalance, giftCost: cost,
       requestIdHash: hash(requestId), createdAt: FieldValue.serverTimestamp()
     });
   });
 
   if (!alreadyProcessed) {
-    await sendUserNotification(targetUid, 'You received a gift', `${giftName} • ${cost} coins`, { type: 'gift', senderUid });
+    try {
+      await sendUserNotification(targetUid, 'You received a gift', `${giftName} • ${cost} coins`, { type: 'gift', senderUid });
+    } catch (notificationError) {
+      // The secure wallet transaction has committed. FCM failure cannot undo it.
+      console.warn('Gift paid; push notification deferred', notificationError);
+    }
   }
 
   return {
