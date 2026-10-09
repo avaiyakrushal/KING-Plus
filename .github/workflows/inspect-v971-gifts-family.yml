@@ -1,0 +1,36 @@
+name: Audit v9.7.0 Emoji Gifts VIP Family Chat
+on:
+  push:
+    branches: ['work/reference-completion']
+    paths:
+      - '.github/workflows/inspect-v971-gifts-family.yml'
+      - 'ci/v971/inspect_gifts_vip_family_chat.py'
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  inspect:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: work/reference-completion
+      - name: Restore last successfully compiled KING Plus v9.7.0 Android source
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/archive /tmp/src
+          gh run download 37949379736 -n KING-Plus-v9.7.0-realtime-social-room-id-source -D /tmp/archive
+          test -f /tmp/archive/KING-Plus-v9.7.0-realtime-social-room-id-source.zip
+          unzip -q /tmp/archive/KING-Plus-v9.7.0-realtime-social-room-id-source.zip -d /tmp/src
+      - name: Audit actual code without private keys
+        run: |
+          python3 ci/v971/inspect_gifts_vip_family_chat.py /tmp/src > /tmp/gifts-family-audit.txt
+          head -c 122000 /tmp/gifts-family-audit.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: KING-Plus-v971-gift-vip-family-source-audit
+          path: /tmp/gifts-family-audit.txt
+          retention-days: 7
