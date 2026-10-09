@@ -1,0 +1,99 @@
+name: Build KING Plus v9.7.2 Verified VIP and Private Chat Gifts
+on:
+  push:
+    branches: ['work/reference-completion']
+    paths:
+      - '.github/workflows/apk-v972-vip-chat.yml'
+      - 'ci/v972/**'
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: kingplus-v972-verified-vip-chat
+  cancel-in-progress: true
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: work/reference-completion
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+      - name: Run trusted direct gifts / VIP verification tests
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/t972
+          javac -d /tmp/t972 ci/v972/KingSocialGift972.java ci/v972/KingSocialGift972Test.java
+          java -cp /tmp/t972 com.kingplus.social.KingSocialGift972Test
+          python3 -m py_compile ci/v972/patch_v972.py
+      - name: Restore successful v9.7.1 APK source
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/a /tmp/src
+          gh run download 37959646122 -n KING-Plus-v9.7.1-secure-live-gifts-emoji-source -D /tmp/a
+          unzip -q /tmp/a/KING-Plus-v9.7.1-secure-live-gifts-emoji-source.zip -d /tmp/src
+      - name: Fix direct Chat gifts and server-verified VIP
+        run: python3 ci/v972/patch_v972.py /tmp/src
+      - name: Regression check no fake real gifts and no client-owned VIP
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('/tmp/src/app/src/main/java/com/kingplus/social')
+          c=(p/'ChatActivity.java').read_text()
+          v=(p/'KingVipVisualActivity.java').read_text()
+          r=(p/'PartyActivity.java').read_text()
+          g=Path('/tmp/src/app/build.gradle').read_text()
+          assert "versionCode 163; versionName '9.7.2-verified-vip-private-chat-gifts'" in g
+          assert 'KingSocialGift972.valid(' in c
+          assert 'CloudBackend.sendGift(recipient972' in c
+          assert 'if(!ok)' in c and 'Gift NOT sent' in c
+          assert 'TEST gift preview only. No real coins or VIP awarded.' in c
+          assert 'directGiftPending972' in c
+          start=c.index('private boolean sendDirectGift620(')
+          end=c.index('private void syncDirectProgress700(',start)
+          scope=c[start:end]
+          assert 'LevelSystem.gift(this,total)' not in scope
+          assert 'syncDirectProgress700(progress700)' not in scope
+          assert 'giftMsg972.put("type","gift")' in scope
+          assert 'thread972.collection("messages").add(giftMsg972)' in scope
+          assert 'verifiedWallet972' in v
+          assert 'KingSocialGift972.levelFromPoints(points972)' in v
+          assert 'collection("wallets").document(account972.getUid()).get()' in v
+          assert 'shownVipPoints972' in v
+          assert 'VIP verification unavailable' in v
+          assert 'KingGiftSafety971.validCloudGift(' in r
+          assert 'KingPartyMic968.canToggle(' in r
+          assert 'KingSocialRealtime970.activeAccount(' in (p/'SocialActivity.java').read_text()
+          print('PASS: real gift cannot be faked by TEST coins; VIP uses wallet; prior Party/Social intact')
+          PY
+      - name: Compile Android APK
+        working-directory: /tmp/src
+        run: gradle :app:assembleDebug --no-daemon
+      - name: Package APK and full patched source
+        run: |
+          set -euo pipefail
+          cp /tmp/src/app/build/outputs/apk/debug/app-debug.apk /tmp/KING-Plus-v9.7.2-verified-vip-private-chat-gifts.apk
+          cd /tmp/src
+          zip -qr /tmp/KING-Plus-v9.7.2-verified-vip-private-chat-gifts-source.zip .
+      - uses: actions/upload-artifact@v4
+        with:
+          name: KING-Plus-v9.7.2-verified-vip-private-chat-gifts-APK
+          path: /tmp/KING-Plus-v9.7.2-verified-vip-private-chat-gifts.apk
+          if-no-files-found: error
+          retention-days: 7
+      - uses: actions/upload-artifact@v4
+        with:
+          name: KING-Plus-v9.7.2-verified-vip-private-chat-gifts-source
+          path: /tmp/KING-Plus-v9.7.2-verified-vip-private-chat-gifts-source.zip
+          if-no-files-found: error
+          retention-days: 7
