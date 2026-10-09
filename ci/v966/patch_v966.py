@@ -88,7 +88,7 @@ replacement=r'''    // Each join has its own Firestore room reference and genera
                                         Runnable join){
         if(!isCurrentPartyJoin966(expectedId966,expectedUid966,token966))return;
         // This reference was created from a nonempty room ID BEFORE scheduling
-        // any callback. Never call .document(roomId) from this async method.
+        // any callback. Never read mutable roomId from this async method.
         if(expectedRoom966==null)return;
         if(isOwner()){join.run();return;}
         expectedRoom966.get()
