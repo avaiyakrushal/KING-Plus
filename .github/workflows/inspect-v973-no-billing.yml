@@ -1,0 +1,30 @@
+name: Inspect v9.7.2 for No Billing Free Gifts
+on:
+  push:
+    branches: ['work/reference-completion']
+    paths:
+      - '.github/workflows/inspect-v973-no-billing.yml'
+      - 'ci/v973/inspect_free_gifts_v973.py'
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  inspect:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: work/reference-completion
+      - name: Restore v9.7.2
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/a /tmp/src
+          gh run download 37960320102 -n KING-Plus-v9.7.2-verified-vip-private-chat-gifts-source -D /tmp/a
+          unzip -q /tmp/a/KING-Plus-v9.7.2-verified-vip-private-chat-gifts-source.zip -d /tmp/src
+      - name: Inspect free gift and existing chat/room UI
+        run: |
+          python3 ci/v973/inspect_free_gifts_v973.py /tmp/src > /tmp/free-mode-audit.txt
+          head -c 110000 /tmp/free-mode-audit.txt
