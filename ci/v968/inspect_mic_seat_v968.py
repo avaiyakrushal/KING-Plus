@@ -30,3 +30,9 @@ for fn,terms in targets.items():
   print("AROUND",i)
   for n in range(max(1,i-1),min(len(lines),i+10)+1):
    print(f"{n}: {lines[n-1][:900]}")
+
+print("===== EXACT PARTY VOICE / SEAT METHODS =====")
+for start,end in [(942,954),(1251,1347),(1470,1613),(4195,4240),(4270,4345),(4350,4395),(4405,4448)]:
+ print(f"===== LINES {start}-{end} =====")
+ for n in range(start-1,min(end,len(lines))):
+  print(f"{n+1}: {lines[n][:1300]}")
