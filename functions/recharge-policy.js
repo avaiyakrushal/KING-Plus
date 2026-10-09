@@ -21,7 +21,9 @@ function applyVerifiedRecharge(wallet,productId){
   const qty=purchaseAmount(productId);
   if(!qty)throw new Error('Unknown Google Play Diamond product');
   const current=wallet&&wallet.coins!=null?wallet.coins:0;
-  const earned=wallet&&wallet.vipPoints!=null?wallet.vipPoints:0;
+  // Recharge VIP is based exclusively on verified Play purchase history, never Gifts.
+  // Legacy wallet.vipPoints may include old Gift points and must not be trusted.
+  const earned=wallet&&wallet.rechargeDiamondsTotal!=null?wallet.rechargeDiamondsTotal:0;
   if(!isInt(current,0,WALLET_MAX_DIAMONDS)||!isInt(earned,0,VIP_MAX_POINTS))
     throw new Error('Invalid wallet state');
   if(current>WALLET_MAX_DIAMONDS-qty)throw new Error('Wallet upper limit reached');
@@ -30,8 +32,7 @@ function applyVerifiedRecharge(wallet,productId){
     coins:current+qty,
     vipPoints,
     vipLevel:levelFromVerifiedSpend(vipPoints),
-    rechargeDiamondsTotal:(wallet&&isInt(wallet.rechargeDiamondsTotal,0,VIP_MAX_POINTS))
-      ?Math.min(VIP_MAX_POINTS,wallet.rechargeDiamondsTotal+qty):qty,
+    rechargeDiamondsTotal:vipPoints,
     creditedDiamonds:qty
   });
 }
