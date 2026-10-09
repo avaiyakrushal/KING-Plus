@@ -1,0 +1,18 @@
+'use strict';
+const assert = require('node:assert/strict');
+const {MAX_VIP,threshold,levelFromVerifiedSpend} = require('./king-vip-level');
+assert.equal(MAX_VIP,50);
+assert.equal(threshold(1),500);
+assert.equal(threshold(2),1500);
+assert.equal(threshold(12),250000);
+assert.equal(threshold(13),450000);
+assert.equal(levelFromVerifiedSpend(0),0);
+assert.equal(levelFromVerifiedSpend(499),0);
+assert.equal(levelFromVerifiedSpend(500),1);
+assert.equal(levelFromVerifiedSpend(1499),1);
+assert.equal(levelFromVerifiedSpend(1500),2);
+assert.equal(levelFromVerifiedSpend(250000),12);
+assert.equal(levelFromVerifiedSpend(threshold(50)),50);
+assert.equal(levelFromVerifiedSpend(-1),0);
+assert.equal(levelFromVerifiedSpend(Number.POSITIVE_INFINITY),0);
+console.log('PASS server-verified KING Plus VIP threshold tests: 14 cases');
