@@ -1,0 +1,99 @@
+name: Build KING Plus v9.6.0 Live Emoji Stability
+
+on:
+  push:
+    branches: ['work/reference-completion']
+    paths:
+      - '.github/workflows/apk-v960-live-emoji-stability.yml'
+      - 'ci/v960/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: king-plus-v960-live-emoji
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: work/reference-completion
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+      - name: Restore successfully built v9.5.9 source
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/archive /tmp/src
+          if ! gh run download 37869325218 -n KING-Plus-v9.5.9-party-invite-links-source -D /tmp/archive; then
+            gh api repos/${GITHUB_REPOSITORY}/actions/artifacts/11590110043/zip > /tmp/archive/artifact.zip
+            unzip -q /tmp/archive/artifact.zip -d /tmp/archive
+          fi
+          test -f /tmp/archive/KING-Plus-v9.5.9-party-invite-links-source.zip
+          unzip -q /tmp/archive/KING-Plus-v9.5.9-party-invite-links-source.zip -d /tmp/src
+      - name: Apply Bolo-inspired KING original Live Emoji performance milestone
+        run: python3 ci/v960/patch_v960.py /tmp/src
+      - name: Verify real-time effects and original behavior preserved
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          root=Path('/tmp/src')
+          pkg=root/'app/src/main/java/com/kingplus/social'
+          p=(pkg/'PartyActivity.java').read_text()
+          v=(pkg/'LiveEmojiView.java').read_text()
+          main=(pkg/'MainActivity.java').read_text()
+          rules=(root/'firestore.rules').read_text()
+          g=(root/'app/build.gradle').read_text()
+          assert "versionCode 151; versionName '9.6.0-live-emoji-stability'" in g
+          assert 'art=new LiveEmojiView(this,live,-1)' in p
+          assert 'art=new ReferenceEmojiView(this,ReferenceEmojiView.parse(token),false)' in p
+          assert 'boolean staticPreview=duration<0;' in v
+          assert 'boolean running=!staticPreview&&(duration==0||elapsed<duration);' in v
+          assert 'if(running&&attached&&getWindowVisibility()==VISIBLE&&isShown())postInvalidateDelayed(33)' in v
+          assert 'final String activeRoomForEmoji960=roomId;' in p
+          assert 'final String activeUserForEmoji960=user.getUid();' in p
+          assert 'if(!activeUserForEmoji960.equals(docV530.getString("actorUid")))' in p
+          assert 'lp.width=-1;lp.height=-1;lp.leftMargin=0;lp.topMargin=0;' in p
+          assert 'event.put("type","live_emoji")' in p
+          assert 'room.collection("events").document()' in p
+          assert 'showLiveEmojiEffect560(visual,displayName' in p
+          assert 'KingCrashWatch958' in p and 'KingCrashWatch958' in main
+          assert 'kingplus://party/' not in rules
+          assert 'function roomAccess(roomId)' in rules
+          assert 'function roomModerator(roomId)' in rules
+          assert 'implementation (\'org.jitsi.react:jitsi-meet-sdk:13.1.1\')' in g
+          print('PASS: static picker, realtime sync, active room, original rules, crash diagnostics')
+          PY
+      - name: Compile Android APK
+        working-directory: /tmp/src
+        run: gradle :app:assembleDebug --no-daemon
+      - name: Bundle APK and source
+        run: |
+          set -euo pipefail
+          cp /tmp/src/app/build/outputs/apk/debug/app-debug.apk /tmp/KING-Plus-v9.6.0-live-emoji-stability.apk
+          cd /tmp/src
+          zip -qr /tmp/KING-Plus-v9.6.0-live-emoji-stability-source.zip .
+      - uses: actions/upload-artifact@v4
+        with:
+          name: KING-Plus-v9.6.0-live-emoji-stability-APK
+          path: /tmp/KING-Plus-v9.6.0-live-emoji-stability.apk
+          if-no-files-found: error
+          retention-days: 7
+      - uses: actions/upload-artifact@v4
+        with:
+          name: KING-Plus-v9.6.0-live-emoji-stability-source
+          path: /tmp/KING-Plus-v9.6.0-live-emoji-stability-source.zip
+          if-no-files-found: error
+          retention-days: 7
