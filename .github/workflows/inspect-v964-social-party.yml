@@ -1,0 +1,38 @@
+name: Inspect KING Plus v9.6.3 Multi-Phone Social Crash
+
+on:
+  push:
+    branches: ['work/reference-completion']
+    paths:
+      - '.github/workflows/inspect-v964-social-party.yml'
+      - 'ci/v964/inspect_v964.py'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  inspect:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: work/reference-completion
+      - name: Recover v9.6.3 source
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/archive /tmp/src
+          gh run download 37874422705 -n KING-Plus-v9.6.3-online-ludo-modes-source -D /tmp/archive
+          unzip -q /tmp/archive/KING-Plus-v9.6.3-online-ludo-modes-source.zip -d /tmp/src
+      - name: Inspect user ID, follow and party memory
+        run: python3 ci/v964/inspect_v964.py /tmp/src > /tmp/v964-findings.txt
+      - name: Show first section
+        run: head -c 65000 /tmp/v964-findings.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: KING-Plus-v964-party-social-audit
+          path: /tmp/v964-findings.txt
+          retention-days: 7
