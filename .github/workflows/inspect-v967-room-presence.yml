@@ -1,0 +1,38 @@
+name: Inspect KING Plus v9.6.6 Realtime Room Presence
+
+on:
+  push:
+    branches: ['work/reference-completion']
+    paths:
+      - '.github/workflows/inspect-v967-room-presence.yml'
+      - 'ci/v967/inspect_room_presence_v967.py'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  inspect:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: work/reference-completion
+      - name: Restore known-good v9.6.6 Android source
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/a /tmp/src
+          gh run download 37942312714 -n KING-Plus-v9.6.6-party-join-null-crash-fix-source -D /tmp/a
+          unzip -q /tmp/a/KING-Plus-v9.6.6-party-join-null-crash-fix-source.zip -d /tmp/src
+      - name: Audit member lifecycle, Firestore presence and stale cleanup
+        run: |
+          python3 ci/v967/inspect_room_presence_v967.py /tmp/src > /tmp/room-presence-v967.txt
+          head -c 100000 /tmp/room-presence-v967.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: KING-Plus-v967-room-presence-audit
+          path: /tmp/room-presence-v967.txt
+          retention-days: 7
