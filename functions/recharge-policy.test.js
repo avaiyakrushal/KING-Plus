@@ -1,6 +1,6 @@
 'use strict';
 const assert=require('node:assert/strict');
-const {DIAMOND_PRODUCTS,purchaseAmount,applyVerifiedRecharge,applyGiftDebit}=require('./recharge-policy');
+const {DIAMOND_PRODUCTS,purchaseAmount,applyVerifiedRecharge,applyGiftDebit,applyGiftReception}=require('./recharge-policy');
 const {threshold}=require('./king-vip-level');
 let checks=0;
 function eq(a,b,label){assert.deepEqual(a,b,label);checks++}
@@ -27,4 +27,6 @@ assert.throws(()=>applyVerifiedRecharge({coins:-1},'king_coins_100'));checks++;
 assert.throws(()=>applyVerifiedRecharge({coins:100},'wrong_product'));checks++;
 eq(applyVerifiedRecharge({coins:0,rechargeDiamondsTotal:threshold(2)-100},'king_coins_100').vipLevel,2,'VIP2 exactly on verified recharge');
 eq(applyVerifiedRecharge({coins:0,vipPoints:50000,rechargeDiamondsTotal:0},'king_coins_100').vipPoints,100,'previous Gift VIP points do not count as recharge');
+eq(applyGiftReception({giftScore:100,coins:500},200),{giftScore:300},'recipient gift score only');
+assert.throws(()=>applyGiftReception({giftScore:-1},100));checks++;
 console.log('PASS KING Plus verified Diamond Recharge + VIP policy: '+checks+' tests');
