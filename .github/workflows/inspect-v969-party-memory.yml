@@ -1,0 +1,30 @@
+name: Inspect KING Plus Party Native Memory for v9.6.9
+on:
+  push:
+    branches: ['work/reference-completion']
+    paths:
+      - '.github/workflows/inspect-v969-party-memory.yml'
+      - 'ci/v969/inspect_memory_v969.py'
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  inspect:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: work/reference-completion
+      - name: Restore v9.6.7 stable Party sources
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/a /tmp/src
+          gh run download 37944223717 -n KING-Plus-v9.6.7-live-room-presence-source -D /tmp/a
+          unzip -q /tmp/a/KING-Plus-v9.6.7-live-room-presence-source.zip -d /tmp/src
+      - name: Inspect Party memory hot paths
+        run: |
+          python3 ci/v969/inspect_memory_v969.py /tmp/src > /tmp/memory-audit.txt
+          head -c 53000 /tmp/memory-audit.txt
