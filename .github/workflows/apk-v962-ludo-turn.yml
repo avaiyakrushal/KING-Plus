@@ -1,0 +1,102 @@
+name: Build KING Plus v9.6.2 Ludo Turn Guards
+
+on:
+  push:
+    branches: ['work/reference-completion']
+    paths:
+      - '.github/workflows/apk-v962-ludo-turn.yml'
+      - 'ci/v962/**'
+      - 'firestore.rules'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: king-plus-v962-ludo-guard
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: work/reference-completion
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+      - name: Test Ludo start and inactivity rules
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/ludo-test
+          javac -d /tmp/ludo-test ci/v962/KingLudoTurn962.java ci/v962/KingLudoTurn962Test.java
+          java -cp /tmp/ludo-test com.kingplus.social.KingLudoTurn962Test
+      - name: Restore last successful v9.6.1 source
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/artifact /tmp/src
+          if ! gh run download 37871959900 -n KING-Plus-v9.6.1-native-crash-attribution-source -D /tmp/artifact; then
+            gh api repos/${GITHUB_REPOSITORY}/actions/artifacts/11590424102/zip > /tmp/artifact/archive.zip
+            unzip -q /tmp/artifact/archive.zip -d /tmp/artifact
+          fi
+          test -f /tmp/artifact/KING-Plus-v9.6.1-native-crash-attribution-source.zip
+          unzip -q /tmp/artifact/KING-Plus-v9.6.1-native-crash-attribution-source.zip -d /tmp/src
+      - name: Apply Ludo v9.6.2 gameplay guards
+        run: python3 ci/v962/patch_v962.py /tmp/src
+      - name: Check source + Firestore rules consistency
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          root=Path('/tmp/src')
+          pkg=root/'app/src/main/java/com/kingplus/social'
+          l=(pkg/'OnlineLudoActivity.java').read_text()
+          g=(pkg/'KingLudoTurn962.java').read_text()
+          rules=(root/'firestore.rules').read_text()
+          v=(root/'app/build.gradle').read_text()
+          assert "versionCode 153; versionName '9.6.2-ludo-turn-guards'" in v
+          assert 'KingLudoTurn962.canSkip(' in l
+          assert 'KingLudoTurn962.canStart(' in l
+          assert 'final String listeningCode962=code' in l
+          assert 'KingCrashWatch958.mark(this,"online-ludo-created")' in l
+          assert 'INACTIVE_TURN_MS = 60_000L' in g
+          assert "duration.value(60,'s')" in rules
+          assert 'request.resource.data.revision == resource.data.revision + 1' in rules
+          assert "request.resource.data.action != 'start'" in rules
+          assert 'request.auth.uid != resource.data.players[resource.data.turn]' in rules
+          assert 'roomVoiceOptedIn957' in (pkg/'PartyActivity.java').read_text()
+          assert 'activeRoomForEmoji960' in (pkg/'PartyActivity.java').read_text()
+          assert 'joinRoomLinkDialog959' in (pkg/'PartyActivity.java').read_text()
+          assert 'KingCrashWatch958' in (pkg/'MainActivity.java').read_text()
+          assert 'test_wallet_snapshots' in rules
+          print('PASS v9.6.2 Ludo guards + existing Voice/Emoji/Invite/Crash stability')
+          PY
+      - name: Build APK
+        working-directory: /tmp/src
+        run: gradle :app:assembleDebug --no-daemon
+      - name: Bundle APK and source
+        run: |
+          set -euo pipefail
+          cp /tmp/src/app/build/outputs/apk/debug/app-debug.apk /tmp/KING-Plus-v9.6.2-ludo-turn-guards.apk
+          cd /tmp/src
+          zip -qr /tmp/KING-Plus-v9.6.2-ludo-turn-guards-source.zip .
+      - uses: actions/upload-artifact@v4
+        with:
+          name: KING-Plus-v9.6.2-ludo-turn-guards-APK
+          path: /tmp/KING-Plus-v9.6.2-ludo-turn-guards.apk
+          retention-days: 7
+          if-no-files-found: error
+      - uses: actions/upload-artifact@v4
+        with:
+          name: KING-Plus-v9.6.2-ludo-turn-guards-source
+          path: /tmp/KING-Plus-v9.6.2-ludo-turn-guards-source.zip
+          retention-days: 7
+          if-no-files-found: error
