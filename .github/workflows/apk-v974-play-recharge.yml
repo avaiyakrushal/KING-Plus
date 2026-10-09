@@ -1,0 +1,122 @@
+name: Build KING Plus v9.7.4 Diamond Recharge Preparation
+on:
+  push:
+    branches: ['work/reference-completion']
+    paths:
+      - '.github/workflows/apk-v974-play-recharge.yml'
+      - 'ci/v974/**'
+      - 'functions/recharge-policy.js'
+      - 'functions/recharge-policy.test.js'
+      - 'functions/v3.js'
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: king-plus-v974-play-recharge
+  cancel-in-progress: true
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: work/reference-completion
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+      - name: Test verified Diamond Recharge and VIP policy
+        run: |
+          set -euo pipefail
+          node --check functions/v3.js
+          node functions/king-vip-level.test.js
+          node functions/recharge-policy.test.js
+          python3 -m py_compile ci/v974/patch_play_recharge_v974.py
+          python3 - <<'PY'
+          from pathlib import Path
+          backend=Path('functions/v3.js').read_text()
+          policy=Path('functions/recharge-policy.js').read_text()
+          assert "const next = applyVerifiedRecharge(" in backend
+          assert 'purchase.obfuscatedExternalAccountId !== expectedAccount' in backend
+          assert 'vipPointsEarned: 0' in backend
+          assert 'vipPointsEarned: coins' in backend
+          assert 'tx.set(receiptRef' in backend
+          assert 'rechargeDiamondsTotal: next.rechargeDiamondsTotal' in backend
+          assert "tx.set(receiverRef, { giftScore:" in backend
+          assert "function applyGiftDebit(" in policy
+          assert "function applyGiftReception(" in policy
+          print('PASS: paid account binding, receipt idempotency, recharge-only VIP and noncash gifts')
+          PY
+      - name: Restore last successfully built v9.7.3 Android APK source
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/saved /tmp/src
+          gh run download 37963787509 -n KING-Plus-v9.7.3-no-billing-free-gifts-source -D /tmp/saved
+          test -f /tmp/saved/KING-Plus-v9.7.3-no-billing-free-gifts-source.zip
+          unzip -q /tmp/saved/KING-Plus-v9.7.3-no-billing-free-gifts-source.zip -d /tmp/src
+      - name: Apply verified Recharge UI, Play Billing library and Wallet/VIP routing
+        run: python3 ci/v974/patch_play_recharge_v974.py /tmp/src
+      - name: Ensure payments cannot start before merchant and backend activation
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          root=Path('/tmp/src')
+          pkg=root/'app/src/main/java/com/kingplus/social'
+          recharge=(pkg/'KingRecharge974Activity.java').read_text()
+          main=(pkg/'MainActivity.java').read_text()
+          vip=(pkg/'KingVipVisualActivity.java').read_text()
+          party=(pkg/'PartyActivity.java').read_text()
+          gradle=(root/'app/build.gradle').read_text()
+          manifest=(root/'app/src/main/AndroidManifest.xml').read_text()
+          assert "versionCode 165; versionName '9.7.4-play-diamond-recharge-preparation'" in gradle
+          assert "implementation 'com.android.billingclient:billing:8.3.0'" in gradle
+          assert '<activity android:name=".KingRecharge974Activity" android:exported="false" />' in manifest
+          assert 'public static final boolean LIVE_RECHARGE = false;' in recharge
+          assert 'BillingClient.newBuilder(this)' in recharge
+          assert '.setObfuscatedAccountId(uidSha256(signedInUid))' in recharge
+          assert 'PendingPurchasesParams.newBuilder()' in recharge
+          assert 'Purchase.PurchaseState.PURCHASED' in recharge
+          assert 'Purchase.PurchaseState.PENDING' in recharge
+          assert 'getHttpsCallable("verifyPlayPurchase")' in recharge
+          assert 'walletRegistration=FirebaseFirestore.getInstance()' in recharge
+          assert 'KingRecharge974Activity.class' in main
+          assert 'rechargeDiamondsTotal' in vip
+          assert 'LIVE_RECHARGE' in vip
+          assert 'KingFreeGift973.allowed(' in party
+          assert 'KingPartyMic968.canToggle(' in party
+          assert 'KingSocialRealtime970.activeAccount(' in (pkg/'SocialActivity.java').read_text()
+          assert 'KingPartyMemory969.overEffectLimit(' in party
+          assert 'KingLudoTurn962.canSkip(' in (pkg/'OnlineLudoActivity.java').read_text()
+          assert '.collection("wallets").document(signedInUid)\n            .set(' not in recharge
+          print('PASS Play Billing integration exists but checkout is disabled, wallet credited server-side only')
+          PY
+      - name: Compile Android debug APK
+        working-directory: /tmp/src
+        run: gradle :app:assembleDebug --no-daemon
+      - name: Package installable APK and complete Android source
+        run: |
+          set -euo pipefail
+          cp /tmp/src/app/build/outputs/apk/debug/app-debug.apk /tmp/KING-Plus-v9.7.4-recharge-ready-setup-pending.apk
+          cd /tmp/src
+          zip -qr /tmp/KING-Plus-v9.7.4-recharge-ready-setup-pending-source.zip .
+      - uses: actions/upload-artifact@v4
+        with:
+          name: KING-Plus-v9.7.4-recharge-ready-setup-pending-APK
+          path: /tmp/KING-Plus-v9.7.4-recharge-ready-setup-pending.apk
+          if-no-files-found: error
+          retention-days: 7
+      - uses: actions/upload-artifact@v4
+        with:
+          name: KING-Plus-v9.7.4-recharge-ready-setup-pending-source
+          path: /tmp/KING-Plus-v9.7.4-recharge-ready-setup-pending-source.zip
+          if-no-files-found: error
+          retention-days: 7
