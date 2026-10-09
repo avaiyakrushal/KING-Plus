@@ -25,6 +25,6 @@ assert.throws(()=>applyGiftDebit({coins:10},11));checks++;
 assert.throws(()=>applyGiftDebit({coins:100},-1));checks++;
 assert.throws(()=>applyVerifiedRecharge({coins:-1},'king_coins_100'));checks++;
 assert.throws(()=>applyVerifiedRecharge({coins:100},'wrong_product'));checks++;
-eq(applyVerifiedRecharge({coins:0,vipPoints:threshold(2)-100},'king_coins_100').vipLevel,2,'VIP2 exactly on verified recharge');
-eq(applyVerifiedRecharge({coins:0,vipPoints:0},'king_coins_100').vipPoints,100,'no fake VIP from zero');
+eq(applyVerifiedRecharge({coins:0,rechargeDiamondsTotal:threshold(2)-100},'king_coins_100').vipLevel,2,'VIP2 exactly on verified recharge');
+eq(applyVerifiedRecharge({coins:0,vipPoints:50000,rechargeDiamondsTotal:0},'king_coins_100').vipPoints,100,'previous Gift VIP points do not count as recharge');
 console.log('PASS KING Plus verified Diamond Recharge + VIP policy: '+checks+' tests');
