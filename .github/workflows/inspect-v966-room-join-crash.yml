@@ -1,0 +1,39 @@
+name: Inspect KING Plus v9.6.5 Party Null Room Join Crash
+
+on:
+  push:
+    branches: ['work/reference-completion']
+    paths:
+      - '.github/workflows/inspect-v966-room-join-crash.yml'
+      - 'ci/v966/inspect_join_v966.py'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  inspect:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: work/reference-completion
+      - name: Restore last successful KING Plus v9.6.5 source
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/z /tmp/src
+          gh run download 37940447647 -n KING-Plus-v9.6.5-realtime-social-identity-source -D /tmp/z
+          unzip -q /tmp/z/KING-Plus-v9.6.5-realtime-social-identity-source.zip -d /tmp/src
+      - name: Inspect actual crash path
+        run: |
+          set -euo pipefail
+          python3 ci/v966/inspect_join_v966.py /tmp/src > /tmp/party-npe-audit.txt
+          head -c 95000 /tmp/party-npe-audit.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: KING-Plus-v9.6.5-party-join-NPE-audit
+          path: /tmp/party-npe-audit.txt
+          retention-days: 7
