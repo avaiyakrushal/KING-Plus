@@ -15,3 +15,12 @@ for q in ['syncPublicProfile','showProfile','loadRealProfileData','startProfileF
   print('KEY',q,'LINE',at+1)
   for j in range(max(0,at-3),min(len(l),at+20)):
    print(str(j+1)+": "+l[j][:600])
+
+print("===== PARTY USER ID CALCULATION =====")
+l=(p/'PartyActivity.java').read_text().splitlines()
+for q in ['String publicId(', 'publicId(String', 'private String publicId(', 'shortId(String id)', 'joinCode=shortId(', 'joinRoomByCode964(']:
+ idx=[i for i,t in enumerate(l) if q in t]
+ print('KEY',q,'COUNT',len(idx))
+ for i in idx[:3]:
+  for j in range(max(0,i-3),min(len(l),i+12)):
+   print(f'{j+1}: {l[j][:950]}')
