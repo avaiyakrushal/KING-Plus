@@ -1,0 +1,97 @@
+name: Build KING Plus v9.5.9 Party Invite Links
+
+on:
+  push:
+    branches: ['work/reference-completion']
+    paths:
+      - '.github/workflows/apk-v959-party-invites.yml'
+      - 'ci/v959/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: king-plus-v959-party-invite
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: work/reference-completion
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+      - name: Test invite parser and malicious input rejection
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/invite-test
+          javac -d /tmp/invite-test ci/v959/KingRoomInvite959.java ci/v959/RoomInviteParserSelfTest.java
+          java -cp /tmp/invite-test com.kingplus.social.RoomInviteParserSelfTest
+      - name: Restore v9.5.8 built sources
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/archive /tmp/src
+          if ! gh run download 37867792188 -n KING-Plus-v9.5.8-whole-app-stability-source -D /tmp/archive; then
+            gh api repos/${GITHUB_REPOSITORY}/actions/artifacts/11589520763/zip > /tmp/archive/artifact.zip
+            unzip -q /tmp/archive/artifact.zip -d /tmp/archive
+          fi
+          test -f /tmp/archive/KING-Plus-v9.5.8-whole-app-stability-source.zip
+          unzip -q /tmp/archive/KING-Plus-v9.5.8-whole-app-stability-source.zip -d /tmp/src
+      - name: Apply Party Room invite link milestone
+        run: python3 ci/v959/patch_v959.py /tmp/src
+      - name: Validate link sharing, navigation and private room gates
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          src=Path('/tmp/src/app/src/main')
+          party=(src/'java/com/kingplus/social/PartyActivity.java').read_text()
+          main=(src/'java/com/kingplus/social/MainActivity.java').read_text()
+          manifest=(src/'AndroidManifest.xml').read_text()
+          rules=Path('firestore.rules').read_text()
+          gradle=Path('/tmp/src/app/build.gradle').read_text()
+          assert "versionCode 150; versionName '9.5.9-party-invite-links'" in gradle
+          assert 'KingRoomInvite959.link(roomId)' in party
+          assert 'private void joinRoomLinkDialog959()' in party
+          assert 'openRoomDoc891(doc959)' in party
+          assert 'party959.putExtra("directRoomId",id959)' in main
+          assert 'KingRoomInvite959.parse(input959==null?null:input959.getDataString())' in main
+          assert 'android:scheme="kingplus" android:host="party"' in manifest
+          assert 'function roomBanned(roomId, uid)' in rules
+          assert 'function roomAccess(roomId)' in rules
+          assert 'function roomModerator(roomId)' in rules
+          assert 'KingCrashWatch958' in main and 'KingCrashWatch958' in party
+          print("Party invite, Firebase access preservation, and crash diagnostics gates passed")
+          PY
+      - name: Compile APK
+        working-directory: /tmp/src
+        run: gradle :app:assembleDebug --no-daemon
+      - name: Prepare APK and source
+        run: |
+          set -euo pipefail
+          cp /tmp/src/app/build/outputs/apk/debug/app-debug.apk /tmp/KING-Plus-v9.5.9-party-invite-links.apk
+          cd /tmp/src
+          zip -qr /tmp/KING-Plus-v9.5.9-party-invite-links-source.zip .
+      - uses: actions/upload-artifact@v4
+        with:
+          name: KING-Plus-v9.5.9-party-invite-links-APK
+          path: /tmp/KING-Plus-v9.5.9-party-invite-links.apk
+          if-no-files-found: error
+          retention-days: 7
+      - uses: actions/upload-artifact@v4
+        with:
+          name: KING-Plus-v9.5.9-party-invite-links-source
+          path: /tmp/KING-Plus-v9.5.9-party-invite-links-source.zip
+          if-no-files-found: error
+          retention-days: 7
