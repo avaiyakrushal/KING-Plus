@@ -128,7 +128,7 @@ public final class KingRecharge974Activity extends Activity implements Purchases
         LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(-1,-2);
         lp.setMargins(0,dp(14),0,0);column.addView(notice,lp);
 
-        FirebaseFirestore.getInstance().collection("wallets").document(signedInUid)
+        walletRegistration=FirebaseFirestore.getInstance().collection("wallets").document(signedInUid)
             .addSnapshotListener((doc,error)->{
                 if(isFinishing()||isDestroyed()||!sameAccount())return;
                 if(error!=null){status.setText("Verified wallet unavailable. No Diamonds have been changed.");return;}
