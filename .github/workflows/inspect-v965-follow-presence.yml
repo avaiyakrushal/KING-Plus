@@ -5,7 +5,7 @@ on:
     branches: ['work/reference-completion']
     paths:
       - '.github/workflows/inspect-v965-follow-presence.yml'
-      - 'ci/v965/inspect_social_presence_v965.py'
+      - 'ci/v965/**'
   workflow_dispatch:
 
 permissions:
@@ -27,6 +27,6 @@ jobs:
           mkdir -p /tmp/archive /tmp/src
           gh run download 37903811801 -n KING-Plus-v9.6.4-party-memory-social-ids-source -D /tmp/archive
           unzip -q /tmp/archive/KING-Plus-v9.6.4-party-memory-social-ids-source.zip -d /tmp/src
-      - name: Print focused realtime and room lifecycle audit
+      - name: Print exact follow and profile lifecycle methods
         run: |
-          python3 ci/v965/inspect_social_presence_v965.py /tmp/src | head -c 90000
+          python3 ci/v965/inspect_methods_v965.py /tmp/src | head -c 72000
