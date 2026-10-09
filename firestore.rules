@@ -379,15 +379,55 @@ service cloud.firestore {
         && request.resource.data.players.size() == 4
         && request.resource.data.players[0] == request.auth.uid
         && request.resource.data.capacity in [2, 4];
+      // v9.6.2: reject premature idle-turn skip and unauthorized match resets.
+      // Transactional clients use FieldValue.serverTimestamp for updatedAt.
       allow update: if activeUser()
         && request.resource.data.code == resource.data.code
         && request.resource.data.players is list
         && request.resource.data.players.size() == 4
         && request.resource.data.actorUid == request.auth.uid
+        && request.resource.data.revision is int
+        && resource.data.revision is int
+        && request.resource.data.revision == resource.data.revision + 1
+        && request.resource.data.updatedAt == request.time
         && (
           request.auth.uid in resource.data.players
           || (resource.data.phase == 'lobby'
               && request.auth.uid in request.resource.data.players)
+        )
+        && (
+          !(request.resource.data.action in ['start','cancel','rematch'])
+          || request.auth.uid == resource.data.ownerUid
+        )
+        && (
+          request.resource.data.action != 'start'
+          || (
+            resource.data.phase == 'lobby'
+            && resource.data.players.size() == 4
+            && resource.data.ready.size() == 4
+            && resource.data.players[0] != ''
+            && resource.data.players[2] != ''
+            && resource.data.ready[0] == true
+            && resource.data.ready[2] == true
+            && (resource.data.capacity == 2
+                || (resource.data.capacity == 4
+                    && resource.data.players[1] != ''
+                    && resource.data.players[3] != ''
+                    && resource.data.ready[1] == true
+                    && resource.data.ready[3] == true))
+          )
+        )
+        && (
+          request.resource.data.action != 'timeout'
+          || (
+            resource.data.phase in ['roll','move','resolve']
+            && resource.data.turn is int
+            && resource.data.turn >= 0 && resource.data.turn < 4
+            && resource.data.updatedAt is timestamp
+            && request.time >= resource.data.updatedAt + duration.value(60,'s')
+            && request.auth.uid != resource.data.players[resource.data.turn]
+            && request.resource.data.phase == 'roll'
+          )
         );
       allow delete: if activeUser()
         && resource.data.ownerUid == request.auth.uid;
