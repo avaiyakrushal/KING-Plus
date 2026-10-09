@@ -1,0 +1,63 @@
+name: Deploy KING Plus v9.6.2 Rules via Admin SDK
+
+on:
+  push:
+    branches: ['work/reference-completion']
+    paths:
+      - '.github/workflows/firebase-v963-direct-admin-rules.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: kingplus-live-firestore-rules
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: work/reference-completion
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Strict release source and credential checks
+        env:
+          FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_JSON }}
+        run: |
+          set -euo pipefail
+          test -n "$FIREBASE_SERVICE_ACCOUNT_JSON" || (echo "BLOCKED: Service Account credential missing" && exit 1)
+          printf '%s' "$FIREBASE_SERVICE_ACCOUNT_JSON" | jq -e '.type=="service_account" and .project_id=="king-plus-2f365"' > /dev/null
+          grep -F 'match /ludo_matches/{matchCode}' firestore.rules
+          grep -F "duration.value(60,'s')" firestore.rules
+          grep -F 'request.resource.data.revision == resource.data.revision + 1' firestore.rules
+          grep -F 'match /live_rooms/{roomId}' firestore.rules
+          grep -F 'match /test_wallet_snapshots/{uid}' firestore.rules
+          printf '%s' "$FIREBASE_SERVICE_ACCOUNT_JSON" > "$RUNNER_TEMP/firebase-service-account.json"
+          chmod 600 "$RUNNER_TEMP/firebase-service-account.json"
+          echo "GOOGLE_APPLICATION_CREDENTIALS=$RUNNER_TEMP/firebase-service-account.json" >> "$GITHUB_ENV"
+          sha256sum firestore.rules | cut -d' ' -f1
+      - name: Install Firebase Admin SDK dependencies
+        run: npm install --prefix functions
+      - name: Release Firestore rules directly, no Service Usage discovery
+        working-directory: functions
+        run: |
+          node <<'NODE'
+          const fs = require('fs');
+          const { initializeApp, applicationDefault } = require('firebase-admin/app');
+          const { getSecurityRules } = require('firebase-admin/security-rules');
+          initializeApp({credential: applicationDefault(), projectId: 'king-plus-2f365'});
+          (async () => {
+            const text = fs.readFileSync('../firestore.rules','utf8');
+            if (!text.includes("duration.value(60,'s')")) throw Error('Expected 60-second idle-turn rule missing');
+            const release = await getSecurityRules().releaseFirestoreRulesetFromSource(text);
+            if (!release || !release.name) throw Error('SDK did not confirm rule release');
+            console.log('SUCCESS: Firestore rules released:', release.name);
+          })().catch(e => {console.error('DEPLOY FAILED:', e.message || e);process.exit(1)});
+          NODE
+      - name: Remove temporary service account
+        if: always()
+        run: rm -f "$RUNNER_TEMP/firebase-service-account.json"
