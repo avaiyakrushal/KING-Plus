@@ -1,0 +1,135 @@
+name: Build KING Plus v9.8.6 Firebase Server Diagnosis
+on:
+  push:
+    branches: ['work/reference-completion']
+    paths:
+      - '.github/workflows/apk-v986-firestore-diagnosis.yml'
+      - 'ci/v986/**'
+  workflow_dispatch:
+permissions:
+  contents: write
+  actions: read
+concurrency:
+  group: kingplus-v986-firestore-diagnosis
+  cancel-in-progress: true
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: work/reference-completion
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+      - name: Test Firebase offline/cache classification without Android dependencies
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/diagnosis986
+          javac -d /tmp/diagnosis986 ci/v986/KingFirestoreRecovery986.java ci/v986/KingFirestoreRecovery986Test.java
+          java -cp /tmp/diagnosis986 com.kingplus.social.KingFirestoreRecovery986Test
+          python3 -m py_compile ci/v986/patch_server_error_v986.py
+      - name: Restore successful v9.8.5 Android APK source and signed original
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/old-source /tmp/android /tmp/old-apk
+          gh run download 38072882456 -n KING-Plus-v9.8.5-Party-Quick-Test-Source -D /tmp/old-source
+          test -s /tmp/old-source/KING-Plus-v9.8.5-Party-Quick-Test-source.zip
+          unzip -q /tmp/old-source/KING-Plus-v9.8.5-Party-Quick-Test-source.zip -d /tmp/android
+          gh run download 38072882456 -n KING-Plus-v9.8.5-Party-Quick-Test-APK -D /tmp/old-apk
+      - name: Add safe server-only Firestore failure classifier
+        run: |
+          set -euo pipefail
+          python3 ci/v986/patch_server_error_v986.py /tmp/android
+      - name: Assert no Room access bypass, secure Firebase test and legacy features
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          r=Path('/tmp/android');p=r/'app/src/main/java/com/kingplus/social'
+          party=(p/'PartyActivity.java').read_text()
+          diag=(p/'KingConnection983Activity.java').read_text()
+          gradle=(r/'app/build.gradle').read_text()
+          helper=(p/'KingFirestoreRecovery986.java').read_text()
+          assert "versionCode 177; versionName '9.8.6-firestore-server-diagnosis'" in gradle
+          assert 'KingFirestoreRecovery986.guidance(' in party
+          assert 'private String firebaseProject986()' in party
+          assert 'getOptions().getProjectId()' in party
+          assert 'KingFirestoreRecovery986.projectMismatch(project986)' in diag
+          assert 'addLine("Firebase project: "' in diag
+          assert 'LOCAL CACHE is not proof the Room exists on Firebase SERVER.' in diag
+          assert 'KingFirestoreRecovery986.cacheOnly(' in diag
+          assert 'get(Source.SERVER)' in diag
+          assert 'MetadataChanges.INCLUDE' in diag
+          assert 'DIAGNOSTIC_TIMEOUT_985_MS=22000L' in diag
+          assert 'KingLiveMembers984.active(' in diag
+          assert 'showPartyJoinFailure977(' in party
+          assert 'activeRoomCallback982(' in party
+          assert 'KingPartyMic968.canToggle(' in party
+          assert 'KingLudoTurn962.canSkip(' in (p/'OnlineLudoActivity.java').read_text()
+          assert 'KingFirestoreRecovery986.EXPECTED_PROJECT' in diag
+          assert 'Cached access is unsafe;' in helper
+          assert (p/'KingRecharge974Activity.java').exists()
+          assert (p/'KingPhoneOtp975Activity.java').exists()
+          assert 'new Intent(this,KingConnection983Activity.class)' in party
+          print('PASS Firestore server-vs-cache, exact Firebase project, secure room join, Mic/Seat, 18 games, no billing changes')
+          PY
+      - name: Compile installable v9.8.6 APK
+        working-directory: /tmp/android
+        run: gradle :app:assembleDebug --no-daemon
+      - name: Verify signed update against v9.8.5 APK (no uninstall required)
+        run: |
+          set -euo pipefail
+          OLD="$(find /tmp/old-apk -name '*.apk' -print -quit)"
+          NEW=/tmp/android/app/build/outputs/apk/debug/app-debug.apk
+          test -s "$OLD" && test -s "$NEW"
+          signer="$(find "$ANDROID_HOME/build-tools" -type f -name apksigner -print | sort -V | tail -1)"
+          aapt="$(find "$ANDROID_HOME/build-tools" -type f -name aapt -print | sort -V | tail -1)"
+          test -n "$signer" && test -n "$aapt"
+          "$signer" verify --print-certs "$OLD" >/tmp/old-certs.txt
+          "$signer" verify --print-certs "$NEW" >/tmp/new-certs.txt
+          OC="$(grep -Eo '[[:xdigit:]]{64}' /tmp/old-certs.txt | head -1)"
+          NC="$(grep -Eo '[[:xdigit:]]{64}' /tmp/new-certs.txt | head -1)"
+          test -n "$OC" && test "$OC" = "$NC"
+          "$aapt" dump badging "$OLD" | grep "^package:" | grep "name='com.kingplus.social'" | grep "versionCode='176'"
+          "$aapt" dump badging "$NEW" | grep "^package:" | grep "name='com.kingplus.social'" | grep "versionCode='177'"
+          echo "PASS identical signing certificate and upgrade-compatible package"
+      - name: Prepare installable APK and buildable source ZIP
+        run: |
+          set -euo pipefail
+          cp /tmp/android/app/build/outputs/apk/debug/app-debug.apk /tmp/KING-Plus-v9.8.6-Firebase-Server-Diagnosis.apk
+          (cd /tmp/android && zip -qr /tmp/KING-Plus-v9.8.6-Firebase-Server-Diagnosis-source.zip .)
+          sha256sum /tmp/KING-Plus-v9.8.6-Firebase-Server-Diagnosis.apk
+      - uses: actions/upload-artifact@v4
+        with:
+          name: KING-Plus-v9.8.6-Firebase-Server-Diagnosis-APK
+          path: /tmp/KING-Plus-v9.8.6-Firebase-Server-Diagnosis.apk
+          retention-days: 7
+          if-no-files-found: error
+      - uses: actions/upload-artifact@v4
+        with:
+          name: KING-Plus-v9.8.6-Firebase-Server-Diagnosis-Source
+          path: /tmp/KING-Plus-v9.8.6-Firebase-Server-Diagnosis-source.zip
+          retention-days: 7
+          if-no-files-found: error
+      - name: Publish direct Android APK link on GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          FILE=/tmp/KING-Plus-v9.8.6-Firebase-Server-Diagnosis.apk
+          if gh release view v9.8.6 >/dev/null 2>&1; then
+            gh release upload v9.8.6 "$FILE" --clobber
+          else
+            gh release create v9.8.6 "$FILE" \
+              --target work/reference-completion \
+              --title "KING Plus v9.8.6 Firebase Server Connection Diagnosis" \
+              --notes "Signed incremental APK for v9.8.5. On Party reconnect failure, safely distinguishes cached room data from verified Firestore server data, permission errors, session expiry, quota and wrong Firebase project. Firebase connection test shows the installed app's Firebase Project ID. Maintains enforced online Room security, Party mic/seat, Live members monitor, Ludo, gifts and older functions. Server access remains unverified until actual two-phone Firebase test; no billing or paid recharge changes." \
+              --prerelease
+          fi
+          gh release view v9.8.6 --json url,assets --jq '{url,assets:[.assets[]|{name,url,size}]}'
