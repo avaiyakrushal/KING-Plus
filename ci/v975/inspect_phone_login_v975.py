@@ -22,3 +22,9 @@ m=Path(sys.argv[1])/'app/src/main/AndroidManifest.xml'
 for i,row in enumerate(m.read_text().splitlines(),1):
  if 'activity ' in row or 'uses-permission' in row or 'intent-filter' in row or 'LAUNCHER' in row or 'MAIN' in row:
   print(f'{i}: {row}')
+
+print('===== EXACT MAIN OTP LINES =====')
+a=(p/'MainActivity.java').read_text().splitlines()
+for lo,hi in [(1,125),(290,360),(405,560),(560,650)]:
+ print('===== RANGE',lo,hi)
+ for i in range(lo-1,min(hi,len(a))):print(f'{i+1}: {a[i][:1600]}')
