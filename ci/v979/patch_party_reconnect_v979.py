@@ -240,6 +240,23 @@ once(
 'close all reconnect callbacks on destroyed Activity')
 
 file.write_text(s)
+# Android ConnectivityManager.getActiveNetwork()/getNetworkCapabilities()
+# requires ACCESS_NETWORK_STATE; without it KingNetwork.online() fell back
+# to true in its exception handler, masking a disconnected phone.
+manifest=root/'app/src/main/AndroidManifest.xml'
+m=manifest.read_text()
+if 'android.permission.ACCESS_NETWORK_STATE' not in m:
+    target='<manifest xmlns:android="http://schemas.android.com/apk/res/android">'
+    if target not in m:raise SystemExit('Unexpected Android manifest root')
+    m=m.replace(target,target+
+        '\n    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />',1)
+    print('PASS declare ACCESS_NETWORK_STATE for validated Android network detection')
+if 'android.permission.INTERNET' not in m:
+    target='<manifest xmlns:android="http://schemas.android.com/apk/res/android">'
+    m=m.replace(target,target+
+        '\n    <uses-permission android:name="android.permission.INTERNET" />',1)
+    print('PASS declare INTERNET for Firebase Firestore')
+manifest.write_text(m)
 gradle=root/'app/build.gradle'
 g=gradle.read_text()
 old="versionCode 169; versionName '9.7.8-startup-signal-attribution'"
