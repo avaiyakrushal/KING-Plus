@@ -1,0 +1,100 @@
+name: Build KING Plus v9.8.3 On-phone Firebase Test
+on:
+  push:
+    branches: ['work/reference-completion']
+    paths:
+      - '.github/workflows/apk-v983-connection-test.yml'
+      - 'ci/v983/**'
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: king-plus-v983-connection-test
+  cancel-in-progress: true
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: work/reference-completion
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+      - name: Test Room Code parsing and privacy-safe Firebase failure reports
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/connection-test
+          javac -d /tmp/connection-test ci/v983/KingConnectionDiagnostics983.java ci/v983/KingConnectionDiagnostics983Test.java
+          java -cp /tmp/connection-test com.kingplus.social.KingConnectionDiagnostics983Test
+          python3 -m py_compile ci/v983/patch_connection_test_v983.py
+      - name: Restore verified v9.8.2 Android source
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/archive /tmp/android
+          gh run download 38061134066 -n KING-Plus-v9.8.2-party-room-session-safety-source -D /tmp/archive
+          test -f /tmp/archive/KING-Plus-v9.8.2-party-room-session-safety-source.zip
+          unzip -q /tmp/archive/KING-Plus-v9.8.2-party-room-session-safety-source.zip -d /tmp/android
+      - name: Add Firebase server test to Help and Party Join failure UI
+        run: python3 ci/v983/patch_connection_test_v983.py /tmp/android
+      - name: Safety checks and previous-feature compatibility
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          root=Path('/tmp/android')
+          p=root/'app/src/main/java/com/kingplus/social'
+          act=(p/'KingConnection983Activity.java').read_text()
+          main=(p/'MainActivity.java').read_text()
+          party=(p/'PartyActivity.java').read_text()
+          manifest=(root/'app/src/main/AndroidManifest.xml').read_text()
+          gradle=(root/'app/build.gradle').read_text()
+          assert "versionCode 174; versionName '9.8.3-on-phone-firebase-connection-test'" in gradle
+          assert '<activity android:name=".KingConnection983Activity" android:exported="false" />' in manifest
+          assert 'startActivity(new Intent(this,KingConnection983Activity.class))' in main
+          assert 'new Intent(this,KingConnection983Activity.class)' in party
+          assert 'Copy connection report' in party
+          assert 'activeRoomCallback982(' in party
+          assert 'showPartyJoinFailure977(' in party
+          assert 'KingNetwork.online(this)' in act
+          assert '.getIdToken(true)' in act
+          assert 'db.enableNetwork()' in act
+          assert '.get(Source.SERVER)' in act
+          assert 'whereEqualTo("joinCode",code)' in act
+          assert '.collection("members").document(uid).get(Source.SERVER)' in act
+          assert 'KingConnectionDiagnostics983.uidPrefix(' in act
+          assert 'ClipboardManager' in act
+          assert 'KingPartyMic968.canToggle(' in party
+          assert 'KingSocialRealtime970.activeAccount(' in (p/'SocialActivity.java').read_text()
+          assert 'KingLudoTurn962.canSkip(' in (p/'OnlineLudoActivity.java').read_text()
+          assert 'KingRecharge974Activity.class' in main
+          assert 'KingPhoneOtp975Activity.class' in main
+          print('PASS: on-phone read-only diagnostics, no secret leakage or billing; v9.8.2 features retained')
+          PY
+      - name: Compile KING Plus v9.8.3 Android APK
+        working-directory: /tmp/android
+        run: gradle :app:assembleDebug --no-daemon
+      - name: Bundle installable APK and updated source
+        run: |
+          set -euo pipefail
+          cp /tmp/android/app/build/outputs/apk/debug/app-debug.apk /tmp/KING-Plus-v9.8.3-Firebase-Connection-Test.apk
+          cd /tmp/android
+          zip -qr /tmp/KING-Plus-v9.8.3-firebase-connection-test-source.zip .
+      - uses: actions/upload-artifact@v4
+        with:
+          name: KING-Plus-v9.8.3-firebase-connection-test-APK
+          path: /tmp/KING-Plus-v9.8.3-Firebase-Connection-Test.apk
+          if-no-files-found: error
+          retention-days: 7
+      - uses: actions/upload-artifact@v4
+        with:
+          name: KING-Plus-v9.8.3-firebase-connection-test-source
+          path: /tmp/KING-Plus-v9.8.3-firebase-connection-test-source.zip
+          if-no-files-found: error
+          retention-days: 7
