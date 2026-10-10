@@ -240,6 +240,13 @@ once(
 'close all reconnect callbacks on destroyed Activity')
 
 file.write_text(s)
+network=pkg/'KingNetwork.java'
+n=network.read_text()
+if 'catch(Throwable ignored){ return true; }' in n:
+    n=n.replace('catch(Throwable ignored){ return true; }',
+                'catch(Throwable ignored){ return false; }',1)
+    print('PASS: ConnectivityManager read error can no longer pretend the phone is online')
+network.write_text(n)
 # Android ConnectivityManager.getActiveNetwork()/getNetworkCapabilities()
 # requires ACCESS_NETWORK_STATE; without it KingNetwork.online() fell back
 # to true in its exception handler, masking a disconnected phone.
