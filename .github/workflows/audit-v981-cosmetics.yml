@@ -1,0 +1,30 @@
+name: Audit KING Plus Realtime Frames Gifts Emoji VIP
+on:
+  push:
+    branches: ['work/reference-completion']
+    paths:
+      - '.github/workflows/audit-v981-cosmetics.yml'
+      - 'ci/v981/audit_live_cosmetics.py'
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  audit:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: work/reference-completion
+      - name: Restore v9.7.9 latest working Party and cosmetics
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/a /tmp/src
+          gh run download 38037047355 -n KING-Plus-v9.7.9-firestore-party-reconnect-source -D /tmp/a
+          unzip -q /tmp/a/KING-Plus-v9.7.9-firestore-party-reconnect-source.zip -d /tmp/src
+      - name: Inspect actual frame, Gift, Emoji and verified VIP methods
+        run: |
+          python3 ci/v981/audit_live_cosmetics.py /tmp/src > /tmp/cosmetics-audit.txt
+          head -c 185000 /tmp/cosmetics-audit.txt
