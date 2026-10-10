@@ -1,0 +1,127 @@
+name: Build KING Plus v9.8.5 Party Quick Test
+on:
+  push:
+    branches: ['work/reference-completion']
+    paths:
+      - '.github/workflows/apk-v985-party-quick-test.yml'
+      - 'ci/v985/**'
+  workflow_dispatch:
+permissions:
+  contents: write
+  actions: read
+concurrency:
+  group: kingplus-v985-party-quick-test
+  cancel-in-progress: true
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: work/reference-completion
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+      - name: Restore v9.8.4 proven Android source and APK
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/v984 /tmp/android /tmp/old-apk
+          gh run download 38065192479 -n KING-Plus-v9.8.4-live-member-sync-test-source -D /tmp/v984
+          test -s /tmp/v984/KING-Plus-v9.8.4-live-member-sync-test-source.zip
+          unzip -q /tmp/v984/KING-Plus-v9.8.4-live-member-sync-test-source.zip -d /tmp/android
+          gh run download 38065192479 -n KING-Plus-v9.8.4-live-member-sync-test-APK -D /tmp/old-apk
+      - name: Apply safe Party connect quick test with bounded diagnostic
+        run: |
+          set -euo pipefail
+          python3 -m py_compile ci/v985/patch_party_quick_test_v985.py
+          python3 ci/v985/patch_party_quick_test_v985.py /tmp/android
+      - name: Assert no security bypass and no feature regression
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          r=Path('/tmp/android'); p=r/'app/src/main/java/com/kingplus/social'
+          party=(p/'PartyActivity.java').read_text()
+          diag=(p/'KingConnection983Activity.java').read_text()
+          gradle=(r/'app/build.gradle').read_text()
+          assert "versionCode 176; versionName '9.8.5-party-connection-quick-test'" in gradle
+          join=party[party.index('private void showJoiningRoom964()'):party.index('private void renderParty()',party.index('private void showJoiningRoom964()'))]
+          for phrase in ['Test Firebase / Room connection','++roomJoinGeneration966;',
+                         '++partyReconnectGeneration979;', 'clearPartyReconnect979();',
+                         'stopPartyJoinTimeout977();','renderLobby("Hot");',
+                         'new Intent(this,KingConnection983Activity.class)',
+                         'putExtra("roomInput983",inspectingRoom985)']:
+              assert phrase in join,phrase
+          assert join.index('renderLobby("Hot");')<join.index('startActivity(connection985);')
+          assert 'DIAGNOSTIC_TIMEOUT_985_MS=22000L' in diag
+          assert 'startDiagnosticTimeout985(gen,uid);' in diag
+          assert '++generation983; // prevents a late Firebase callback claiming success' in diag
+          assert diag.count('stopDiagnosticTimeout985();')>=10
+          assert '.get(Source.SERVER)' in diag and 'MetadataChanges.INCLUDE' in diag
+          assert 'KingLiveMembers984.active(' in diag
+          assert 'activeRoomCallback982(' in party and 'showPartyJoinFailure977(' in party
+          assert 'KingPartyMic968.canToggle(' in party
+          assert 'KingLudoTurn962.canSkip(' in (p/'OnlineLudoActivity.java').read_text()
+          assert (p/'KingPhoneOtp975Activity.java').exists()
+          assert (p/'KingRecharge974Activity.java').exists()
+          print('PASS secure Party diagnostics, stale callback cancellation, 22s timeout and regressions')
+          PY
+      - name: Build KING Plus v9.8.5 APK
+        working-directory: /tmp/android
+        run: gradle :app:assembleDebug --no-daemon
+      - name: Ensure this APK installs over v9.8.4 without uninstall
+        run: |
+          set -euo pipefail
+          OLD="$(find /tmp/old-apk -name '*.apk' -print -quit)"
+          NEW=/tmp/android/app/build/outputs/apk/debug/app-debug.apk
+          test -s "$OLD" && test -s "$NEW"
+          signer="$(find "$ANDROID_HOME/build-tools" -type f -name apksigner -print | sort -V | tail -1)"
+          aapt="$(find "$ANDROID_HOME/build-tools" -type f -name aapt -print | sort -V | tail -1)"
+          test -n "$signer" && test -n "$aapt"
+          "$signer" verify --print-certs "$OLD" >/tmp/old-signature.txt
+          "$signer" verify --print-certs "$NEW" >/tmp/new-signature.txt
+          OLD_CERT="$(grep -Eo '[[:xdigit:]]{64}' /tmp/old-signature.txt | head -1)"
+          NEW_CERT="$(grep -Eo '[[:xdigit:]]{64}' /tmp/new-signature.txt | head -1)"
+          test -n "$OLD_CERT" && test "$OLD_CERT" = "$NEW_CERT"
+          "$aapt" dump badging "$OLD" | grep "^package:" | grep "name='com.kingplus.social'" | grep "versionCode='175'"
+          "$aapt" dump badging "$NEW" | grep "^package:" | grep "name='com.kingplus.social'" | grep "versionCode='176'"
+          echo "PASS valid KING Plus APK update signing and version"
+      - name: Package test APK and source
+        run: |
+          set -euo pipefail
+          cp /tmp/android/app/build/outputs/apk/debug/app-debug.apk /tmp/KING-Plus-v9.8.5-Party-Quick-Test.apk
+          (cd /tmp/android && zip -qr /tmp/KING-Plus-v9.8.5-Party-Quick-Test-source.zip .)
+          sha256sum /tmp/KING-Plus-v9.8.5-Party-Quick-Test.apk
+      - uses: actions/upload-artifact@v4
+        with:
+          name: KING-Plus-v9.8.5-Party-Quick-Test-APK
+          path: /tmp/KING-Plus-v9.8.5-Party-Quick-Test.apk
+          retention-days: 7
+          if-no-files-found: error
+      - uses: actions/upload-artifact@v4
+        with:
+          name: KING-Plus-v9.8.5-Party-Quick-Test-Source
+          path: /tmp/KING-Plus-v9.8.5-Party-Quick-Test-source.zip
+          retention-days: 7
+          if-no-files-found: error
+      - name: Publish signed APK for Chrome
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          FILE=/tmp/KING-Plus-v9.8.5-Party-Quick-Test.apk
+          if gh release view v9.8.5 >/dev/null 2>&1; then
+            gh release upload v9.8.5 "$FILE" --clobber
+          else
+            gh release create v9.8.5 "$FILE" \
+              --target work/reference-completion \
+              --title "KING Plus v9.8.5 Party Connection Quick Test" \
+              --notes "Directly installable signed test APK; verifies update signature matches v9.8.4. Party Connecting page now opens same-account Firebase Room Test after safely abandoning pending join/reconnect callbacks. Firebase test shows a bounded 22-second failure instead of an endless wait. Previous live member watcher, room permissions, Mic/Seat, Ludo, Chat, Gifts unchanged. Live two-phone Firestore verification is still required. No paid recharge, SMS OTP or billing added." \
+              --prerelease
+          fi
+          gh release view v9.8.5 --json url,assets --jq '{url,assets:[.assets[]|{name,url,size}]}'
