@@ -1,0 +1,96 @@
+name: Build KING Plus v9.7.5 Low-Cost Mobile OTP
+on:
+  push:
+    branches: ['work/reference-completion']
+    paths:
+      - '.github/workflows/apk-v975-mobile-otp.yml'
+      - 'ci/v975/**'
+      - 'edge/kingplus-lowcost/**'
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: king-plus-v975-phone-otp
+  cancel-in-progress: true
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: work/reference-completion
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Check Cloudflare SMS/UPI backend security, no Google Cloud Billing
+        working-directory: edge/kingplus-lowcost
+        run: |
+          set -euo pipefail
+          node --check worker.mjs
+          node --test policy.test.mjs
+          python3 schema.test.py
+      - name: Restore successful KING Plus v9.7.4 Android APK source
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/download /tmp/src
+          gh run download 38001246509 -n KING-Plus-v9.7.4-recharge-ready-setup-pending-source -D /tmp/download
+          test -f /tmp/download/KING-Plus-v9.7.4-recharge-ready-setup-pending-source.zip
+          unzip -q /tmp/download/KING-Plus-v9.7.4-recharge-ready-setup-pending-source.zip -d /tmp/src
+      - name: Apply Android Mobile OTP custom-token login patch
+        run: python3 ci/v975/patch_mobile_otp_v975.py /tmp/src
+      - name: Validate real SMS OTP flow and existing features
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          root=Path('/tmp/src')
+          pkg=root/'app/src/main/java/com/kingplus/social'
+          mobile=(pkg/'KingPhoneOtp975Activity.java').read_text()
+          main=(pkg/'MainActivity.java').read_text()
+          recharge=(pkg/'KingRecharge974Activity.java').read_text()
+          manifest=(root/'app/src/main/AndroidManifest.xml').read_text()
+          gradle=(root/'app/build.gradle').read_text()
+          assert "versionCode 166; versionName '9.7.5-cloudflare-mobile-otp-preparation'" in gradle
+          assert '<activity android:name=".KingPhoneOtp975Activity" android:exported="false" />' in manifest
+          assert 'private void mobileLogin() {\n        startActivity(new Intent(this,KingPhoneOtp975Activity.class));' in main
+          assert 'FirebaseAuth.getInstance().signInWithCustomToken(signedToken)' in mobile
+          assert 'turnstileToken975' in mobile
+          assert 'https://challenges.cloudflare.com/turnstile/v0/api.js' in mobile
+          assert '"/otp/request"' in mobile and '"/otp/verify"' in mobile
+          assert 'new Thread(' not in mobile
+          assert 'Request real SMS' not in main
+          assert 'public static final boolean LIVE_RECHARGE = false;' in recharge
+          assert 'KingSocialRealtime970.activeAccount(' in (pkg/'SocialActivity.java').read_text()
+          assert 'KingPartyMic968.canToggle(' in (pkg/'PartyActivity.java').read_text()
+          print('PASS mobile custom OTP, CAPTCHA, configured backend and disabled payments, prior app features intact')
+          PY
+      - name: Compile Android debug APK
+        working-directory: /tmp/src
+        run: gradle :app:assembleDebug --no-daemon
+      - name: Package installable APK and source
+        run: |
+          set -euo pipefail
+          cp /tmp/src/app/build/outputs/apk/debug/app-debug.apk /tmp/KING-Plus-v9.7.5-mobile-otp-lowcost-backend-setup.apk
+          cd /tmp/src
+          zip -qr /tmp/KING-Plus-v9.7.5-mobile-otp-lowcost-backend-setup-source.zip .
+      - uses: actions/upload-artifact@v4
+        with:
+          name: KING-Plus-v9.7.5-mobile-otp-lowcost-backend-setup-APK
+          path: /tmp/KING-Plus-v9.7.5-mobile-otp-lowcost-backend-setup.apk
+          if-no-files-found: error
+          retention-days: 7
+      - uses: actions/upload-artifact@v4
+        with:
+          name: KING-Plus-v9.7.5-mobile-otp-lowcost-backend-setup-source
+          path: /tmp/KING-Plus-v9.7.5-mobile-otp-lowcost-backend-setup-source.zip
+          if-no-files-found: error
+          retention-days: 7
