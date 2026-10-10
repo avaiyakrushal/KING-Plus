@@ -83,6 +83,10 @@ jobs:
           assert "allow read: if signedIn();" in rules
           assert "KingCrashWatch958.showPreviousExit(this)" in main
           assert "FirebaseFirestore.getInstance()" in party
+          manifest=(root/'app/src/main/AndroidManifest.xml').read_text()
+          assert 'android.permission.ACCESS_NETWORK_STATE' in manifest
+          assert 'android.permission.INTERNET' in manifest
+          assert 'catch(Throwable ignored){ return false; }' in (pkg/'KingNetwork.java').read_text()
           print("PASS authenticated server-only Party join, network reconnect, timeout and old features")
           PY
       - name: Compile v9.7.9 Android debug APK
