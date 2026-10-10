@@ -17,7 +17,7 @@ import shutil,sys
 
 root=Path(sys.argv[1])
 pkg=root/'app/src/main/java/com/kingplus/social'
-for f in ('KingBackend976.java','KingWallet976Activity.java'):
+for f in ('KingBackend976.java','KingWallet976Activity.java','KingWalletRules976.java'):
     shutil.copy2(Path(__file__).with_name(f),pkg/f)
     print('PASS added',f)
 
