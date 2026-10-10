@@ -22,7 +22,7 @@ public final class KingConnectionDiagnostics983Test {
         eq(KingConnectionDiagnostics983.friendlyError("UNAVAILABLE").contains("unreachable"),true,"offline");
         eq(KingConnectionDiagnostics983.friendlyError("RESOURCE_EXHAUSTED").contains("quota"),true,"quota");
         eq(KingConnectionDiagnostics983.friendlyError("UNAUTHENTICATED").contains("Sign in"),true,"auth");
-        eq(KingConnectionDiagnostics983.safeLine("Error\\r\\nsecret",16).contains("\\n"),false,"sanitize newlines");
+        eq(KingConnectionDiagnostics983.safeLine("Error\r\nsecret",16).contains("\n"),false,"sanitize newlines");
         eq(KingConnectionDiagnostics983.active(3,3,"alice","alice",true),true,"current scan");
         eq(KingConnectionDiagnostics983.active(3,4,"alice","alice",true),false,"stale scan");
         eq(KingConnectionDiagnostics983.active(3,3,"alice","bob",true),false,"account switched");
