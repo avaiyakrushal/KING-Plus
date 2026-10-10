@@ -1,0 +1,30 @@
+name: Inspect v9.7.4 Mobile OTP Login for Low Cost Backend
+on:
+  push:
+    branches: ['work/reference-completion']
+    paths:
+      - '.github/workflows/inspect-v975-phone-login.yml'
+      - 'ci/v975/inspect_phone_login_v975.py'
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  audit:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: work/reference-completion
+      - name: Restore successfully built v9.7.4 Android source
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/a /tmp/src
+          gh run download 38001246509 -n KING-Plus-v9.7.4-recharge-ready-setup-pending-source -D /tmp/a
+          unzip -q /tmp/a/KING-Plus-v9.7.4-recharge-ready-setup-pending-source.zip -d /tmp/src
+      - name: Inspect Login, OTP, Splash and manifest
+        run: |
+          python3 ci/v975/inspect_phone_login_v975.py /tmp/src > /tmp/phone-login-audit.txt
+          head -c 125000 /tmp/phone-login-audit.txt
