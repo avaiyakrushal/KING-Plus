@@ -181,4 +181,23 @@ g=root/'app/build.gradle';build=g.read_text()
 old="versionCode 170; versionName '9.7.9-party-firestore-reconnect'"
 if build.count(old)!=1:raise SystemExit('expected last successful v9.7.9 source')
 g.write_text(build.replace(old,"versionCode 171; versionName '9.8.0-playable-games'",1))
+# Jitsi's GitHub /raw redirect is intermittently returning HTTP 504 on
+# GitHub Actions. Prefer the canonical raw.githubusercontent.com Maven mirror,
+# keeping the exact same versions/artifacts and all Room Voice functionality.
+candidate_files=[root/'settings.gradle',root/'settings.gradle.kts',
+                 root/'build.gradle',root/'build.gradle.kts',
+                 root/'app/build.gradle',root/'app/build.gradle.kts']
+replaced=0
+for gradle_file in candidate_files:
+    if not gradle_file.exists():continue
+    val=gradle_file.read_text()
+    old_repo="https://github.com/jitsi/jitsi-maven-repository/raw/master/releases"
+    raw_repo="https://raw.githubusercontent.com/jitsi/jitsi-maven-repository/master/releases"
+    if old_repo in val:
+        replaced+=val.count(old_repo)
+        gradle_file.write_text(val.replace(old_repo,raw_repo))
+if replaced:
+    print(f'PASS Jitsi Maven same-artifact raw GitHub mirror ({replaced} references) to bypass 504')
+else:
+    print('NOTE Jitsi Maven source URL not found in top-level Gradle files; leave original repository untouched')
 print('PASS KING Plus v9.8.0 all advertised game tiles navigate to interactive games')
