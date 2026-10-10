@@ -1,0 +1,123 @@
+name: Build KING Plus v9.8.1 Games VIP Frames Gifts Emoji
+on:
+  push:
+    branches: ['work/reference-completion']
+    paths:
+      - '.github/workflows/apk-v981-all-features.yml'
+      - 'ci/v981/KingPremiumAccess981.java'
+      - 'ci/v981/KingPremiumAccess981Test.java'
+      - 'ci/v981/KingFrameGallery981Activity.java'
+      - 'ci/v981/patch_all_cosmetics_v981.py'
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: king-plus-v981-games-vip-frames-gifts-emoji
+  cancel-in-progress: true
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: work/reference-completion
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+      - name: Test frame and VIP entitlement policy
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/v981tests
+          javac -d /tmp/v981tests ci/v981/KingPremiumAccess981.java ci/v981/KingPremiumAccess981Test.java
+          java -cp /tmp/v981tests com.kingplus.social.KingPremiumAccess981Test
+          javac -d /tmp/v981tests ci/v980/KingGameRoutes980.java ci/v980/KingGameRoutes980Test.java
+          java -cp /tmp/v981tests com.kingplus.social.KingGameRoutes980Test
+          python3 -m py_compile ci/v981/patch_all_cosmetics_v981.py
+      - name: Restore successfully compiled playable Games v9.8.0
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/archive /tmp/src
+          gh run download 38059683974 -n KING-Plus-v9.8.0-playable-games-source -D /tmp/archive
+          test -f /tmp/archive/KING-Plus-v9.8.0-playable-games-source.zip
+          unzip -q /tmp/archive/KING-Plus-v9.8.0-playable-games-source.zip -d /tmp/src
+      - name: Add synced frame gallery, verified VIP, corrected Gift and Emoji
+        run: python3 ci/v981/patch_all_cosmetics_v981.py /tmp/src
+      - name: Check cross-phone frame/emoji and all prior games & Firebase features
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          root=Path('/tmp/src')
+          pkg=root/'app/src/main/java/com/kingplus/social'
+          main=(pkg/'MainActivity.java').read_text()
+          party=(pkg/'PartyActivity.java').read_text()
+          vip=(pkg/'KingVipVisualActivity.java').read_text()
+          frame=(pkg/'KingFrameGallery981Activity.java').read_text()
+          manifest=(root/'app/src/main/AndroidManifest.xml').read_text()
+          gradle=(root/'app/build.gradle').read_text()
+          assert "versionCode 172; versionName '9.8.1-games-vip-frames-gifts-emoji'" in gradle
+          assert 'new Intent(this,GamePlayActivity.class)' in main
+          assert 'KingGameRoutes980.localGame(game)' in main
+          assert 'new Intent(this,KingLudoLobbyActivity.class)' in main
+          assert 'new Intent(this,KingVipVisualActivity.class)' in main
+          assert 'new Intent(this,KingFrameGallery981Activity.class)' in main
+          assert 'private void giftCatalogPage(){' in main
+          assert 'private void roomGames(){' in main
+          assert 'profile.put("vipLevel",progress.vipLevel)' not in main
+          assert 'profile.put("vipPoints",progress.vipPoints)' not in main
+          assert 'KingPremiumAccess981.allowedFrame(' in frame
+          assert 'KingPremiumAccess981.allowedEffect(' in frame
+          assert 'FirebaseFirestore.getInstance().collection("public_profiles").document(uid)' in frame
+          assert 'KingCosmetics.avatarFrame(' in frame
+          assert 'android:name=".KingFrameGallery981Activity"' in manifest
+          assert 'activeEmojiSession981=presenceGeneration967' in party
+          assert 'isActivePresence967(activeRoomForEmoji960,activeUserForEmoji960,activeEmojiSession981)' in party
+          assert '"✨ KING Original Pack  •  FREE animations"' in party
+          assert 'showLiveEmojiEffect560(' in party
+          assert 'GiftBurstView' in party
+          assert 'KingFreeGift973.allowed(' in party
+          assert 'm.put("vipLevel",p.vipLevel)' not in party
+          assert 'd.put("vipLevel",p720.vipLevel)' not in party
+          assert 'server-confirmed gifts' not in vip
+          assert 'KingBackend976.fetchWallet(' in vip
+          assert 'KingPartyConnection979.isRetryable(' in party
+          assert 'KingPartyMic968.canToggle(' in party
+          assert 'KingLudoTurn962.canSkip(' in (pkg/'OnlineLudoActivity.java').read_text()
+          assert 'KingSocialRealtime970.activeAccount(' in (pkg/'SocialActivity.java').read_text()
+          print('PASS Games, profile Frame Firebase sync, nonfake VIP, realtime Emoji, existing Gifts and Room')
+          PY
+      - name: Compile Android debug APK without dropping Jitsi Voice
+        working-directory: /tmp/src
+        run: |
+          set -euo pipefail
+          for attempt in 1 2 3; do
+            echo "Combined APK attempt $attempt / 3"
+            if gradle :app:assembleDebug --no-daemon; then exit 0; fi
+            if [ "$attempt" -eq 3 ]; then exit 1; fi
+            sleep $((attempt * 12))
+          done
+      - name: Package unified APK and full patched source
+        run: |
+          set -euo pipefail
+          cp /tmp/src/app/build/outputs/apk/debug/app-debug.apk /tmp/KING-Plus-v9.8.1-games-vip-frames-gifts-emoji.apk
+          cd /tmp/src
+          zip -qr /tmp/KING-Plus-v9.8.1-games-vip-frames-gifts-emoji-source.zip .
+      - uses: actions/upload-artifact@v4
+        with:
+          name: KING-Plus-v9.8.1-games-vip-frames-gifts-emoji-APK
+          path: /tmp/KING-Plus-v9.8.1-games-vip-frames-gifts-emoji.apk
+          if-no-files-found: error
+          retention-days: 7
+      - uses: actions/upload-artifact@v4
+        with:
+          name: KING-Plus-v9.8.1-games-vip-frames-gifts-emoji-source
+          path: /tmp/KING-Plus-v9.8.1-games-vip-frames-gifts-emoji-source.zip
+          if-no-files-found: error
+          retention-days: 7
