@@ -1,0 +1,35 @@
+name: Audit KING Plus v9.7.9 Playable Games and Cosmetic Features
+on:
+  push:
+    branches: ['work/reference-completion']
+    paths:
+      - '.github/workflows/audit-v980-games.yml'
+      - 'ci/v980/audit_games_features.py'
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  audit:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: work/reference-completion
+      - name: Recover last successful v9.7.9 Android source
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/archive /tmp/src
+          gh run download 38037047355 -n KING-Plus-v9.7.9-firestore-party-reconnect-source -D /tmp/archive
+          unzip -q /tmp/archive/KING-Plus-v9.7.9-firestore-party-reconnect-source.zip -d /tmp/src
+      - name: Inspect game and feature entry points
+        run: |
+          python3 ci/v980/audit_games_features.py /tmp/src > /tmp/v980-audit.txt
+          head -c 157000 /tmp/v980-audit.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: KING-Plus-v980-source-game-audit
+          path: /tmp/v980-audit.txt
+          retention-days: 7
