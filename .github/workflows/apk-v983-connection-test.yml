@@ -73,7 +73,7 @@ jobs:
           assert 'KingPartyMic968.canToggle(' in party
           assert 'KingSocialRealtime970.activeAccount(' in (p/'SocialActivity.java').read_text()
           assert 'KingLudoTurn962.canSkip(' in (p/'OnlineLudoActivity.java').read_text()
-          assert 'KingRecharge974Activity.class' in main
+          assert (p/'KingRecharge974Activity.java').exists() and 'rechargeCenterPage()' in main
           assert 'KingPhoneOtp975Activity.class' in main
           print('PASS: on-phone read-only diagnostics, no secret leakage or billing; v9.8.2 features retained')
           PY
