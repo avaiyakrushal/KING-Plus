@@ -1,0 +1,100 @@
+name: Build KING Plus v9.7.7 Party Verification Timeout Fix
+on:
+  push:
+    branches: ['work/reference-completion']
+    paths:
+      - '.github/workflows/apk-v977-party-join-timeout.yml'
+      - 'ci/v977/**'
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: kingplus-v977-party-join-timeout
+  cancel-in-progress: true
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: work/reference-completion
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+      - name: Test join generation and 18 second timeout
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/join-tests
+          javac -d /tmp/join-tests ci/v977/KingPartyJoinTimeout977.java ci/v977/KingPartyJoinTimeout977Test.java
+          java -cp /tmp/join-tests com.kingplus.social.KingPartyJoinTimeout977Test
+          python3 -m py_compile ci/v977/patch_party_join_v977.py
+      - name: Restore successful v9.7.6 Android source (includes OTP and Wallet)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/archive /tmp/src
+          gh run download 38011230656 -n KING-Plus-v9.7.6-unified-verified-wallet-source -D /tmp/archive
+          unzip -q /tmp/archive/KING-Plus-v9.7.6-unified-verified-wallet-source.zip -d /tmp/src
+      - name: Fix indefinitely frozen Party verification screen
+        run: python3 ci/v977/patch_party_join_v977.py /tmp/src
+      - name: Verify timeout and previous social, wallet, room and audio features
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          root=Path('/tmp/src')
+          pkg=root/'app/src/main/java/com/kingplus/social'
+          party=(pkg/'PartyActivity.java').read_text()
+          login=(pkg/'KingPhoneOtp975Activity.java').read_text()
+          wallet=(pkg/'KingWallet976Activity.java').read_text()
+          social=(pkg/'SocialActivity.java').read_text()
+          gradle=(root/'app/build.gradle').read_text()
+          assert "versionCode 168; versionName '9.7.7-party-join-timeout-retry'" in gradle
+          assert 'KingPartyJoinTimeout977.waiting(' in party
+          assert 'startPartyJoinTimeout977(requestedRoom966,requestedUid966,requestToken966)' in party
+          assert 'KingPartyJoinTimeout977.JOIN_TIMEOUT_MS' in party
+          assert 'stopPartyJoinTimeout977();memberSeen=true;renderParty();' in party
+          assert 'stopPartyJoinTimeout977();++roomJoinGeneration966;' in party
+          assert 'ref.get(com.google.firebase.firestore.Source.SERVER)' in party
+          assert 'expectedRoom966.get(com.google.firebase.firestore.Source.SERVER)' in party
+          assert 'expectedRoom966.collection("members").get(com.google.firebase.firestore.Source.SERVER)' in party
+          assert 'private void showPartyJoinFailure977(String reason977)' in party
+          assert 'Retry secure connection' in party
+          assert 'Back to Party list' in party
+          assert 'Cancel and return to Party' in party
+          assert 'KingPartyMic968.canToggle(' in party
+          assert 'KingPartyMemory969.overEffectLimit(' in party
+          assert 'KingRoomPresence967.isActive(' in party
+          assert 'KingPartyJoin966.current(' in party
+          assert 'KingSocialRealtime970.activeAccount(' in social
+          assert 'KingBackend976.fetchWallet(this,' in wallet
+          assert 'signInWithCustomToken(signedToken)' in login
+          assert 'KingLudoTurn962.canSkip(' in (pkg/'OnlineLudoActivity.java').read_text()
+          print('PASS: Party watchdog + error UI and previous social, OTP, wallet, Ludo and Mic intact')
+          PY
+      - name: Compile v9.7.7 Android debug APK
+        working-directory: /tmp/src
+        run: gradle :app:assembleDebug --no-daemon
+      - name: Package built APK and patched source
+        run: |
+          set -euo pipefail
+          cp /tmp/src/app/build/outputs/apk/debug/app-debug.apk /tmp/KING-Plus-v9.7.7-party-connect-retry.apk
+          cd /tmp/src
+          zip -qr /tmp/KING-Plus-v9.7.7-party-connect-retry-source.zip .
+      - uses: actions/upload-artifact@v4
+        with:
+          name: KING-Plus-v9.7.7-party-connect-retry-APK
+          path: /tmp/KING-Plus-v9.7.7-party-connect-retry.apk
+          if-no-files-found: error
+          retention-days: 7
+      - uses: actions/upload-artifact@v4
+        with:
+          name: KING-Plus-v9.7.7-party-connect-retry-source
+          path: /tmp/KING-Plus-v9.7.7-party-connect-retry-source.zip
+          if-no-files-found: error
+          retention-days: 7
