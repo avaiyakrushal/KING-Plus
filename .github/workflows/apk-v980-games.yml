@@ -1,0 +1,112 @@
+name: Build KING Plus v9.8.0 Real Playable Games
+on:
+  push:
+    branches: ['work/reference-completion']
+    paths:
+      - '.github/workflows/apk-v980-games.yml'
+      - 'ci/v980/KingGameRoutes980.java'
+      - 'ci/v980/KingGameRoutes980Test.java'
+      - 'ci/v980/patch_playable_games_v980.py'
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: king-plus-v980-playable-games
+  cancel-in-progress: true
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: work/reference-completion
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+      - name: Test 18 playable game route mappings
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/game980test
+          javac -d /tmp/game980test ci/v980/KingGameRoutes980.java ci/v980/KingGameRoutes980Test.java
+          java -cp /tmp/game980test com.kingplus.social.KingGameRoutes980Test
+          python3 -m py_compile ci/v980/patch_playable_games_v980.py
+      - name: Restore successfully built v9.7.9 Android source
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/archive /tmp/src
+          gh run download 38037047355 -n KING-Plus-v9.7.9-firestore-party-reconnect-source -D /tmp/archive
+          unzip -q /tmp/archive/KING-Plus-v9.7.9-firestore-party-reconnect-source.zip -d /tmp/src
+      - name: Connect Game page buttons to actual playable game logic
+        run: python3 ci/v980/patch_playable_games_v980.py /tmp/src
+      - name: Ensure non-Ludo games no longer open an empty Party lobby
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          root=Path('/tmp/src')
+          pkg=root/'app/src/main/java/com/kingplus/social'
+          main=(pkg/'MainActivity.java').read_text()
+          play=(pkg/'GamePlayActivity.java').read_text()
+          room=(pkg/'RoomGameActivity.java').read_text()
+          party=(pkg/'PartyActivity.java').read_text()
+          gradle=(root/'app/build.gradle').read_text()
+          manifest=(root/'app/src/main/AndroidManifest.xml').read_text()
+          assert "versionCode 171; versionName '9.8.0-playable-games'" in gradle
+          assert 'KingGameRoutes980.localGame(game)' in main
+          assert 'new Intent(this,GamePlayActivity.class)' in main
+          assert 'play.putExtra("game",code)' in main
+          assert 'new Intent(this,KingLudoLobbyActivity.class)' in main
+          assert 'private void roomGames(){' in main
+          assert 'new AlertDialog.Builder(this).setTitle("🎮 Play a real game")' in main
+          assert '"tic_tac_toe","Tic Tac Toe"' in main
+          assert '"draw","Draw & Guess"' in main
+          assert '"werewolf","Werewolf"' in main
+          assert '"memory","Memory"' in main
+          assert '"domino","Domino"' in main
+          assert 'roomGames()' in main
+          assert 'private void showBingo()' in play and 'private void showDomino()' in play
+          assert 'private void showWerewolf()' in play
+          assert 'private void showDrawGuess()' in play
+          assert 'private void showSheepFight()' in play
+          assert 'private void showZoo()' in play
+          assert 'private void renderControls()' in room
+          assert 'private void startRound(' in room
+          assert 'new Intent(this,RoomGameActivity.class)' in party
+          assert 'android:name=".GamePlayActivity"' in manifest
+          assert 'KingPartyConnection979.isRetryable(' in party
+          assert 'KingPartyMic968.canToggle(' in party
+          assert 'KingLudoTurn962.canSkip(' in (pkg/'OnlineLudoActivity.java').read_text()
+          assert 'KingSocialRealtime970.activeAccount(' in (pkg/'SocialActivity.java').read_text()
+          assert 'KingPhoneOtp975Activity' in (pkg/'MainActivity.java').read_text()
+          assert 'KingFreeGift973.allowed(' in party
+          assert 'KingRoomPresence967.isActive(' in party
+          print('PASS local gameplay, Party multiplayer, online Ludo, Firebase and emoji/gift regressions')
+          PY
+      - name: Compile Android debug APK
+        working-directory: /tmp/src
+        run: gradle :app:assembleDebug --no-daemon
+      - name: Package working APK and patched source
+        run: |
+          set -euo pipefail
+          cp /tmp/src/app/build/outputs/apk/debug/app-debug.apk /tmp/KING-Plus-v9.8.0-playable-games.apk
+          cd /tmp/src
+          zip -qr /tmp/KING-Plus-v9.8.0-playable-games-source.zip .
+      - uses: actions/upload-artifact@v4
+        with:
+          name: KING-Plus-v9.8.0-playable-games-APK
+          path: /tmp/KING-Plus-v9.8.0-playable-games.apk
+          if-no-files-found: error
+          retention-days: 7
+      - uses: actions/upload-artifact@v4
+        with:
+          name: KING-Plus-v9.8.0-playable-games-source
+          path: /tmp/KING-Plus-v9.8.0-playable-games-source.zip
+          if-no-files-found: error
+          retention-days: 7
