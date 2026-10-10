@@ -1,0 +1,109 @@
+name: Build KING Plus v9.8.4 Two-Phone Member Sync Watch
+on:
+  push:
+    branches: ['work/reference-completion']
+    paths:
+      - '.github/workflows/apk-v984-member-sync.yml'
+      - 'ci/v984/**'
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: kingplus-v984-member-sync
+  cancel-in-progress: true
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: work/reference-completion
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+      - name: Test Room/account-specific, privacy-safe read-only member watchers
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/member984-tests
+          javac -d /tmp/member984-tests \
+            ci/v983/KingConnectionDiagnostics983.java \
+            ci/v984/KingLiveMembers984.java \
+            ci/v984/KingLiveMembers984Test.java
+          java -cp /tmp/member984-tests com.kingplus.social.KingLiveMembers984Test
+          java -cp /tmp/member984-tests com.kingplus.social.KingConnectionDiagnostics983Test || true
+          python3 -m py_compile ci/v984/patch_member_watch_v984.py
+      - name: Restore last successfully compiled KING Plus v9.8.3 source
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/v983 /tmp/android
+          gh run download 38062521142 -n KING-Plus-v9.8.3-firebase-connection-test-source -D /tmp/v983
+          test -f /tmp/v983/KING-Plus-v9.8.3-firebase-connection-test-source.zip
+          unzip -q /tmp/v983/KING-Plus-v9.8.3-firebase-connection-test-source.zip -d /tmp/android
+      - name: Add opt-in live member watch to read-only Firebase test
+        run: python3 ci/v984/patch_member_watch_v984.py /tmp/android
+      - name: Require no Room mutations, no leaking UIDs, no paid or previous-feature regressions
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          root=Path('/tmp/android')
+          pkg=root/'app/src/main/java/com/kingplus/social'
+          act=(pkg/'KingConnection983Activity.java').read_text()
+          main=(pkg/'MainActivity.java').read_text()
+          party=(pkg/'PartyActivity.java').read_text()
+          gradle=(root/'app/build.gradle').read_text()
+          assert "versionCode 175; versionName '9.8.4-two-phone-member-sync-watch'" in gradle
+          assert 'watchButton984=button(column,"👥 Watch Party Members (Live)")' in act
+          assert 'watchButton984.setEnabled(false)' in act
+          assert 'watchButton984.setEnabled(true)' in act
+          assert 'stopMemberWatch984();' in act
+          assert 'watchSession984' in act
+          assert 'MetadataChanges.INCLUDE' in act
+          assert '.getMetadata().isFromCache()' in act
+          assert 'KingLiveMembers984.active(' in act
+          assert 'KingLiveMembers984.samplePrefixes(' in act
+          assert 'Read-only live members:' in act
+          assert 'room.getReference().collection("members").document(uid).get(Source.SERVER)' in act
+          watcher=act[act.index('private void startMemberWatch984()'):
+            act.index('    @Override protected void onStop()',act.index('private void startMemberWatch984()'))]
+          assert '.addSnapshotListener(MetadataChanges.INCLUDE' in watcher
+          for disallowed in ['.runTransaction(', 'CloudBackend.sendGift(', '.update(', '.delete(', '.set(']:
+            assert disallowed not in watcher,disallowed
+          assert 'KingConnectionDiagnostics983.safeRoom(' in act
+          assert '.getIdToken(true)' in act
+          assert 'KingPartyMic968.canToggle(' in party
+          assert 'KingRoomPresence967.isActive(' in party
+          assert 'KingSocialRealtime970.activeAccount(' in (pkg/'SocialActivity.java').read_text()
+          assert 'KingLudoTurn962.canSkip(' in (pkg/'OnlineLudoActivity.java').read_text()
+          assert 'KingRecharge974Activity.class' in main
+          assert 'KingPhoneOtp975Activity.class' in main
+          assert 'activeRoomCallback982(' in party
+          print('PASS source safety: server/cached separation, unsubscribe, UID privacy, all prior KING Plus features')
+          PY
+      - name: Compile v9.8.4 Android APK
+        working-directory: /tmp/android
+        run: gradle :app:assembleDebug --no-daemon
+      - name: Package v9.8.4 Android APK and source
+        run: |
+          set -euo pipefail
+          cp /tmp/android/app/build/outputs/apk/debug/app-debug.apk /tmp/KING-Plus-v9.8.4-live-member-sync-test.apk
+          cd /tmp/android
+          zip -qr /tmp/KING-Plus-v9.8.4-live-member-sync-test-source.zip .
+      - uses: actions/upload-artifact@v4
+        with:
+          name: KING-Plus-v9.8.4-live-member-sync-test-APK
+          path: /tmp/KING-Plus-v9.8.4-live-member-sync-test.apk
+          if-no-files-found: error
+          retention-days: 7
+      - uses: actions/upload-artifact@v4
+        with:
+          name: KING-Plus-v9.8.4-live-member-sync-test-source
+          path: /tmp/KING-Plus-v9.8.4-live-member-sync-test-source.zip
+          if-no-files-found: error
+          retention-days: 7
