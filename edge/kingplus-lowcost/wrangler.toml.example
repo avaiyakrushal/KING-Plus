@@ -8,7 +8,7 @@ compatibility_date = "2026-10-10"
 [vars]
 PAYMENTS_ENABLED = "false"
 # Paste your approved merchant INR paise prices AFTER choosing amounts:
-# RECHARGE_PRICES_PAISE_JSON = '{"diamonds_100":1000,"diamonds_600":5000,"diamonds_1300":10000}'
+# RECHARGE_PRICES_PAISE_JSON = set merchant-approved prices in the Worker dashboard as a secret
 
 [[d1_databases]]
 binding = "DB"
