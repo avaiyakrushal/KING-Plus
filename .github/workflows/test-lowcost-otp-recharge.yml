@@ -1,0 +1,46 @@
+name: Test Low-Cost OTP and Diamond Recharge Backend
+on:
+  push:
+    branches: ['work/reference-completion']
+    paths:
+      - '.github/workflows/test-lowcost-otp-recharge.yml'
+      - 'edge/kingplus-lowcost/**'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  test:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: work/reference-completion
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Validate Worker and run policy tests
+        working-directory: edge/kingplus-lowcost
+        run: |
+          set -euo pipefail
+          node --check worker.mjs
+          node --check policy.mjs
+          node --test policy.test.mjs
+      - name: Verify D1 transactional once-only Diamond credit
+        working-directory: edge/kingplus-lowcost
+        run: python3 schema.test.py
+      - name: Check no embedded secrets or fake real payments
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('edge/kingplus-lowcost/worker.mjs').read_text()
+          assert 'FIREBASE_PRIVATE_KEY' in p and 'MSG91_AUTHKEY' in p
+          assert 'RAZORPAY_WEBHOOK_SECRET' in p and "isCaptureForOrder(captured,order)" in p
+          assert 'secureHexEquals(signature,await hmacHex(' in p
+          assert 'turnstile(env,' in p
+          assert "get('/payment/success')" not in p
+          assert "if(env.PAYMENTS_ENABLED!=='true')" in p
+          assert 'payment.captured' in p
+          assert 'signInWithCustomToken' not in p # client must exchange backend-signed JWT separately
+          assert 'return json({ok:true,credited:update.meta.changes===1})' in p
+          print('PASS server secrets only, CAPTCHA/rate-limits, payment captured HMAC, disabled until merchant setup')
+          PY
