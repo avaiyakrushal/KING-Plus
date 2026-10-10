@@ -1,0 +1,64 @@
+name: Publish KING Plus v9.8.4 Direct APK (verified signature)
+on:
+  push:
+    branches: ['work/reference-completion']
+    paths:
+      - '.github/workflows/publish-v984-direct-apk.yml'
+  workflow_dispatch:
+permissions:
+  contents: write
+  actions: read
+jobs:
+  publish:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: work/reference-completion
+      - name: Download verified v9.8.3 and new successful v9.8.4 APK
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/old" "$RUNNER_TEMP/new"
+          gh run download 38062521142 -n KING-Plus-v9.8.3-firebase-connection-test-APK -D "$RUNNER_TEMP/old"
+          gh run download 38065192479 -n KING-Plus-v9.8.4-live-member-sync-test-APK -D "$RUNNER_TEMP/new"
+          OLD="$(find "$RUNNER_TEMP/old" -name '*.apk' -print -quit)"
+          NEW="$(find "$RUNNER_TEMP/new" -name '*.apk' -print -quit)"
+          test -s "$OLD" && test -s "$NEW"
+          echo "OLD=$OLD" >> "$GITHUB_ENV"
+          echo "NEW=$NEW" >> "$GITHUB_ENV"
+      - name: Require matching Android signing certificate and non-downgrade
+        run: |
+          set -euo pipefail
+          signer="$(find "$ANDROID_HOME/build-tools" -type f -name apksigner -print | sort -V | tail -1)"
+          aapt="$(find "$ANDROID_HOME/build-tools" -type f -name aapt -print | sort -V | tail -1)"
+          test -n "$signer" && test -n "$aapt"
+          "$signer" verify --print-certs "$OLD" > /tmp/old-certs.txt
+          "$signer" verify --print-certs "$NEW" > /tmp/new-certs.txt
+          OLD_CERT="$(grep -Eo '[[:xdigit:]]{64}' /tmp/old-certs.txt | head -1)"
+          NEW_CERT="$(grep -Eo '[[:xdigit:]]{64}' /tmp/new-certs.txt | head -1)"
+          echo "Old cert: $OLD_CERT"
+          echo "New cert: $NEW_CERT"
+          test -n "$OLD_CERT" && test "$OLD_CERT" = "$NEW_CERT"
+          "$aapt" dump badging "$OLD" | grep '^package:' | grep "name='com.kingplus.social'" | grep "versionCode='174'"
+          "$aapt" dump badging "$NEW" | grep '^package:' | grep "name='com.kingplus.social'" | grep "versionCode='175'"
+          echo "PASS: KING Plus v9.8.4 can update v9.8.3 without uninstalling or data loss."
+      - name: Publish direct Chrome APK download
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          FILE="$RUNNER_TEMP/KING-Plus-v9.8.4-Live-Member-Sync-Test.apk"
+          cp "$NEW" "$FILE"
+          sha256sum "$FILE"
+          if gh release view v9.8.4 >/dev/null 2>&1; then
+            gh release upload v9.8.4 "$FILE" --clobber
+          else
+            gh release create v9.8.4 "$FILE" \
+              --target work/reference-completion \
+              --title "KING Plus v9.8.4 Live Party Member Sync (test APK)" \
+              --notes "Signed, directly installable Android APK. Verified same signing certificate/package and versionCode 175 after 174. Adds opt-in Watch Party Members (Live) on the Firebase/Party Connection Test screen. Shows Firebase member document count, whether your signed-in UID is present, and up to 8 redacted UID prefixes. Distinguishes Firestore cached data from server-confirmed live snapshots and discards stale callbacks after Room/account switches. Read-only: never joins/deletes a room or changes member state. 19 new Java member tests plus previous 20 diagnostics passed; phone-to-phone runtime tests remain pending. Keeps Party, Mic/Seat, 18 local games, Ludo, FREE Gifts, Chat, Family and prepared login. Genuine paid Diamond Recharge and SMS OTP remain disabled until approved external backend/merchant setup. No Google Cloud Billing changed." \
+              --prerelease
+          fi
+          gh release view v9.8.4 --json url,assets --jq '{url,assets:[.assets[]|{name,url,size}]}'
