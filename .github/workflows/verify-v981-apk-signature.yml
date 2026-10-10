@@ -1,0 +1,51 @@
+name: Verify KING Plus v9.8.1 APK Install Upgrade Signature
+on:
+  push:
+    branches: [work/reference-completion]
+    paths:
+      - '.github/workflows/verify-v981-apk-signature.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  verify:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: work/reference-completion
+      - name: Download previously installed candidate and new APK
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/old /tmp/new
+          gh run download 38037047355 -n KING-Plus-v9.7.9-firestore-party-reconnect-APK -D /tmp/old
+          gh run download 38059890592 -n KING-Plus-v9.8.1-games-vip-frames-gifts-emoji-APK -D /tmp/new
+          echo "OLD=$(find /tmp/old -name '*.apk' -print -quit)" >> "$GITHUB_ENV"
+          echo "NEW=$(find /tmp/new -name '*.apk' -print -quit)" >> "$GITHUB_ENV"
+      - name: Check APK signing certificate identity and update compatibility
+        run: |
+          set -euo pipefail
+          signer="$(find "$ANDROID_HOME/build-tools" -type f -name apksigner -print | sort -V | tail -1)"
+          test -n "$signer"
+          "$signer" verify --print-certs "$OLD" > /tmp/old-cert.txt
+          "$signer" verify --print-certs "$NEW" > /tmp/new-cert.txt
+          old_sha="$(sed -n 's/.*Signer #1 certificate SHA-256 digest: //p' /tmp/old-cert.txt | head -1)"
+          new_sha="$(sed -n 's/.*Signer #1 certificate SHA-256 digest: //p' /tmp/new-cert.txt | head -1)"
+          echo "Old cert SHA256: $old_sha"
+          echo "New cert SHA256: $new_sha"
+          if [ -z "$old_sha" ] || [ -z "$new_sha" ]; then
+            echo "ERROR: Missing APK signing cert digest"
+            exit 1
+          fi
+          if [ "$old_sha" = "$new_sha" ]; then
+            echo 'PASS v9.8.1 has same signature as v9.7.9; Android upgrade should be allowed'
+          else
+            echo 'WARNING debug signing certificates DIFFER; Android will refuse an in-place upgrade. Backup before any uninstall.'
+          fi
+          echo 'APK version code and package comparison:'
+          aapt="$(find "$ANDROID_HOME/build-tools" -type f -name aapt -print | sort -V | tail -1)"
+          "$aapt" dump badging "$OLD" | grep '^package:' | head -1
+          "$aapt" dump badging "$NEW" | grep '^package:' | head -1
