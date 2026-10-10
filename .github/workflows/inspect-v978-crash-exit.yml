@@ -1,0 +1,30 @@
+name: Inspect v9.7.7 Android Signal Exit Reporter
+on:
+  push:
+    branches: ['work/reference-completion']
+    paths:
+      - '.github/workflows/inspect-v978-crash-exit.yml'
+      - 'ci/v978/inspect_crash_exit_v978.py'
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  inspect:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: work/reference-completion
+      - name: Restore v9.7.7 successfully built Android source
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/a /tmp/src
+          gh run download 38014429612 -n KING-Plus-v9.7.7-party-connect-retry-source -D /tmp/a
+          unzip -q /tmp/a/KING-Plus-v9.7.7-party-connect-retry-source.zip -d /tmp/src
+      - name: Inspect Crash Watch and actual startup registration
+        run: |
+          python3 ci/v978/inspect_crash_exit_v978.py /tmp/src > /tmp/crash-exit-source-audit.txt
+          head -c 67000 /tmp/crash-exit-source-audit.txt
