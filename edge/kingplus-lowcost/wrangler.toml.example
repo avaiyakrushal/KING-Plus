@@ -1,0 +1,16 @@
+# Copy to wrangler.toml after Cloudflare account, Worker and D1 are created.
+# Never put service account private key, MSG91 key, Razorpay secret or webhook
+# secret in this file: use Cloudflare Worker Secrets in its dashboard.
+name = "kingplus-lowcost"
+main = "worker.mjs"
+compatibility_date = "2026-10-10"
+
+[vars]
+PAYMENTS_ENABLED = "false"
+# Paste your approved merchant INR paise prices AFTER choosing amounts:
+# RECHARGE_PRICES_PAISE_JSON = '{"diamonds_100":1000,"diamonds_600":5000,"diamonds_1300":10000}'
+
+[[d1_databases]]
+binding = "DB"
+database_name = "kingplus-auth-pay"
+database_id = "FILL_WITH_CLOUDFLARE_D1_DATABASE_ID"
