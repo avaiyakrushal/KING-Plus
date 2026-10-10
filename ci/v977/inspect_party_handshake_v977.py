@@ -27,3 +27,9 @@ for p in items:
    for j in range(max(0,i-5),min(len(lines),i+22)):
     print(f'{j+1}: {lines[j][:1600]}')
 print('=== CANDIDATE CLASSES',[(f.name,len(f.read_text(errors='replace'))) for f in items if 'Party' in f.name or 'Room' in f.name])
+
+party=(pkg/'PartyActivity.java').read_text().splitlines()
+for a,b in [(180,270),(730,835),(855,955),(1002,1060),(1325,1415),(1800,1835),(4540,4646)]:
+ print('=== EXACT RANGE',a,b)
+ for i in range(a-1,min(len(party),b)):
+  print(f'{i+1}: {party[i][:1500]}')
