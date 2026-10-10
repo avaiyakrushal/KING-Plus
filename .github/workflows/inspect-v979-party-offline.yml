@@ -1,0 +1,31 @@
+name: Audit KING Plus v9.7.8 Firebase Party Offline and Two-Phone Join
+on:
+  push:
+    branches: ['work/reference-completion']
+    paths:
+      - '.github/workflows/inspect-v979-party-offline.yml'
+      - 'ci/v979/inspect_party_offline_v979.py'
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  inspect:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: work/reference-completion
+      - name: Restore successful v9.7.8 Android source
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/arch /tmp/src
+          gh run download 38017467429 -n KING-Plus-v9.7.8-startup-signal-diagnostics-source -D /tmp/arch
+          test -f /tmp/arch/KING-Plus-v9.7.8-startup-signal-diagnostics-source.zip
+          unzip -q /tmp/arch/KING-Plus-v9.7.8-startup-signal-diagnostics-source.zip -d /tmp/src
+      - name: Inspect Firebase network, room access and retry
+        run: |
+          python3 ci/v979/inspect_party_offline_v979.py /tmp/src > /tmp/v979-audit.txt
+          head -c 165000 /tmp/v979-audit.txt
