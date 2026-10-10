@@ -1,0 +1,108 @@
+name: Build KING Plus v9.7.9 Firebase Party Reconnect
+on:
+  push:
+    branches: ['work/reference-completion']
+    paths:
+      - '.github/workflows/apk-v979-party-reconnect.yml'
+      - 'ci/v979/KingPartyConnection979.java'
+      - 'ci/v979/KingPartyConnection979Test.java'
+      - 'ci/v979/patch_party_reconnect_v979.py'
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: king-plus-v979-party-reconnect
+  cancel-in-progress: true
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: work/reference-completion
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+      - name: Test offline classification, session-safe retry and two distinct users
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/conn979
+          javac -d /tmp/conn979 ci/v979/KingPartyConnection979.java ci/v979/KingPartyConnection979Test.java
+          java -cp /tmp/conn979 com.kingplus.social.KingPartyConnection979Test
+          python3 -m py_compile ci/v979/patch_party_reconnect_v979.py
+      - name: Restore last successfully built KING Plus v9.7.8 source
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/archive /tmp/src
+          gh run download 38017467429 -n KING-Plus-v9.7.8-startup-signal-diagnostics-source -D /tmp/archive
+          test -f /tmp/archive/KING-Plus-v9.7.8-startup-signal-diagnostics-source.zip
+          unzip -q /tmp/archive/KING-Plus-v9.7.8-startup-signal-diagnostics-source.zip -d /tmp/src
+      - name: Repair Party Room Firebase offline retries, reconnect and server membership
+        run: python3 ci/v979/patch_party_reconnect_v979.py /tmp/src
+      - name: Assert no auth/room/permissions bypass and no regressions
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          root=Path('/tmp/src')
+          pkg=root/'app/src/main/java/com/kingplus/social'
+          party=(pkg/'PartyActivity.java').read_text()
+          login=(pkg/'KingPhoneOtp975Activity.java').read_text()
+          main=(pkg/'MainActivity.java').read_text()
+          rules=(root/'firestore.rules').read_text()
+          gradle=(root/'app/build.gradle').read_text()
+          assert "versionCode 170; versionName '9.7.9-party-firestore-reconnect'" in gradle
+          assert "private void reconnectPartyFirestore979(boolean refreshToken979)" in party
+          assert "db.enableNetwork()" in party
+          assert "user.getIdToken(refreshToken979)" in party
+          assert ".get(com.google.firebase.firestore.Source.SERVER)" in party
+          assert "partyAutoRepairUsed979=true" in party
+          assert "KingPartyConnection979.isRetryable(" in party
+          assert "reconnectPartyFirestore979(true);" in party
+          assert "KingPartyConnection979.canRejoin(" in party
+          assert "KingNetwork.online(this)" in party
+          assert "expectedRoom979" in party and "expectedUid979" in party
+          assert "memberSeen=true;renderParty()" in party
+          assert "KingPartyJoinTimeout977.waiting(" in party
+          assert "KingPartyMic968.canToggle(" in party
+          assert "KingRoomPresence967.isActive(" in party
+          assert "KingPartyMemory969.overEffectLimit(" in party
+          assert "KingPartyJoin966.current(" in party
+          assert 'FirebaseAuth.getInstance().signInWithCustomToken(signedToken)' in login
+          assert "KingSocialRealtime970.activeAccount(" in (pkg/'SocialActivity.java').read_text()
+          assert "KingLudoTurn962.canSkip(" in (pkg/'OnlineLudoActivity.java').read_text()
+          assert "KingExitPolicy978.showSignalAlert(" in (pkg/'KingCrashWatch958.java').read_text()
+          assert "match /members/{memberUid}" in rules
+          assert "memberUid == request.auth.uid" in rules
+          assert "allow read: if signedIn();" in rules
+          assert "KingCrashWatch958.showPreviousExit(this)" in main
+          assert "FirebaseFirestore.getInstance()" in party
+          print("PASS authenticated server-only Party join, network reconnect, timeout and old features")
+          PY
+      - name: Compile v9.7.9 Android debug APK
+        working-directory: /tmp/src
+        run: gradle :app:assembleDebug --no-daemon
+      - name: Bundle APK and full patched source
+        run: |
+          set -euo pipefail
+          cp /tmp/src/app/build/outputs/apk/debug/app-debug.apk /tmp/KING-Plus-v9.7.9-firestore-party-reconnect.apk
+          cd /tmp/src
+          zip -qr /tmp/KING-Plus-v9.7.9-firestore-party-reconnect-source.zip .
+      - uses: actions/upload-artifact@v4
+        with:
+          name: KING-Plus-v9.7.9-firestore-party-reconnect-APK
+          path: /tmp/KING-Plus-v9.7.9-firestore-party-reconnect.apk
+          if-no-files-found: error
+          retention-days: 7
+      - uses: actions/upload-artifact@v4
+        with:
+          name: KING-Plus-v9.7.9-firestore-party-reconnect-source
+          path: /tmp/KING-Plus-v9.7.9-firestore-party-reconnect-source.zip
+          if-no-files-found: error
+          retention-days: 7
