@@ -1,0 +1,47 @@
+name: Publish KING Plus v9.7.9 Direct APK Download
+
+on:
+  push:
+    branches: [work/reference-completion]
+    paths:
+      - '.github/workflows/publish-v979-direct-apk.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  actions: read
+
+jobs:
+  publish:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: work/reference-completion
+      - name: Retrieve already successful v9.7.9 APK
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/kingplus-apk"
+          gh run download 38037047355 -n KING-Plus-v9.7.9-firestore-party-reconnect-APK -D "$RUNNER_TEMP/kingplus-apk"
+          SRC="$(find "$RUNNER_TEMP/kingplus-apk" -type f -name '*.apk' -print -quit)"
+          test -n "$SRC" && test -s "$SRC"
+          cp "$SRC" "$RUNNER_TEMP/KING-Plus-v9.7.9-Party-Reconnect.apk"
+          sha256sum "$RUNNER_TEMP/KING-Plus-v9.7.9-Party-Reconnect.apk"
+      - name: Publish stable direct-download public GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          APK="$RUNNER_TEMP/KING-Plus-v9.7.9-Party-Reconnect.apk"
+          if gh release view v9.7.9 >/dev/null 2>&1; then
+            gh release upload v9.7.9 "$APK" --clobber
+          else
+            gh release create v9.7.9 "$APK" \
+              --target work/reference-completion \
+              --title "KING Plus v9.7.9 Party Reconnect — test APK" \
+              --notes "Direct Android APK, no ZIP extraction required. Reuses successful GitHub Actions build 38037047355 and its compiled artifact. Firebase Party room reconnect/stability updates. This remains a test/debug build; phone testing is required. Mobile OTP requires separately configured SMS/Cloudflare backend and real-money Diamond Recharge is not activated." \
+              --prerelease
+          fi
+          gh release view v9.7.9 --json url,assets --jq '{url,assets:[.assets[]|{name,url,size}]}'
