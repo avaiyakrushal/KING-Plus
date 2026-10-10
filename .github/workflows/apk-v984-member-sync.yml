@@ -82,7 +82,7 @@ jobs:
           assert 'KingRoomPresence967.isActive(' in party
           assert 'KingSocialRealtime970.activeAccount(' in (pkg/'SocialActivity.java').read_text()
           assert 'KingLudoTurn962.canSkip(' in (pkg/'OnlineLudoActivity.java').read_text()
-          assert 'KingRecharge974Activity.class' in main
+          assert (pkg/'KingRecharge974Activity.java').exists() and 'rechargeCenterPage()' in main
           assert 'KingPhoneOtp975Activity.class' in main
           assert 'activeRoomCallback982(' in party
           print('PASS source safety: server/cached separation, unsubscribe, UID privacy, all prior KING Plus features')
