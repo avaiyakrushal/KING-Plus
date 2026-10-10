@@ -1,0 +1,112 @@
+name: Build KING Plus v9.7.6 Unified Verified Diamond Wallet
+
+on:
+  push:
+    branches: ['work/reference-completion']
+    paths:
+      - '.github/workflows/apk-v976-unified-wallet.yml'
+      - 'ci/v976/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: kingplus-v976-unified-wallet
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: work/reference-completion
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+      - name: Test trusted backend URL and no-fake-wallet invariants
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/king-wallet-rules
+          javac -d /tmp/king-wallet-rules ci/v976/KingWalletRules976.java ci/v976/KingWalletRules976Test.java
+          java -cp /tmp/king-wallet-rules com.kingplus.social.KingWalletRules976Test
+          python3 -m py_compile ci/v976/patch_v976.py
+      - name: Restore latest successful v9.7.5 Android source
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/source-artifact /tmp/src
+          gh run download 38007763074 -n KING-Plus-v9.7.5-mobile-otp-lowcost-backend-setup-source -D /tmp/source-artifact
+          test -f /tmp/source-artifact/KING-Plus-v9.7.5-mobile-otp-lowcost-backend-setup-source.zip
+          unzip -q /tmp/source-artifact/KING-Plus-v9.7.5-mobile-otp-lowcost-backend-setup-source.zip -d /tmp/src
+      - name: Unify Cloudflare Wallet, VIP, Recharge and secure SMS OTP client
+        run: python3 ci/v976/patch_v976.py /tmp/src
+      - name: Verify no paid checkout, no locally forged Diamonds, prior features retained
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          root=Path('/tmp/src')
+          pkg=root/'app/src/main/java/com/kingplus/social'
+          m=(pkg/'MainActivity.java').read_text()
+          wallet=(pkg/'KingWallet976Activity.java').read_text()
+          backend=(pkg/'KingBackend976.java').read_text()
+          phone=(pkg/'KingPhoneOtp975Activity.java').read_text()
+          vip=(pkg/'KingVipVisualActivity.java').read_text()
+          party=(pkg/'PartyActivity.java').read_text()
+          gradle=(root/'app/build.gradle').read_text()
+          manifest=(root/'app/src/main/AndroidManifest.xml').read_text()
+          assert "versionCode 167; versionName '9.7.6-unified-verified-wallet'" in gradle
+          assert 'KingWallet976Activity.class' in m
+          assert 'KingBackend976.fetchWallet(this,' in vip
+          assert 'KingBackend976.fetchWallet(this,' in wallet
+          assert 'getIdToken(false)' in backend
+          assert 'setInstanceFollowRedirects(false)' in backend
+          assert 'validatedWorkerUrl' in backend
+          assert 'KingWalletRules976.trustedWorkerUrl(raw)' in backend
+          assert 'KingWalletRules976.validWallet(' in backend
+          assert '.setRequestProperty("Authorization","Bearer "+jwt)' in backend
+          assert '"💎 Diamonds: unavailable (not zero)"' in wallet
+          assert 'payments' in wallet.lower()
+          assert 'KingBackend976.validatedWorkerUrl(server.getText().toString())' in phone
+          assert 'KingBackend976.boundedResponse(conn)' in phone
+          assert 'setInstanceFollowRedirects(false)' in phone
+          assert 'signInWithCustomToken(signedToken)' in phone
+          assert 'KingRecharge974Activity.LIVE_RECHARGE' in vip
+          assert 'public static final boolean LIVE_RECHARGE = false;' in (pkg/'KingRecharge974Activity.java').read_text()
+          assert '<activity android:name=".KingWallet976Activity" android:exported="false" />' in manifest
+          assert 'KingFreeGift973.allowed(' in party
+          assert 'KingPartyMic968.canToggle(' in party
+          assert 'KingSocialRealtime970.activeAccount(' in (pkg/'SocialActivity.java').read_text()
+          assert 'KingPartyMemory969.overEffectLimit(' in party
+          assert 'KingLudoTurn962.canSkip(' in (pkg/'OnlineLudoActivity.java').read_text()
+          print('PASS: verified D1 Wallet, rechargeable VIP, HTTPS authenticated UID, secure OTP, zero paid checkout')
+          PY
+      - name: Compile Android APK
+        working-directory: /tmp/src
+        run: gradle :app:assembleDebug --no-daemon
+      - name: Bundle Android APK and source
+        run: |
+          set -euo pipefail
+          cp /tmp/src/app/build/outputs/apk/debug/app-debug.apk /tmp/KING-Plus-v9.7.6-unified-verified-wallet.apk
+          cd /tmp/src
+          zip -qr /tmp/KING-Plus-v9.7.6-unified-verified-wallet-source.zip .
+      - uses: actions/upload-artifact@v4
+        with:
+          name: KING-Plus-v9.7.6-unified-verified-wallet-APK
+          path: /tmp/KING-Plus-v9.7.6-unified-verified-wallet.apk
+          if-no-files-found: error
+          retention-days: 7
+      - uses: actions/upload-artifact@v4
+        with:
+          name: KING-Plus-v9.7.6-unified-verified-wallet-source
+          path: /tmp/KING-Plus-v9.7.6-unified-verified-wallet-source.zip
+          if-no-files-found: error
+          retention-days: 7
