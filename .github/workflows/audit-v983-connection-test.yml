@@ -1,0 +1,30 @@
+name: Inspect KING Plus v9.8.2 For Phone Connection Test
+on:
+  push:
+    branches: ['work/reference-completion']
+    paths:
+      - '.github/workflows/audit-v983-connection-test.yml'
+      - 'ci/v983/audit_connection_test_v983.py'
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  inspect:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: work/reference-completion
+      - name: Restore verified Android v9.8.2 source
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/source-archive /tmp/android
+          gh run download 38061134066 -n KING-Plus-v9.8.2-party-room-session-safety-source -D /tmp/source-archive
+          unzip -q /tmp/source-archive/KING-Plus-v9.8.2-party-room-session-safety-source.zip -d /tmp/android
+      - name: Inspect exact Party/Home/Network method entry points
+        run: |
+          python3 ci/v983/audit_connection_test_v983.py /tmp/android > /tmp/connection-audit.txt
+          head -c 117000 /tmp/connection-audit.txt
