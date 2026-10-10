@@ -1,0 +1,50 @@
+name: Publish KING Plus v9.7.5 Direct APK Download
+
+on:
+  push:
+    branches: [work/reference-completion]
+    paths:
+      - '.github/workflows/publish-v975-direct-apk.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  actions: read
+
+jobs:
+  publish:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: work/reference-completion
+      - name: Download successfully compiled and tested v9.7.5 APK artifact
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/kingplus-apk"
+          gh run download 38007763074 -n KING-Plus-v9.7.5-mobile-otp-lowcost-backend-setup-APK -D "$RUNNER_TEMP/kingplus-apk"
+          echo "Downloaded files:"
+          ls -lh "$RUNNER_TEMP/kingplus-apk"
+          find "$RUNNER_TEMP/kingplus-apk" -type f -name '*.apk' -print -quit | grep -q .
+          SRC="$(find "$RUNNER_TEMP/kingplus-apk" -type f -name '*.apk' -print -quit)"
+          test -s "$SRC"
+          cp "$SRC" "$RUNNER_TEMP/KING-Plus-v9.7.5-Mobile-OTP.apk"
+          sha256sum "$RUNNER_TEMP/KING-Plus-v9.7.5-Mobile-OTP.apk"
+      - name: Publish permanent GitHub Release with DIRECT APK (no ZIP)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          APK="$RUNNER_TEMP/KING-Plus-v9.7.5-Mobile-OTP.apk"
+          if gh release view v9.7.5 >/dev/null 2>&1; then
+            gh release upload v9.7.5 "$APK" --clobber
+          else
+            gh release create v9.7.5 "$APK" \
+              --target work/reference-completion \
+              --title "KING Plus v9.7.5 Mobile OTP — test APK" \
+              --notes "Android debug/test APK compiled successfully in GitHub Actions run 38007763074. Mobile OTP requires the separately configured Cloudflare Worker + genuine SMS provider (not yet deployed). Real-money Diamond Recharge is disabled, so no payment is charged. For phone use: download the APK asset directly from this release in Chrome and install after granting Android permission. No ZIP extraction needed." \
+              --prerelease
+          fi
+          gh release view v9.7.5 --json url,assets --jq '{url,assets:[.assets[]|{name,url,size}]}'
