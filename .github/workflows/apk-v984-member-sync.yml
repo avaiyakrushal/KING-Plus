@@ -32,10 +32,11 @@ jobs:
           mkdir -p /tmp/member984-tests
           javac -d /tmp/member984-tests \
             ci/v983/KingConnectionDiagnostics983.java \
+            ci/v983/KingConnectionDiagnostics983Test.java \
             ci/v984/KingLiveMembers984.java \
             ci/v984/KingLiveMembers984Test.java
           java -cp /tmp/member984-tests com.kingplus.social.KingLiveMembers984Test
-          java -cp /tmp/member984-tests com.kingplus.social.KingConnectionDiagnostics983Test || true
+          java -cp /tmp/member984-tests com.kingplus.social.KingConnectionDiagnostics983Test
           python3 -m py_compile ci/v984/patch_member_watch_v984.py
       - name: Restore last successfully compiled KING Plus v9.8.3 source
         env:
