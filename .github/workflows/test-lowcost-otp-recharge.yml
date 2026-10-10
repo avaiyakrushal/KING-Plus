@@ -38,7 +38,7 @@ jobs:
           assert 'secureHexEquals(signature,await hmacHex(' in p
           assert 'turnstile(env,' in p
           assert "get('/payment/success')" not in p
-          assert "if(env.PAYMENTS_ENABLED!=='true')" in p
+          assert "if(env.PAYMENTS_ENABLED!=='true'||" in p
           assert 'payment.captured' in p
           assert 'signInWithCustomToken' not in p # client must exchange backend-signed JWT separately
           assert 'return json({ok:true,credited:update.meta.changes===1})' in p
