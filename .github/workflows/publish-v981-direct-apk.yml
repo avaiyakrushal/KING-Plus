@@ -1,0 +1,47 @@
+name: Publish KING Plus v9.8.1 Direct APK Download
+
+on:
+  push:
+    branches: [work/reference-completion]
+    paths:
+      - '.github/workflows/publish-v981-direct-apk.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  actions: read
+
+jobs:
+  publish:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: work/reference-completion
+      - name: Fetch already verified successful v9.8.1 APK
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/kingplus-apk"
+          gh run download 38059890592 -n KING-Plus-v9.8.1-games-vip-frames-gifts-emoji-APK -D "$RUNNER_TEMP/kingplus-apk"
+          SRC="$(find "$RUNNER_TEMP/kingplus-apk" -type f -name '*.apk' -print -quit)"
+          test -n "$SRC" && test -s "$SRC"
+          cp "$SRC" "$RUNNER_TEMP/KING-Plus-v9.8.1-Games-VIP-Frames-Gifts-Emoji.apk"
+          sha256sum "$RUNNER_TEMP/KING-Plus-v9.8.1-Games-VIP-Frames-Gifts-Emoji.apk"
+      - name: Publish GitHub Release with direct APK (not a ZIP)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          APK="$RUNNER_TEMP/KING-Plus-v9.8.1-Games-VIP-Frames-Gifts-Emoji.apk"
+          if gh release view v9.8.1 >/dev/null 2>&1; then
+            gh release upload v9.8.1 "$APK" --clobber
+          else
+            gh release create v9.8.1 "$APK" \
+              --target work/reference-completion \
+              --title "KING Plus v9.8.1 Games + VIP + Frames + Gifts + Emoji (test)" \
+              --notes "Install directly from Chrome without extracting a ZIP. Compiled successfully from v9.8.0 playable games source plus v9.8.1 verified VIP, frame gallery, honest free gifts and session-safe emoji. Game tab now routes 18 playable solo/pass-phone titles; only Ludo and six existing room rounds support online multiuser modes. Paid Recharge, paid VIP and real-money gifting require provider onboarding and secure backend and are NOT activated by this test APK. Physical multi-phone game and Party crash acceptance remain pending." \
+              --prerelease
+          fi
+          gh release view v9.8.1 --json url,assets --jq '{url,assets:[.assets[]|{name,url,size}]}'
