@@ -4,7 +4,7 @@ on:
     branches: ['work/reference-completion']
     paths:
       - '.github/workflows/audit-v980-games.yml'
-      - 'ci/v980/audit_games_features.py'
+      - 'ci/v980/**'
   workflow_dispatch:
 permissions:
   contents: read
@@ -26,7 +26,7 @@ jobs:
           unzip -q /tmp/archive/KING-Plus-v9.7.9-firestore-party-reconnect-source.zip -d /tmp/src
       - name: Inspect game and feature entry points
         run: |
-          python3 ci/v980/audit_games_features.py /tmp/src > /tmp/v980-audit.txt
+          python3 ci/v980/exact_current_features.py /tmp/src > /tmp/v980-audit.txt
           head -c 157000 /tmp/v980-audit.txt
       - uses: actions/upload-artifact@v4
         with:
