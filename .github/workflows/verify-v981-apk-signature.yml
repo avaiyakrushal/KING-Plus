@@ -32,8 +32,12 @@ jobs:
           test -n "$signer"
           "$signer" verify --print-certs "$OLD" > /tmp/old-cert.txt
           "$signer" verify --print-certs "$NEW" > /tmp/new-cert.txt
-          old_sha="$(sed -n 's/.*Signer #1 certificate SHA-256 digest: //p' /tmp/old-cert.txt | head -1)"
-          new_sha="$(sed -n 's/.*Signer #1 certificate SHA-256 digest: //p' /tmp/new-cert.txt | head -1)"
+          echo "Old certificate output:"
+          head -n 12 /tmp/old-cert.txt
+          echo "New certificate output:"
+          head -n 12 /tmp/new-cert.txt
+          old_sha="$(grep -Eo '[[:xdigit:]]{64}' /tmp/old-cert.txt | head -1 || true)"
+          new_sha="$(grep -Eo '[[:xdigit:]]{64}' /tmp/new-cert.txt | head -1 || true)"
           echo "Old cert SHA256: $old_sha"
           echo "New cert SHA256: $new_sha"
           if [ -z "$old_sha" ] || [ -z "$new_sha" ]; then
