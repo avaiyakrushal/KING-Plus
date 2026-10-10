@@ -1,0 +1,114 @@
+name: Build KING Plus v9.8.2 Party Room Session Safety
+on:
+  push:
+    branches: ['work/reference-completion']
+    paths:
+      - '.github/workflows/apk-v982-party-room-safety.yml'
+      - 'ci/v982/KingRoomCallback982.java'
+      - 'ci/v982/KingRoomCallback982Test.java'
+      - 'ci/v982/patch_party_connection_v982.py'
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: kingplus-v982-party-room-safety
+  cancel-in-progress: true
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: work/reference-completion
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+      - name: Test room identity, reentry, account changes and support report
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/v982tests
+          javac -d /tmp/v982tests ci/v982/KingRoomCallback982.java ci/v982/KingRoomCallback982Test.java
+          java -cp /tmp/v982tests com.kingplus.social.KingRoomCallback982Test
+          python3 -m py_compile ci/v982/patch_party_connection_v982.py
+      - name: Restore successful KING Plus v9.8.1 full Android source
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/archive /tmp/src
+          gh run download 38059890592 -n KING-Plus-v9.8.1-games-vip-frames-gifts-emoji-source -D /tmp/archive
+          test -f /tmp/archive/KING-Plus-v9.8.1-games-vip-frames-gifts-emoji-source.zip
+          unzip -q /tmp/archive/KING-Plus-v9.8.1-games-vip-frames-gifts-emoji-source.zip -d /tmp/src
+      - name: Fix late Firestore callbacks, Seat/Mic state, room bans, Chat and copied diagnostics
+        run: python3 ci/v982/patch_party_connection_v982.py /tmp/src
+      - name: Validate complete Party callback isolation and previous KING features
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          root=Path('/tmp/src');pkg=root/'app/src/main/java/com/kingplus/social'
+          party=(pkg/'PartyActivity.java').read_text()
+          main=(pkg/'MainActivity.java').read_text()
+          rules=(root/'firestore.rules').read_text()
+          gradle=(root/'app/build.gradle').read_text()
+          assert "versionCode 173; versionName '9.8.2-party-room-session-isolation'" in gradle
+          assert 'private boolean activeRoomCallback982(' in party
+          assert '++roomListenerGeneration982;' in party
+          assert 'eventSnapshotReady=false;' in party
+          assert 'processedEventIds.clear();' in party
+          assert 'KingRoomCallback982.current(' in party
+          assert 'copy982.setOnClickListener(' in party
+          assert 'android.content.ClipData.newPlainText(' in party
+          assert 'getPackageInfo(getPackageName(),0).versionName' in party
+          for suffix in ['roomListener=','roleListener=','selfMemberListener=',
+              'roomBanListener=','seatLocksListener=','seatsListener=',
+              'membersListener=','seatRequestsListener=','messagesListener=',
+              'eventsListener=']:
+              assert suffix in party,suffix
+          assert party.count('activeRoomCallback982(expectedRoom982,expectedUid982,visit982,binding982)')>=10
+          assert 'KingPartyConnection979.isRetryable(' in party
+          assert 'KingPartyMic968.canToggle(' in party
+          assert 'KingPartyMemory969.overEffectLimit(' in party
+          assert 'KingFreeGift973.allowed(' in party
+          assert 'showLiveEmojiEffect560(' in party
+          assert 'activeEmojiSession981=presenceGeneration967' in party
+          assert 'KingSocialRealtime970.activeAccount(' in (pkg/'SocialActivity.java').read_text()
+          assert 'new Intent(this,GamePlayActivity.class)' in main
+          assert 'KingGameRoutes980.localGame(game)' in main
+          assert 'new Intent(this,KingFrameGallery981Activity.class)' in main
+          assert 'KingLudoTurn962.canSkip(' in (pkg/'OnlineLudoActivity.java').read_text()
+          assert 'match /live_rooms/{roomId}' in rules
+          print('PASS: stale room/member/ban/seat/Chat/Gifts blocked, diagnostics copy and older features intact')
+          PY
+      - name: Compile KING Plus Android v9.8.2 debug APK
+        working-directory: /tmp/src
+        run: |
+          set -euo pipefail
+          for attempt in 1 2 3; do
+            if gradle :app:assembleDebug --no-daemon; then exit 0; fi
+            if [ "$attempt" -eq 3 ]; then exit 1; fi
+            sleep $((attempt * 12))
+          done
+      - name: Package APK and full source
+        run: |
+          set -euo pipefail
+          cp /tmp/src/app/build/outputs/apk/debug/app-debug.apk /tmp/KING-Plus-v9.8.2-party-room-session-safety.apk
+          cd /tmp/src
+          zip -qr /tmp/KING-Plus-v9.8.2-party-room-session-safety-source.zip .
+      - uses: actions/upload-artifact@v4
+        with:
+          name: KING-Plus-v9.8.2-party-room-session-safety-APK
+          path: /tmp/KING-Plus-v9.8.2-party-room-session-safety.apk
+          if-no-files-found: error
+          retention-days: 7
+      - uses: actions/upload-artifact@v4
+        with:
+          name: KING-Plus-v9.8.2-party-room-session-safety-source
+          path: /tmp/KING-Plus-v9.8.2-party-room-session-safety-source.zip
+          if-no-files-found: error
+          retention-days: 7
