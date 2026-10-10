@@ -42,19 +42,7 @@ public final class KingBackend976 {
      * using an owner-controlled BuildConfig or signed remote configuration.
      */
     public static String validatedWorkerUrl(String raw){
-        if(raw==null)return null;
-        try{
-            Uri uri=Uri.parse(raw.trim());
-            String host=uri.getHost();
-            if(!"https".equalsIgnoreCase(uri.getScheme())||host==null
-                ||!host.matches("kingplus-lowcost\\.[a-z0-9-]+\\.workers\\.dev")
-                ||(uri.getPort()!=-1&&uri.getPort()!=443)
-                ||uri.getUserInfo()!=null
-                ||uri.getQuery()!=null||uri.getFragment()!=null
-                ||(uri.getPath()!=null&&!uri.getPath().isEmpty()
-                    &&!"/".equals(uri.getPath())))return null;
-            return "https://"+host.toLowerCase(java.util.Locale.US);
-        }catch(Exception ignored){return null;}
+        return KingWalletRules976.trustedWorkerUrl(raw);
     }
 
     public static String workerUrl(Context context){
@@ -116,7 +104,7 @@ public final class KingBackend976 {
                         long diamonds=result.optLong("diamonds",-1);
                         long total=result.optLong("rechargeTotal",-1);
                         int vip=result.optInt("vipLevel",-1);
-                        if(diamonds<0||total<0||vip<0||vip>50)
+                        if(!KingWalletRules976.validWallet(diamonds,total,vip))
                             error="Verified wallet returned invalid values.";
                         else wallet=new Wallet(diamonds,total,vip);
                     }
