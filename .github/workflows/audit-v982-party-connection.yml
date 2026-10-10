@@ -1,0 +1,36 @@
+name: Audit KING Plus v9.8.1 Party Reconnect for v9.8.2
+on:
+  push:
+    branches: ['work/reference-completion']
+    paths:
+      - '.github/workflows/audit-v982-party-connection.yml'
+      - 'ci/v982/audit_party_connection_v982.py'
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  inspect:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: work/reference-completion
+      - name: Download proven v9.8.1 source artifact
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/saved /tmp/src
+          gh run download 38059890592 -n KING-Plus-v9.8.1-games-vip-frames-gifts-emoji-source -D /tmp/saved
+          test -f /tmp/saved/KING-Plus-v9.8.1-games-vip-frames-gifts-emoji-source.zip
+          unzip -q /tmp/saved/KING-Plus-v9.8.1-games-vip-frames-gifts-emoji-source.zip -d /tmp/src
+      - name: Print join, reconnect, and network lifecycle code
+        run: |
+          python3 ci/v982/audit_party_connection_v982.py /tmp/src > /tmp/king-party-audit982.txt
+          head -c 120000 /tmp/king-party-audit982.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: KING-Plus-v982-party-connection-source-audit
+          path: /tmp/king-party-audit982.txt
+          retention-days: 7
