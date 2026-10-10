@@ -1,0 +1,35 @@
+name: Inspect v9.7.6 Party Room join loading screen
+on:
+  push:
+    branches: ['work/reference-completion']
+    paths:
+      - '.github/workflows/inspect-v977-party-stall.yml'
+      - 'ci/v977/inspect_party_handshake_v977.py'
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  inspect:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: work/reference-completion
+      - name: Restore successful v9.7.6 full Android source
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/a /tmp/src
+          gh run download 38011230656 -n KING-Plus-v9.7.6-unified-verified-wallet-source -D /tmp/a
+          unzip -q /tmp/a/KING-Plus-v9.7.6-unified-verified-wallet-source.zip -d /tmp/src
+      - name: Identify Party account/room verification hang and missing errors
+        run: |
+          python3 ci/v977/inspect_party_handshake_v977.py /tmp/src > /tmp/party-stall-diagnostic.txt
+          head -c 115000 /tmp/party-stall-diagnostic.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: KING-Plus-v977-party-stall-analysis
+          path: /tmp/party-stall-diagnostic.txt
+          retention-days: 7
