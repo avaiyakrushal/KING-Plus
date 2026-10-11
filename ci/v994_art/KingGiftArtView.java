@@ -40,7 +40,7 @@ public final class KingGiftArtView extends View {
     }
     public KingGiftArtView(Context c,int i,String n,String symbol){
         super(c);setGift(i,n,symbol);
-        setLayerType(View.LAYER_TYPE_HARDWARE,null); // Can be disabled on low RAM below.
+        setLayerType(View.LAYER_TYPE_NONE,null); // No cached layers per tile; low-RAM safe.
     }
     public void setShowcaseMode(boolean value){
         hero=value;
