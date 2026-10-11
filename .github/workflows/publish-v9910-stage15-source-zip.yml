@@ -34,12 +34,12 @@ jobs:
           mkdir -p /tmp/king-clean-source
           unzip -q "$src" -d /tmp/king-clean-source
           find /tmp/king-clean-source -type f \( -iname '*.jks' -o -iname '*.keystore' -o -iname '*.pem' -o -iname '*.p12' -o -iname '*.pfx' -o -iname 'key.properties' -o -iname 'local.properties' -o -iname '.env' -o -iname 'id_rsa' -o -iname '*service*account*.json' -o -iname '*credentials*.json' \) -print -delete
-          cat > /tmp/king-clean-source/BUILD-NOTES-READ-ME.txt <<'NOTES'
-KING Plus v9.9.10 Stage15 - complete working Android source (TEST, not Final).
-PRIVATE signing key and machine-specific credential files have been intentionally excluded.
-To compile, configure your own debug/release signing in a safe local environment.
-This is not the completed Bolo Hi feature-parity version.
-NOTES
+          printf '%s\n' \
+            'KING Plus v9.9.10 Stage15 - Working Android Source (TEST, not Final).' \
+            'The private Android signing key and machine secrets have been omitted.' \
+            'To compile, configure your own signing credentials securely.' \
+            'Bolo Hi-equivalent complete feature acceptance is still pending.' \
+            > /tmp/king-clean-source/BUILD-NOTES-READ-ME.txt
           cd /tmp/king-clean-source
           zip -qr /tmp/KING-Plus-v9.9.10-Stage15-CURRENT-WORK-Source.zip .
           cd -
