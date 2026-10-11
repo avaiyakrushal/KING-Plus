@@ -1,0 +1,129 @@
+name: KING Plus v9.9.10 - Stage15 Latest Current Work Test APK
+on:
+  push:
+    branches: [work/king-plus-complete-five-sections]
+    paths:
+      - '.github/workflows/king-v9910-stage15-test-apk.yml'
+  workflow_dispatch:
+permissions:
+  contents: write
+  actions: read
+concurrency:
+  group: kingplus-v9910-test-apk
+  cancel-in-progress: false
+jobs:
+  latest-test-apk:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: work/king-plus-complete-five-sections
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+      - name: Restore last verified Stage15 complete Android source and installed v9.9.9 reference
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/king9910 /tmp/king9910src /tmp/king9910old
+          gh run download 38137417232 \
+            -n KING-Plus-Stage15-Host-Block-Integrated-Source-Only \
+            -D /tmp/king9910src
+          unzip -q /tmp/king9910src/KING-Plus-Stage15-CrossPhone-Host-Block-IN-PROGRESS-source.zip \
+            -d /tmp/king9910
+          gh release download v9.9.9 \
+            -p 'KING-Plus-v9.9.9-Current-Work-TEST.apk' \
+            -D /tmp/king9910old
+          test -s /tmp/king9910/app/build.gradle
+          test -s /tmp/king9910old/KING-Plus-v9.9.9-Current-Work-TEST.apk
+          echo "Restored Stage15 source + existing 9.9.9 signed APK"
+      - name: Bump to newer versionCode 189 and enforce all latest changes
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+          root=Path('/tmp/king9910')
+          g=root/'app/build.gradle'
+          src=g.read_text()
+          match=re.search(r"versionCode\s+(\d+)\s*;\s*versionName\s*'([^']+)'",src)
+          assert match, 'Expected versionCode/name in latest source'
+          existing=int(match.group(1))
+          assert existing in (187,188), f'Unexpected versionCode {existing}; refuse overwrite'
+          src=src[:match.start()]+ "versionCode 189; versionName '9.9.10-stage15-current-work-test'" +src[match.end():]
+          g.write_text(src)
+          p=root/'app/src/main/java/com/kingplus/social'
+          party=(p/'PartyActivity.java').read_text()
+          main=(p/'MainActivity.java').read_text()
+          profile=(p/'KingPublicProfileActivity.java').read_text()
+          assert 'private void blockHost()' in party
+          assert 'blockedRef.get(com.google.firebase.firestore.Source.SERVER)' in party
+          assert '.document(accountUid+"_"+hostUid)' in party
+          assert 'Host blocked locally' not in party
+          assert 'private void roomMenuAll()' in party
+          assert 'private void handleRoomMenuItem810(String x)' in party
+          assert 'KingNative3DRoom.open(' in party
+          assert 'KingRoomDice997.open(' in party
+          assert 'KingGiftSound993.setEnabled' in party
+          assert 'KingLudoDiceEntropy999.dice(' in (p/'OnlineLudoActivity.java').read_text()
+          assert 'checkVideoRoomAccess998' in (p/'KingMultiVideoActivity.java').read_text()
+          assert 'set(profile, SetOptions.merge())' in (p/'CloudSync.java').read_text()
+          assert 'NotificationCompat.Builder' in (p/'PushNotifications.java').read_text()
+          assert 'request.resource.data.role == resource.data.role' in (root/'firestore.rules').read_text()
+          assert 'PAID_VIP_ACTIVE = false' in (p/'KingPremiumAccess981.java').read_text()
+          assert 'LIVE_RECHARGE = false' in (p/'KingRecharge974Activity.java').read_text()
+          assert 'm.put("targetUid",uid)' in profile
+          assert 'Continue with Google / Gmail' in main
+          print('PASS Stage15 + all prior 3D/Video, Party, Games, Gifts, Family, Safety modules retained; billing stays DISABLED')
+          PY
+      - name: Compile signed Stage15 KING Plus v9.9.10 Test APK
+        working-directory: /tmp/king9910
+        run: gradle :app:assembleDebug --no-daemon
+      - name: Verify signer, package name and safe over-the-top upgrade from v9.9.9
+        run: |
+          set -euo pipefail
+          OLD=/tmp/king9910old/KING-Plus-v9.9.9-Current-Work-TEST.apk
+          NEW=/tmp/king9910/app/build/outputs/apk/debug/app-debug.apk
+          test -s "$OLD" && test -s "$NEW"
+          SIGNER="$(find "$ANDROID_HOME/build-tools" -type f -name apksigner | sort -V | tail -1)"
+          AAPT="$(find "$ANDROID_HOME/build-tools" -type f -name aapt | sort -V | tail -1)"
+          "$SIGNER" verify --print-certs "$OLD" > /tmp/king9910-oldcerts
+          "$SIGNER" verify --print-certs "$NEW" > /tmp/king9910-newcerts
+          a="$(grep -Eo '[[:xdigit:]]{64}' /tmp/king9910-oldcerts | head -1 || true)"
+          b="$(grep -Eo '[[:xdigit:]]{64}' /tmp/king9910-newcerts | head -1 || true)"
+          test -n "$a" && test "$a" = "$b" || { echo "FAIL: signature mismatch"; exit 1; }
+          "$AAPT" dump badging "$OLD" | grep "^package:" | grep "name='com.kingplus.social'" | grep "versionCode='188'"
+          "$AAPT" dump badging "$NEW" | grep "^package:" | grep "name='com.kingplus.social'" | grep "versionCode='189'"
+          echo "PASS: v9.9.10 can update currently installed v9.9.9 without uninstall"
+      - name: Prepare apk and checksum
+        run: |
+          set -euo pipefail
+          cp /tmp/king9910/app/build/outputs/apk/debug/app-debug.apk \
+             /tmp/KING-Plus-v9.9.10-Stage15-Current-Work-TEST.apk
+          sha256sum /tmp/KING-Plus-v9.9.10-Stage15-Current-Work-TEST.apk
+      - uses: actions/upload-artifact@v4
+        with:
+          name: KING-Plus-v9.9.10-Stage15-TEST-APK
+          path: /tmp/KING-Plus-v9.9.10-Stage15-Current-Work-TEST.apk
+          retention-days: 14
+          if-no-files-found: error
+      - name: Publish requested latest current-work TEST APK only
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          APK=/tmp/KING-Plus-v9.9.10-Stage15-Current-Work-TEST.apk
+          if gh release view v9.9.10 >/dev/null 2>&1; then
+            gh release upload v9.9.10 "$APK" --clobber
+          else
+            gh release create v9.9.10 "$APK" \
+              --target work/king-plus-complete-five-sections --prerelease \
+              --title 'KING Plus v9.9.10 — Current Work Stage15 TEST APK' \
+              --notes "Requested test APK containing all verified compiled development through Stage15: OpenGL 3D Party preview, server-verified Jitsi video entry, Party/Room Join, Ludo entropy, gift/VIP night audio, secure family/community profile merge, push notification privacy, Family role security source rule, quick Party action routing/Back navigation, Room lock UI and cross-device Block Host saving using the Profile Firebase block schema. This is NOT a complete clone or production-ready final app. True multi-phone live voice/video, 3D avatar editor/walking, complete multiplayer rules, Facebook/WhatsApp OTP, paid Diamond recharge/Noble backend and Firebase Rules deployment still require work and real-device acceptance. Paid VIP/recharge deliberately disabled. Built with same Android signing certificate and package name as v9.9.9; versionCode 189. Do not uninstall old KING Plus to update."
+          fi
+          gh release view v9.9.10 --json tagName,url,assets --jq '{tagName,url,assets:[.assets[]|{name,size,url}]}'
