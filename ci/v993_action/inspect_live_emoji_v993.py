@@ -21,7 +21,7 @@ for filename,needles in targets:
   inds=[i for i,l in enumerate(src) if needle in l]
   print("### KEY",needle,"LINEs",[i+1 for i in inds[:10]])
   if filename=="PartyActivity.java":
-   chosen=inds[:2];before=8;after=needle=="giftShopPanel"?75:needle=="showLiveEmojiPanelV530"?90:55
+   chosen=inds[:2];before=8;after=75 if needle=="giftShopPanel" else (90 if needle=="showLiveEmojiPanelV530" else 55)
   else: chosen=inds[:1];before=5;after=needle=="LABELS"?95:35
   for i in chosen:
    print("\n".join(f"{j+1:5} {src[j]}" for j in range(max(0,i-before),min(len(src),i+after))))
