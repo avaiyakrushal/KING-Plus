@@ -101,21 +101,17 @@ section('    private void approveMicRequest940(DocumentSnapshot request,String u
     }
 
 ''')
-section('    private void takeModeratorSeat940(int seatNo){',
-        '    private void showSeat', # may vary: use automatic next-method detection instead below
-        '') if False else None
-# The moderator claiming a seat must use the same transactional claim path.
-mark='    private void takeModeratorSeat940(int seatNo){'
-assert s.count(mark)==1
-start=s.index(mark)
-end=s.find('\n    private void ',start+len(mark))
-assert end>start
-s=s[:start]+'''    private void takeModeratorSeat940(int seatNo){
+# Only replace this specific method body; do NOT eat following helper methods.
+pattern9913=re.compile(r'(?ms)^    private void takeModeratorSeat940\(int seatNo\)\{.*?^    \}\n')
+assert len(pattern9913.findall(s))==1,'moderator method anchor drifted'
+s=pattern9913.sub('''    private void takeModeratorSeat940(int seatNo){
         if(!canModerateSeatsV530()||db==null||roomId==null||user==null)return;
         cloudSeatAction(seatNo);
     }
-
-'''+s[end:]
+''',s,count=1)
+# Required regression guards: unrelated methods must survive patching.
+for name9913 in ['private boolean isModerator(', 'private String msg(', 'private void toggleMic(', 'private void setSeatMicV530(']:
+    assert name9913 in s, 'Unrelated Party helper was unexpectedly removed: '+name9913
 assert s.count('approveOrMoveMemberSeat9913(')==4
 assert 'tx9913.delete(priorSeat9913)' in s and 'tx9913.delete(request9913)' in s
 p.write_text(s,encoding='utf-8')
