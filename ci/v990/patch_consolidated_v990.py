@@ -67,7 +67,7 @@ change(party,
 # RoomGameActivity used to create/update Party membership just by opening Game!
 # Verify pre-existing actual server membership; Game must never JOIN Room.
 change(games,
-'''    private final List<DocumentSnapshot> currentMoves=new ArrayList<>;''',
+'''    private final List<DocumentSnapshot> currentMoves=new ArrayList<>();''',
 '''    private final List<DocumentSnapshot> currentMoves=new ArrayList<>();
     private boolean gameMemberVerified992=false;''',
 "Track server-confirmed Party membership within Games")
