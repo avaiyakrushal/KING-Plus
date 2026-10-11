@@ -29,7 +29,7 @@ async function leave(db,uid,session,device){
 }
 try {
   await env.clearFirestore();
-  await assertSucceeds(setDoc(room(a),{ownerUid:'alice',name:'KING Live Room',isPrivate:false,closed:false}));
+  await assertSucceeds(setDoc(room(a),{ownerUid:'alice',name:'KING Live Room',isPrivate:false,locked:false,closed:false}));
   await assertSucceeds(setDoc(mem(a,'alice'),{uid:'alice',sessionId:'session-a',deviceId:'device-a',name:'Alice'}));
   await assertSucceeds(setDoc(mem(b,'bob'),{uid:'bob',sessionId:'session-b',deviceId:'device-b',name:'Bob'}));
   await assertSucceeds(setDoc(seat(a,1),{uid:'alice',name:'Alice',micOn:false}));
