@@ -46,3 +46,21 @@ for name in ["PartyActivity.java","LiveEmojiView.java","KingEmojiAuraView992.jav
                 for j in range(max(0,i-2),min(len(lines),i+22)):
                     print(f"{j+1:05} {lines[j][:460]}")
 print("STABILITY_AUDIT_END")
+
+print("\nTARGETED PARTY LIFECYCLE CONTEXT")
+p=base/"PartyActivity.java"
+li=p.read_text().splitlines()
+for lo,hi in [(245,322),(333,408),(1930,2015),(5156,5178)]:
+ print("BLOCK",lo,hi)
+ for i in range(lo-1,min(len(li),hi)):
+  print(f"{i+1:05} {li[i][:600]}")
+print("\nTARGETED RENDERERS")
+for filename in ["KingRoomStageView.java","KingLoginBackdropView.java","KingPartyMemory969.java"]:
+ p=base/filename
+ if not p.exists():continue
+ li=p.read_text().splitlines()
+ print("FILE",filename)
+ for i,line in enumerate(li):
+  if any(x in line for x in ["postInvalidateDelayed(", "onDraw(", "onDetachedFromWindow(", "onWindowVisibilityChanged(","onLowMemory(", "onTrimMemory("]):
+   for j in range(max(0,i-3),min(len(li),i+6)):
+    print(f"{j+1:05} {li[j][:600]}")
