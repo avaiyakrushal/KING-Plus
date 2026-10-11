@@ -1,0 +1,29 @@
+name: KING Small-Functions Button-to-Action Audit
+on:
+  push:
+    branches: [work/king-plus-complete-five-sections]
+    paths:
+      - '.github/workflows/king-stage11-quick-route-audit.yml'
+      - 'ci/final_five/stage11_deep_tool_route_audit.py'
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  inspect:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 9
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: work/king-plus-complete-five-sections
+      - name: Restore latest one-tap Party menu source
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/kingroute /tmp/kingroutezip
+          gh run download 38134220079 -n KING-Plus-UX-One-Tap-Party-Source-Only -D /tmp/kingroutezip
+          unzip -q /tmp/kingroutezip/KING-Plus-UX-One-Tap-Party-Source-IN-PROGRESS.zip -d /tmp/kingroute
+      - name: Trace actual 12 quick actions to their dispatchers
+        run: python3 ci/final_five/stage11_deep_tool_route_audit.py
