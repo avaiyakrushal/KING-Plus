@@ -1,0 +1,129 @@
+name: KING Plus v9.9.20 - Compact Party and Mic Ownership TEST
+on:
+  push:
+    branches: [work/king-v9920-small-screen-mic-ownership]
+    paths:
+      - 'tools/v9920/king_compact_mic_ownership.py'
+      - '.github/workflows/king-v9920-stage-privacy-build.yml'
+  workflow_dispatch:
+permissions:
+  contents: write
+  actions: read
+concurrency:
+  group: king-v9920-stage-privacy
+  cancel-in-progress: false
+jobs:
+  compile-verified-apk:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+      - name: Restore full tested v9.9.19 source and old signed APK
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/king9920 /tmp/king9920prev
+          gh release download v9.9.19-room-seat-sync \
+            -p 'KING-Plus-v9.9.19-Room-Seat-Sync-Source.zip' -D /tmp/king9920prev
+          gh release download v9.9.19-room-seat-sync \
+            -p 'KING-Plus-v9.9.19-Room-Seat-Sync-TEST.apk' -D /tmp/king9920prev
+          unzip -q /tmp/king9920prev/KING-Plus-v9.9.19-Room-Seat-Sync-Source.zip -d /tmp/king9920
+          test -s /tmp/king9920/app/src/main/java/com/kingplus/social/PartyActivity.java
+          test -s /tmp/king9920/app/src/main/java/com/kingplus/social/KingChessRules.java
+          test -s app/kingplus-ci-debug.keystore
+          cp app/kingplus-ci-debug.keystore /tmp/king9920/app/kingplus-ci-debug.keystore
+      - name: Apply layout and mic ownership changes; test all preserved features
+        run: |
+          set -euo pipefail
+          python3 tools/v9920/king_compact_mic_ownership.py /tmp/king9920
+          python3 - <<'PY'
+          from pathlib import Path
+          src=Path('/tmp/king9920/app/src/main/java/com/kingplus/social')
+          s=(src/'PartyActivity.java').read_text()
+          assert s.count('muteOwnedSeat9920(')==3
+          assert 'uid9920.equals(doc9920.getString("uid"))' in s
+          assert 'rowDp9920=compact9920?68:80' in s
+          assert 'avatarDp9920=compact9920?' in s
+          assert 'whereEqualTo("uid",leavingUid9919)' in s
+          assert 'openLiveChess9917' in s
+          assert 'approveOrMoveMemberSeat9913' in s
+          assert 'chatRoom9918' in s
+          assert 'responsiveWorld9915' in (src/'KingNative3DRoom.java').read_text()
+          assert 'PAID_VIP_ACTIVE = false' in (src/'KingPremiumAccess981.java').read_text()
+          assert 'LIVE_RECHARGE = false' in (src/'KingRecharge974Activity.java').read_text()
+          print('PASS layout, party microphone ownership, auth, 3D, game, cash safety')
+          PY
+          mkdir -p /tmp/king9920/tests/firestore
+          cp tools/v9919/room_exit_firestore.test.mjs /tmp/king9920/tests/firestore/room_exit_firestore.test.mjs
+      - name: Install Firestore emulator test tools
+        working-directory: /tmp/king9920/tests/firestore
+        run: npm ci --no-audit --no-fund
+      - name: Verify real Party room exit and seat contention with independent Firebase accounts
+        working-directory: /tmp/king9920
+        env:
+          CI: 'true'
+        run: |
+          set -euo pipefail
+          tests/firestore/node_modules/.bin/firebase emulators:exec \
+             --only firestore --project demo-kingplus-exit-9919 --config firebase-emulator.json \
+             "node tests/firestore/room_exit_firestore.test.mjs"
+      - name: Compile KING Plus full v9.9.20 debug Android APK
+        working-directory: /tmp/king9920
+        run: gradle :app:assembleDebug --no-daemon
+      - name: Verify APK package, signer and in-place upgrade
+        run: |
+          set -euo pipefail
+          OLD=/tmp/king9920prev/KING-Plus-v9.9.19-Room-Seat-Sync-TEST.apk
+          NEW=/tmp/king9920/app/build/outputs/apk/debug/app-debug.apk
+          test -s "$OLD" && test -s "$NEW"
+          AAPT="$(find "$ANDROID_HOME/build-tools" -name aapt -type f | sort -V | tail -1)"
+          SIGNER="$(find "$ANDROID_HOME/build-tools" -name apksigner -type f | sort -V | tail -1)"
+          "$AAPT" dump badging "$OLD" | grep "^package:" | grep "name='com.kingplus.social'" | grep "versionCode='198'"
+          "$AAPT" dump badging "$NEW" | grep "^package:" | grep "name='com.kingplus.social'" | grep "versionCode='199'"
+          "$SIGNER" verify --print-certs "$OLD" > /tmp/king9920oldcert
+          "$SIGNER" verify --print-certs "$NEW" > /tmp/king9920newcert
+          a="$(grep -Eo '[[:xdigit:]]{64}' /tmp/king9920oldcert | head -1 || true)"
+          b="$(grep -Eo '[[:xdigit:]]{64}' /tmp/king9920newcert | head -1 || true)"
+          test -n "$a" && test "$a" = "$b"
+          echo 'PASS same package/version upgrade/signature'
+      - name: Produce TEST APK and full clean source
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/king9920out
+          cp /tmp/king9920/app/build/outputs/apk/debug/app-debug.apk \
+            /tmp/king9920out/KING-Plus-v9.9.20-Stage-Mic-Stability-TEST.apk
+          rm -f /tmp/king9920/app/kingplus-ci-debug.keystore
+          cd /tmp/king9920
+          zip -q -r /tmp/king9920out/KING-Plus-v9.9.20-Stage-Mic-Stability-Source.zip . \
+            -x 'app/build/*' './app/build/*' '.gradle/*' './.gradle/*' \
+               'build/*' './build/*' '*/build/*' '*/.gradle/*' \
+               '*.apk' '*.aab' '*.jks' '*.keystore' '*local.properties' '*.zip'
+          BYTES="$(stat -c%s /tmp/king9920out/KING-Plus-v9.9.20-Stage-Mic-Stability-Source.zip)"
+          if [ "$BYTES" -gt 10000000 ]; then echo "Source archive contaminated with binary cache"; exit 1; fi
+          sha256sum /tmp/king9920out/*
+      - uses: actions/upload-artifact@v4
+        with:
+          name: KING-Plus-v9920-Verified-TEST-and-Source
+          path: /tmp/king9920out/*
+          retention-days: 14
+          if-no-files-found: error
+      - name: Publish tested candidate, never falsely mark Final
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          gh release create v9.9.20-stage-mic-stability /tmp/king9920out/* \
+            --target "$GITHUB_SHA" --prerelease \
+            --title 'KING Plus v9.9.20 — Stage and Mic Stability TEST' \
+            --notes 'Corrected real Party seat grid layout so compact phones retain Chat space even after Firestore updates; avatar and label sizes now adjust for 8/10/12 seats. Prevents obsolete Room or Jitsi callbacks from muting another user after seat reassignment by requiring owner UID in an atomic Firestore transaction. Keeps full previous Party moderator seats, Live Chess, real Firebase membership, Gift previews, Jitsi entry, 3D original preview, and disabled paid recharge. Firebase two-account checks, whole APK build, package version and identical signing certificate passed. DOES NOT mean complete Bolo Hi feature or screen parity: all live voice/video, full 3D walking, entire games catalogue, billing/OTP provider integrations and physical two-phone final acceptance remain unfinished.'
