@@ -1,4 +1,5 @@
 name: Deploy KING Plus v9.6.2 Rules via Admin SDK
+# Reapply reviewed Firestore security rules after user's (default) database creation on 2026-10-11.
 
 on:
   push:
