@@ -1,0 +1,51 @@
+name: Create KING Plus First Free Firestore Mumbai
+on:
+  push:
+    branches: ['work/reference-completion']
+    paths:
+      - '.github/workflows/provision-v989-first-firestore-mumbai.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: kingplus-first-default-firestore-once
+  cancel-in-progress: false
+jobs:
+  provision:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: work/reference-completion
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Confirm owner-approved project and first-database-only operation
+        env:
+          FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_JSON }}
+        run: |
+          set -euo pipefail
+          test -n "$FIREBASE_SERVICE_ACCOUNT_JSON" || (echo "RESULT: FIREBASE_SERVICE_ACCOUNT_MISSING" && exit 1)
+          printf '%s' "$FIREBASE_SERVICE_ACCOUNT_JSON" |
+            jq -e '.type=="service_account" and .project_id=="king-plus-2f365"' >/dev/null
+          test -f ci/v989/create_first_firestore_mumbai_once.cjs
+          grep -F "const region='asia-south1'" ci/v989/create_first_firestore_mumbai_once.cjs
+          grep -F "databaseId:dbId" ci/v989/create_first_firestore_mumbai_once.cjs
+          grep -F "databaseEdition:'STANDARD'" ci/v989/create_first_firestore_mumbai_once.cjs
+          grep -F "deleteProtectionState:'DELETE_PROTECTION_ENABLED'" ci/v989/create_first_firestore_mumbai_once.cjs
+          printf '%s' "$FIREBASE_SERVICE_ACCOUNT_JSON" > "$RUNNER_TEMP/firestore-mumbai-first.json"
+          chmod 600 "$RUNNER_TEMP/firestore-mumbai-first.json"
+          echo "GOOGLE_APPLICATION_CREDENTIALS=$RUNNER_TEMP/firestore-mumbai-first.json" >> "$GITHUB_ENV"
+          node --check ci/v989/create_first_firestore_mumbai_once.cjs
+      - name: Install existing Google API client
+        run: npm install --prefix functions --no-audit --no-fund
+      - name: Provision only if this is the FIRST database, without changing billing
+        env:
+          NODE_PATH: ${{ github.workspace }}/functions/node_modules
+        run: |
+          set -euo pipefail
+          node ci/v989/create_first_firestore_mumbai_once.cjs
+      - name: Always securely remove temporary key
+        if: always()
+        run: rm -f "$RUNNER_TEMP/firestore-mumbai-first.json"
