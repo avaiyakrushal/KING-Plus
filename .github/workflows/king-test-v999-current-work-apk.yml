@@ -1,0 +1,120 @@
+name: KING Plus v9.9.9 - Current Work Test APK
+on:
+  push:
+    branches: [work/king-plus-complete-five-sections]
+    paths:
+      - '.github/workflows/king-test-v999-current-work-apk.yml'
+  workflow_dispatch:
+permissions:
+  contents: write
+  actions: read
+concurrency:
+  group: king-plus-v999-current-work-apk
+  cancel-in-progress: false
+jobs:
+  deliver-apk:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 28
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: work/king-plus-complete-five-sections
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+      - name: Download latest successfully integrated nine-stage source and old signed APK
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/king-v999 /tmp/king-v999-src /tmp/king-v999-old
+          gh run download 38132703654 \
+             -n KING-Plus-Full-Integrated-Social-Safety-Source-No-APK \
+             -D /tmp/king-v999-src
+          unzip -q /tmp/king-v999-src/KING-Plus-Social-Safety-Integrated-IN-PROGRESS-source.zip \
+             -d /tmp/king-v999
+          gh run download 38128027011 \
+             -n KING-Plus-v9.9.8-Real-Friends-APK \
+             -D /tmp/king-v999-old
+          test -s /tmp/king-v999/app/src/main/java/com/kingplus/social/KingNative3DRoom.java
+          test -s /tmp/king-v999/app/src/main/java/com/kingplus/social/CommunityHubActivity.java
+          OLD="$(find /tmp/king-v999-old -type f -name '*.apk' -print -quit)"
+          test -s "$OLD"
+          echo "Current combined source and previous signed APK both present"
+      - name: Bump update version to KING Plus 9.9.9 (TEST)
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          root=Path('/tmp/king-v999')
+          g=root/'app/build.gradle'
+          s=g.read_text()
+          old="versionCode 187; versionName '9.9.8-real-friends-server-sync'"
+          new="versionCode 188; versionName '9.9.9-current-work-test'"
+          assert s.count(old)==1, 'Expected signed v9.9.8 baseline; abort version mismatch'
+          g.write_text(s.replace(old,new,1))
+          p=root/'app/src/main/java/com/kingplus/social'
+          assert 'KingNative3DRoom.open(' in (p/'PartyActivity.java').read_text()
+          assert 'KingLudoDiceEntropy999.dice(' in (p/'OnlineLudoActivity.java').read_text()
+          assert 'case "vipnight"' in (p/'KingGiftSound993.java').read_text()
+          assert 'checkVideoRoomAccess998' in (p/'KingMultiVideoActivity.java').read_text()
+          assert 'set(profile, SetOptions.merge())' in (p/'CloudSync.java').read_text()
+          assert 'NotificationCompat.Builder' in (p/'PushNotifications.java').read_text()
+          assert 'request.resource.data.role == resource.data.role' in (root/'firestore.rules').read_text()
+          assert 'PAID_VIP_ACTIVE = false' in (p/'KingPremiumAccess981.java').read_text()
+          assert 'LIVE_RECHARGE = false' in (p/'KingRecharge974Activity.java').read_text()
+          print('PASS all current work included with safe payment restrictions')
+          PY
+      - name: Build installable Android test APK
+        working-directory: /tmp/king-v999
+        run: gradle :app:assembleDebug --no-daemon
+      - name: Enforce signature/package/version compatibility with installed v9.9.8
+        run: |
+          set -euo pipefail
+          OLD="$(find /tmp/king-v999-old -type f -name '*.apk' -print -quit)"
+          NEW=/tmp/king-v999/app/build/outputs/apk/debug/app-debug.apk
+          test -s "$OLD" && test -s "$NEW"
+          SIGNER="$(find "$ANDROID_HOME/build-tools" -type f -name apksigner | sort -V | tail -1)"
+          AAPT="$(find "$ANDROID_HOME/build-tools" -type f -name aapt | sort -V | tail -1)"
+          "$SIGNER" verify --print-certs "$OLD" > /tmp/king-old-sign
+          "$SIGNER" verify --print-certs "$NEW" > /tmp/king-new-sign
+          a="$(grep -m1 'Signer #1 certificate SHA-256 digest:' /tmp/king-old-sign | sed 's/.*digest: *//')"
+          b="$(grep -m1 'Signer #1 certificate SHA-256 digest:' /tmp/king-new-sign | sed 's/.*digest: *//')"
+          test -n "$a" && test "$a" = "$b" || {
+            echo "REFUSING to publish: signatures differ; cannot update existing app safely"
+            exit 1
+          }
+          "$AAPT" dump badging "$OLD" | grep "^package:" | grep "name='com.kingplus.social'" | grep "versionCode='187'"
+          "$AAPT" dump badging "$NEW" | grep "^package:" | grep "name='com.kingplus.social'" | grep "versionCode='188'"
+          echo "PASS matching signer, package com.kingplus.social and new version code 188"
+      - name: Stage current-work APK and checksum
+        run: |
+          set -euo pipefail
+          cp /tmp/king-v999/app/build/outputs/apk/debug/app-debug.apk \
+             /tmp/KING-Plus-v9.9.9-Current-Work-TEST.apk
+          sha256sum /tmp/KING-Plus-v9.9.9-Current-Work-TEST.apk
+      - uses: actions/upload-artifact@v4
+        with:
+          name: KING-Plus-v9.9.9-Current-Work-TEST-APK
+          path: /tmp/KING-Plus-v9.9.9-Current-Work-TEST.apk
+          retention-days: 14
+          if-no-files-found: error
+      - name: Publish user-requested current-work TEST APK, NOT final release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          APK=/tmp/KING-Plus-v9.9.9-Current-Work-TEST.apk
+          if gh release view v9.9.9 >/dev/null 2>&1; then
+            gh release upload v9.9.9 "$APK" --clobber
+          else
+            gh release create v9.9.9 "$APK" \
+              --target work/king-plus-complete-five-sections \
+              --prerelease \
+              --title "KING Plus v9.9.9 — Current Work TEST APK (not complete)" \
+              --notes "User-requested APK of CURRENT integrated development as of 2026-10-11. Includes original OpenGL 3D Party preview with Firestore seats, Firebase-verified Jitsi video room preflight, fresh Firebase Party invite, Ludo dice entropy improvement, distinct VIP Night gift sound and Gift Audio toggle, server-backed Friends/Profile searches, bounded HTTPS profile photos, Family profile merge preserving familyCode, Community server lookups, push notifications privacy/compatibility, Family role source rule tested in emulator and login animation stability. This APK is NOT complete Bolo Hi parity. Real 3D avatars, all online game mechanics, Meta/Facebook and WhatsApp OTP, production secure 1:1 video, verified purchases/recharge, server-side rules deployment, and two-real-phone live tests remain unfinished. PAID VIP and LIVE_RECHARGE are deliberately disabled. Deployment of the improved firestore.rules to Firebase is NOT automatic."
+          fi
+          gh release view v9.9.9 --json url,assets --jq '{url,assets:[.assets[]|{name,url,size}]}'
