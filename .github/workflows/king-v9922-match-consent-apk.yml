@@ -1,0 +1,141 @@
+name: KING Plus v9.9.22 - Consent Based Live Video Match
+on:
+  push:
+    branches: [work/king-v9922-video-match-consent]
+    paths:
+      - 'tools/v9922/**'
+      - '.github/workflows/king-v9922-match-consent-apk.yml'
+  workflow_dispatch:
+permissions:
+  contents: write
+  actions: read
+concurrency:
+  group: king-v9922-video-match
+  cancel-in-progress: false
+jobs:
+  two-user-match-and-android:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+      - name: Restore exact v9.9.21 full KING source and prior signed APK
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/king9922 /tmp/king9922prev
+          gh release download v9.9.21-real-video-seats -p 'KING-Plus-v9.9.21-Real-Video-Seats-Source.zip' -D /tmp/king9922prev
+          gh release download v9.9.21-real-video-seats -p 'KING-Plus-v9.9.21-Real-Video-Seats-TEST.apk' -D /tmp/king9922prev
+          unzip -q /tmp/king9922prev/KING-Plus-v9.9.21-Real-Video-Seats-Source.zip -d /tmp/king9922
+          test -s /tmp/king9922/app/src/main/java/com/kingplus/social/KingMultiVideoActivity.java
+          test -s /tmp/king9922/app/src/main/java/com/kingplus/social/KingChessRules.java
+          test -s app/kingplus-ci-debug.keystore
+          cp app/kingplus-ci-debug.keystore /tmp/king9922/app/kingplus-ci-debug.keystore
+      - name: Apply independently coded real match request/consent patch
+        run: |
+          set -euo pipefail
+          base64 -d tools/v9922/king_match_consent.patch.gz.b64 | gzip -d > /tmp/king9922.patch
+          echo 'a1df842feb5db8bf5bf12b973be64d713fbc9dab287e5bcd940775235c62ab64  /tmp/king9922.patch' | sha256sum -c -
+          cd /tmp/king9922
+          patch -p1 < /tmp/king9922.patch
+          python3 - <<'PY'
+          from pathlib import Path
+          root=Path('/tmp/king9922')
+          v=(root/'app/src/main/java/com/kingplus/social/KingMultiVideoActivity.java').read_text()
+          p=(root/'app/src/main/java/com/kingplus/social/PartyActivity.java').read_text()
+          r=(root/'firestore.rules').read_text()
+          assert 'videoMatchIncoming9922' in v
+          assert 'respondVideoMatch9922' in v
+          assert 'watchMatchReply9922' in v
+          assert 'Match found' not in v
+          assert 'match /video_match_requests/{recipientUid}' in r
+          assert 'match /video_member_seats/{memberUid}' in r
+          assert 'KingLiveChessActivity.class' in p
+          assert 'muteOwnedSeat9920' in p
+          assert 'whereEqualTo("uid",leavingUid9919)' in p
+          assert 'PAID_VIP_ACTIVE = false' in (root/'app/src/main/java/com/kingplus/social/KingPremiumAccess981.java').read_text()
+          assert 'LIVE_RECHARGE = false' in (root/'app/src/main/java/com/kingplus/social/KingRecharge974Activity.java').read_text()
+          assert "versionCode 201" in (root/'app/build.gradle').read_text()
+          print('PASS: no phantom match, consent and all prior Party/Games/3D/privacy features retained')
+          PY
+          mkdir -p /tmp/king9922/tests/firestore
+          cp "$GITHUB_WORKSPACE/tools/v9922/video-match-consent.test.mjs" /tmp/king9922/tests/firestore/
+          cp "$GITHUB_WORKSPACE/tools/v9921/video-seat-firestore.test.mjs" /tmp/king9922/tests/firestore/
+      - name: Install Firebase emulator test tools
+        working-directory: /tmp/king9922/tests/firestore
+        run: npm ci --no-audit --no-fund
+      - name: Verify match sender/recipient consent and actual Video Seat rights
+        working-directory: /tmp/king9922
+        env:
+          CI: 'true'
+        run: |
+          set -euo pipefail
+          tests/firestore/node_modules/.bin/firebase emulators:exec \
+            --only firestore --project demo-kingplus-match-9922 --config firebase-emulator.json \
+            "node tests/firestore/video-match-consent.test.mjs"
+      - name: Recheck 2-account video seat ownership and moderator invitation
+        working-directory: /tmp/king9922
+        env:
+          CI: 'true'
+        run: |
+          set -euo pipefail
+          tests/firestore/node_modules/.bin/firebase emulators:exec \
+            --only firestore --project demo-kingplus-video-9921 --config firebase-emulator.json \
+            "node tests/firestore/video-seat-firestore.test.mjs"
+      - name: Compile complete Android APK with new verified Video Match
+        working-directory: /tmp/king9922
+        run: gradle :app:assembleDebug --no-daemon
+      - name: Verify upgrade certificate, package and new versionCode
+        run: |
+          set -euo pipefail
+          OLD=/tmp/king9922prev/KING-Plus-v9.9.21-Real-Video-Seats-TEST.apk
+          NEW=/tmp/king9922/app/build/outputs/apk/debug/app-debug.apk
+          test -s "$OLD" && test -s "$NEW"
+          AAPT="$(find "$ANDROID_HOME/build-tools" -name aapt -type f | sort -V | tail -1)"
+          SIGNER="$(find "$ANDROID_HOME/build-tools" -name apksigner -type f | sort -V | tail -1)"
+          "$AAPT" dump badging "$OLD" | grep "^package:" | grep "name='com.kingplus.social'" | grep "versionCode='200'"
+          "$AAPT" dump badging "$NEW" | grep "^package:" | grep "name='com.kingplus.social'" | grep "versionCode='201'"
+          "$SIGNER" verify --print-certs "$OLD" > /tmp/king9922oldkey
+          "$SIGNER" verify --print-certs "$NEW" > /tmp/king9922newkey
+          a="$(grep -Eo '[[:xdigit:]]{64}' /tmp/king9922oldkey | head -1 || true)"
+          b="$(grep -Eo '[[:xdigit:]]{64}' /tmp/king9922newkey | head -1 || true)"
+          test -n "$a" && test "$a" = "$b"
+          echo 'PASS signed KING Plus package and safe in-place upgrade'
+      - name: Package full KING TEST APK and sanitized complete source
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/king9922out
+          cp /tmp/king9922/app/build/outputs/apk/debug/app-debug.apk /tmp/king9922out/KING-Plus-v9.9.22-Video-Match-Consent-TEST.apk
+          rm -f /tmp/king9922/app/kingplus-ci-debug.keystore
+          cd /tmp/king9922
+          zip -q -r /tmp/king9922out/KING-Plus-v9.9.22-Video-Match-Consent-Source.zip . \
+            -x '*/node_modules/*' '*node_modules/*' '*.log' 'app/build/*' './app/build/*' '*/build/*' \
+               './.gradle/*' '*/.gradle/*' '*.apk' '*.aab' '*.jks' '*.keystore' '*local.properties' '*.zip'
+          BYTES="$(stat -c%s /tmp/king9922out/KING-Plus-v9.9.22-Video-Match-Consent-Source.zip)"
+          test "$BYTES" -gt 100000 && test "$BYTES" -lt 10000000
+          sha256sum /tmp/king9922out/*
+      - uses: actions/upload-artifact@v4
+        with:
+          name: KING-v9922-Consent-TEST-APK-and-Source
+          path: /tmp/king9922out/*
+          retention-days: 14
+          if-no-files-found: error
+      - name: Publish only as verified TEST, not falsely as full Final
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          gh release create v9.9.22-video-match-consent /tmp/king9922out/* \
+            --target "$GITHUB_SHA" --prerelease \
+            --title 'KING Plus v9.9.22 — Two-User Video Match Consent TEST' \
+            --notes 'Fixes an important Bolo-style Video match gap: previous match button immediately claimed a match had happened without the other user agreeing. Both actual Firebase video-seat occupants now exchange an authorized pending invitation; only its signed-in recipient may Accept or Decline, and the inviter sees Confirmed only after acceptance. Pending requests expire after 120 seconds; server rules block spoofed sender or old/off-seat responses. Retains all existing Party, real Chess, 3D preview, roles, Mic/Video seat and Gift features. Android build/same signer/two account Firebase emulator tests passed. TEST NOT FINAL: full BoloHi screen and all games parity, real Jitsi RTC on two physical phones, fully rigged avatars, provider OTP and secure paid diamond recharge are unverified/incomplete. Production Firebase rule deployment is still required; this release does not deploy rules.'
