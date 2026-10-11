@@ -29,7 +29,9 @@ errors=[]
 print("ROUTE_BRANCH_COUNT",len(routes))
 for label in list(dict.fromkeys(labels)):
     matchs=[(n,part,line) for n,(parts,line) in enumerate(routes) for part in parts if part in label]
-    if not matchs and "All Tools" not in label:errors.append(f"NO_HANDLER: {label}")
+    if not matchs:
+        if "All Tools" in label: print("MATCH",label,"-> handled locally by roomMenuAll()")
+        else: errors.append(f"NO_HANDLER: {label}")
     else:print("MATCH",label,matchs[0][1],"route #",matchs[0][0])
 print("STATIC_TOOL_LABEL_COUNT",len(set(labels)))
 for e in errors:print("ERROR",e)
