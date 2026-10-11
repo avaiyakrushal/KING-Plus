@@ -55,3 +55,21 @@ for i,line in enumerate(src):
         print(f"{i+1}: "+line[:235])
         print("\n".join(f"{j+1}: "+src[j][:235] for j in range(max(0,i-4),min(len(src),i+5))))
 print("INSPECTION COMPLETE")
+
+print("\n## CREATE/OPEN JOIN CALLSITE CONTEXT")
+src=party.splitlines()
+for i,line in enumerate(src):
+    if any(x in line for x in ['private void createCloudRoom(', 'private void openCloudRoom(', 
+                               'void openCloudRoom(', 'private void finishMemberJoin921()',
+                               'private void openRoomDoc891(', 'private void joinMemberThenOpen891()',
+                               'private void openParty(', 'private void renderLobby(',
+                               'private void roomJoinError891(']):
+        print("\nAT LINE",i+1,":",line.strip()[:220])
+        for n in range(i,min(i+48,len(src))):
+            print(f"{n+1}: "+src[n][:240])
+print("\n## Room member write count and guarded join entrypoints")
+for i,line in enumerate(src):
+    if ('memberSeen=true' in line or '.set(member' in line or 
+        'joinMemberThenOpen891();' in line or 'createCloudRoom(' in line or
+        'openCloudRoom(' in line or 'finishMemberJoin921();' in line):
+        print(f"{i+1}: "+line[:300])
