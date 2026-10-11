@@ -26,4 +26,6 @@ jobs:
           gh run download 38123768020 -n KING-Plus-v9.9.6-Friends-Party-Gift-Sounds-Source -D /tmp/source-v997
           unzip -q /tmp/source-v997/KING-Plus-v9.9.6-Friends-Party-Gift-Sounds-source.zip 'app/src/main/java/com/kingplus/social/*.java' 'firestore.rules' -d /tmp/v997
       - name: Audit role security, profiles and games
-        run: python3 ci/v997_room/inspect.py
+        run: |
+          python3 ci/v997_room/inspect.py
+          python3 ci/v997_room/inspect_detail.py
