@@ -1,0 +1,49 @@
+name: Publish KING Plus v9.9.10 Source ZIP for Mobile
+on:
+  push:
+    branches: [work/king-plus-complete-five-sections]
+    paths:
+      - '.github/workflows/publish-v9910-stage15-source-zip.yml'
+  workflow_dispatch:
+permissions:
+  actions: read
+  contents: write
+jobs:
+  publish-source:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: work/king-plus-complete-five-sections
+      - name: Restore successfully built Stage15 full source (no APK)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/king-source
+          gh run download 38137417232 -n KING-Plus-Stage15-Host-Block-Integrated-Source-Only -D /tmp/king-source
+          src=/tmp/king-source/KING-Plus-Stage15-CrossPhone-Host-Block-IN-PROGRESS-source.zip
+          test -s "$src"
+          unzip -t "$src" | tail -1 | grep -q 'No errors detected'
+          unzip -Z1 "$src" | grep -q 'app/src/main/java/com/kingplus/social/PartyActivity.java'
+          unzip -Z1 "$src" | grep -q 'app/src/main/java/com/kingplus/social/KingNative3DRoom.java'
+          unzip -Z1 "$src" | grep -q 'app/build.gradle'
+          if unzip -Z1 "$src" | grep -Ei '(^|/)(.*service.account.*\.json|.*\.jks|.*\.keystore|.*\.pem|.*\.p12|.*\.pfx|\.env|id_rsa|.*credentials.*\.json|key\.properties|local\.properties)$'; then
+            echo 'ERROR: Source archive contains a potentially private credential file. Refusing public release.'
+            exit 1
+          fi
+          cp "$src" /tmp/KING-Plus-v9.9.10-Stage15-CURRENT-WORK-Source.zip
+          sha256sum /tmp/KING-Plus-v9.9.10-Stage15-CURRENT-WORK-Source.zip
+          echo 'Source ZIP verified; contents are the latest working project, NOT Final parity.'
+      - name: Attach SOURCE ZIP to existing v9.9.10 pre-release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          gh release view v9.9.10 --json isPrerelease --jq .isPrerelease | grep -qx true
+          gh release upload v9.9.10 /tmp/KING-Plus-v9.9.10-Stage15-CURRENT-WORK-Source.zip --clobber
+          gh release view v9.9.10 --json assets --jq '.assets[] | select(.name == "KING-Plus-v9.9.10-Stage15-CURRENT-WORK-Source.zip") | [.name, .size, .url] | @tsv'
+      - name: Usage note
+        run: |
+          echo "KING Plus Stage15 source ZIP published to existing TEST pre-release. APK is still not Final Complete." >> "$GITHUB_STEP_SUMMARY"
