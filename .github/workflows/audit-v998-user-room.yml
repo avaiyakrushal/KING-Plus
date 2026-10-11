@@ -1,0 +1,29 @@
+name: Audit v9.9.7 Firebase and Room Integration Gaps
+on:
+  push:
+    branches: [work/reference-completion]
+    paths:
+      - '.github/workflows/audit-v998-user-room.yml'
+      - 'ci/v998_user_room/**'
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  source-inspection:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: work/reference-completion
+      - name: Restore signed last Android project source
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/king998 /tmp/king998src
+          gh run download 38124730942 -n KING-Plus-v9.9.7-Room-Admin-Profile-Games-Source -D /tmp/king998src
+          unzip -q /tmp/king998src/KING-Plus-v9.9.7-Room-Admin-Profile-Games-source.zip 'app/src/main/java/com/kingplus/social/*.java' 'firestore.rules' -d /tmp/king998
+      - name: Find concrete integration defects
+        run: python3 ci/v998_user_room/inspect_integrations.py
