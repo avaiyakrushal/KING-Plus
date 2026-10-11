@@ -26,3 +26,15 @@ for filename,needles in targets:
   for i in chosen:
    print("\n".join(f"{j+1:5} {src[j]}" for j in range(max(0,i-before),min(len(src),i+after))))
 print("DONE_993_INSPECT")
+
+p=(pkg/"PartyActivity.java")
+lines=p.read_text().splitlines()
+print("\n==== CATALOG AND GIFT EFFECT FOCUSED SCAN")
+for i,line in enumerate(lines):
+ if any(q in line for q in ["giftNames =", "giftNames=", "giftIcons =", "giftIcons=",
+                            "giftCategories=", "giftVipRequired", 
+                            "private void showGiftEffect(", "private void rebuildGiftGrid()",
+                            "private String[]", "private static final String[] gift"]):
+  print("\nAT",i+1)
+  for j in range(max(0,i-2),min(len(lines),i+28)):
+   print(str(j+1)+": "+lines[j][:350])
