@@ -50,7 +50,7 @@ patch('CommunityHubActivity.java',[
   'db.collection("live_rooms").orderBy("createdAt",Query.Direction.DESCENDING).limit(80).get(com.google.firebase.firestore.Source.SERVER).addOnSuccessListener',
   'Room search reads SERVER, not ghost room cache'),
  ('String text=e.getText().toString().trim();if(text.isEmpty())return;Map<String,Object>m=',
-  'String text=e.getText().toString().trim();if(text.isEmpty())return;if(text.length()>1500){toast("Moments must be under 1500 characters");return;}Map<String,Object>m=',
-  'Bound Community post size to protect slow networks and Firestore limits'),
+  'String text=e.getText().toString().trim();if(text.isEmpty())return;if(text.length()>1000){toast("Moments must be under 1000 characters");return;}Map<String,Object>m=',
+  'Match the exact deployed Firestore max-1000 character rule'),
 ])
 print('STAGE6 LOGIN/FAMILY/COMMUNITY PATCHED - no changes to billing, role privileges or auth providers')
