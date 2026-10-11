@@ -44,6 +44,10 @@ jobs:
           base64 -d tools/v9924/royal_neon_patch.py.gz.b64 | gzip -d > /tmp/king_royal9924.py
           echo '389b3243c3625cff67db1d5890fe989ce8bc94516926c0554a34d5f0050b5661  /tmp/king_royal9924.py' | sha256sum -c -
           python3 /tmp/king_royal9924.py /tmp/king9924
+          # Explicitly promote Android upgrade version after visual-only patch.
+          # Guard the exact previous release version so no accidental mismatch.
+          grep -q "versionCode 202; versionName '9.9.23-knife-party-live-test'" /tmp/king9924/app/build.gradle
+          sed -i "s/versionCode 202; versionName '9.9.23-knife-party-live-test'/versionCode 203; versionName '9.9.24-royal-neon-ui-test'/" /tmp/king9924/app/build.gradle
           python3 - <<'PY'
           from pathlib import Path
           base=Path('/tmp/king9924')
