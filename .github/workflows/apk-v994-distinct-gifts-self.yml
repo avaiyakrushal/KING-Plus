@@ -69,7 +69,7 @@ jobs:
           assert 'KingGiftSound993.play(this,gift)' in p
           assert 'String[] cs={"All","Voice","VIP Night"' in p
           assert 'LIVE_RECHARGE = false' in (pkg/'KingRecharge974Activity.java').read_text()
-          assert 'KingPremiumAccess981.PAID_VIP_ACTIVE = false' in (pkg/'KingPremiumAccess981.java').read_text()
+          assert 'PAID_VIP_ACTIVE = false' in (pkg/'KingPremiumAccess981.java').read_text()
           assert 'KingFirestoreRecovery986.guidance(' in p and 'checkCrowdCapacity930(' in p
           assert 'KingSocialShare992' in (pkg/'SocialActivity.java').read_text()
           assert (pkg/'OnlineLudoActivity.java').exists()
