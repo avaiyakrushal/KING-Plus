@@ -1,0 +1,26 @@
+name: Audit KING v9.9.5 social sync
+on:
+  push:
+    branches: [work/reference-completion]
+    paths: ['ci/v996_social/**','.github/workflows/audit-v996-social.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  audit:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: work/reference-completion
+      - name: Restore latest source
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p /tmp/king996 /tmp/king996-src
+          gh run download 38122767701 -n KING-Plus-v9.9.5-Party-Stability-Source -D /tmp/king996-src
+          unzip -q /tmp/king996-src/KING-Plus-v9.9.5-Party-Stability-source.zip 'app/src/main/java/com/kingplus/social/*.java' 'firestore.rules' -d /tmp/king996
+      - name: Check ID search, Follow, Room join, gift sound
+        run: python3 ci/v996_social/inspect996.py
