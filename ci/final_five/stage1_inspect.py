@@ -29,3 +29,8 @@ g=Path("/tmp/kpall/app/build.gradle")
 if g.exists():
  for i,l in enumerate(g.read_text().splitlines()):
   if "version" in l or "compileSdk" in l or "minSdk" in l or "dependencies" in l or "implementation" in l:print(f"{i+1}: {l[:350]}")
+
+party=(p/"PartyActivity.java").read_text().splitlines()
+print("ROOM_MENU_DETAIL")
+for i in range(3898,3970):
+ print(f"{i+1:05} {party[i][:850]}")
