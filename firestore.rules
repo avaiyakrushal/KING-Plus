@@ -501,7 +501,11 @@ service cloud.firestore {
           );
         allow update: if activeUser()
           && (memberUid == request.auth.uid || familyOwner(familyCode))
-          && request.resource.data.uid == memberUid;
+          && resource.data.uid == memberUid
+          && request.resource.data.uid == memberUid
+          // A member can edit a profile, but cannot elevate own family role.
+          && (familyOwner(familyCode)
+              || request.resource.data.role == resource.data.role);
         allow delete: if signedIn()
           && (memberUid == request.auth.uid || familyOwner(familyCode));
       }
