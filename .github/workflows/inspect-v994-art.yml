@@ -1,0 +1,27 @@
+name: Inspect v9.9.3 Gift Art and Self Gifting
+on:
+  push:
+    branches: [work/reference-completion]
+    paths: ['ci/v994_art/**','.github/workflows/inspect-v994-art.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  inspect:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: work/reference-completion
+      - name: Fetch v9.9.3 signed source for inspection
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/gift994-art /tmp/gift994
+          gh run download 38120896236 -n KING-Plus-v9.9.3-Action-Emojis-VIP-Voice-Gifts-Source -D /tmp/gift994-art
+          unzip -q /tmp/gift994-art/KING-Plus-v9.9.3-Action-Emojis-VIP-Voice-Gifts-source.zip 'app/src/main/java/com/kingplus/social/*.java' -d /tmp/gift994
+      - name: Audit gift display and receiver write/read
+        run: python3 ci/v994_art/inspect_v994.py
