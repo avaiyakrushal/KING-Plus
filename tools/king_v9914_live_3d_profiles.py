@@ -101,7 +101,7 @@ change("box(x+.33f,.66f+bob,z,.16f,.58f,.22f,cr,cg,cb);",
 "box(x+.33f,.66f+bob-(float)Math.sin(t*2+i)*.12f,z,.16f,.58f,.22f,cr,cg,cb);")
 path.write_text(s)
 gradle=root/"app/build.gradle";g=gradle.read_text()
-g,n=re.subn(r"versionCode\s+192;\s*versionName\s+'9\.9\.13-party-seat-approval-test'",
+g,n=re.subn(r"versionCode\s+192;\s*versionName\s+'9\.9\.13[^']*'",
              "versionCode 193; versionName '9.9.14-3d-live-profile-test'",g)
 assert n==1,"expected verified v9.9.13 source"
 gradle.write_text(g)
