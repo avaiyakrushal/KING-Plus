@@ -1,0 +1,133 @@
+name: KING Plus v9.9.21 - Real Multi Video Seats TEST
+on:
+  push:
+    branches: [work/king-v9921-real-video-seats]
+    paths:
+      - 'tools/v9921/**'
+      - '.github/workflows/king-v9921-real-video-seats.yml'
+  workflow_dispatch:
+permissions:
+  contents: write
+  actions: read
+concurrency:
+  group: king-v9921-video-seats
+  cancel-in-progress: false
+jobs:
+  two-account-emulator-and-apk:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+      - name: Restore exact verified KING Plus v9.9.20 source and signed APK
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/king9921 /tmp/king9921old
+          gh release download v9.9.20-stage-mic-stability -p 'KING-Plus-v9.9.20-Stage-Mic-Stability-Source.zip' -D /tmp/king9921old
+          gh release download v9.9.20-stage-mic-stability -p 'KING-Plus-v9.9.20-Stage-Mic-Stability-TEST.apk' -D /tmp/king9921old
+          unzip -q /tmp/king9921old/KING-Plus-v9.9.20-Stage-Mic-Stability-Source.zip -d /tmp/king9921
+          test -s /tmp/king9921/app/src/main/java/com/kingplus/social/KingMultiVideoActivity.java
+          test -s /tmp/king9921/app/src/main/java/com/kingplus/social/KingLiveChessActivity.java
+          test -s app/kingplus-ci-debug.keystore
+          cp app/kingplus-ci-debug.keystore /tmp/king9921/app/kingplus-ci-debug.keystore
+      - name: Restore and verify original KING v9.9.21 Video Seat patch
+        run: |
+          set -euo pipefail
+          base64 -d tools/v9921/video_patch.py.gz.b64 | gzip -d > /tmp/king_video_patch_9921.py
+          echo 'a447baf7d3c742ddf0d3e9b08dcd64889a4f3dcab734457f16ebc655c2606ae0  /tmp/king_video_patch_9921.py' | sha256sum -c -
+          python3 /tmp/king_video_patch_9921.py /tmp/king9921
+          python3 - <<'PY'
+          from pathlib import Path
+          root=Path('/tmp/king9921')
+          s=(root/'app/src/main/java/com/kingplus/social/KingMultiVideoActivity.java').read_text()
+          party=(root/'app/src/main/java/com/kingplus/social/PartyActivity.java').read_text()
+          r=(root/'firestore.rules').read_text()
+          assert 'videoSeatListener9921=' in s
+          assert 'videoSeatOwner9921(uid)' in s
+          assert 'db.runTransaction(tx->' in s
+          assert 'videoTransportStarted9921=true' in s
+          assert 'private void takeSeat940(int seat)' in s
+          assert 'KingPublicProfileActivity.class' in s
+          assert 'match /video_member_seats/{memberUid}' in r
+          assert "seatId in ['1','2','3','4','5','6']" in r
+          assert 'KingLiveChessActivity.class' in party
+          assert 'muteOwnedSeat9920' in party
+          assert 'whereEqualTo("uid",leavingUid9919)' in party
+          assert 'PAID_VIP_ACTIVE = false' in (root/'app/src/main/java/com/kingplus/social/KingPremiumAccess981.java').read_text()
+          assert 'LIVE_RECHARGE = false' in (root/'app/src/main/java/com/kingplus/social/KingRecharge974Activity.java').read_text()
+          print('PASS Video seat, role privacy, Party Chess, Mic and disabled billing regression checks')
+          PY
+          mkdir -p /tmp/king9921/tests/firestore
+          cp tools/v9921/video-seat-firestore.test.mjs /tmp/king9921/tests/firestore/
+      - name: Install Firebase emulator tools
+        working-directory: /tmp/king9921/tests/firestore
+        run: npm ci --no-audit --no-fund
+      - name: Run two-account real Video Seat contention and role permissions
+        working-directory: /tmp/king9921
+        env:
+          CI: 'true'
+        run: |
+          set -euo pipefail
+          tests/firestore/node_modules/.bin/firebase emulators:exec \
+            --only firestore --project demo-kingplus-video-9921 --config firebase-emulator.json \
+            "node tests/firestore/video-seat-firestore.test.mjs"
+      - name: Compile complete KING Android app with secure Multi Video seats
+        working-directory: /tmp/king9921
+        run: gradle :app:assembleDebug --no-daemon
+      - name: Verify same signing certificate, package and higher APK versionCode
+        run: |
+          set -euo pipefail
+          OLD=/tmp/king9921old/KING-Plus-v9.9.20-Stage-Mic-Stability-TEST.apk
+          NEW=/tmp/king9921/app/build/outputs/apk/debug/app-debug.apk
+          test -s "$OLD" && test -s "$NEW"
+          AAPT="$(find "$ANDROID_HOME/build-tools" -type f -name aapt | sort -V | tail -1)"
+          SIGNER="$(find "$ANDROID_HOME/build-tools" -type f -name apksigner | sort -V | tail -1)"
+          "$AAPT" dump badging "$OLD" | grep "^package:" | grep "name='com.kingplus.social'" | grep "versionCode='199'"
+          "$AAPT" dump badging "$NEW" | grep "^package:" | grep "name='com.kingplus.social'" | grep "versionCode='200'"
+          "$SIGNER" verify --print-certs "$OLD" > /tmp/king9921-oldcert
+          "$SIGNER" verify --print-certs "$NEW" > /tmp/king9921-newcert
+          a="$(grep -Eo '[[:xdigit:]]{64}' /tmp/king9921-oldcert | head -1 || true)"
+          b="$(grep -Eo '[[:xdigit:]]{64}' /tmp/king9921-newcert | head -1 || true)"
+          test -n "$a" && test "$a" = "$b"
+          echo 'PASS identical signer, Android package and upgrade'
+      - name: Package TEST APK and truly clean source ZIP
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/king9921out
+          cp /tmp/king9921/app/build/outputs/apk/debug/app-debug.apk /tmp/king9921out/KING-Plus-v9.9.21-Real-Video-Seats-TEST.apk
+          rm -f /tmp/king9921/app/kingplus-ci-debug.keystore
+          cd /tmp/king9921
+          zip -q -r /tmp/king9921out/KING-Plus-v9.9.21-Real-Video-Seats-Source.zip . \
+             -x '*/node_modules/*' '*node_modules/*' '*.log' \
+                'app/build/*' './app/build/*' '*/build/*' \
+                './.gradle/*' '*/.gradle/*' \
+                '*.apk' '*.aab' '*.jks' '*.keystore' '*local.properties' '*.zip'
+          BYTES="$(stat -c%s /tmp/king9921out/KING-Plus-v9.9.21-Real-Video-Seats-Source.zip)"
+          test "$BYTES" -gt 100000 && test "$BYTES" -lt 10000000
+          sha256sum /tmp/king9921out/*
+      - uses: actions/upload-artifact@v4
+        with:
+          name: KING-v9921-Real-Video-Seats-Test-APK-and-Source
+          path: /tmp/king9921out/*
+          retention-days: 14
+          if-no-files-found: error
+      - name: Publish verified candidate TEST only, never unverified Final
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          gh release create v9.9.21-real-video-seats /tmp/king9921out/* \
+            --target "$GITHUB_SHA" --prerelease \
+            --title 'KING Plus v9.9.21 — Real Multi Video Seat Sync TEST' \
+            --notes 'Fixes an important Bolo-like Multi Video gap. Six video seats now use live Firestore documents and transactional per-UID seat registry instead of reconstructing seat ownership from event history. Two phones cannot simultaneously claim the same seat. Private moderator seat invitations now use role-protected Firebase documents; tapping occupied users opens their real KING profile, and long-press moderation removes the seat with server ownership check. Mic and camera flags are controlled by the current seat owner only. Java Android build, version/signing continuity, and two-account Firestore emulator validation passed. This TEST does not prove the Jitsi media conference connects on real devices. Full avatar world, all Bolo Hi games, paid recharge, OTP/Facebook providers and physical two-device RTC acceptance remain unfinished. New Firestore rules must be deployed to the production Firebase project to activate the video seats safely. Do not call this complete Bolo Hi parity.'
