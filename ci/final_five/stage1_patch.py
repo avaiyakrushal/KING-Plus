@@ -15,11 +15,11 @@ chunk=s[start:end]
 needle='items.add("📹 Multi Video");'
 assert chunk.count(needle)==1, "Room menu MultiVideo anchor absent"
 chunk=chunk.replace(needle,needle+' items.add("🌐 3D World");',1)
-needle='else if(x.contains("Multi Video"))openVideoRoom();'
-assert chunk.count(needle)==1, "MultiVideo handler anchor absent"
-chunk=chunk.replace(needle,needle+
-    '\n        else if(x.contains("3D World"))openNativeWorld998();',1)
 s=s[:start]+chunk+s[end:]
+needle='else if(x.contains("Multi Video"))openVideoRoom();'
+assert s.count(needle)==1, "Video handler in handleRoomMenuItem810 absent"
+s=s.replace(needle,needle+
+    '\n        else if(x.contains("3D World"))openNativeWorld998();',1)
 needle='    private void roomMenu() {'
 assert s.count(needle)==1
 s=s.replace(needle,'''    /** First true GLES20 3D Party view, using existing Firebase seat permissions.
