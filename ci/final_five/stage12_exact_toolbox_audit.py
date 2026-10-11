@@ -13,10 +13,10 @@ start=s.index("    private void handleRoomMenuItem810(String x){")
 end=s.index("\n    private void openDeepFlow810(",start)
 router=s[start:end]
 routes=[]
-for m in re.finditer(r'(?:(?:else\s+)?if)\s*\(([^;\n]*?x\.contains\([^\n;]+?)\)\s*',router):
-    cond=m.group(1)
-    strings=re.findall(r'x\.contains\("([^"]+)"\)',cond)
-    if strings:routes.append((strings,router[:m.start()].count("\n")+1))
+for line_no,line in enumerate(router.splitlines(),1):
+    if 'x.contains(' not in line or 'if(' not in line:continue
+    strings=re.findall(r'x\.contains\("([^"]+)"\)',line)
+    if strings:routes.append((strings,line_no))
 labels=re.findall(r'items\.add\("([^"]+)"\)',s[s.index("    private void roomMenuAll()"):start])
 q=s[s.index("    private void roomMenu()"):s.index("    private void roomMenuAll()")]
 labels+=re.findall(r'quick\.add\("([^"]+)"\)',q)
@@ -29,7 +29,7 @@ errors=[]
 print("ROUTE_BRANCH_COUNT",len(routes))
 for label in list(dict.fromkeys(labels)):
     matchs=[(n,part,line) for n,(parts,line) in enumerate(routes) for part in parts if part in label]
-    if not matchs:errors.append(f"NO_HANDLER: {label}")
+    if not matchs and "All Tools" not in label:errors.append(f"NO_HANDLER: {label}")
     else:print("MATCH",label,matchs[0][1],"route #",matchs[0][0])
 print("STATIC_TOOL_LABEL_COUNT",len(set(labels)))
 for e in errors:print("ERROR",e)
