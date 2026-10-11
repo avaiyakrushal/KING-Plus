@@ -1,0 +1,50 @@
+name: KING Plus v9.9.17 - Clean Source ZIP Only
+on:
+  push:
+    branches: [work/king-v9917-live-chess]
+    paths: ['.github/workflows/king-v9917-clean-source.yml']
+  workflow_dispatch:
+permissions:
+  contents: write
+  actions: read
+jobs:
+  clean-source:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - name: Restore verified base source
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/king9917clean /tmp/base9917
+          gh release download v9.9.16-integrated-ui \
+            -p 'KING-Plus-v9.9.16-Integrated-Room-UI-Source.zip' -D /tmp/base9917
+          unzip -q /tmp/base9917/KING-Plus-v9.9.16-Integrated-Room-UI-Source.zip -d /tmp/king9917clean
+          python3 tools/v9917/integrate_chess.py /tmp/king9917clean
+          test -s /tmp/king9917clean/app/src/main/java/com/kingplus/social/KingLiveChessActivity.java
+      - name: Package truly clean complete source, excluding build caches and signing keys
+        run: |
+          set -euo pipefail
+          rm -f /tmp/king9917clean/app/kingplus-ci-debug.keystore
+          cd /tmp/king9917clean
+          zip -q -r /tmp/KING-Plus-v9.9.17-Live-Chess-Source.zip . \
+            -x 'app/build/*' './app/build/*' '.gradle/*' './.gradle/*' \
+               'build/*' './build/*' '*/build/*' '*/.gradle/*' \
+               '*.apk' '*.aab' '*.jks' '*.keystore' '*local.properties' '*.zip'
+          unzip -Z -1 /tmp/KING-Plus-v9.9.17-Live-Chess-Source.zip | \
+            grep -Eq 'app/src/main/java/com/kingplus/social/KingLiveChessActivity.java'
+          if unzip -Z -1 /tmp/KING-Plus-v9.9.17-Live-Chess-Source.zip | \
+            grep -E '(^|/)(build|.gradle)/|\.apk$|\.keystore$|local.properties$' ; then
+            echo 'FAIL: unwanted build output/signing file in source archive'; exit 1
+          fi
+          SIZE="$(stat -c%s /tmp/KING-Plus-v9.9.17-Live-Chess-Source.zip)"
+          test "$SIZE" -gt 100000 && test "$SIZE" -lt 10000000
+          echo "PASS clean source archive bytes: $SIZE"
+      - name: Replace bloated source release asset only, retain verified APK unchanged
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release upload v9.9.17-live-chess \
+            /tmp/KING-Plus-v9.9.17-Live-Chess-Source.zip --clobber

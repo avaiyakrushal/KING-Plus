@@ -1,0 +1,110 @@
+name: KING Plus v9.9.17 - Live Chess Integrated Android TEST
+on:
+  push:
+    branches: [work/king-v9917-live-chess]
+    paths:
+      - 'tools/v9917/**'
+      - '.github/workflows/king-v9917-live-chess-test.yml'
+  workflow_dispatch:
+permissions:
+  contents: write
+  actions: read
+concurrency:
+  group: king-v9917-chess
+  cancel-in-progress: false
+jobs:
+  chess-rule-engine-firebase-and-apk:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+      - name: Restore latest known-good KING Plus v9.9.16 app source
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/king9917 /tmp/king9917old
+          gh release download v9.9.16-integrated-ui -p 'KING-Plus-v9.9.16-Integrated-Room-UI-Source.zip' -D /tmp/king9917old
+          gh release download v9.9.16-integrated-ui -p 'KING-Plus-v9.9.16-Integrated-Room-UI-TEST.apk' -D /tmp/king9917old
+          unzip -q /tmp/king9917old/KING-Plus-v9.9.16-Integrated-Room-UI-Source.zip -d /tmp/king9917
+          test -s /tmp/king9917/app/src/main/java/com/kingplus/social/PartyActivity.java
+          test -s app/kingplus-ci-debug.keystore
+          cp app/kingplus-ci-debug.keystore /tmp/king9917/app/kingplus-ci-debug.keystore
+      - name: Apply original Chess implementation, UI routing and Firebase security rules
+        run: |
+          set -euo pipefail
+          python3 tools/v9917/integrate_chess.py /tmp/king9917
+          mkdir -p /tmp/king9917/tests/firestore
+          cp tools/v9917/tests/chess-firestore.test.mjs /tmp/king9917/tests/firestore/chess-firestore.test.mjs
+          test -s /tmp/king9917/firestore.rules
+      - name: Test actual chess movement rules with Java regression cases
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/chess-unit
+          javac -d /tmp/chess-unit tools/v9917/java/KingChessRules.java tools/v9917/tests/KingChessRulesTest.java
+          java -cp /tmp/chess-unit com.kingplus.social.KingChessRulesTest
+      - name: Install Firebase emulator test dependencies
+        working-directory: /tmp/king9917/tests/firestore
+        run: npm ci --no-audit --no-fund
+      - name: Test live Chess two-account Firestore permissions
+        working-directory: /tmp/king9917
+        env:
+          CI: 'true'
+        run: |
+          set -euo pipefail
+          tests/firestore/node_modules/.bin/firebase emulators:exec \
+            --only firestore --project demo-kingplus-chess --config firebase-emulator.json \
+            "node tests/firestore/chess-firestore.test.mjs"
+      - name: Compile entire original KING Android app with LIVE CHESS
+        working-directory: /tmp/king9917
+        run: gradle :app:assembleDebug --no-daemon
+      - name: Verify signing certificate, package and safe in-place upgrade
+        run: |
+          set -euo pipefail
+          OLD=/tmp/king9917old/KING-Plus-v9.9.16-Integrated-Room-UI-TEST.apk
+          NEW=/tmp/king9917/app/build/outputs/apk/debug/app-debug.apk
+          test -s "$OLD" && test -s "$NEW"
+          AAPT="$(find "$ANDROID_HOME/build-tools" -type f -name aapt | sort -V | tail -1)"
+          SIGNER="$(find "$ANDROID_HOME/build-tools" -type f -name apksigner | sort -V | tail -1)"
+          "$AAPT" dump badging "$OLD" | grep "^package:" | grep "name='com.kingplus.social'" | grep "versionCode='195'"
+          "$AAPT" dump badging "$NEW" | grep "^package:" | grep "name='com.kingplus.social'" | grep "versionCode='196'"
+          "$SIGNER" verify --print-certs "$OLD" > /tmp/king9917-oldcert
+          "$SIGNER" verify --print-certs "$NEW" > /tmp/king9917-newcert
+          a="$(grep -Eo '[[:xdigit:]]{64}' /tmp/king9917-oldcert | head -1 || true)"
+          b="$(grep -Eo '[[:xdigit:]]{64}' /tmp/king9917-newcert | head -1 || true)"
+          test -n "$a" && test "$a" = "$b"
+          echo 'PASS: APK signer and safe update'
+      - name: Prepare tested APK and source without CI signing key
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/king9917out
+          cp /tmp/king9917/app/build/outputs/apk/debug/app-debug.apk /tmp/king9917out/KING-Plus-v9.9.17-Live-Chess-TEST.apk
+          rm -f /tmp/king9917/app/kingplus-ci-debug.keystore
+          cd /tmp/king9917
+          zip -q -r /tmp/king9917out/KING-Plus-v9.9.17-Live-Chess-Source.zip . -x './app/build/*' './.gradle/*' './build/*' '*local.properties'
+          sha256sum /tmp/king9917out/*
+      - uses: actions/upload-artifact@v4
+        with:
+          name: KING-v9917-Chess-Test-APK-Source
+          path: /tmp/king9917out/*
+          retention-days: 14
+          if-no-files-found: error
+      - name: Release verified Chess TEST only, not complete Bolo Hi parity
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          gh release create v9.9.17-live-chess /tmp/king9917out/* \
+            --target "$GITHUB_SHA" --prerelease \
+            --title 'KING Plus v9.9.17 — Live Party Chess TEST' \
+            --notes 'Adds independently coded, live Firestore 2-player room Chess with white/black seats, proper chess board moves (castling, en passant, automatic queen promotion, checkmate), server revision/turn authorization, resign/rematch and access from KING Party and Room Games. Chess Java logic and Firestore two-account emulator tests plus APK signer/build checks passed. NOT full Bolo Hi clone: full 3D world, all games, RTC live voice/video, payments, provider login and physical two-phone verification still incomplete. Firebase Firestore rules require deployment to the production project; emulated success does not deploy them.'
