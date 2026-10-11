@@ -71,9 +71,9 @@ helper=r'''    private void verifyOwnProfile996(){
 
 ''';
 once('''    private void publishOwnProfile() {''',helper+'''    private void publishOwnProfile() {''','add actual server profile diagnostics');
-once('''            addQuick(socialActions992,"🎉  Join\nParty ID",this::socialJoinParty992);''',
-'''            addQuick(socialActions992,"🎉  Join\nParty ID",this::socialJoinParty992);
-            addQuick(socialActions992,"🛠  Test\nConnection",this::connectionTest996);''',
+once('this::socialJoinParty992);',
+'''this::socialJoinParty992);
+            addQuick(socialActions992,"🛠 Test Connection",this::connectionTest996);''',
 'diagnostic button on People page')
 start=s.index('    private void runSearch() {')
 end=s.index('    private void loadDiscover() {',start)
