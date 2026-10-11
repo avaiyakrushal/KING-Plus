@@ -1,0 +1,74 @@
+name: KING Stage13 Party Room Lock Semantics and Tool Routing
+on:
+  push:
+    branches: [work/king-plus-complete-five-sections]
+    paths:
+      - '.github/workflows/king-stage13-room-lock-build.yml'
+      - 'ci/final_five/stage13_room_lock_label.py'
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  verify:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: work/king-plus-complete-five-sections
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+      - name: Restore latest successful All Tools integrated source
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/king-stage13 /tmp/king-stage13zip
+          gh run download 38134879626 -n KING-Plus-Small-Functions-Fix-Source-Only -D /tmp/king-stage13zip
+          unzip -q /tmp/king-stage13zip/KING-Plus-A-to-Z-Small-Function-Fix-IN-PROGRESS-source.zip -d /tmp/king-stage13
+      - name: Correct actual lock-room option without modifying lock-seat rules
+        run: |
+          python3 ci/final_five/stage13_room_lock_label.py /tmp/king-stage13
+          python3 ci/final_five/stage12_exact_toolbox_audit.py /tmp/king-stage13
+      - name: Verify all stages and security remain intact
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('/tmp/king-stage13')
+          src=p/'app/src/main/java/com/kingplus/social'
+          party=(src/'PartyActivity.java').read_text()
+          rules=(p/'firestore.rules').read_text()
+          assert 'Unlock room":"🔒 Lock room' in party
+          assert 'Unlock seats":"🔒 Lock seats' not in party
+          assert 'KingNative3DRoom.open(' in party
+          assert 'KingRoomDice997.open(' in party
+          assert 'KingGiftSound993.setEnabled(' in party
+          assert 'collection("seat_locks")' in party
+          assert 'request.resource.data.role == resource.data.role' in rules
+          assert 'PAID_VIP_ACTIVE = false' in (src/'KingPremiumAccess981.java').read_text()
+          assert 'LIVE_RECHARGE = false' in (src/'KingRecharge974Activity.java').read_text()
+          assert 'checkVideoRoomAccess998' in (src/'KingMultiVideoActivity.java').read_text()
+          print('PASS: Route semantics, owner authorization and secure payments unchanged')
+          PY
+      - name: Compile latest cumulative KING Plus source without public release
+        working-directory: /tmp/king-stage13
+        run: gradle :app:assembleDebug --no-daemon
+      - name: Preserve newest complete source only (NOT FINAL APK)
+        run: |
+          set -euo pipefail
+          test -s /tmp/king-stage13/app/build/outputs/apk/debug/app-debug.apk
+          cd /tmp/king-stage13
+          rm -rf .gradle app/build build
+          zip -qr /tmp/KING-Plus-Stage13-Room-Lock-Fix-IN-PROGRESS-source.zip . -x '*.apk'
+      - uses: actions/upload-artifact@v4
+        with:
+          name: KING-Plus-Stage13-Room-Lock-Integrated-Source-Only
+          path: /tmp/KING-Plus-Stage13-Room-Lock-Fix-IN-PROGRESS-source.zip
+          retention-days: 30
+          if-no-files-found: error
