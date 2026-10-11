@@ -43,20 +43,20 @@ replace_one(social,
             connectBar992.addView(help992);
             LinearLayout socialActions992=new LinearLayout(this);
             socialActions992.setGravity(Gravity.CENTER);
-            addQuick(socialActions992,"↗  Share\\nKING ID",()->{
+            addQuick(socialActions992,"↗  Share\nKING ID",()->{
                 Intent share=new Intent(Intent.ACTION_SEND);share.setType("text/plain");
                 share.putExtra(Intent.EXTRA_TEXT,KingSocialShare992.shareKingId(
                   ownKingId992,ownerSocialUid992,KingSocialShare992.APP_APK_URL));
                 startActivity(Intent.createChooser(share,"Invite friends to KING Plus"));
             });
-            addQuick(socialActions992,"⬇  Share\\nApp APK",()->{
+            addQuick(socialActions992,"⬇  Share\nApp APK",()->{
                 Intent share=new Intent(Intent.ACTION_SEND);share.setType("text/plain");
                 share.putExtra(Intent.EXTRA_TEXT,
                     "Download KING Plus APK and sign in with your own Google account: "+
                     KingSocialShare992.APP_APK_URL);
                 startActivity(Intent.createChooser(share,"Share KING Plus APK"));
             });
-            addQuick(socialActions992,"🎉  Join\\nParty ID",this::socialJoinParty992);
+            addQuick(socialActions992,"🎉  Join\nParty ID",this::socialJoinParty992);
             connectBar992.addView(socialActions992,new LinearLayout.LayoutParams(-1,dp(70)));
             root.addView(connectBar992);
             TextView trueUid964=label("My verified account UID: "+me.getUid()+"  •  Tap to copy",11,MUTED,false);''',
@@ -119,7 +119,7 @@ replace_one(chat,
             return;
         }
         sendText("🎉 Join me in KING Plus: "+name992+
-             "\\nKINGROOM:"+room992+"\\n"+KingRoomInvite959.link(room992));
+             "\nKINGROOM:"+room992+"\n"+KingRoomInvite959.link(room992));
     }''',
 'Replace non-functional room-name chat share with real joinable Firebase Room ID')
 replace_one(chat,
