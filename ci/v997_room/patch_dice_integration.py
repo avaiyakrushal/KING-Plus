@@ -23,7 +23,7 @@ new='''        roomRoot.addView(badges,new LinearLayout.LayoutParams(-1,dp(36)))
             0x663e2b79,this::openInRoomDice997);
         play997.setTextSize(12);play997.setGravity(Gravity.CENTER);
         LinearLayout.LayoutParams playLp997=new LinearLayout.LayoutParams(-1,dp(34));
-        playLp.setMargins(dp(16),dp(2),dp(16),dp(2));
+        playLp997.setMargins(dp(16),dp(2),dp(16),dp(2));
         roomRoot.addView(play997,playLp997);
         if(!requestedGame940.isEmpty()){'''
 assert s.count(old)==1
