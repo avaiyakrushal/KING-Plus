@@ -24,5 +24,6 @@ jobs:
           unzip -q /tmp/king996-src/KING-Plus-v9.9.5-Party-Stability-source.zip 'app/src/main/java/com/kingplus/social/*.java' 'firestore.rules' -d /tmp/king996
       - name: Check ID search, Follow, Room join, gift sound
         run: |
+          python3 ci/v996_social/inspect_details996.py
           python3 ci/v996_social/inspect_main996.py
           python3 ci/v996_social/inspect996.py
