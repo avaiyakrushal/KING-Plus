@@ -55,7 +55,7 @@ try{
   await assertFails(getDoc(seat(stranger,1)));
   console.log('PASS other user cannot mic/unmute occupied seat or read without membership');
 
-  await assertFails(claim(winner.db,winner.id,2));
+  await assert.rejects(claim(winner.db,winner.id,2),/Member or seat unavailable/);
   await assertSucceeds(claim(loser.db,loser.id,2));
   assert.equal((await getDoc(seat(alice,2))).data().uid,loser.id);
   console.log('PASS one live video seat per authenticated account');
