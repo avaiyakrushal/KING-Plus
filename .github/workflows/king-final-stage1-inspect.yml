@@ -1,0 +1,29 @@
+name: Complete Five Sections — Stage 1 3D and Video Source Inspection
+on:
+  push:
+    branches: [work/king-plus-complete-five-sections]
+    paths:
+      - '.github/workflows/king-final-stage1-inspect.yml'
+      - 'ci/final_five/stage1_inspect.py'
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  inspect:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: work/king-plus-complete-five-sections
+      - name: Download last verified KING Plus v9.9.8 full source
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/kpall /tmp/kp_source
+          gh run download 38128027011 -n KING-Plus-v9.9.8-Real-Friends-Source -D /tmp/kp_source
+          unzip -q /tmp/kp_source/KING-Plus-v9.9.8-Real-Friends-Server-Sync-source.zip 'app/src/main/java/com/kingplus/social/*.java' 'app/src/main/AndroidManifest.xml' 'app/build.gradle' -d /tmp/kpall
+      - name: Read real entrypoints, Android Activities and dependencies
+        run: python3 ci/final_five/stage1_inspect.py
