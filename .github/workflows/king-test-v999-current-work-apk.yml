@@ -79,14 +79,22 @@ jobs:
           test -s "$OLD" && test -s "$NEW"
           SIGNER="$(find "$ANDROID_HOME/build-tools" -type f -name apksigner | sort -V | tail -1)"
           AAPT="$(find "$ANDROID_HOME/build-tools" -type f -name aapt | sort -V | tail -1)"
-          "$SIGNER" verify --print-certs "$OLD" > /tmp/king-old-sign
-          "$SIGNER" verify --print-certs "$NEW" > /tmp/king-new-sign
-          a="$(grep -m1 'Signer #1 certificate SHA-256 digest:' /tmp/king-old-sign | sed 's/.*digest: *//')"
-          b="$(grep -m1 'Signer #1 certificate SHA-256 digest:' /tmp/king-new-sign | sed 's/.*digest: *//')"
-          test -n "$a" && test "$a" = "$b" || {
+          ls -lah "$OLD" "$NEW"
+          if ! "$SIGNER" verify --print-certs "$OLD" > /tmp/king-old-sign 2>/tmp/king-old-sign-err; then
+            echo "Existing v9.9.8 APK failed signature verification:"; cat /tmp/king-old-sign-err; exit 1
+          fi
+          if ! "$SIGNER" verify --print-certs "$NEW" > /tmp/king-new-sign 2>/tmp/king-new-sign-err; then
+            echo "New v9.9.9 APK failed signature verification:"; cat /tmp/king-new-sign-err; exit 1
+          fi
+          echo "OLD SIGNERS"; grep -i -E '(certificate SHA-256 digest|Signer #)' /tmp/king-old-sign | head -12 || true
+          echo "NEW SIGNERS"; grep -i -E '(certificate SHA-256 digest|Signer #)' /tmp/king-new-sign | head -12 || true
+          a="$(grep -Eo '[[:xdigit:]]{64}' /tmp/king-old-sign | head -1 || true)"
+          b="$(grep -Eo '[[:xdigit:]]{64}' /tmp/king-new-sign | head -1 || true)"
+          if [[ -z "$a" || "$a" != "$b" ]]; then
             echo "REFUSING to publish: signatures differ; cannot update existing app safely"
             exit 1
-          }
+          fi
+          echo "Both APKs share signer certificate SHA-256: $a"
           "$AAPT" dump badging "$OLD" | grep "^package:" | grep "name='com.kingplus.social'" | grep "versionCode='187'"
           "$AAPT" dump badging "$NEW" | grep "^package:" | grep "name='com.kingplus.social'" | grep "versionCode='188'"
           echo "PASS matching signer, package com.kingplus.social and new version code 188"
