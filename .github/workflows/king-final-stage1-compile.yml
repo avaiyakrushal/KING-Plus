@@ -6,6 +6,7 @@ on:
       - '.github/workflows/king-final-stage1-compile.yml'
       - 'ci/final_five/KingNative3DRoom.java'
       - 'ci/final_five/stage1_patch.py'
+      - 'ci/final_five/stage1_video_guard.py'
   workflow_dispatch:
 permissions:
   contents: read
@@ -41,6 +42,7 @@ jobs:
         run: |
           python3 -m py_compile ci/final_five/stage1_patch.py
           python3 ci/final_five/stage1_patch.py /tmp/king-final-app
+          python3 ci/final_five/stage1_video_guard.py /tmp/king-final-app
       - name: Check safety and 3D design invariants
         run: |
           python3 - <<'PY'
@@ -64,6 +66,10 @@ jobs:
           assert 'KingEmojiAccess993.canSend(' in party
           assert 'org.jitsi.meet.sdk.JitsiMeetView' in jitsi
           assert 'https://meet.jit.si' in jitsi
+          assert 'checkVideoRoomAccess998(' in jitsi
+          assert 'startVerifiedVideo998(' in jitsi
+          assert 'collection("members").document(uid998)' in jitsi
+          assert 'get(com.google.firebase.firestore.Source.SERVER)' in jitsi
           assert 'setAudioMuted(true)' in jitsi and 'setVideoMuted(true)' in jitsi
           assert 'LIVE_RECHARGE = false' in (app/'KingRecharge974Activity.java').read_text()
           assert 'PAID_VIP_ACTIVE = false' in (app/'KingPremiumAccess981.java').read_text()
@@ -90,7 +96,7 @@ jobs:
           - Native, original OpenGL ES 2.0 shaded Party scene compiles
           - Real Firebase occupied seats are reflected inside 3D scene
           - Gesture orbit/zoom supported; UI remains inside Party Room dialogue
-          - Existing Jitsi Multi Video remains the video route; host camera permissions and actual A/B video not yet certified
+          - Existing Jitsi Multi Video has Firebase SERVER membership preflight, muted by default; actual A/B video and private RTC provider/JWT not yet certified
           - No interim APK published; all five sections remain part of ONE final release
           - Stage 1 is **in progress**, not production completed
           EOF
