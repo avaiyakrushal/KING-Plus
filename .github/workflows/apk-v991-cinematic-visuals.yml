@@ -1,0 +1,134 @@
+name: Build KING Plus v9.9.1 Cinematic Visuals Login Room Gifts
+on:
+  push:
+    branches: ['work/reference-completion']
+    paths:
+      - '.github/workflows/apk-v991-cinematic-visuals.yml'
+      - 'ci/v992_visual/**'
+  workflow_dispatch:
+permissions:
+  contents: write
+  actions: read
+concurrency:
+  group: kingplus-v991-cinematic-original-visuals
+  cancel-in-progress: true
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 23
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: work/reference-completion
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+      - name: Download latest verified 9.9.0 Android APK and complete source
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/source-artifact /tmp/android /tmp/old-apk
+          gh run download 38103968772 -n KING-Plus-v9.9.0-Party-Emoji-Games-Wallet-Source -D /tmp/source-artifact
+          test -s /tmp/source-artifact/KING-Plus-v9.9.0-Party-Emoji-Games-Wallet-source.zip
+          unzip -q /tmp/source-artifact/KING-Plus-v9.9.0-Party-Emoji-Games-Wallet-source.zip -d /tmp/android
+          gh run download 38103968772 -n KING-Plus-v9.9.0-Party-Emoji-Games-Wallet-APK -D /tmp/old-apk
+      - name: Apply original cinematic gift, live emoji, room stage and login visual refresh
+        run: |
+          set -euo pipefail
+          python3 -m py_compile ci/v992_visual/patch_visuals_v992.py
+          python3 ci/v992_visual/patch_visuals_v992.py /tmp/android
+      - name: Assert animations and original features without security regression
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          root=Path('/tmp/android')
+          pkg=root/'app/src/main/java/com/kingplus/social'
+          main=(pkg/'MainActivity.java').read_text()
+          party=(pkg/'PartyActivity.java').read_text()
+          gift=(pkg/'GiftBurstView.java').read_text()
+          room=(pkg/'KingRoomStageView.java').read_text()
+          art=(pkg/'KingGiftArtView.java').read_text()
+          aura=(pkg/'KingEmojiAuraView992.java').read_text()
+          gradle=(root/'app/build.gradle').read_text()
+          assert "versionCode 180; versionName '9.9.1-cinematic-gifts-themes-login'" in gradle
+          assert 'KingLoginBackdropView backdrop=new KingLoginBackdropView(this)' in main
+          assert 'this::googleLogin' in main and 'this::mobileLogin' in main
+          assert 'socialProviderSetupRequired("Facebook")' in main
+          assert 'KingEmojiAuraView992(this,live,4000)' in party
+          assert 'addGiftEvent(targetUid,targetName,gift,icon' in party
+          assert 'GiftBurstView fx=new GiftBurstView(' in party
+          assert 'case "Diamond"' in room and 'case "Aurora"' in room and 'case "Sakura"' in room
+          assert 'new int[]{0xffffffd6,0xffffd976' in (pkg/'KingLoginBackdropView.java').read_text()
+          assert 'cam.rotateY(' in gift and 'RadialGradient' in gift
+          assert 'centerText(c,title' in gift
+          assert 'RadialGradient' in art and 'LinearGradient' in art
+          assert 'new LiveEmojiView(context,emojiIndex,durationMs)' in aura
+          assert 'if(desiredMic968 && android.os.Build.VERSION.SDK_INT>=23' in party
+          assert 'KingFreshHostRoom991.canWriteWithoutPreRead(' in party
+          assert 'checkCrowdCapacity930(' in party
+          assert 'KingFirestoreRecovery986.guidance(' in party
+          assert 'KingGiftSafety971' in party and 'KingFreeGift973' in party
+          assert (pkg/'KingConnection983Activity.java').exists()
+          assert (pkg/'KingRecharge974Activity.java').exists()
+          assert (pkg/'OnlineLudoActivity.java').exists()
+          print('PASS: login methods, decorative gifts, enhanced 50 LIVE emojis, 15 themes, Firebase security and online Ludo retained')
+          PY
+      - name: Build v9.9.1 installable Android debug APK
+        working-directory: /tmp/android
+        run: gradle :app:assembleDebug --no-daemon
+      - name: Verify APK is installable over 9.9.0 with identical signing certificate
+        run: |
+          set -euo pipefail
+          OLD="$(find /tmp/old-apk -name '*.apk' -print -quit)"
+          NEW=/tmp/android/app/build/outputs/apk/debug/app-debug.apk
+          test -s "$OLD" && test -s "$NEW"
+          signer="$(find "$ANDROID_HOME/build-tools" -type f -name apksigner | sort -V | tail -1)"
+          aapt="$(find "$ANDROID_HOME/build-tools" -type f -name aapt | sort -V | tail -1)"
+          test -n "$signer" && test -n "$aapt"
+          "$signer" verify --print-certs "$OLD" > /tmp/previous-certs.txt
+          "$signer" verify --print-certs "$NEW" > /tmp/current-certs.txt
+          OLD_CERT="$(grep -Eo '[[:xdigit:]]{64}' /tmp/previous-certs.txt | head -1)"
+          NEW_CERT="$(grep -Eo '[[:xdigit:]]{64}' /tmp/current-certs.txt | head -1)"
+          test -n "$OLD_CERT" && test "$OLD_CERT" = "$NEW_CERT"
+          "$aapt" dump badging "$OLD" | grep "^package:" | grep "name='com.kingplus.social'" | grep "versionCode='179'"
+          "$aapt" dump badging "$NEW" | grep "^package:" | grep "name='com.kingplus.social'" | grep "versionCode='180'"
+          echo "PASS 9.9.1 can update v9.9.0 without uninstalling or losing login state"
+      - name: Package APK plus buildable 9.9.1 source
+        run: |
+          set -euo pipefail
+          cp /tmp/android/app/build/outputs/apk/debug/app-debug.apk /tmp/KING-Plus-v9.9.1-Cinematic-Gifts-Emoji-Themes-Login.apk
+          (cd /tmp/android && zip -qr /tmp/KING-Plus-v9.9.1-Cinematic-Visuals-Source.zip .)
+          sha256sum /tmp/KING-Plus-v9.9.1-Cinematic-Gifts-Emoji-Themes-Login.apk
+      - uses: actions/upload-artifact@v4
+        with:
+          name: KING-Plus-v9.9.1-Cinematic-Visuals-APK
+          path: /tmp/KING-Plus-v9.9.1-Cinematic-Gifts-Emoji-Themes-Login.apk
+          retention-days: 7
+          if-no-files-found: error
+      - uses: actions/upload-artifact@v4
+        with:
+          name: KING-Plus-v9.9.1-Cinematic-Visuals-Source
+          path: /tmp/KING-Plus-v9.9.1-Cinematic-Visuals-Source.zip
+          retention-days: 7
+          if-no-files-found: error
+      - name: Publish direct APK download on GitHub Releases
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          FILE=/tmp/KING-Plus-v9.9.1-Cinematic-Gifts-Emoji-Themes-Login.apk
+          if gh release view v9.9.1 >/dev/null 2>&1; then
+            gh release upload v9.9.1 "$FILE" --clobber
+          else
+            gh release create v9.9.1 "$FILE" \
+              --target work/reference-completion \
+              --title "KING Plus v9.9.1 - Cinematic Gifts, Live Emoji, Themes and Login" \
+              --notes "New original cinematic pseudo-3D gift animation and shaded shop thumbnails; 50 live emojis with a moving aura; 15 original animated room themes (Diamond, Sakura, Ocean, Sunset, Aurora added); login page restyled with night palace, luminous crown and new secure sign-in card. Firebase Room/Google Login/Mobile setup, security, game logic and free gifts preserved. Not a copy of Bolo Hi proprietary models/assets or game engine. Animations are native Canvas, not true 3D Unity. Real paid Diamond Recharge and Facebook/Mobile provider setup remain unavailable. Two-phone tests still required." \
+              --prerelease
+          fi
+          gh release view v9.9.1 --json url,assets --jq '{url,assets:[.assets[]|{name,url,size}]}'
