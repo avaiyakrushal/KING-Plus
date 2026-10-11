@@ -81,7 +81,7 @@ b='''        LinearLayout heroPanel994=new LinearLayout(this);
             new LinearLayout.LayoutParams(0,dp(104),1));
         LinearLayout.LayoutParams heroLp994=new LinearLayout.LayoutParams(-1,dp(110));
         heroLp.bottomMargin=dp(4);
-        root.addView(heroPanel994,heroLp);'''
+        root.addView(heroPanel994,heroLp994);'''
 if p.count(a)!=1:raise SystemExit('missing existing selection label')
 p=p.replace(a,b,1)
 
