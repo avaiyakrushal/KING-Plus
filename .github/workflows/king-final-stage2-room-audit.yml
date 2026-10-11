@@ -1,0 +1,29 @@
+name: KING Final Five Sections - Stage 2 Room Sync Audit
+on:
+  push:
+    branches: [work/king-plus-complete-five-sections]
+    paths:
+      - '.github/workflows/king-final-stage2-room-audit.yml'
+      - 'ci/final_five/stage2_room_inspect.py'
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  audit-room:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: work/king-plus-complete-five-sections
+      - name: Restore last signed complete KING source for Stage 2
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/kingfinalroom /tmp/kingfinalroomzip
+          gh run download 38128027011 -n KING-Plus-v9.9.8-Real-Friends-Source -D /tmp/kingfinalroomzip
+          unzip -q /tmp/kingfinalroomzip/KING-Plus-v9.9.8-Real-Friends-Server-Sync-source.zip 'app/src/main/java/com/kingplus/social/*.java' 'firestore.rules' -d /tmp/kingfinalroom
+      - name: Inspect Firebase room codes, room members, seats and moderator roles
+        run: python3 ci/final_five/stage2_room_inspect.py
