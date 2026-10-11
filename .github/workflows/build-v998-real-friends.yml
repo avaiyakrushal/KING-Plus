@@ -1,0 +1,123 @@
+name: Build KING Plus v9.9.8 Real Friends Server Sync
+on:
+  push:
+    branches: [work/reference-completion]
+    paths:
+      - '.github/workflows/build-v998-real-friends.yml'
+      - 'ci/v998_user_room/patch_real_friends998.py'
+  workflow_dispatch:
+permissions:
+  contents: write
+  actions: read
+concurrency:
+  group: kingplus-v998-real-accounts
+  cancel-in-progress: true
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 24
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: work/reference-completion
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+      - name: Restore latest signed 9.9.7 source and APK
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/king998-base /tmp/king998-old /tmp/king998-source
+          gh run download 38124730942 -n KING-Plus-v9.9.7-Room-Admin-Profile-Games-Source -D /tmp/king998-source
+          unzip -q /tmp/king998-source/KING-Plus-v9.9.7-Room-Admin-Profile-Games-source.zip -d /tmp/king998-base
+          gh run download 38124730942 -n KING-Plus-v9.9.7-Room-Admin-Profile-Games-APK -D /tmp/king998-old
+      - name: Remove fake friend-demo behavior and require real server profiles
+        run: |
+          python3 -m py_compile ci/v998_user_room/patch_real_friends998.py
+          python3 ci/v998_user_room/patch_real_friends998.py /tmp/king998-base
+      - name: Ensure ALL five-section features survive the social security change
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          root=Path('/tmp/king998-base')
+          p=root/'app/src/main/java/com/kingplus/social'
+          s=(p/'SocialActivity.java').read_text()
+          m=(p/'MainActivity.java').read_text()
+          party=(p/'PartyActivity.java').read_text()
+          assert "versionCode 187; versionName '9.9.8-real-friends-server-sync'" in (root/'app/build.gradle').read_text()
+          assert 'showLocalDemo();return;' not in s
+          assert 'showLocalDemo(); return;' not in s
+          assert 'Offline/demo users are hidden' in s
+          assert 'Source.SERVER' in s
+          assert 'this::connectionTest996' in s
+          assert 'Follow Back' in s
+          assert 'public_profiles' in s and 'direct_threads' in (p/'ChatActivity.java').read_text()
+          assert 'lastProfileAttempt996' in m
+          assert 'KingRoomDice997.open(' in party
+          assert 'administratorDialog()' in party
+          assert 'this::shareRealRoom996' in party
+          assert 'KingGiftSound993.play(this,gift)' in party
+          assert 'KingEmojiAccess993.canSend(' in party
+          assert (p/'KingGiftArtView.java').exists()
+          assert (p/'KingPublicProfileActivity.java').exists()
+          assert (p/'KingMultiVideoActivity.java').exists()
+          assert (p/'OnlineLudoActivity.java').exists()
+          assert 'LIVE_RECHARGE = false' in (p/'KingRecharge974Activity.java').read_text()
+          assert 'PAID_VIP_ACTIVE = false' in (p/'KingPremiumAccess981.java').read_text()
+          assert (root/'firestore.rules').exists()
+          print('PASS real friends only; five-section functions intact; paid VIP disabled')
+          PY
+      - name: Build updated APK with existing signing certificate
+        working-directory: /tmp/king998-base
+        run: gradle :app:assembleDebug --no-daemon
+      - name: Verify Android update compatibility and signing
+        run: |
+          set -euo pipefail
+          OLD="$(find /tmp/king998-old -type f -name '*.apk' -print -quit)"
+          NEW=/tmp/king998-base/app/build/outputs/apk/debug/app-debug.apk
+          test -s "$OLD" && test -s "$NEW"
+          SIGNER="$(find "$ANDROID_HOME/build-tools" -type f -name apksigner | sort -V | tail -1)"
+          AAPT="$(find "$ANDROID_HOME/build-tools" -type f -name aapt | sort -V | tail -1)"
+          "$SIGNER" verify --print-certs "$OLD" > /tmp/old998sign
+          "$SIGNER" verify --print-certs "$NEW" > /tmp/new998sign
+          a="$(grep -Eo '[[:xdigit:]]{64}' /tmp/old998sign | head -1)"
+          b="$(grep -Eo '[[:xdigit:]]{64}' /tmp/new998sign | head -1)"
+          test -n "$a" && test "$a" = "$b"
+          "$AAPT" dump badging "$OLD" | grep "^package:" | grep "name='com.kingplus.social'" | grep "versionCode='186'"
+          "$AAPT" dump badging "$NEW" | grep "^package:" | grep "name='com.kingplus.social'" | grep "versionCode='187'"
+          echo "PASS 9.9.8 installs over 9.9.7 without uninstall or deleting account"
+      - name: Produce APK and source ZIP
+        run: |
+          set -euo pipefail
+          cp /tmp/king998-base/app/build/outputs/apk/debug/app-debug.apk              /tmp/KING-Plus-v9.9.8-Real-Friends-Server-Sync.apk
+          (cd /tmp/king998-base && zip -qr /tmp/KING-Plus-v9.9.8-Real-Friends-Server-Sync-source.zip .)
+          sha256sum /tmp/KING-Plus-v9.9.8-Real-Friends-Server-Sync.apk
+      - uses: actions/upload-artifact@v4
+        with:
+          name: KING-Plus-v9.9.8-Real-Friends-APK
+          path: /tmp/KING-Plus-v9.9.8-Real-Friends-Server-Sync.apk
+          retention-days: 7
+          if-no-files-found: error
+      - uses: actions/upload-artifact@v4
+        with:
+          name: KING-Plus-v9.9.8-Real-Friends-Source
+          path: /tmp/KING-Plus-v9.9.8-Real-Friends-Server-Sync-source.zip
+          retention-days: 7
+          if-no-files-found: error
+      - name: Publish installable signed test APK
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          APK=/tmp/KING-Plus-v9.9.8-Real-Friends-Server-Sync.apk
+          if gh release view v9.9.8 >/dev/null 2>&1; then
+            gh release upload v9.9.8 "$APK" --clobber
+          else
+            gh release create v9.9.8 "$APK" --target work/reference-completion --prerelease               --title "KING Plus v9.9.8 — Real Firebase Friends, No Demo Profiles"               --notes "Signed Android test APK. Friends, Discover, Followers, Following and User ID Search no longer show local fake users when Firebase is not signed in; directory/profile lookups and follow-back status explicitly use SERVER rather than stale local cache. Existing verified profile registration, error diagnostics, Admin roles, Party joining, Dice/Ludo, 88 gifts, 120 emojis and Video UI remain unchanged. No VIP billing/recharge has been enabled. NOTE: Real two-phone acceptance and production Firebase Rule deployment remain unverified; native 3D world, full games, verified VIP and multi-video are not complete."
+          fi
+          gh release view v9.9.8 --json url,assets --jq '{url,assets:[.assets[]|{name,url,size}]}'
