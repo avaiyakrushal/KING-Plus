@@ -1,0 +1,32 @@
+name: Inspect KING Plus 9.9.0 Visual UI Source
+on:
+  push:
+    branches: ['work/reference-completion']
+    paths:
+      - '.github/workflows/audit-v991-current-visuals.yml'
+      - 'ci/v991_visual/**'
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  inspect:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: work/reference-completion
+      - name: Fetch last 9.9.0 source and selectively unzip Java and XML
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/king990-source-artifact /tmp/king990-inspect
+          gh run download 38103968772 -n KING-Plus-v9.9.0-Party-Emoji-Games-Wallet-Source -D /tmp/king990-source-artifact
+          unzip -q /tmp/king990-source-artifact/KING-Plus-v9.9.0-Party-Emoji-Games-Wallet-source.zip \
+            'app/src/main/java/com/kingplus/social/*.java' 'app/src/main/res/*.xml' \
+            'app/src/main/res/layout/*.xml' 'app/src/main/res/drawable/*.xml' \
+            -d /tmp/king990-inspect
+      - name: Inspect login route, gift effects, emoji and party background
+        run: python3 ci/v991_visual/inspect_current_visuals.py
