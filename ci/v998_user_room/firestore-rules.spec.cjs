@@ -86,10 +86,10 @@ async function main(){
       getDoc(doc(c,'direct_threads','thread-a-b')));
     await allow('B can send A a private text message',
       addDoc(collection(b,'direct_threads','thread-a-b','messages'),
-        {senderUid:'phone-b',text:'Hello friend!'}));
+        {senderUid:'phone-b',recipientUid:'phone-a',text:'Hello friend!'}));
     await deny('outsider cannot send private message to A+B thread',
       addDoc(collection(c,'direct_threads','thread-a-b','messages'),
-        {senderUid:'outsider-c',text:'Not a member'}));
+        {senderUid:'outsider-c',recipientUid:'phone-a',text:'Not a member'}));
     await deny('client cannot mint paid diamond wallet',
       setDoc(doc(a,'wallets','phone-a'),{balance:999999}));
     console.log('ALL_RULES_TESTS_PASSED '+tests+' synthetic cross-account scenarios');
