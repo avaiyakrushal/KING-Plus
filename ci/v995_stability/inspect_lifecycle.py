@@ -64,3 +64,9 @@ for filename in ["KingRoomStageView.java","KingLoginBackdropView.java","KingPart
   if any(x in line for x in ["postInvalidateDelayed(", "onDraw(", "onDetachedFromWindow(", "onWindowVisibilityChanged(","onLowMemory(", "onTrimMemory("]):
    for j in range(max(0,i-3),min(len(li),i+6)):
     print(f"{j+1:05} {li[j][:600]}")
+
+li=(base/"PartyActivity.java").read_text().splitlines()
+for a,b in [(5108,5169),(1920,1995),(3150,3220)]:
+ print("DETAIL",a,b)
+ for j in range(a-1,min(len(li),b)):
+  print(f"{j+1:05} {li[j][:600]}")
