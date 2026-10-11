@@ -1,0 +1,136 @@
+name: Build KING Plus v9.9.0 Four Feature Reliability Bundle
+on:
+  push:
+    branches: ['work/reference-completion']
+    paths:
+      - '.github/workflows/apk-v990-four-feature-bundle.yml'
+      - 'ci/v990/patch_consolidated_v990.py'
+  workflow_dispatch:
+permissions:
+  contents: write
+  actions: read
+concurrency:
+  group: king-plus-v990-feature-bundle
+  cancel-in-progress: true
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 22
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: work/reference-completion
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+      - name: Restore verified signed 9.8.7 source and APK
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/king-artifact /tmp/king-root /tmp/previous-apk
+          gh run download 38102927116 -n KING-Plus-v9.8.7-Faster-Host-Party-Join-Source -D /tmp/king-artifact
+          test -s /tmp/king-artifact/KING-Plus-v9.8.7-Faster-Host-Party-Join-source.zip
+          unzip -q /tmp/king-artifact/KING-Plus-v9.8.7-Faster-Host-Party-Join-source.zip -d /tmp/king-root
+          gh run download 38102927116 -n KING-Plus-v9.8.7-Faster-Host-Party-Join-APK -D /tmp/previous-apk
+      - name: Apply complete batch of four focused feature fixes
+        run: |
+          set -euo pipefail
+          python3 -m py_compile ci/v990/patch_consolidated_v990.py
+          python3 ci/v990/patch_consolidated_v990.py /tmp/king-root
+      - name: Validate security, original games, live effects and wallet invariants
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          root=Path('/tmp/king-root')
+          d=root/'app/src/main/java/com/kingplus/social'
+          p=(d/'PartyActivity.java').read_text()
+          g=(d/'RoomGameActivity.java').read_text()
+          r=(d/'KingRecharge974Activity.java').read_text()
+          l=(d/'OnlineLudoActivity.java').read_text()
+          b=(root/'app/build.gradle').read_text()
+          assert "versionCode 179; versionName '9.9.0-room-emoji-games-wallet-reliability'" in b
+          assert 'android.Manifest.permission.RECORD_AUDIO' in p
+          assert 'requestPermissions(new String[]{android.Manifest.permission.RECORD_AUDIO},992)' in p
+          assert 'if(!(tsV530 instanceof com.google.firebase.Timestamp))continue;' in p
+          assert 'ageV530>12000||ageV530 < -10000' in p
+          assert 'FREE gift delivered to the Party' in p
+          assert 'FREE gift was not sent:' in p
+          assert 'Gift paid securely but Party animation/history could not sync' not in p
+          assert 'gameMemberVerified992=true;' in g
+          assert 'room().collection("members").document(checkingUid992)' in g
+          assert '.get(com.google.firebase.firestore.Source.SERVER)' in g
+          assert 'Join this Party Room first. Games cannot create membership.' in g
+          assert 'm.put("appVersion","9.0.0")' not in g
+          assert 'doc.getMetadata().isFromCache()' in r
+          assert 'No SERVER-confirmed wallet exists' in r
+          assert 'public static final boolean LIVE_RECHARGE = false;' in r
+          assert 'serverReady=!d.getMetadata().isFromCache()&&!d.getMetadata().hasPendingWrites()' in l
+          assert 'KingPartyMic968.canToggle(' in p
+          assert 'checkCrowdCapacity930(' in p
+          assert 'KingFreshHostRoom991.canWriteWithoutPreRead(' in p
+          assert (d/'KingLudoTurn962.java').exists()
+          assert (d/'KingGameRoutes980.java').exists()
+          assert (d/'KingPremiumAccess981.java').exists()
+          assert (d/'KingWallet976Activity.java').exists()
+          assert (d/'KingConnection983Activity.java').exists()
+          print('PASS: Partymic permission, GIFTS server animation, GAMES member read, verified-wallet guards; all older features retained')
+          PY
+      - name: Compile installable v9.9.0 Android APK
+        working-directory: /tmp/king-root
+        run: gradle :app:assembleDebug --no-daemon
+      - name: Validate signature and version before update over 9.8.7
+        run: |
+          set -euo pipefail
+          OLD="$(find /tmp/previous-apk -name '*.apk' -print -quit)"
+          NEW=/tmp/king-root/app/build/outputs/apk/debug/app-debug.apk
+          test -s "$OLD" && test -s "$NEW"
+          signer="$(find "$ANDROID_HOME/build-tools" -type f -name apksigner | sort -V | tail -1)"
+          aapt="$(find "$ANDROID_HOME/build-tools" -type f -name aapt | sort -V | tail -1)"
+          test -n "$signer" && test -n "$aapt"
+          "$signer" verify --print-certs "$OLD" >/tmp/cert-old.txt
+          "$signer" verify --print-certs "$NEW" >/tmp/cert-new.txt
+          O="$(grep -Eo '[[:xdigit:]]{64}' /tmp/cert-old.txt | head -1)"
+          N="$(grep -Eo '[[:xdigit:]]{64}' /tmp/cert-new.txt | head -1)"
+          test -n "$O" && test "$O" = "$N"
+          "$aapt" dump badging "$OLD" | grep "^package:" | grep "name='com.kingplus.social'" | grep "versionCode='178'"
+          "$aapt" dump badging "$NEW" | grep "^package:" | grep "name='com.kingplus.social'" | grep "versionCode='179'"
+          echo "PASS same APK signature: no uninstall necessary"
+      - name: Package APK and complete source
+        run: |
+          set -euo pipefail
+          cp /tmp/king-root/app/build/outputs/apk/debug/app-debug.apk /tmp/KING-Plus-v9.9.0-Party-Emoji-Games-Wallet.apk
+          (cd /tmp/king-root && zip -qr /tmp/KING-Plus-v9.9.0-Party-Emoji-Games-Wallet-source.zip .)
+          sha256sum /tmp/KING-Plus-v9.9.0-Party-Emoji-Games-Wallet.apk
+      - uses: actions/upload-artifact@v4
+        with:
+          name: KING-Plus-v9.9.0-Party-Emoji-Games-Wallet-APK
+          path: /tmp/KING-Plus-v9.9.0-Party-Emoji-Games-Wallet.apk
+          retention-days: 7
+          if-no-files-found: error
+      - uses: actions/upload-artifact@v4
+        with:
+          name: KING-Plus-v9.9.0-Party-Emoji-Games-Wallet-Source
+          path: /tmp/KING-Plus-v9.9.0-Party-Emoji-Games-Wallet-source.zip
+          retention-days: 7
+          if-no-files-found: error
+      - name: Release signed Android installer for Chrome
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          FILE=/tmp/KING-Plus-v9.9.0-Party-Emoji-Games-Wallet.apk
+          if gh release view v9.9.0 >/dev/null 2>&1; then
+            gh release upload v9.9.0 "$FILE" --clobber
+          else
+            gh release create v9.9.0 "$FILE" \
+              --target work/reference-completion \
+              --title "KING Plus v9.9.0 - Party, Emoji, Games, Wallet Fixes" \
+              --notes "Consolidates four high-impact runtime fixes on the signed v9.8.7 source: Android microphone permission required before Mic-On; live emoji timestamp safety; sender free-gift animation only after server confirmation; Room Games must validate existing Firebase Party membership instead of silently creating one; verified Wallet screen never presents cached/nonexistent record as a valid zero balance. Previous Online Ludo, 17+ games, Chat, seat controls, VIP UI and recharge safeguards preserved. Verified payments, paid VIP and actual cross-device voice/game latency remain pending external setup and physical two-phone acceptance. No Google Cloud billing changes." \
+              --prerelease
+          fi
+          gh release view v9.9.0 --json url,assets --jq '{url,assets:[.assets[]|{name,url,size}]}'
