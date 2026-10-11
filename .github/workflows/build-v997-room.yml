@@ -1,0 +1,138 @@
+name: Build KING Plus v9.9.7 Room Admin Profiles Noble Dice
+on:
+  push:
+    branches: [work/reference-completion]
+    paths:
+      - '.github/workflows/build-v997-room.yml'
+      - 'ci/v997_room/patch_admin.py'
+      - 'ci/v997_room/patch_seat_profile.py'
+      - 'ci/v997_room/patch_public_profile.py'
+      - 'ci/v997_room/patch_dice_integration.py'
+      - 'ci/v997_room/KingRoomDice997.java'
+  workflow_dispatch:
+permissions:
+  contents: write
+  actions: read
+concurrency:
+  group: king997-rooms
+  cancel-in-progress: true
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 24
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: work/reference-completion
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+      - name: Restore previous signed 9.9.6 source and APK
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/v997-project /tmp/v997-old /tmp/v997-src
+          gh run download 38123768020 -n KING-Plus-v9.9.6-Friends-Party-Gift-Sounds-Source -D /tmp/v997-src
+          unzip -q /tmp/v997-src/KING-Plus-v9.9.6-Friends-Party-Gift-Sounds-source.zip -d /tmp/v997-project
+          gh run download 38123768020 -n KING-Plus-v9.9.6-Friends-Party-Gift-Sounds-APK -D /tmp/v997-old
+      - name: Add Room Admin, member profile Noble data and in-room Dice
+        run: |
+          set -euo pipefail
+          python3 -m py_compile ci/v997_room/patch_admin.py ci/v997_room/patch_seat_profile.py ci/v997_room/patch_public_profile.py ci/v997_room/patch_dice_integration.py
+          python3 ci/v997_room/patch_admin.py /tmp/v997-project
+          python3 ci/v997_room/patch_seat_profile.py /tmp/v997-project
+          python3 ci/v997_room/patch_public_profile.py /tmp/v997-project
+          python3 ci/v997_room/patch_dice_integration.py /tmp/v997-project
+      - name: Verify live room permissions and existing app features
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          root=Path('/tmp/v997-project')
+          pkg=root/'app/src/main/java/com/kingplus/social'
+          party=(pkg/'PartyActivity.java').read_text()
+          profile=(pkg/'KingPublicProfileActivity.java').read_text()
+          dice=(pkg/'KingRoomDice997.java').read_text()
+          rules=(root/'firestore.rules').read_text()
+          assert "versionCode 186; versionName '9.9.7-room-admin-user-profile-live-dice'" in (root/'app/build.gradle').read_text()
+          assert 'seat.setOnLongClickListener(' in party
+          assert 'showOccupiedSeatMenuV530(seatNo)' in party
+          assert 'openSeatProfile(no); return;' in party
+          assert 'page.putExtra("roomId",roomId)' in party
+          assert 'Admin role removed' not in party or 'Administrator role removed' in party
+          assert 'collection("roles").document(selectedUid)' in party
+          assert 'this::openInRoomDice997' in party
+          assert 'KingRoomDice997.open(' in party
+          assert 'activeRoomId997' in profile
+          assert 'Noble Level 0' in profile
+          assert 'Room Charisma' in profile
+          assert 'Source.SERVER' in profile
+          assert 'ListenerRegistration[] updates' in dice
+          assert 'updates[0].remove()' in dice
+          assert 'FieldValue.serverTimestamp()' in dice
+          assert 'dice_room_997' in dice
+          assert 'no money or diamonds' in dice
+          assert 'private void clearPartyVisuals995()' in party
+          assert 'this::shareRealRoom996' in party
+          assert 'KingGiftSound993.play(this,gift)' in party
+          assert 'KingFreeGift973.allowed(' in party
+          assert 'KingEmojiAccess993.canSend(' in party
+          assert 'LIVE_RECHARGE = false' in (pkg/'KingRecharge974Activity.java').read_text()
+          assert 'PAID_VIP_ACTIVE = false' in (pkg/'KingPremiumAccess981.java').read_text()
+          assert (pkg/'OnlineLudoActivity.java').exists()
+          assert 'allow delete: if roomOwner(roomId);' in rules
+          print('PASS: host-only Admin revoke, DP profile, honest Noble, room Charisma, Dice, and no wallet/rules/mic regression')
+          PY
+      - name: Compile installable KING Plus v9.9.7 APK
+        working-directory: /tmp/v997-project
+        run: gradle :app:assembleDebug --no-daemon
+      - name: Confirm existing installation signature and app ID
+        run: |
+          set -euo pipefail
+          OLD="$(find /tmp/v997-old -type f -name '*.apk' -print -quit)"
+          NEW=/tmp/v997-project/app/build/outputs/apk/debug/app-debug.apk
+          test -s "$OLD" && test -s "$NEW"
+          SIGNER="$(find "$ANDROID_HOME/build-tools" -name apksigner -type f | sort -V | tail -1)"
+          AAPT="$(find "$ANDROID_HOME/build-tools" -name aapt -type f | sort -V | tail -1)"
+          "$SIGNER" verify --print-certs "$OLD" >/tmp/v997oldcert
+          "$SIGNER" verify --print-certs "$NEW" >/tmp/v997newcert
+          OLD_CERT="$(grep -Eo '[[:xdigit:]]{64}' /tmp/v997oldcert | head -1)"
+          NEW_CERT="$(grep -Eo '[[:xdigit:]]{64}' /tmp/v997newcert | head -1)"
+          test -n "$OLD_CERT" && test "$OLD_CERT" = "$NEW_CERT"
+          "$AAPT" dump badging "$OLD" | grep "^package:" | grep "name='com.kingplus.social'" | grep "versionCode='185'"
+          "$AAPT" dump badging "$NEW" | grep "^package:" | grep "name='com.kingplus.social'" | grep "versionCode='186'"
+          echo "PASS signed 9.9.7 installs over 9.9.6 without uninstall"
+      - name: Package Android APK and source
+        run: |
+          set -euo pipefail
+          cp /tmp/v997-project/app/build/outputs/apk/debug/app-debug.apk /tmp/KING-Plus-v9.9.7-Room-Admin-Profile-Games.apk
+          (cd /tmp/v997-project && zip -qr /tmp/KING-Plus-v9.9.7-Room-Admin-Profile-Games-source.zip .)
+          sha256sum /tmp/KING-Plus-v9.9.7-Room-Admin-Profile-Games.apk
+      - uses: actions/upload-artifact@v4
+        with:
+          name: KING-Plus-v9.9.7-Room-Admin-Profile-Games-APK
+          path: /tmp/KING-Plus-v9.9.7-Room-Admin-Profile-Games.apk
+          retention-days: 7
+          if-no-files-found: error
+      - uses: actions/upload-artifact@v4
+        with:
+          name: KING-Plus-v9.9.7-Room-Admin-Profile-Games-Source
+          path: /tmp/KING-Plus-v9.9.7-Room-Admin-Profile-Games-source.zip
+          retention-days: 7
+          if-no-files-found: error
+      - name: Publish direct Chrome APK release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          APK=/tmp/KING-Plus-v9.9.7-Room-Admin-Profile-Games.apk
+          if gh release view v9.9.7 >/dev/null 2>&1; then
+            gh release upload v9.9.7 "$APK" --clobber
+          else
+            gh release create v9.9.7 "$APK" --target work/reference-completion --prerelease               --title "KING Plus v9.9.7 — Room Admin, DP Profile, Noble and Live Dice"               --notes "Signed test APK. Inside Party Room: occupied seats now open the real Firebase public profile for hosts, cohosts and all members on tap; hosts/cohosts long-press occupied seats for moderation. Room Host can now revoke Admin role with confirmation; five-admin cap and secure existing Firestore role rules unchanged. Profile shows DP, user Level, VIP, own Noble status (unverified/not activated unless real rank backend exists), and room Charisma based only on latest actual gift events. New realtime Dice panel plays inside Party without leaving the room, with other multiplayer games still available. No paid coins, diamonds, VIP unlocks or wallet changes. Two-phone integration/runtime tests not yet performed. Exact Bolo Hi proprietary assets have not been copied."
+          fi
+          gh release view v9.9.7 --json url,assets --jq '{url,assets:[.assets[]|{name,url,size}]}'
