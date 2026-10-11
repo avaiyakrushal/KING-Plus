@@ -1,0 +1,58 @@
+name: KING Five Sections - Preserve Full Integrated Source (No APK)
+on:
+  push:
+    branches: [work/king-plus-complete-five-sections]
+    paths:
+      - '.github/workflows/king-preserve-five-section-source.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  preserve-source:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 16
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: work/king-plus-complete-five-sections
+      - name: Restore complete signed baseline project source
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/king-fullsource /tmp/king-zipbase
+          gh run download 38128027011 -n KING-Plus-v9.9.8-Real-Friends-Source -D /tmp/king-zipbase
+          unzip -q /tmp/king-zipbase/KING-Plus-v9.9.8-Real-Friends-Server-Sync-source.zip -d /tmp/king-fullsource
+      - name: Compose all stages in user-specified strict order
+        run: |
+          set -euo pipefail
+          python3 ci/final_five/stage1_patch.py /tmp/king-fullsource
+          python3 ci/final_five/stage1_video_guard.py /tmp/king-fullsource
+          python3 ci/final_five/stage2_party_guard.py /tmp/king-fullsource
+          python3 ci/final_five/stage3_ludo_entropy.py /tmp/king-fullsource
+          python3 ci/final_five/stage4_vip_gift_sound.py /tmp/king-fullsource
+          python3 ci/final_five/stage5_profile_friends.py /tmp/king-fullsource
+          test -s /tmp/king-fullsource/app/src/main/java/com/kingplus/social/KingNative3DRoom.java
+          test -s /tmp/king-fullsource/app/src/main/java/com/kingplus/social/KingLudoDiceEntropy999.java
+      - name: Archive full SOURCE only, no APKs, no secrets
+        run: |
+          set -euo pipefail
+          cd /tmp/king-fullsource
+          rm -rf .gradle app/build build
+          zip -qr /tmp/KING-Plus-Five-Sections-IN-PROGRESS-source.zip . \
+              -x '**/build/*' 'build/*' '**/.gradle/*' '**/app-debug.apk'
+          unzip -l /tmp/KING-Plus-Five-Sections-IN-PROGRESS-source.zip | grep KingNative3DRoom.java
+          if unzip -Z -1 /tmp/KING-Plus-Five-Sections-IN-PROGRESS-source.zip | grep -E '\.apk$'; then
+            echo "APK must not be included in source-only archive";exit 1
+          fi
+          echo "Preserved full integrated project source without releasing a partial APK"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: KING-Plus-Integrated-Five-Sections-In-Progress-Source
+          path: /tmp/KING-Plus-Five-Sections-IN-PROGRESS-source.zip
+          retention-days: 30
+          if-no-files-found: error
+      - name: Summarize restoration for next ordered stage
+        run: |
+          echo "Full staged Android source stored as private GitHub Actions artifact for further development. NOT complete/final." >> "$GITHUB_STEP_SUMMARY"
