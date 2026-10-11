@@ -1,0 +1,29 @@
+name: KING Final - Login Family Notifications Safety Audit
+on:
+  push:
+    branches: [work/king-plus-complete-five-sections]
+    paths:
+      - '.github/workflows/king-login-community-audit.yml'
+      - 'ci/final_five/audit_social_release.py'
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  audit:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: work/king-plus-complete-five-sections
+      - name: Restore complete integrated KING source
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/kingfeature /tmp/kingfeaturezip
+          gh run download 38130689781 -n KING-Plus-Integrated-Five-Sections-In-Progress-Source -D /tmp/kingfeaturezip
+          unzip -q /tmp/kingfeaturezip/KING-Plus-Five-Sections-IN-PROGRESS-source.zip -d /tmp/kingfeature
+      - name: Investigate real App flows without production credentials
+        run: python3 ci/final_five/audit_social_release.py
