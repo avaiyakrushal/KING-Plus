@@ -1,0 +1,83 @@
+name: KING A-to-Z Small Function Router Regression
+on:
+  push:
+    branches: [work/king-plus-complete-five-sections]
+    paths:
+      - '.github/workflows/king-stage11-small-functions-router.yml'
+      - 'ci/final_five/stage11_fix_shadowed_party_help.py'
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  verify:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: work/king-plus-complete-five-sections
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+      - name: Restore LATEST UX and all sections project (no stale baseline)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/king-small /tmp/king-small-src
+          gh run download 38134220079 -n KING-Plus-UX-One-Tap-Party-Source-Only -D /tmp/king-small-src
+          unzip -q /tmp/king-small-src/KING-Plus-UX-One-Tap-Party-Source-IN-PROGRESS.zip -d /tmp/king-small
+      - name: Fix exact broken Party Help dispatch
+        run: |
+          python3 -m py_compile ci/final_five/stage11_fix_shadowed_party_help.py
+          python3 ci/final_five/stage11_fix_shadowed_party_help.py /tmp/king-small
+      - name: Check all 12 quick buttons and original 50+ advanced tools remain
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('/tmp/king-small')
+          src=p/'app/src/main/java/com/kingplus/social'
+          s=(src/'PartyActivity.java').read_text()
+          assert s.count('private void roomMenu()')==1
+          assert s.count('private void roomMenuAll()')==1
+          assert s.count('private void handleRoomMenuItem810(String x)')==1
+          assert s.count('else if(x.contains("Party Master Help"))partyMasterHelp610();')==1
+          i=s.index('private void handleRoomMenuItem810(')
+          j=s.index('private void openDeepFlow810(',i)
+          h=s[i:j]
+          assert h.index('x.contains("Party Master Help")')<h.index('x.contains("Party Master")')
+          required=['Mic ON','Members','Games','Interactive Emoji','Gift Wall',
+                    'Private chat','Multi Video','3D World','Find room user',
+                    'Administrator','Room settings','Share room','All Tools']
+          for name in required:
+            assert name in s, f'Missing function/route {name}'
+          assert 'KingRoomDice997.open(' in s
+          assert 'KingNative3DRoom.open(' in s
+          assert 'KingGiftSound993.setEnabled(' in s
+          assert 'PAID_VIP_ACTIVE = false' in (src/'KingPremiumAccess981.java').read_text()
+          assert 'LIVE_RECHARGE = false' in (src/'KingRecharge974Activity.java').read_text()
+          assert 'request.resource.data.role == resource.data.role' in (p/'firestore.rules').read_text()
+          print('PASS Help now distinct, quick toolbar/all tools/routes/security intact')
+          PY
+      - name: Assemble Android without declaring the app fully complete
+        working-directory: /tmp/king-small
+        run: gradle :app:assembleDebug --no-daemon
+      - name: Save integrated SOURCE only, no interim/final public APK
+        run: |
+          set -euo pipefail
+          test -s /tmp/king-small/app/build/outputs/apk/debug/app-debug.apk
+          cd /tmp/king-small
+          rm -rf .gradle app/build build
+          zip -qr /tmp/KING-Plus-A-to-Z-Small-Function-Fix-IN-PROGRESS-source.zip . -x '*.apk'
+          echo "PASS: UI route bug fixed; source preserved; NO Final APK released"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: KING-Plus-Small-Functions-Fix-Source-Only
+          path: /tmp/KING-Plus-A-to-Z-Small-Function-Fix-IN-PROGRESS-source.zip
+          retention-days: 30
+          if-no-files-found: error
