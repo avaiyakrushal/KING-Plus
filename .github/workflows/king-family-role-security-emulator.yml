@@ -1,0 +1,54 @@
+name: KING Final - Family Role Security 12 Emulator Tests
+on:
+  push:
+    branches: [work/king-plus-complete-five-sections]
+    paths:
+      - '.github/workflows/king-family-role-security-emulator.yml'
+      - 'ci/final_five/stage9_family_role_security.py'
+      - 'ci/final_five/family_security_emulator.spec.cjs'
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  secure-family:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 14
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: work/king-plus-complete-five-sections
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '21'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Restore current KING rules and apply proposed safe owner-only role update
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/king-fam-test /tmp/king-fam-base
+          gh run download 38130689781 -n KING-Plus-Integrated-Five-Sections-In-Progress-Source -D /tmp/king-fam-base
+          unzip -pq /tmp/king-fam-base/KING-Plus-Five-Sections-IN-PROGRESS-source.zip firestore.rules > /tmp/king-fam-test/firestore.rules
+          test -s /tmp/king-fam-test/firestore.rules
+          python3 ci/final_five/stage9_family_role_security.py /tmp/king-fam-test
+          cp ci/final_five/family_security_emulator.spec.cjs /tmp/king-fam-test/
+          printf '%s\n' '{"firestore":{"rules":"firestore.rules"},"emulators":{"firestore":{"port":8092},"ui":{"enabled":false}}}' > /tmp/king-fam-test/firebase.json
+      - name: Install isolated LOCAL emulator only
+        working-directory: /tmp/king-fam-test
+        run: |
+          npm init -y >/dev/null
+          npm install --no-save --no-package-lock firebase-tools@14 firebase@11 @firebase/rules-unit-testing@4
+      - name: Verify Family security for owner, member and guest
+        working-directory: /tmp/king-fam-test
+        run: |
+          npx --no-install firebase emulators:exec --only firestore \
+            --config firebase.json --project demo-king-family-security-2026 \
+            "node family_security_emulator.spec.cjs"
+      - name: PRODUCTION rules must be explicitly reviewed and deployed separately
+        run: |
+          echo "PASS local family rules test; no production Firebase deploy performed"
+          echo "Secure Family role security patch tested only in emulator." >> "$GITHUB_STEP_SUMMARY"
