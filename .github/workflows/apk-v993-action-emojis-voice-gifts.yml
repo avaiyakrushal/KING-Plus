@@ -31,12 +31,6 @@ jobs:
         run: |
           set -euo pipefail
           python3 -m py_compile ci/v993_action/patch_emoji_v993.py ci/v993_action/patch_gifts_v993.py
-          mkdir -p /tmp/v993-guard-test
-          javac -d /tmp/v993-guard-test \
-            ci/v993_action/KingEmojiAccess993.java \
-            ci/v993_action/KingEmojiAccess993Test.java \
-            app/src/main/java/com/kingplus/social/KingPremiumAccess981.java
-          java -cp /tmp/v993-guard-test com.kingplus.social.KingEmojiAccess993Test
       - name: Restore signed v9.9.2 APK and complete source
         env:
           GH_TOKEN: ${{ github.token }}
@@ -51,6 +45,12 @@ jobs:
           set -euo pipefail
           python3 ci/v993_action/patch_emoji_v993.py /tmp/king993-app
           python3 ci/v993_action/patch_gifts_v993.py /tmp/king993-app
+          mkdir -p /tmp/v993-guard-test
+          javac -d /tmp/v993-guard-test \
+            ci/v993_action/KingEmojiAccess993.java \
+            ci/v993_action/KingEmojiAccess993Test.java \
+            /tmp/king993-app/app/src/main/java/com/kingplus/social/KingPremiumAccess981.java
+          java -cp /tmp/v993-guard-test com.kingplus.social.KingEmojiAccess993Test
       - name: Assert catalog, low memory policy, VIP locks and original Firebase functions
         run: |
           python3 - <<'PY'
