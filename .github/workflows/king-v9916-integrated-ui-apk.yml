@@ -1,0 +1,102 @@
+name: KING Plus v9.9.16 Integrated Room and Navigation TEST
+on:
+  push:
+    branches: [work/king-v9916-integrated-room-ui]
+    paths:
+      - 'tools/king_v9916_integrated_ui.py'
+      - '.github/workflows/king-v9916-integrated-ui-apk.yml'
+  workflow_dispatch:
+permissions:
+  contents: write
+  actions: read
+concurrency:
+  group: king-v9916-integrated-ui
+  cancel-in-progress: false
+jobs:
+  verify-build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+      - name: Restore exact latest v9.9.15 source and compatible signing identity
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/king9916 /tmp/king9916prior
+          gh release download v9.9.15-reference-ui -p 'KING-Plus-v9.9.15-Reference-UI-Source.zip' -D /tmp/king9916prior
+          gh release download v9.9.15-reference-ui -p 'KING-Plus-v9.9.15-Reference-UI-TEST.apk' -D /tmp/king9916prior
+          unzip -q /tmp/king9916prior/KING-Plus-v9.9.15-Reference-UI-Source.zip -d /tmp/king9916
+          test -s /tmp/king9916/app/src/main/java/com/kingplus/social/PartyActivity.java
+          test -s app/kingplus-ci-debug.keystore
+          cp app/kingplus-ci-debug.keystore /tmp/king9916/app/kingplus-ci-debug.keystore
+      - name: Apply integrated Party + Login + Navigation corrections
+        run: |
+          set -euo pipefail
+          python3 tools/king_v9916_integrated_ui.py /tmp/king9916
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('/tmp/king9916/app/src/main/java/com/kingplus/social')
+          party=(p/'PartyActivity.java').read_text()
+          main=(p/'MainActivity.java').read_text()
+          assert 'roomActions9916.addView(actionRow9916' in party
+          assert 'int seatsDp9916=displayDp9916<680?148:178' in party
+          assert 'new GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM' in party
+          assert 'approveOrMoveMemberSeat9913' in party
+          assert 'db.runTransaction(tx9912' in party
+          assert 'responsiveWorld9915' in (p/'KingNative3DRoom.java').read_text()
+          assert 'firebaseAuth.getCurrentUser()==null' in main
+          assert 'PAID_VIP_ACTIVE = false' in (p/'KingPremiumAccess981.java').read_text()
+          assert 'LIVE_RECHARGE = false' in (p/'KingRecharge974Activity.java').read_text()
+          print('PASS all five core areas retained; UI/seat/auth focused fixes applied')
+          PY
+      - name: Compile full KING Plus Android v9.9.16 APK
+        working-directory: /tmp/king9916
+        run: gradle :app:assembleDebug --no-daemon
+      - name: Check signer and upgrade package without uninstall
+        run: |
+          set -euo pipefail
+          OLD=/tmp/king9916prior/KING-Plus-v9.9.15-Reference-UI-TEST.apk
+          NEW=/tmp/king9916/app/build/outputs/apk/debug/app-debug.apk
+          test -s "$OLD" && test -s "$NEW"
+          AAPT="$(find "$ANDROID_HOME/build-tools" -name aapt -type f | sort -V | tail -1)"
+          SIGNER="$(find "$ANDROID_HOME/build-tools" -name apksigner -type f | sort -V | tail -1)"
+          "$AAPT" dump badging "$OLD" | grep "^package:" | grep "name='com.kingplus.social'" | grep "versionCode='194'"
+          "$AAPT" dump badging "$NEW" | grep "^package:" | grep "name='com.kingplus.social'" | grep "versionCode='195'"
+          "$SIGNER" verify --print-certs "$OLD" > /tmp/king9916oldcert
+          "$SIGNER" verify --print-certs "$NEW" > /tmp/king9916newcert
+          a="$(grep -Eo '[[:xdigit:]]{64}' /tmp/king9916oldcert | head -1 || true)"
+          b="$(grep -Eo '[[:xdigit:]]{64}' /tmp/king9916newcert | head -1 || true)"
+          test -n "$a" && test "$a" = "$b"
+          echo 'PASS Android package, monotonically higher versionCode and same signer'
+      - name: Generate APK and matching source without distributing debug signing key
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/king9916out
+          cp /tmp/king9916/app/build/outputs/apk/debug/app-debug.apk /tmp/king9916out/KING-Plus-v9.9.16-Integrated-Room-UI-TEST.apk
+          rm -f /tmp/king9916/app/kingplus-ci-debug.keystore
+          cd /tmp/king9916
+          zip -q -r /tmp/king9916out/KING-Plus-v9.9.16-Integrated-Room-UI-Source.zip . -x './app/build/*' './.gradle/*' './build/*' '*local.properties'
+          sha256sum /tmp/king9916out/*
+      - uses: actions/upload-artifact@v4
+        with:
+          name: KING-v9916-Integrated-UI-TEST-and-Source
+          path: /tmp/king9916out/*
+          retention-days: 14
+          if-no-files-found: error
+      - name: Publish only as TEST; never as unverified final
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          gh release create v9.9.16-integrated-ui /tmp/king9916out/* \
+            --target "$GITHUB_SHA" --prerelease \
+            --title 'KING Plus v9.9.16 — Integrated Party UI TEST (Not Final)' \
+            --notes 'New accessible KING-branded Party bottom navigation and real quick actions for Seats, Members, Invite, Host moderation and Gifts; smaller-room screens preserve space for seat grid/chat; recovery screen requires valid Firebase login. Preserves v9.9.15 UI, real transaction-backed mic/seat requests, Firebase-backed profile and original 3D preview. Verified APK build, consistent signer and upgrade version only. This is NOT fully identical to Bolo Hi or production-ready: full 3D avatar world, all multiplayer games, sustained voice/video, payment/recharge and real two-device acceptance still require implementation and verification. Paid premium remains disabled.'
