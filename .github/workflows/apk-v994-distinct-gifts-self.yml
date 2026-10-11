@@ -1,0 +1,139 @@
+name: Build KING Plus v9.9.4 Distinct Gift Art and Self Gifts
+on:
+  push:
+    branches: [work/reference-completion]
+    paths:
+      - '.github/workflows/apk-v994-distinct-gifts-self.yml'
+      - 'ci/v994_art/**'
+  workflow_dispatch:
+permissions:
+  contents: write
+  actions: read
+concurrency:
+  group: kingplus-v994-distinct-gifts
+  cancel-in-progress: true
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: work/reference-completion
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+      - name: Validate Python source patch
+        run: python3 -m py_compile ci/v994_art/patch_gift_art_self_v994.py
+      - name: Restore tested full v9.9.3 source and old signed APK
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/src-art /tmp/king994-app /tmp/king994-old
+          gh run download 38120896236 -n KING-Plus-v9.9.3-Action-Emojis-VIP-Voice-Gifts-Source -D /tmp/src-art
+          unzip -q /tmp/src-art/KING-Plus-v9.9.3-Action-Emojis-VIP-Voice-Gifts-source.zip -d /tmp/king994-app
+          gh run download 38120896236 -n KING-Plus-v9.9.3-Action-Emojis-VIP-Voice-Gifts-APK -D /tmp/king994-old
+      - name: Replace repetitive sphere artwork and add free self-gift recipient
+        run: python3 ci/v994_art/patch_gift_art_self_v994.py /tmp/king994-app
+      - name: Verify free self gifting guards and keep VIP billing disabled
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/king994-tests
+          javac -d /tmp/king994-tests \
+            /tmp/king994-app/app/src/main/java/com/kingplus/social/KingFreeGift973.java \
+            ci/v994_art/KingFreeGift994Test.java
+          java -cp /tmp/king994-tests com.kingplus.social.KingFreeGift994Test
+          python3 - <<'PY'
+          from pathlib import Path
+          root=Path('/tmp/king994-app')
+          pkg=root/'app/src/main/java/com/kingplus/social'
+          p=(pkg/'PartyActivity.java').read_text()
+          art=(pkg/'KingGiftArtView.java').read_text()
+          free=(pkg/'KingFreeGift973.java').read_text()
+          version=(root/'app/build.gradle').read_text()
+          assert "versionCode 183; versionName '9.9.4-distinct-3d-gifts-self'" in version
+          assert 'new KingGiftArtView(this,idx,' in p
+          assert 'giftIcons[i]' in p and 'giftHero994.setGift(' in p
+          assert 'setShowcaseMode(true)' in p and 'Animated gift preview' in p
+          assert '🙋 ME • ' in p and 'user.getUid()' in p
+          assert 'KingFreeGift973.allowed(sender973,targetUid,quantity,lastFreeGift973' in p
+          assert 'KingFreeGift973.giftValue()' in p
+          assert 'VIP gift locked • Payments and verified entitlements are OFF' in p
+          assert 'if(giftSelectedIndex>=64&&giftVipRequired[giftSelectedIndex]>0)' in p
+          assert 'showGiftEffect("VIP PREVIEW"' in p
+          assert 'KingGiftSound993.play(this,gift)' in p
+          assert 'String[] cs={"All","Voice","VIP Night"' in p
+          assert 'LIVE_RECHARGE = false' in (pkg/'KingRecharge974Activity.java').read_text()
+          assert 'KingPremiumAccess981.PAID_VIP_ACTIVE = false' in (pkg/'KingPremiumAccess981.java').read_text()
+          assert 'KingFirestoreRecovery986.guidance(' in p and 'checkCrowdCapacity930(' in p
+          assert 'KingSocialShare992' in (pkg/'SocialActivity.java').read_text()
+          assert (pkg/'OnlineLudoActivity.java').exists()
+          assert 'getGlobalVisibleRect(visible)' in art
+          assert 'View.LAYER_TYPE_HARDWARE' not in art and 'View.LAYER_TYPE_SOFTWARE' not in art
+          assert 'p.setTextSize(iconSize)' in art and 'c.drawText(icon,0,baseline,p)' in art
+          assert 'LinearGradient' in art and 'Camera' in art
+          assert '!sender.equals(target)' not in free.split('public static boolean validDirect')[0]
+          assert '!sender.equals(receiver)' in free
+          # No Firestore security rules were overwritten/relaxed.
+          assert (root/'firestore.rules').is_file()
+          print('PASS distinct animated iconic gifts, auto-preview, safe FREE self recipient, no wallet/VIP/security regressions')
+          PY
+      - name: Compile and create signed KING Plus v9.9.4 APK
+        working-directory: /tmp/king994-app
+        run: gradle :app:assembleDebug --no-daemon
+      - name: Require same app ID/signing certificate and new versionCode
+        run: |
+          set -euo pipefail
+          OLD="$(find /tmp/king994-old -name '*.apk' -print -quit)"
+          NEW=/tmp/king994-app/app/build/outputs/apk/debug/app-debug.apk
+          test -s "$OLD" && test -s "$NEW"
+          SIGNER="$(find "$ANDROID_HOME/build-tools" -type f -name apksigner -print | sort -V | tail -1)"
+          AAPT="$(find "$ANDROID_HOME/build-tools" -type f -name aapt -print | sort -V | tail -1)"
+          "$SIGNER" verify --print-certs "$OLD" > /tmp/king994-oldcerts
+          "$SIGNER" verify --print-certs "$NEW" > /tmp/king994-newcerts
+          OLD_CERT="$(grep -Eo '[[:xdigit:]]{64}' /tmp/king994-oldcerts | head -1)"
+          NEW_CERT="$(grep -Eo '[[:xdigit:]]{64}' /tmp/king994-newcerts | head -1)"
+          test -n "$OLD_CERT" && test "$OLD_CERT" = "$NEW_CERT"
+          "$AAPT" dump badging "$OLD" | grep "^package:" | grep "name='com.kingplus.social'" | grep "versionCode='182'"
+          "$AAPT" dump badging "$NEW" | grep "^package:" | grep "name='com.kingplus.social'" | grep "versionCode='183'"
+          echo "PASS installed 9.9.3 can update to 9.9.4 without uninstall"
+      - name: Package final APK and source project
+        run: |
+          set -euo pipefail
+          cp /tmp/king994-app/app/build/outputs/apk/debug/app-debug.apk \
+            /tmp/KING-Plus-v9.9.4-Animated-Gift-Art-Self-Gifts.apk
+          (cd /tmp/king994-app && zip -qr /tmp/KING-Plus-v9.9.4-Animated-Gift-Art-Self-Gifts-source.zip .)
+          sha256sum /tmp/KING-Plus-v9.9.4-Animated-Gift-Art-Self-Gifts.apk
+      - uses: actions/upload-artifact@v4
+        with:
+          name: KING-Plus-v9.9.4-Animated-Gift-Art-Self-Gifts-APK
+          path: /tmp/KING-Plus-v9.9.4-Animated-Gift-Art-Self-Gifts.apk
+          retention-days: 7
+          if-no-files-found: error
+      - uses: actions/upload-artifact@v4
+        with:
+          name: KING-Plus-v9.9.4-Animated-Gift-Art-Self-Gifts-Source
+          path: /tmp/KING-Plus-v9.9.4-Animated-Gift-Art-Self-Gifts-source.zip
+          retention-days: 7
+          if-no-files-found: error
+      - name: Publish direct APK Chrome download release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          APK=/tmp/KING-Plus-v9.9.4-Animated-Gift-Art-Self-Gifts.apk
+          if gh release view v9.9.4 >/dev/null 2>&1; then
+            gh release upload v9.9.4 "$APK" --clobber
+          else
+            gh release create v9.9.4 "$APK" \
+              --target work/reference-completion \
+              --title "KING Plus v9.9.4 - Gift Artwork, Live Preview and FREE Self Gifts" \
+              --notes "Signed Android test APK v9.9.4. The old sphere-like gift catalog is replaced by context-specific colored gift illustrations rendered from each actual gift icon/name. Visible gift tiles auto animate with low-memory-safe perspective tilt, glow and stage effect. A larger animated selected-gift preview appears in the Gift Shop header. Adds 'ME' recipient and permits FREE decorative gifts to self after joining the Firebase Party, keeping cooldown, quantity limits and zero-charge safeguards. VIP gifts remain locked local previews until real payment/server verification, with original 120 live emojis, Firestore Social/Party/Mic/Game functions preserved. Bolo Hi proprietary 3D models are not included. Test on device before production." \
+              --prerelease
+          fi
+          gh release view v9.9.4 --json url,assets --jq '{url,assets:[.assets[]|{name,url,size}]}'
