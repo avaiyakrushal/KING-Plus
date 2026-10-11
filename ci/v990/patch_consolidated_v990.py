@@ -82,7 +82,7 @@ change(games,
 change(games,
 '''    private void ensureMembership900(){
         Map<String,Object>m=new HashMap<>();m.put("uid",me.getUid());m.put("name",displayName.length()>80?displayName.substring(0,80):displayName);m.put("online",true);m.put("appVersion","9.0.0");m.put("lastSeenAt",FieldValue.serverTimestamp());
-        room().collection("members").document(me.getUid()).set(m,com.google.firebase.firestore.SetOptions.merge()).addOnSuccessListener(v->{roleText.setText("● Multiplayer backend connected • large-room ready");loadRoleAndListen();}).addOnFailureListener(e->{roleText.setText("Membership failed: "+e.getMessage());if(syncSpinner950!=null)syncSpinner950.setVisibility(View.GONE);});
+        room().collection("members").document(me.getUid()).set(m,com.google.firebase.firestore.SetOptions.merge()).addOnSuccessListener(v->{roleText.setText("● Multiplayer backend connected • large-room ready");loadRoleAndListen();}).addOnFailureListener(e->{roleText.setText("Multiplayer join blocked: "+e.getMessage());toast("Reopen Party room or deploy Firestore rules");});
     }''',
 '''    private void ensureMembership900(){
         if(me==null||db==null||roomId.isEmpty())return;
