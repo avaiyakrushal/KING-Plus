@@ -1,0 +1,57 @@
+name: KING Plus Two-Account Firestore Security Tests
+on:
+  push:
+    branches: [work/reference-completion]
+    paths:
+      - '.github/workflows/king-firebase-rules-test.yml'
+      - 'ci/v998_user_room/firestore-rules.spec.cjs'
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  two-accounts:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: work/reference-completion
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - name: Restore actual signed-app Firestore rules (offline emulator only)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/king998-rules-src /tmp/king998-rules-project
+          gh run download 38124730942 -n KING-Plus-v9.9.7-Room-Admin-Profile-Games-Source -D /tmp/king998-rules-src
+          unzip -pq /tmp/king998-rules-src/KING-Plus-v9.9.7-Room-Admin-Profile-Games-source.zip firestore.rules > /tmp/king998-rules-project/firestore.rules
+          test -s /tmp/king998-rules-project/firestore.rules
+          cp ci/v998_user_room/firestore-rules.spec.cjs /tmp/king998-rules-project/
+          printf '%s\n' '{"firestore":{"rules":"firestore.rules"},"emulators":{"firestore":{"port":8089},"ui":{"enabled":false}}}' > /tmp/king998-rules-project/firebase.json
+      - name: Install local-only Firebase test tools
+        working-directory: /tmp/king998-rules-project
+        run: |
+          npm init -y >/dev/null
+          npm install --no-save --no-package-lock firebase-tools@14 firebase@11 @firebase/rules-unit-testing@4
+      - name: Run TWO synthetic user Firestore authorization and multiplayer tests
+        working-directory: /tmp/king998-rules-project
+        run: |
+          npx --no-install firebase emulators:exec \
+            --config firebase.json \
+            --only firestore \
+            --project demo-king-plus-parity-test \
+            "node firestore-rules.spec.cjs"
+      - name: Confirm no access to user's production Firebase
+        run: |
+          grep -q 'demo-king-plus-parity-test' ci/v998_user_room/firestore-rules.spec.cjs
+          if grep -Eq 'king-plus-2f365|GOOGLE_APPLICATION_CREDENTIALS|serviceAccountKey' ci/v998_user_room/firestore-rules.spec.cjs; then
+            echo "FAIL: emulator test must never mention production credentials"; exit 1
+          fi
+          echo "PASS: only local synthetic accounts; production project not changed"
