@@ -30,3 +30,4 @@ jobs:
           python3 ci/v997_room/inspect.py
           python3 ci/v997_room/inspect_detail.py
           python3 ci/v997_room/inspect_methods.py
+          python3 ci/v997_room/feature_gap_audit.py
