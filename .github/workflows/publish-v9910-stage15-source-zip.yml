@@ -29,11 +29,23 @@ jobs:
           unzip -Z1 "$src" | grep -q 'app/src/main/java/com/kingplus/social/PartyActivity.java'
           unzip -Z1 "$src" | grep -q 'app/src/main/java/com/kingplus/social/KingNative3DRoom.java'
           unzip -Z1 "$src" | grep -q 'app/build.gradle'
-          if unzip -Z1 "$src" | grep -Ei '(^|/)(.*service.account.*\.json|.*\.jks|.*\.keystore|.*\.pem|.*\.p12|.*\.pfx|\.env|id_rsa|.*credentials.*\.json|key\.properties|local\.properties)$'; then
-            echo 'ERROR: Source archive contains a potentially private credential file. Refusing public release.'
-            exit 1
+          # SANITIZE: the private CI source artifact contains a debug signing
+          # keystore. Never attach that archive as a publicly downloadable asset.
+          mkdir -p /tmp/king-clean-source
+          unzip -q "$src" -d /tmp/king-clean-source
+          find /tmp/king-clean-source -type f \( -iname '*.jks' -o -iname '*.keystore' -o -iname '*.pem' -o -iname '*.p12' -o -iname '*.pfx' -o -iname 'key.properties' -o -iname 'local.properties' -o -iname '.env' -o -iname 'id_rsa' -o -iname '*service*account*.json' -o -iname '*credentials*.json' \) -print -delete
+          cat > /tmp/king-clean-source/BUILD-NOTES-READ-ME.txt <<'NOTES'
+KING Plus v9.9.10 Stage15 - complete working Android source (TEST, not Final).
+PRIVATE signing key and machine-specific credential files have been intentionally excluded.
+To compile, configure your own debug/release signing in a safe local environment.
+This is not the completed Bolo Hi feature-parity version.
+NOTES
+          cd /tmp/king-clean-source
+          zip -qr /tmp/KING-Plus-v9.9.10-Stage15-CURRENT-WORK-Source.zip .
+          cd -
+          if unzip -Z1 /tmp/KING-Plus-v9.9.10-Stage15-CURRENT-WORK-Source.zip | grep -Ei '(^|/)(.*service.account.*\\.json|.*\\.jks|.*\\.keystore|.*\\.pem|.*\\.p12|.*\\.pfx|\\.env|id_rsa|.*credentials.*\\.json|key\\.properties|local\\.properties)$'; then
+            echo 'ERROR: Sanitized source still has private signing material'; exit 1
           fi
-          cp "$src" /tmp/KING-Plus-v9.9.10-Stage15-CURRENT-WORK-Source.zip
           sha256sum /tmp/KING-Plus-v9.9.10-Stage15-CURRENT-WORK-Source.zip
           echo 'Source ZIP verified; contents are the latest working project, NOT Final parity.'
       - name: Attach SOURCE ZIP to existing v9.9.10 pre-release
