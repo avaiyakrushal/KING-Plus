@@ -1,0 +1,127 @@
+name: KING Complete Five Sections — Combined Validation (No Interim Release)
+on:
+  push:
+    branches: [work/king-plus-complete-five-sections]
+    paths:
+      - '.github/workflows/king-combined-five-section-validation.yml'
+      - 'ci/final_five/KingNative3DRoom.java'
+      - 'ci/final_five/KingLudoDiceEntropy999.java'
+      - 'ci/final_five/KingLudoEntropyTest.java'
+      - 'ci/final_five/stage1_patch.py'
+      - 'ci/final_five/stage1_video_guard.py'
+      - 'ci/final_five/stage2_party_guard.py'
+      - 'ci/final_five/stage3_ludo_entropy.py'
+      - 'ci/final_five/stage4_vip_gift_sound.py'
+      - 'ci/final_five/stage5_profile_friends.py'
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: kingplus-five-sections-combined-validation
+  cancel-in-progress: true
+jobs:
+  validate:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: work/king-plus-complete-five-sections
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+      - name: Restore signed v9.9.8 source, not stale checked-in template
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/king-combined-source /tmp/king-combined-app
+          gh run download 38128027011 -n KING-Plus-v9.9.8-Real-Friends-Source -D /tmp/king-combined-source
+          unzip -q /tmp/king-combined-source/KING-Plus-v9.9.8-Real-Friends-Server-Sync-source.zip -d /tmp/king-combined-app
+          test -s /tmp/king-combined-app/app/src/main/java/com/kingplus/social/PartyActivity.java
+      - name: Stage 1 — Native 3D world and video access
+        run: |
+          python3 -m py_compile ci/final_five/stage1_patch.py ci/final_five/stage1_video_guard.py
+          python3 ci/final_five/stage1_patch.py /tmp/king-combined-app
+          python3 ci/final_five/stage1_video_guard.py /tmp/king-combined-app
+      - name: Stage 2 — Real Party Room invitation from server
+        run: python3 ci/final_five/stage2_party_guard.py /tmp/king-combined-app
+      - name: Stage 3 — Ludo SHA256 timestamp dice and offline Java tests
+        run: |
+          python3 ci/final_five/stage3_ludo_entropy.py /tmp/king-combined-app
+          mkdir -p /tmp/king-combined-test
+          javac -d /tmp/king-combined-test \
+            ci/final_five/KingLudoDiceEntropy999.java \
+            ci/final_five/KingLudoEntropyTest.java
+          java -cp /tmp/king-combined-test com.kingplus.social.KingLudoEntropyTest
+      - name: Stage 4 — Distinct VIP Night sound and gift audio toggle
+        run: python3 ci/final_five/stage4_vip_gift_sound.py /tmp/king-combined-app
+      - name: Stage 5 — HTTPS safe User Profile and live Friends registration
+        run: python3 ci/final_five/stage5_profile_friends.py /tmp/king-combined-app
+      - name: Enforce no fake premium, rules bypass, or loss of existing features
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          root=Path('/tmp/king-combined-app')
+          p=root/'app/src/main/java/com/kingplus/social'
+          party=(p/'PartyActivity.java').read_text()
+          social=(p/'SocialActivity.java').read_text()
+          video=(p/'KingMultiVideoActivity.java').read_text()
+          profile=(p/'KingPublicProfileActivity.java').read_text()
+          ludo=(p/'OnlineLudoActivity.java').read_text()
+          audio=(p/'KingGiftSound993.java').read_text()
+          model=(p/'KingNative3DRoom.java').read_text()
+          assert 'GLES20.GL_DEPTH_TEST' in model and 'Matrix.perspectiveM' in model
+          assert 'listener[0].remove()' in model
+          assert 'checkVideoRoomAccess998' in video
+          assert 'collection("members").document(uid998)' in video
+          assert 'setAudioMuted(true)' in video and 'setVideoMuted(true)' in video
+          assert 'document(directRoomId).get(com.google.firebase.firestore.Source.SERVER)' in party
+          assert 'KingLudoDiceEntropy999.dice(' in ludo
+          assert 'toDate().getTime()%6' not in ludo
+          assert 'case "vipnight"' in audio and 'final double duration=' in audio
+          assert 'Gift Audio ON' in party and 'KingGiftSound993.setEnabled' in party
+          assert 'get(com.google.firebase.firestore.Source.SERVER)' in social
+          assert '3*1024*1024' in profile and 'inJustDecodeBounds=true' in profile
+          assert 'https://' in profile
+          assert 'KingRoomDice997.open(' in party
+          assert 'KingFreeGift973.allowed(' in party
+          assert 'KingEmojiAccess993.canSend(' in party
+          assert 'administratorDialog()' in party
+          assert 'this::shareRealRoom996' in party
+          assert 'PAID_VIP_ACTIVE = false' in (p/'KingPremiumAccess981.java').read_text()
+          assert 'LIVE_RECHARGE = false' in (p/'KingRecharge974Activity.java').read_text()
+          assert (p/'OnlineLudoActivity.java').exists()
+          assert (p/'RoomGameActivity.java').exists()
+          assert (p/'KingPublicProfileActivity.java').exists()
+          assert (p/'KingMultiVideoActivity.java').exists()
+          assert (root/'firestore.rules').exists()
+          print('PASS: all five stages composed; secure baseline and gifts/games/friends preserved')
+          PY
+      - name: Compile integrated five-stage Android source WITHOUT publishing
+        working-directory: /tmp/king-combined-app
+        run: gradle :app:assembleDebug --no-daemon
+      - name: Confirm Android package/compatibility and NO premature final APK
+        run: |
+          set -euo pipefail
+          apk=/tmp/king-combined-app/app/build/outputs/apk/debug/app-debug.apk
+          test -s "$apk"
+          AAPT="$(find "$ANDROID_HOME/build-tools" -type f -name aapt | sort -V | tail -1)"
+          "$AAPT" dump badging "$apk" | grep "^package:" | grep "name='com.kingplus.social'"
+          echo "All five stage incremental patches COMPILE. NOT full acceptance."
+      - name: Publish only truthful progress to CI run summary
+        run: |
+          cat >> "$GITHUB_STEP_SUMMARY" <<'EOF'
+          ### KING Plus ordered five-section work — internal validation
+          1. Native OpenGL 3D world + real Firebase occupied seats; Jitsi room access checked on server. Full RTC and 3D avatar customization still pending.
+          2. Direct Party friend invites require real Firebase SERVER lookup. Full 2-device Room join/mic tests pending.
+          3. Online Ludo uses deterministic full-timestamp SHA-256 rejection sampling instead of millisecond modulo. Not server-authoritative anti-cheat. Full multiplayer game completeness pending.
+          4. VIP Night has distinct 1.45s original synthesized sound, gift audio toggle. VIP/Noble Diamond purchases remain DISABLED (requires trusted server ledger/provider).
+          5. Public profile photos have HTTPS-only 3MB cap and downsampling; profile publish now checks live SERVER. Provider Facebook/OTP and real two-account tests pending.
+          **NO APK RELEASE, NO false full parity claims.** User wants ONE final APK only when all five sections pass device/backend security acceptance.
+          EOF
