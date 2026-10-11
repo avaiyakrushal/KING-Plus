@@ -108,7 +108,8 @@ jobs:
           zip -q -r /tmp/king9920out/KING-Plus-v9.9.20-Stage-Mic-Stability-Source.zip . \
             -x 'app/build/*' './app/build/*' '.gradle/*' './.gradle/*' \
                'build/*' './build/*' '*/build/*' '*/.gradle/*' \
-               '*.apk' '*.aab' '*.jks' '*.keystore' '*local.properties' '*.zip'
+               '*.apk' '*.aab' '*.jks' '*.keystore' '*local.properties' '*.zip' \
+               '*/node_modules/*' '*node_modules/*' '*.log'
           BYTES="$(stat -c%s /tmp/king9920out/KING-Plus-v9.9.20-Stage-Mic-Stability-Source.zip)"
           if [ "$BYTES" -gt 10000000 ]; then echo "Source archive contaminated with binary cache"; exit 1; fi
           sha256sum /tmp/king9920out/*
