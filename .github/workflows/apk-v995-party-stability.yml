@@ -1,0 +1,141 @@
+name: Build KING Plus v9.9.5 Party Stability and Memory
+on:
+  push:
+    branches: [work/reference-completion]
+    paths:
+      - '.github/workflows/apk-v995-party-stability.yml'
+      - 'ci/v995_stability/patch_memory995.py'
+  workflow_dispatch:
+permissions:
+  contents: write
+  actions: read
+concurrency:
+  group: king-plus-v995-party-stability
+  cancel-in-progress: true
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: work/reference-completion
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+      - name: Verify Python patch syntax
+        run: python3 -m py_compile ci/v995_stability/patch_memory995.py
+      - name: Restore signed 9.9.4 source and APK
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/source995 /tmp/king995-build /tmp/old995
+          gh run download 38122185317 -n KING-Plus-v9.9.4-Animated-Gift-Art-Self-Gifts-Source -D /tmp/source995
+          unzip -q /tmp/source995/KING-Plus-v9.9.4-Animated-Gift-Art-Self-Gifts-source.zip -d /tmp/king995-build
+          gh run download 38122185317 -n KING-Plus-v9.9.4-Animated-Gift-Art-Self-Gifts-APK -D /tmp/old995
+      - name: Apply Party lifecycle and redraw memory fixes
+        run: python3 ci/v995_stability/patch_memory995.py /tmp/king995-build
+      - name: Assert Mic/Firestore/game/Gift/UI features are not removed
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          base=Path('/tmp/king995-build')
+          app=base/'app/src/main/java/com/kingplus/social'
+          p=(app/'PartyActivity.java').read_text()
+          assert "versionCode 184; versionName '9.9.5-party-memory-background-stability'" in (base/'app/build.gradle').read_text()
+          assert 'partyVisualForeground995=true' in p
+          assert 'partyVisualForeground995=false' in p
+          assert 'private void clearPartyVisuals995()' in p
+          assert 'stage995.removeViewAt(idx995)' in p
+          assert 'void onStop()' in p
+          assert 'if(partyUiDead()||!partyVisualForeground995)return;' in p
+          assert 'if(!partyVisualForeground995||emoji==null' in p
+          assert 'if(partyUiDead()||!partyVisualForeground995)return;loadRoomPersonalSettings()' in p
+          assert p.count('clearPartyVisuals995();')>=3
+          assert 'stopInRoomVoice940(true)' in p and 'JitsiMeetActivityDelegate.onHostPause(this)' in p
+          assert 'registerMember()' in p and 'unregisterMember()' in p
+          assert 'KingPartyMemory969.mayPauseIdleVoice' in p
+          assert 'KingFreeGift973.allowed(' in p
+          assert '🙋 ME • ' in p
+          assert 'giftHero994.setGift(' in p
+          assert 'KingEmojiAccess993.canSend' in p
+          assert 'KingGiftSound993.play(this,gift)' in p
+          assert 'KingFirestoreRecovery986.guidance(' in p
+          assert 'checkCrowdCapacity930(' in p
+          assert 'if(giftSelectedIndex>=64&&giftVipRequired[giftSelectedIndex]>0)' in p
+          assert 'LIVE_RECHARGE = false' in (app/'KingRecharge974Activity.java').read_text()
+          assert (app/'KingSocialShare992.java').exists()
+          assert (app/'OnlineLudoActivity.java').exists()
+          for name in ('KingRoomStageView.java','KingLoginBackdropView.java',
+                       'KingEmojiAuraView992.java'):
+              x=(app/name).read_text()
+              assert 'getWindowVisibility()==View.VISIBLE' in x,name
+              assert 'onWindowVisibilityChanged(int visibility)' in x,name
+              assert 'onAttachedToWindow()' in x,name
+              assert 'postInvalidateDelayed(' in x,name
+          x=(app/'KingGiftArtView.java').read_text()
+          assert 'getWindowVisibility()==View.VISIBLE' in x
+          assert 'View.LAYER_TYPE_HARDWARE' not in x
+          assert 'View.LAYER_TYPE_SOFTWARE' not in x
+          assert (base/'firestore.rules').exists()
+          print('PASS Party memory-safe visuals, no Firestore/paid VIP/room/voice/social game regression')
+          PY
+      - name: Compile installable KING Plus v9.9.5 APK
+        working-directory: /tmp/king995-build
+        run: gradle :app:assembleDebug --no-daemon
+      - name: Verify exact same Android signature, app id and higher version code
+        run: |
+          set -euo pipefail
+          OLD="$(find /tmp/old995 -type f -name '*.apk' -print -quit)"
+          NEW=/tmp/king995-build/app/build/outputs/apk/debug/app-debug.apk
+          test -s "$OLD" && test -s "$NEW"
+          SIGNER="$(find "$ANDROID_HOME/build-tools" -type f -name apksigner -print | sort -V | tail -1)"
+          AAPT="$(find "$ANDROID_HOME/build-tools" -type f -name aapt -print | sort -V | tail -1)"
+          "$SIGNER" verify --print-certs "$OLD" > /tmp/old995cert
+          "$SIGNER" verify --print-certs "$NEW" > /tmp/new995cert
+          OC="$(grep -Eo '[[:xdigit:]]{64}' /tmp/old995cert | head -1)"
+          NC="$(grep -Eo '[[:xdigit:]]{64}' /tmp/new995cert | head -1)"
+          test -n "$OC" && test "$OC" = "$NC"
+          "$AAPT" dump badging "$OLD" | grep "^package:" | grep "name='com.kingplus.social'" | grep "versionCode='183'"
+          "$AAPT" dump badging "$NEW" | grep "^package:" | grep "name='com.kingplus.social'" | grep "versionCode='184'"
+          echo "PASS upgrade installs over 9.9.4 without uninstall/sign-out"
+      - name: Package final APK and buildable source
+        run: |
+          set -euo pipefail
+          cp /tmp/king995-build/app/build/outputs/apk/debug/app-debug.apk \
+             /tmp/KING-Plus-v9.9.5-Party-Stability.apk
+          (cd /tmp/king995-build && zip -qr /tmp/KING-Plus-v9.9.5-Party-Stability-source.zip .)
+          sha256sum /tmp/KING-Plus-v9.9.5-Party-Stability.apk
+      - uses: actions/upload-artifact@v4
+        with:
+          name: KING-Plus-v9.9.5-Party-Stability-APK
+          path: /tmp/KING-Plus-v9.9.5-Party-Stability.apk
+          retention-days: 7
+          if-no-files-found: error
+      - uses: actions/upload-artifact@v4
+        with:
+          name: KING-Plus-v9.9.5-Party-Stability-Source
+          path: /tmp/KING-Plus-v9.9.5-Party-Stability-source.zip
+          retention-days: 7
+          if-no-files-found: error
+      - name: Create public GitHub direct APK release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          APK=/tmp/KING-Plus-v9.9.5-Party-Stability.apk
+          if gh release view v9.9.5 >/dev/null 2>&1; then
+            gh release upload v9.9.5 "$APK" --clobber
+          else
+            gh release create v9.9.5 "$APK" \
+              --target work/reference-completion \
+              --title "KING Plus v9.9.5 - Party memory, animations and background stability" \
+              --notes "Updates v9.9.4 with focused lifecycle stability: room/login/emoji stage animation timer loops stop when no longer visible and restart when the app returns; expensive transient gift/entrance/emoji overlays detach on Party Room exit, Android memory trims and app background; Firebase events that arrive while the Activity is stopped cannot build full-screen animations or play gift sounds. Voice/Jitsi and Firebase seat/member listener lifecycle remains unchanged. Preserves 88 distinct Gift Shop illustrations, large animated Gift preview, FREE self gifting, 120 action emojis, Party/Follows/Private Chat/Online Ludo and no paid VIP billing. Compilation and app certificate are verified but real-device low-memory resilience and two-phone calls still require testing." \
+              --prerelease
+          fi
+          gh release view v9.9.5 --json url,assets --jq '{url,assets:[.assets[]|{name,url,size}]}'
