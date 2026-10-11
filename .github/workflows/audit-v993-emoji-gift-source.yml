@@ -1,0 +1,29 @@
+name: Inspect KING Plus 9.9.2 Emoji VIP Gift Audio Source
+on:
+  push:
+    branches: ['work/reference-completion']
+    paths:
+      - 'ci/v993_action/**'
+      - '.github/workflows/audit-v993-emoji-gift-source.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  inspect:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: work/reference-completion
+      - name: Fetch latest signed v9.9.2 source, read only
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/king-993-artifact /tmp/king-993-source
+          gh run download 38106027241 -n KING-Plus-v9.9.2-Follow-Message-Party-Source -D /tmp/king-993-artifact
+          unzip -q /tmp/king-993-artifact/KING-Plus-v9.9.2-Follow-Message-Party-source.zip 'app/src/main/java/com/kingplus/social/*.java' -d /tmp/king-993-source
+      - name: Inspect exact gift and emoji method anchors without modifying original
+        run: python3 ci/v993_action/inspect_live_emoji_v993.py
