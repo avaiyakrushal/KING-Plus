@@ -26,7 +26,6 @@ jobs:
           gh run download 38103968772 -n KING-Plus-v9.9.0-Party-Emoji-Games-Wallet-Source -D /tmp/king990-source-artifact
           unzip -q /tmp/king990-source-artifact/KING-Plus-v9.9.0-Party-Emoji-Games-Wallet-source.zip \
             'app/src/main/java/com/kingplus/social/*.java' 'app/src/main/res/*.xml' \
-            'app/src/main/res/layout/*.xml' 'app/src/main/res/drawable/*.xml' \
             -d /tmp/king990-inspect
       - name: Inspect login route, gift effects, emoji and party background
         run: python3 ci/v991_visual/inspect_current_visuals.py
