@@ -1,5 +1,5 @@
 /* Runs ONLY against local Firestore emulator, with synthetic phone A/B auth IDs.
-   NEVER connects to production project king-plus-2f365. */
+   NEVER connects to any production Firebase project. */
 'use strict';
 const fs=require('fs');
 const {initializeTestEnvironment,assertSucceeds,assertFails}=
