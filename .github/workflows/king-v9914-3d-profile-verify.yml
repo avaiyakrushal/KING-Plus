@@ -1,0 +1,93 @@
+name: KING Plus v9.9.14 - Live 3D Identity Integrated Verification
+on:
+  push:
+    branches: [work/king-full-parity-3d-profile-v9914]
+    paths:
+      - 'tools/king_v9914_live_3d_profiles.py'
+      - '.github/workflows/king-v9914-3d-profile-verify.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  integrate-and-verify:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+      - name: Restore complete previously checked v9.9.13 matching source
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/king9914 /tmp/king9914previous
+          gh run download 38142180463 -n KING-v9913-Internal-Build-Not-Final -D /tmp/king9914previous
+          unzip -q /tmp/king9914previous/KING-Plus-v9.9.13-Mic-Approval-Source.zip -d /tmp/king9914
+          test -s /tmp/king9914/app/src/main/java/com/kingplus/social/KingNative3DRoom.java
+          test -s /tmp/king9914previous/KING-Plus-v9.9.13-Mic-Approval-Verification.apk
+          test -s app/kingplus-ci-debug.keystore
+          cp app/kingplus-ci-debug.keystore /tmp/king9914/app/kingplus-ci-debug.keystore
+      - name: Apply 3D identity and profile interaction fixes and preserve prior functionality
+        run: |
+          set -euo pipefail
+          python3 tools/king_v9914_live_3d_profiles.py /tmp/king9914
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('/tmp/king9914/app/src/main/java/com/kingplus/social')
+          room=(p/'KingNative3DRoom.java').read_text()
+          party=(p/'PartyActivity.java').read_text()
+          assert 'liveUids[index]' in room
+          assert 'new Intent(host,KingPublicProfileActivity.class)' in room
+          assert 'scene.occupantUids=Arrays.copyOf(uids,12)' in room
+          assert 'new boolean[12],new String[12]' in room
+          assert 'approveOrMoveMemberSeat9913' in party
+          assert 'db.runTransaction(tx9912' in party
+          assert 'KingGiftSound993.setEnabled' in party
+          assert 'private void openVideoRoom()' in party
+          assert 'KingNative3DRoom.open(' in party
+          main=(p/'MainActivity.java').read_text()
+          assert 'firebaseAuth.getCurrentUser()==null' in main
+          assert 'PAID_VIP_ACTIVE = false' in (p/'KingPremiumAccess981.java').read_text()
+          assert 'LIVE_RECHARGE = false' in (p/'KingRecharge974Activity.java').read_text()
+          print('Integrated flow checks PASS; physical two-phone acceptance not yet verified')
+          PY
+      - name: Build original KING Plus Android debug APK
+        working-directory: /tmp/king9914
+        run: gradle :app:assembleDebug --no-daemon
+      - name: Verify same package, signing and safe in-place upgrade
+        run: |
+          set -euo pipefail
+          NEW=/tmp/king9914/app/build/outputs/apk/debug/app-debug.apk
+          OLD=/tmp/king9914previous/KING-Plus-v9.9.13-Mic-Approval-Verification.apk
+          AAPT="$(find "$ANDROID_HOME/build-tools" -type f -name aapt | sort -V | tail -1)"
+          SIGNER="$(find "$ANDROID_HOME/build-tools" -type f -name apksigner | sort -V | tail -1)"
+          "$AAPT" dump badging "$OLD" | grep "^package:" | grep "name='com.kingplus.social'" | grep "versionCode='192'"
+          "$AAPT" dump badging "$NEW" | grep "^package:" | grep "name='com.kingplus.social'" | grep "versionCode='193'"
+          "$SIGNER" verify --print-certs "$OLD" > /tmp/king9914oldsign
+          "$SIGNER" verify --print-certs "$NEW" > /tmp/king9914newsign
+          a="$(grep -Eo '[[:xdigit:]]{64}' /tmp/king9914oldsign | head -1 || true)"
+          b="$(grep -Eo '[[:xdigit:]]{64}' /tmp/king9914newsign | head -1 || true)"
+          test -n "$a" && test "$a" = "$b"
+          echo 'PASS verified package, upgrade version and signer'
+      - name: Retain internal verification artifacts without claiming complete app
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/king9914built
+          cp /tmp/king9914/app/build/outputs/apk/debug/app-debug.apk /tmp/king9914built/KING-Plus-v9.9.14-3D-Live-Profile-Internal.apk
+          rm -f /tmp/king9914/app/kingplus-ci-debug.keystore
+          cd /tmp/king9914
+          zip -q -r /tmp/king9914built/KING-Plus-v9.9.14-3D-Live-Profile-Source.zip . -x './app/build/*' './.gradle/*' './build/*' '*local.properties'
+          sha256sum /tmp/king9914built/*
+      - uses: actions/upload-artifact@v4
+        with:
+          name: KING-v9914-Live3D-Internal-NotFinal
+          path: /tmp/king9914built/*
+          retention-days: 14
+          if-no-files-found: error
