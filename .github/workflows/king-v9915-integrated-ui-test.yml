@@ -1,0 +1,108 @@
+name: KING Plus v9.9.15 - Reference UI Reliability Integrated APK
+on:
+  push:
+    branches: [work/king-ref-parity-v9915]
+    paths:
+      - 'tools/king_v9915_reference_ui_reliability.py'
+      - '.github/workflows/king-v9915-integrated-ui-test.yml'
+  workflow_dispatch:
+permissions:
+  contents: write
+  actions: read
+concurrency:
+  group: king-v9915-reference-ui
+  cancel-in-progress: false
+jobs:
+  verify-and-build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+      - name: Restore previous integrated KING v9.9.14 source and APK
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/king9915 /tmp/king9915previous
+          gh run download 38142874539 -n KING-v9914-Live3D-Internal-NotFinal -D /tmp/king9915previous
+          unzip -q /tmp/king9915previous/KING-Plus-v9.9.14-3D-Live-Profile-Source.zip -d /tmp/king9915
+          test -s /tmp/king9915/app/src/main/java/com/kingplus/social/KingNative3DRoom.java
+          test -s /tmp/king9915/app/src/main/java/com/kingplus/social/PartyActivity.java
+          test -s /tmp/king9915previous/KING-Plus-v9.9.14-3D-Live-Profile-Internal.apk
+          test -s app/kingplus-ci-debug.keystore
+          cp app/kingplus-ci-debug.keystore /tmp/king9915/app/kingplus-ci-debug.keystore
+      - name: Apply reference-based 3D/UI/games/live-room corrections
+        run: |
+          set -euo pipefail
+          python3 tools/king_v9915_reference_ui_reliability.py /tmp/king9915
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('/tmp/king9915/app/src/main/java/com/kingplus/social')
+          party=(p/'PartyActivity.java').read_text()
+          world=(p/'KingNative3DRoom.java').read_text()
+          main=(p/'MainActivity.java').read_text()
+          assert 'openPartyGameChooser9915' in party
+          assert 'new java.util.Random().nextInt(91)' not in party
+          assert 'Room Battle needs a joined live Firebase Party' in party
+          assert 'approveOrMoveMemberSeat9913' in party
+          assert 'db.runTransaction(tx9912' in party
+          assert 'KingGiftSound993.setEnabled' in party
+          assert 'private void openVideoRoom()' in party
+          assert 'responsiveWorld9915.addView(content' in world
+          assert 'KingPublicProfileActivity.class' in world
+          assert 'firebaseAuth.getCurrentUser()==null' in main
+          assert 'PAID_VIP_ACTIVE = false' in (p/'KingPremiumAccess981.java').read_text()
+          assert 'LIVE_RECHARGE = false' in (p/'KingRecharge974Activity.java').read_text()
+          print('PASS UI/3D/Party/Profile/Gift/Games regression source assertions')
+          PY
+      - name: Compile KING Plus v9.9.15 TEST APK
+        working-directory: /tmp/king9915
+        run: gradle :app:assembleDebug --no-daemon
+      - name: Check APK package, version and in-place signer continuity
+        run: |
+          set -euo pipefail
+          OLD=/tmp/king9915previous/KING-Plus-v9.9.14-3D-Live-Profile-Internal.apk
+          NEW=/tmp/king9915/app/build/outputs/apk/debug/app-debug.apk
+          AAPT="$(find "$ANDROID_HOME/build-tools" -type f -name aapt | sort -V | tail -1)"
+          SIGNER="$(find "$ANDROID_HOME/build-tools" -type f -name apksigner | sort -V | tail -1)"
+          "$AAPT" dump badging "$OLD" | grep "^package:" | grep "name='com.kingplus.social'" | grep "versionCode='193'"
+          "$AAPT" dump badging "$NEW" | grep "^package:" | grep "name='com.kingplus.social'" | grep "versionCode='194'"
+          "$SIGNER" verify --print-certs "$OLD" > /tmp/king9915-oldkey
+          "$SIGNER" verify --print-certs "$NEW" > /tmp/king9915-newkey
+          a="$(grep -Eo '[[:xdigit:]]{64}' /tmp/king9915-oldkey | head -1 || true)"
+          b="$(grep -Eo '[[:xdigit:]]{64}' /tmp/king9915-newkey | head -1 || true)"
+          test -n "$a" && test "$a" = "$b"
+          echo 'PASS same app, upgrade version, signing certificate'
+      - name: Create verified TEST APK and sanitized source ZIP
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/king9915out
+          cp /tmp/king9915/app/build/outputs/apk/debug/app-debug.apk \
+             /tmp/king9915out/KING-Plus-v9.9.15-Reference-UI-TEST.apk
+          rm -f /tmp/king9915/app/kingplus-ci-debug.keystore
+          cd /tmp/king9915
+          zip -q -r /tmp/king9915out/KING-Plus-v9.9.15-Reference-UI-Source.zip . \
+            -x './app/build/*' './.gradle/*' './build/*' '*local.properties'
+          sha256sum /tmp/king9915out/*
+      - uses: actions/upload-artifact@v4
+        with:
+          name: KING-v9915-Reference-UI-Test-and-Source
+          path: /tmp/king9915out/*
+          retention-days: 14
+          if-no-files-found: error
+      - name: Publish clearly labeled prerelease, not unverified final app
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          gh release create v9.9.15-reference-ui /tmp/king9915out/* \
+            --target "$GITHUB_SHA" --prerelease \
+            --title 'KING Plus v9.9.15 — Reference UI TEST, not Final' \
+            --notes 'This TEST candidate includes previous authenticated Firebase Party/room role/seat safety, real 3D occupant profiles, small-phone scrollable 3D world, direct Games menu choosing real Firestore Dice vs Room Game catalog, and removal of simulated offline PK battle results and initial fake room counters. Verified by Android Java compilation and same-signer upgrade from v9.9.14; not validated on two physical phones. Full Bolo Hi parity, full 3D avatar, stable realtime voice/video, all games, provider-authenticated OTP/Facebook and secure production paid recharge are not finished. Do not market as final or complete.'
