@@ -1,0 +1,107 @@
+name: KING Plus v9.9.18 - Room Voice Chat Stability TEST APK
+on:
+  push:
+    branches: [work/king-v9918-room-stability]
+    paths:
+      - 'tools/v9918/king_room_stability.py'
+      - '.github/workflows/king-v9918-room-stability-apk.yml'
+  workflow_dispatch:
+permissions:
+  contents: write
+  actions: read
+concurrency:
+  group: king-v9918-stability
+  cancel-in-progress: false
+jobs:
+  source-build-security:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+      - name: Fetch exact verified v9.9.17 Chess + Party source and old signed APK
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/king9918 /tmp/king9918old
+          gh release download v9.9.17-live-chess \
+            -p 'KING-Plus-v9.9.17-Live-Chess-Source.zip' -D /tmp/king9918old
+          gh release download v9.9.17-live-chess \
+            -p 'KING-Plus-v9.9.17-Live-Chess-TEST.apk' -D /tmp/king9918old
+          unzip -q /tmp/king9918old/KING-Plus-v9.9.17-Live-Chess-Source.zip -d /tmp/king9918
+          test -s /tmp/king9918/app/src/main/java/com/kingplus/social/PartyActivity.java
+          test -s /tmp/king9918/app/src/main/java/com/kingplus/social/KingLiveChessActivity.java
+          test -s app/kingplus-ci-debug.keystore
+          cp app/kingplus-ci-debug.keystore /tmp/king9918/app/kingplus-ci-debug.keystore
+      - name: Apply verified room-state fixes and security source assertions
+        run: |
+          set -euo pipefail
+          python3 tools/v9918/king_room_stability.py /tmp/king9918
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('/tmp/king9918/app/src/main/java/com/kingplus/social')
+          party=(p/'PartyActivity.java').read_text()
+          assert 'isActivePresence967(chatRoom9918,chatUid9918,chatGeneration9918)' in party
+          assert 'revert9918.update(seatRef968,"micOn",false)' in party
+          assert 'showRichProfile(uid,name,false)' in party
+          assert 'new Intent(this,KingLiveChessActivity.class)' in party
+          assert 'approveOrMoveMemberSeat9913' in party
+          assert 'responsiveWorld9915' in (p/'KingNative3DRoom.java').read_text()
+          assert 'PAID_VIP_ACTIVE = false' in (p/'KingPremiumAccess981.java').read_text()
+          assert 'LIVE_RECHARGE = false' in (p/'KingRecharge974Activity.java').read_text()
+          print('PASS integrated source tests for auth, rooms, mic, 3D, profile, chess and disabled payments')
+          PY
+      - name: Compile full KING Android debug APK
+        working-directory: /tmp/king9918
+        run: gradle :app:assembleDebug --no-daemon
+      - name: Verify package/version/signing certificate match for in-place update
+        run: |
+          set -euo pipefail
+          OLD=/tmp/king9918old/KING-Plus-v9.9.17-Live-Chess-TEST.apk
+          NEW=/tmp/king9918/app/build/outputs/apk/debug/app-debug.apk
+          test -s "$OLD" && test -s "$NEW"
+          AAPT="$(find "$ANDROID_HOME/build-tools" -type f -name aapt | sort -V | tail -1)"
+          SIGNER="$(find "$ANDROID_HOME/build-tools" -type f -name apksigner | sort -V | tail -1)"
+          "$AAPT" dump badging "$OLD" | grep "^package:" | grep "name='com.kingplus.social'" | grep "versionCode='196'"
+          "$AAPT" dump badging "$NEW" | grep "^package:" | grep "name='com.kingplus.social'" | grep "versionCode='197'"
+          "$SIGNER" verify --print-certs "$OLD" > /tmp/king9918oldcert
+          "$SIGNER" verify --print-certs "$NEW" > /tmp/king9918newcert
+          a="$(grep -Eo '[[:xdigit:]]{64}' /tmp/king9918oldcert | head -1 || true)"
+          b="$(grep -Eo '[[:xdigit:]]{64}' /tmp/king9918newcert | head -1 || true)"
+          test -n "$a" && test "$a" = "$b"
+          echo 'PASS original KING package, upgraded version and identical signer'
+      - name: Package APK and clean source ZIP without signing materials
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/king9918out
+          cp /tmp/king9918/app/build/outputs/apk/debug/app-debug.apk \
+            /tmp/king9918out/KING-Plus-v9.9.18-Room-Stability-TEST.apk
+          rm -f /tmp/king9918/app/kingplus-ci-debug.keystore
+          cd /tmp/king9918
+          zip -q -r /tmp/king9918out/KING-Plus-v9.9.18-Room-Stability-Source.zip . \
+            -x 'app/build/*' './app/build/*' '.gradle/*' './.gradle/*' \
+               'build/*' './build/*' '*/build/*' '*/.gradle/*' \
+               '*.apk' '*.aab' '*.jks' '*.keystore' '*local.properties' '*.zip'
+          sha256sum /tmp/king9918out/*
+      - uses: actions/upload-artifact@v4
+        with:
+          name: KING-v9918-Stability-APK-and-Source
+          path: /tmp/king9918out/*
+          retention-days: 14
+          if-no-files-found: error
+      - name: Publish honestly labeled pre-release only
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          gh release create v9.9.18-room-stability /tmp/king9918out/* \
+            --target "$GITHUB_SHA" --prerelease \
+            --title 'KING Plus v9.9.18 — Real Party Stability TEST' \
+            --notes 'Real room chat now requires current authenticated membership and prevents stale async callbacks from a prior room affecting a new room; occupied seat allows opening own or another real profile; mic startup attempts to roll back Firestore micOn if native voice view fails and does not falsely claim RTC conference connected. Preserves full v9.9.17 Firebase Chess, Party/Host/Gift/3D source. Android compilation, source checks, signature/version verification passed. NOT a complete Bolo Hi parity or production final app: professional 3D avatars, all games, production voice/video, recharge and real two-device testing remain incomplete. Paid recharge stays disabled.'
