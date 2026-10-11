@@ -29,9 +29,9 @@ public final class KingSocialShare992 {
     public static String shareKingId(String id,String firebaseUid,String apkUrl){
         if(id==null||!id.matches("[0-9]{6}")||
             firebaseUid==null||!firebaseUid.matches("[A-Za-z0-9_-]{12,128}"))return "";
-        return "Join me on KING Plus!\\nKING ID: "+id+
-             "\\nVerified Firebase UID: "+firebaseUid+
-             "\\nInstall APK: "+(apkUrl==null?APP_APK_URL:apkUrl)+
-             "\\nOpen People -> Search ID -> Follow -> Message -> Party";
+        return "Join me on KING Plus!\nKING ID: "+id+
+             "\nVerified Firebase UID: "+firebaseUid+
+             "\nInstall APK: "+(apkUrl==null?APP_APK_URL:apkUrl)+
+             "\nOpen People -> Search ID -> Follow -> Message -> Party";
     }
 }
