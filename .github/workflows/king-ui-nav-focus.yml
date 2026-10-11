@@ -1,0 +1,29 @@
+name: KING UI Navigation Router Focus
+on:
+  push:
+    branches: [work/king-plus-complete-five-sections]
+    paths:
+      - '.github/workflows/king-ui-nav-focus.yml'
+      - 'ci/final_five/ui_nav_focus.py'
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  focus:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: work/king-plus-complete-five-sections
+      - name: Restore accurate integrated code
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/kingui /tmp/kingui-artifact
+          gh run download 38132703654 -n KING-Plus-Full-Integrated-Social-Safety-Source-No-APK -D /tmp/kingui-artifact
+          unzip -q /tmp/kingui-artifact/KING-Plus-Social-Safety-Integrated-IN-PROGRESS-source.zip -d /tmp/kingui
+      - name: Inspect exact navigation and room menu
+        run: python3 ci/final_five/ui_nav_focus.py
