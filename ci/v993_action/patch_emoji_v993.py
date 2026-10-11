@@ -33,6 +33,8 @@ EXTRA=[
 ]
 assert len(EXTRA)==70
 s=emoji.read_text()
+if "import android.graphics.Typeface;" not in s:
+    s=s.replace("import android.graphics.Paint;", "import android.graphics.Paint;\nimport android.graphics.Typeface;",1)
 for name,index in [('LABELS',0),('ICONS',1)]:
     pattern=(r'(public static final String\[\] '+name+r'\s*=\s*\{)(.*?)(\};)' if index==0
        else r'(private static final String\[\] '+name+r'\s*=\s*\{)(.*?)(\};)')
