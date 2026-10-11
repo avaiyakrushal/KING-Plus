@@ -28,4 +28,4 @@ jobs:
             'app/src/main/java/com/kingplus/social/*.java' 'app/src/main/res/*.xml' \
             -d /tmp/king990-inspect
       - name: Inspect login route, gift effects, emoji and party background
-        run: python3 ci/v991_visual/inspect_current_visuals.py
+        run: python3 ci/v991_visual/inspect_methods_visuals.py
