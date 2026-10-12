@@ -1,0 +1,83 @@
+name: KING Plus Production Phone and Facebook Auth Readiness (Read Only)
+on:
+  push:
+    branches: [work/king-v9929-live-avatar-motion]
+    paths: ['.github/workflows/king-v9929-auth-provider-readonly.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  production-auth-check:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Check production service account (do not print credential)
+        env:
+          FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_JSON }}
+        run: |
+          set -euo pipefail
+          test -n "$FIREBASE_SERVICE_ACCOUNT_JSON"
+          printf '%s' "$FIREBASE_SERVICE_ACCOUNT_JSON" > "$RUNNER_TEMP/king-auth-audit.json"
+          chmod 600 "$RUNNER_TEMP/king-auth-audit.json"
+          jq -e '.type=="service_account" and .project_id=="king-plus-2f365"' "$RUNNER_TEMP/king-auth-audit.json" >/dev/null
+      - name: Install Google identity client for read-only checks
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/kingauthaudit
+          cd /tmp/kingauthaudit
+          npm init -y >/dev/null
+          npm install google-auth-library@10 --no-audit --no-fund >/dev/null
+      - name: Check live phone, Facebook provider and Android SHA setup without changing production
+        working-directory: /tmp/kingauthaudit
+        env:
+          GOOGLE_APPLICATION_CREDENTIALS: ${{ runner.temp }}/king-auth-audit.json
+        run: |
+          node <<'NODE'
+          const {GoogleAuth}=require('google-auth-library');
+          const project='king-plus-2f365';
+          (async()=>{
+            const auth=new GoogleAuth({scopes:['https://www.googleapis.com/auth/cloud-platform']});
+            const client=await auth.getClient();
+            async function call(url){try{return {ok:true,data:(await client.request({url})).data}}catch(e){return {ok:false,status:e.response?.status||'unknown'}}}
+            const config=await call('https://identitytoolkit.googleapis.com/admin/v2/projects/'+project+'/config');
+            console.log('AUTH_CHECK project ID:',project);
+            console.log('AUTH_CHECK Identity Toolkit accessible:',config.ok);
+            if(config.ok){
+              const c=config.data;
+              console.log('AUTH_CHECK phone number provider enabled:',c.signIn?.phoneNumber?.enabled===true);
+              console.log('AUTH_CHECK authorized domain count:',(c.authorizedDomains||[]).length);
+              console.log('AUTH_CHECK anti-abuse and live SMS delivery still need real device tests, billing/quota and SHA checks.');
+            }else console.log('AUTH_CHECK identity config API status:',config.status);
+            const providers=await call('https://identitytoolkit.googleapis.com/admin/v2/projects/'+project+'/defaultSupportedIdpConfigs?pageSize=100');
+            console.log('AUTH_CHECK social identity provider list accessible:',providers.ok);
+            if(providers.ok){
+              const items=providers.data.defaultSupportedIdpConfigs||[];
+              for(const n of ['facebook.com','google.com','apple.com']){
+                const p=items.find(v=>v.name?.endsWith('/'+n)||v.idpId===n||v.providerId===n);
+                console.log('AUTH_CHECK '+n+' configured and enabled:',Boolean(p?.enabled));
+              }
+            }else console.log('AUTH_CHECK provider list API status:',providers.status);
+            const apps=await call('https://firebase.googleapis.com/v1beta1/projects/'+project+'/androidApps?pageSize=100');
+            console.log('AUTH_CHECK Android Firebase app list accessible:',apps.ok);
+            if(apps.ok){
+              const ours=(apps.data.apps||[]).filter(x=>x.packageName==='com.kingplus.social');
+              console.log('AUTH_CHECK KING Plus Android app registrations:',ours.length);
+              for(const app of ours.slice(0,3)){
+                const fingerprints=await call('https://firebase.googleapis.com/v1beta1/'+app.name+'/sha');
+                if(fingerprints.ok){
+                  const sha=fingerprints.data.certificates||[];
+                  console.log('AUTH_CHECK Registered SHA1 count:',sha.filter(x=>x.certType==='SHA_1').length);
+                  console.log('AUTH_CHECK Registered SHA256 count:',sha.filter(x=>x.certType==='SHA_256').length);
+                }else console.log('AUTH_CHECK SHA API status:',fingerprints.status);
+              }
+            }else console.log('AUTH_CHECK Firebase Android app registration API status:',apps.status);
+            console.log('AUTH_CHECK Read-only. No provider credentials or login settings changed.');
+          })().catch(e=>{console.log('AUTH_CHECK FAILED status:',e.response?.status||e.code||e.message);process.exitCode=1});
+          NODE
+      - name: Remove private credentials
+        if: always()
+        run: rm -f "$RUNNER_TEMP/king-auth-audit.json"
