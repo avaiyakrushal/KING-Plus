@@ -139,103 +139,24 @@ const secureSendGift = onCall(async request => {
 
 const verifyPlayPurchase = onCall(async request => {
   const uid = requireAuth(request);
-  const productId = cleanText(request.data && request.data.productId, 120);
-  const purchaseToken = cleanText(request.data && request.data.purchaseToken, 4096);
-  const coins = purchaseAmount(productId);
-  if (!coins || !purchaseToken) throw new HttpsError('invalid-argument', 'Unknown Play product or missing purchase token.');
-
-  const auth = new google.auth.GoogleAuth({ scopes: ['https://www.googleapis.com/auth/androidpublisher'] });
-  const androidpublisher = google.androidpublisher({ version: 'v3', auth });
-
-  let purchase;
-  try {
-    const response = await androidpublisher.purchases.products.get({
-      packageName: PACKAGE_NAME, productId, token: purchaseToken,
-    });
-    purchase = response.data || {};
-  } catch (error) {
-    console.error('Google Play verification failed', error);
-    throw new HttpsError('failed-precondition',
-      'Google Play verification is not available yet. Link the Cloud Functions service account in Play Console, enable Android Publisher API, and grant order/purchase permissions.');
-  }
-
-  if (Number(purchase.purchaseState) !== 0) throw new HttpsError('failed-precondition', 'Purchase is not in PURCHASED state.');
-
-  const expectedAccount = hash(uid);
-  // Mandatory account binding (the Android BillingFlowParams sets SHA-256 UID).
-  // Do not credit an unbound token: another signed-in person could replay it.
-  if (purchase.obfuscatedExternalAccountId !== expectedAccount) {
-    throw new HttpsError('permission-denied', 'Verified purchase does not belong to this KING Plus account.');
-  }
-  if (Number(purchase.quantity || 1) !== 1) {
-    throw new HttpsError('failed-precondition', 'Unsupported multi-quantity Play purchase. Contact support.');
-  }
-
-  const tokenHash = hash(purchaseToken);
-  const receiptRef = db.collection('play_purchase_receipts').doc(tokenHash);
-  const walletRef = db.collection('wallets').doc(uid);
-  const ledgerRef = db.collection('wallet_ledger').doc(`play_${tokenHash}`);
-  let balance = 0;
-  let newlyCredited = false;
-
-  await db.runTransaction(async tx => {
-    const receiptSnap = await tx.get(receiptRef);
-    if (receiptSnap.exists) {
-      if (receiptSnap.get('uid') !== uid) throw new HttpsError('permission-denied', 'Purchase token already belongs to another account.');
-      balance = Number(receiptSnap.get('balanceAfter') || 0);
-      return;
-    }
-
-    const walletSnap = await tx.get(walletRef);
-    const next = applyVerifiedRecharge(walletSnap.exists ? walletSnap.data() : {}, productId);
-    balance = next.coins;
-    newlyCredited = true;
-
-    // A single Firestore transaction binds verified Play token -> exactly one
-    // Diamond credit + Recharge VIP grant + immutable receipt/ledger.
-    tx.set(walletRef, {
-      coins: balance,
-      vipPoints: next.vipPoints,
-      rechargeDiamondsTotal: next.rechargeDiamondsTotal,
-      vipLevel: next.vipLevel,
-      updatedAt: FieldValue.serverTimestamp()
-    }, { merge: true });
-    tx.set(receiptRef, {
-      uid, productId, coins, orderId: purchase.orderId || null,
-      purchaseTimeMillis: purchase.purchaseTimeMillis || null,
-      purchaseTokenHash: tokenHash, balanceAfter: balance,
-      vipPointsEarned: coins, vipLevelAfter: next.vipLevel,
-      verifiedAt: FieldValue.serverTimestamp()
-    });
-    tx.set(ledgerRef, {
-      type: 'play_purchase', targetUid: uid, productId, coins,
-      vipPointsEarned: coins, vipLevelAfter: next.vipLevel,
-      orderId: purchase.orderId || null, purchaseTokenHash: tokenHash,
-      createdAt: FieldValue.serverTimestamp()
-    });
+  if (request.auth.token?.firebase?.sign_in_provider === 'anonymous')
+    throw new HttpsError('unauthenticated', 'Sign in to a permanent account before recharge.');
+  const {createPurchaseService, PurchaseError} = require('./play-purchase-service');
+  const auth = new google.auth.GoogleAuth({scopes: ['https://www.googleapis.com/auth/androidpublisher']});
+  const publisher = google.androidpublisher({version: 'v3', auth});
+  const service = createPurchaseService({
+    db, timestamp: () => FieldValue.serverTimestamp(),
+    getPurchase: async (productId, token) => (await publisher.purchases.products.get({packageName: PACKAGE_NAME, productId, token})).data,
+    consumePurchase: (productId, token) => publisher.purchases.products.consume({packageName: PACKAGE_NAME, productId, token}),
+    notify: (target, coins, productId) => sendUserNotification(target, 'Recharge complete', `${coins} Diamonds added`, {type: 'play_purchase', productId})
   });
-
   try {
-    await androidpublisher.purchases.products.consume({ packageName: PACKAGE_NAME, productId, token: purchaseToken });
+    return await service({uid, productId: request.data?.productId, purchaseToken: request.data?.purchaseToken});
   } catch (error) {
-    console.warn('Purchase verified/credited but consume acknowledgement needs retry', error);
+    if (error instanceof PurchaseError) throw new HttpsError(error.code, error.message);
+    // Do not log Google API error objects: they can contain purchase tokens.
+    throw new HttpsError('internal', 'Recharge verification could not finish. Retry later.');
   }
-
-  if (newlyCredited) {
-    try {
-      await sendUserNotification(uid, 'Recharge complete', `${coins} Diamonds and VIP recharge progress added`, { type: 'play_purchase', productId });
-    } catch (err) {
-      // Payment/credit are already committed; notification delivery is best-effort.
-      console.warn('Recharge credited, notification pending', err);
-    }
-  }
-
-  return {
-    ok: true, alreadyCredited: !newlyCredited, balance, coins,
-    message: newlyCredited
-      ? `${coins} verified Play coins added. Server balance: ${balance}`
-      : `This purchase was already verified. Server balance: ${balance}`
-  };
 });
 
 const sendDirectMessageNotification = onCall(async request => {
