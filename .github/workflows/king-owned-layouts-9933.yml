@@ -22,7 +22,8 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
         with: {gradle-version: '8.9'}
       - name: Restore verified v9.9.32 APK and complete source
-        env: {GH_TOKEN: ${{ github.token }}}
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
           mkdir -p /tmp/king9933 /tmp/king9933prev
