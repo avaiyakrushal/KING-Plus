@@ -41,12 +41,12 @@ jobs:
           import re,pathlib
           s=pathlib.Path('/tmp/kingauth/apk-cert.txt').read_text()
           for alg,output,length in [('SHA-1','apk-sha1',40),('SHA-256','apk-sha256',64)]:
-              regex=r'certificate\\s+'+alg+r'\\s+digest:\\s*([0-9a-fA-F:]+)'
+              regex=r'certificate\s+'+alg+r'\s+digest:\s*([0-9a-fA-F:]+)'
               m=re.search(regex,s,re.I)
               if not m: raise RuntimeError('Could not find certificate '+alg+' in verified APK output')
               h=m.group(1).replace(':','').strip().lower()
               if len(h)!=length:raise RuntimeError('Unexpected signed APK '+alg+' fingerprint length')
-              pathlib.Path('/tmp/kingauth/'+output).write_text(h+'\\n')
+              pathlib.Path('/tmp/kingauth/'+output).write_text(h+'\n')
           print('PASS: v9.9.29 actual APK verified signature, SHA1 and SHA256 fingerprints extracted')
           PY
       - name: Validate KING production Firebase credential and install API client
