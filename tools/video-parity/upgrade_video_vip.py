@@ -28,7 +28,7 @@ rep('int[] tierLevels={2,5,9,14,20,28,34,40,45,50};for(int t:tierLevels){boolean
     'for(int t=0;t<=LevelSystem.MAX_VIP;t++){boolean active=preview9930==t;',
     'tier list and active selection')
 rep('TextView chip=tv("VIP"+t,12,active?0xff17100a:0xffe9e1ef,true);',
-    'TextView chip=tv((t>vip?"🔒 ":"✓ ")+"VIP"+t,12,active?0xff17100a:0xffe9e1ef,true);chip.setOnClickListener(v->{selectedTier9930=t;build();});',
+    'TextView chip=tv((t>vip?"🔒 ":"✓ ")+"VIP"+t,12,active?0xff17100a:0xffe9e1ef,true);final int selected9930=t;chip.setOnClickListener(v->{selectedTier9930=selected9930;build();});',
     'interactive tier selection')
 rep('tiers.addView(tierRow);body.addView(tiers,new LinearLayout.LayoutParams(-1,dp(44)));',
     'tiers.addView(tierRow);body.addView(tiers,new LinearLayout.LayoutParams(-1,dp(44)));TextView proof9930=tv(verifiedWallet972?"My verified level: VIP"+vip+" • " + shownVipPoints972 + " recharge points":"Verified VIP data unavailable • Tier previews only",12,0xfff9e5ab,true);proof9930.setGravity(Gravity.CENTER);body.addView(proof9930,new LinearLayout.LayoutParams(-1,dp(40)));',
@@ -61,7 +61,7 @@ d.write_text(t)
 assert 'LIVE_RECHARGE = false' in (base/'KingRecharge974Activity.java').read_text()
 assert 'PAID_VIP_ACTIVE = false' in (base/'KingPremiumAccess981.java').read_text()
 assert 'verifiedWallet972?verifiedLevel972:0' in s
-assert 'selectedTier9930=t;build()' in s
+assert 'selectedTier9930=selected9930;build()' in s
 assert 'LevelSystem.add(this,xp,0)' not in t[t.index('private void dailyTask'):t.index('private void eventCenter')]
 gradle = root / 'app/build.gradle'
 g = gradle.read_text()
