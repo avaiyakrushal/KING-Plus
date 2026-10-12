@@ -42,7 +42,9 @@ try {
  await assertSucceeds(deleteDoc(doc(bob,'follows','bob__host')));
  await assertFails(getDoc(member(bob,'bob')));
  await assertSucceeds(updateDoc(room(host),mode('password')));
- await assertFails(enter(eve,'eve'));
+ // Legacy explicit Host invitation remains approved; brand-new visitors still require password.
+ await assertSucceeds(enter(eve,'eve'));
+ await assertFails(enter(mallory,'mallory'));
  await assertSucceeds(setDoc(doc(host,'live_rooms','new-entry-room','access','bob'),{uid:'bob',grantedBy:'host'}));
  await assertSucceeds(enter(bob,'bob'));
  await assertSucceeds(updateDoc(room(host),mode('free')));
