@@ -25,7 +25,7 @@ rep('boolean pink=vip>=25;',
     'int preview9930=selectedTier9930<0?vip:Math.max(0,Math.min(50,selectedTier9930));boolean pink=preview9930>=25;',
     'tier preview palette')
 rep('int[] tierLevels={2,5,9,14,20,28,34,40,45,50};for(int t:tierLevels){boolean active=Math.abs(vip-t)<=2;',
-    'int[] tierLevels={0,1,5,10,15,20,25,30,35,40,45,50};for(int t:tierLevels){boolean active=preview9930==t;',
+    'for(int t=0;t<=LevelSystem.MAX_VIP;t++){boolean active=preview9930==t;',
     'tier list and active selection')
 rep('TextView chip=tv("VIP"+t,12,active?0xff17100a:0xffe9e1ef,true);',
     'TextView chip=tv((t>vip?"🔒 ":"✓ ")+"VIP"+t,12,active?0xff17100a:0xffe9e1ef,true);chip.setOnClickListener(v->{selectedTier9930=t;build();});',
