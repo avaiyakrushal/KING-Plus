@@ -3,9 +3,11 @@
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
-const {GoogleAuth} = require('google-auth-library');
-const {initializeApp,applicationDefault} = require('firebase-admin/app');
-const {getSecurityRules} = require('firebase-admin/security-rules');
+const {createRequire} = require('module');
+const sourceRequire=createRequire(path.join(process.cwd(),'package.json'));
+const {GoogleAuth} = sourceRequire('google-auth-library');
+const {initializeApp,applicationDefault} = sourceRequire('firebase-admin/app');
+const {getSecurityRules} = sourceRequire('firebase-admin/security-rules');
 
 const project='king-plus-2f365';
 const verifiedHash='29459a61a5d14461f808570d538a484cb79030af5f027429fbf27dafbdfe3ad0';
