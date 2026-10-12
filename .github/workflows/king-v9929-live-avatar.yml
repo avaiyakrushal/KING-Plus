@@ -51,11 +51,11 @@ jobs:
           p=(src/'PartyActivity.java').read_text()
           r=(root/'firestore.rules').read_text()
           assert 'collection("avatar_motion")' in s
-          assert 'motionMap9929' in s and 'motionDance' in s
-          assert 'surface.updateMotions(liveUids,motionMap9929)' in s
+          assert 'poses9929' in s and 'motionDance' in s
+          assert 'surface.updateMotions(liveUids,poses9929)' in s
           assert 'match /avatar_motion/{motionUid}' in r
           assert 'motionUid == request.auth.uid' in r
-          assert 'KingAvatarStyles9928' in s
+          assert 'sphere9928' in s
           assert 'openLiveChess9917' in p and 'openLiveKnife9923' in p
           assert 'addRoyalHero9924(page)' in p
           assert 'videoMatchIncoming9922' in (src/'KingMultiVideoActivity.java').read_text()
