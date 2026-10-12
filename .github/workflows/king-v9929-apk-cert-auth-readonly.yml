@@ -1,0 +1,94 @@
+name: KING v9.9.29 APK Certificate vs Production Firebase Registration
+on:
+  push:
+    branches: [work/king-v9929-live-avatar-motion]
+    paths: ['.github/workflows/king-v9929-apk-cert-auth-readonly.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  audit-verified-apk-certificate:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Download real v9.9.29 APK, not reconstructed/debug placeholder
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/kingauth
+          gh release download v9.9.29-live-3d-motion \
+            -p 'KING-Plus-v9.9.29-Live-3D-Motion-TEST.apk' -D /tmp/kingauth
+          test "$(stat -c%s /tmp/kingauth/KING-Plus-v9.9.29-Live-3D-Motion-TEST.apk)" -gt 70000000
+      - name: Read actual v9.9.29 APK certificate (no release private keys accessed)
+        run: |
+          set -euo pipefail
+          echo "Android SDK folder available: $([ -d "$ANDROID_HOME/build-tools" ] && echo yes || echo no)"
+          SIGNER="$(find "$ANDROID_HOME/build-tools" -type f -name apksigner | sort -V | tail -1)"
+          if [ -z "$SIGNER" ]; then
+            echo 'apksigner missing; installing Android Build Tools 35'
+            yes | sdkmanager "build-tools;35.0.0" >/dev/null || true
+            SIGNER="$(find "$ANDROID_HOME/build-tools" -type f -name apksigner | sort -V | tail -1)"
+          fi
+          test -x "$SIGNER" || (echo 'apksigner missing on this runner' && exit 1)
+          "$SIGNER" verify --print-certs /tmp/kingauth/KING-Plus-v9.9.29-Live-3D-Motion-TEST.apk > /tmp/kingauth/apk-cert.txt
+          echo "APK cert line count: $(wc -l </tmp/kingauth/apk-cert.txt)"
+          python3 - <<'PY'
+          import re,pathlib
+          s=pathlib.Path('/tmp/kingauth/apk-cert.txt').read_text()
+          for alg,output,length in [('SHA-1','apk-sha1',40),('SHA-256','apk-sha256',64)]:
+              regex=r'certificate\s+'+alg+r'\s+digest:\s*([0-9a-fA-F:]+)'
+              m=re.search(regex,s,re.I)
+              if not m: raise RuntimeError('Could not find certificate '+alg+' in verified APK output')
+              h=m.group(1).replace(':','').strip().lower()
+              if len(h)!=length:raise RuntimeError('Unexpected signed APK '+alg+' fingerprint length')
+              pathlib.Path('/tmp/kingauth/'+output).write_text(h+'\n')
+          print('PASS: v9.9.29 actual APK verified signature, SHA1 and SHA256 fingerprints extracted')
+          PY
+      - name: Validate KING production Firebase credential and install API client
+        env:
+          FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_JSON }}
+        run: |
+          set -euo pipefail
+          test -n "$FIREBASE_SERVICE_ACCOUNT_JSON"
+          printf '%s' "$FIREBASE_SERVICE_ACCOUNT_JSON" > "$RUNNER_TEMP/king-cert-audit.json"
+          chmod 600 "$RUNNER_TEMP/king-cert-audit.json"
+          jq -e '.type=="service_account" and .project_id=="king-plus-2f365"' "$RUNNER_TEMP/king-cert-audit.json" >/dev/null
+          cd /tmp/kingauth
+          npm init -y >/dev/null
+          npm install google-auth-library@10 --no-audit --no-fund >/dev/null
+      - name: Read-only comparison of APK signer and registered Firebase fingerprints
+        working-directory: /tmp/kingauth
+        env:
+          GOOGLE_APPLICATION_CREDENTIALS: ${{ runner.temp }}/king-cert-audit.json
+        run: |
+          node <<'NODE'
+          const {GoogleAuth}=require('google-auth-library');
+          const fs=require('fs');
+          const project='king-plus-2f365',pkg='com.kingplus.social';
+          (async()=>{
+            const token=new GoogleAuth({scopes:['https://www.googleapis.com/auth/cloud-platform']});
+            const api=await token.getClient();
+            const get=async url=>(await api.request({url})).data;
+            const apps=(await get('https://firebase.googleapis.com/v1beta1/projects/'+project+'/androidApps')).apps||[];
+            const ours=apps.filter(a=>a.packageName===pkg);
+            if(ours.length!==1)throw new Error('Expected exactly one Firebase Android registration for KING Plus');
+            const sha=(await get('https://firebase.googleapis.com/v1beta1/'+ours[0].name+'/sha')).certificates||[];
+            const actual1=fs.readFileSync('/tmp/kingauth/apk-sha1','utf8').trim().toLowerCase().replace(/:/g,'');
+            const actual256=fs.readFileSync('/tmp/kingauth/apk-sha256','utf8').trim().toLowerCase().replace(/:/g,'');
+            const match=(kind,h)=>sha.some(c=>c.certType===kind&&c.shaHash?.toLowerCase().replace(/:/g,'')===h);
+            console.log('CERT_AUDIT verified v9.9.29 TEST APK signer SHA-1 registered:',match('SHA_1',actual1));
+            console.log('CERT_AUDIT verified v9.9.29 TEST APK signer SHA-256 registered:',match('SHA_256',actual256));
+            console.log('CERT_AUDIT Registered SHA-1 certs:',sha.filter(c=>c.certType==='SHA_1').length);
+            console.log('CERT_AUDIT Registered SHA-256 certs:',sha.filter(c=>c.certType==='SHA_256').length);
+            console.log('CERT_AUDIT A test/debug APK signer is not proof of a secure production release signer.');
+            console.log('CERT_AUDIT Read-only. No new SHA keys registered and no live Auth settings changed.');
+          })().catch(e=>{console.error('CERT_AUDIT FAILED:',e.response?.status||e.code||e.message);process.exitCode=1});
+          NODE
+      - name: Destroy temporary service-account credentials
+        if: always()
+        run: rm -f "$RUNNER_TEMP/king-cert-audit.json"
