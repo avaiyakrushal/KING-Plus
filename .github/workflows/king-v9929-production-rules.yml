@@ -57,6 +57,7 @@ jobs:
       - name: Install Firebase Admin SDK, read-only HTTP authentication dependencies
         working-directory: /tmp/king9929prod/functions
         run: npm install --no-audit --no-fund
+      # Preflight has confirmed a matching production service account; no document data is modified.
       - name: Back up existing production rules then guarded deploy with automatic verification and rollback
         working-directory: /tmp/king9929prod/functions
         env:
