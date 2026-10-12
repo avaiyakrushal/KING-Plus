@@ -17,7 +17,7 @@ Reference: user-supplied screen recording `1000011619.mp4`, ~6:31, 720×1600. Al
 ## This change
 
 - Rebuild only the verified v9.9.29 full release source plus **PR #30 purchase verifier overlay**. Never mistake stale repository-root Android source for full release.
-- Interactive VIP tier preview; current tier and recharge points come from **verified backend wallet**, never the user's local XP store. Locked preview is not entitlement.
+- Interactive selection across all VIP0–50 tiers, including VIP21, VIP27, VIP33, VIP38 and VIP43 shown during scrolling; current tier and recharge points come from **verified backend wallet**, never the user's local XP store. Locked preview is not entitlement.
 - Task buttons navigate to relevant activities and no longer silently award XP for merely tapping; legacy already-claimed flags remain unchanged.
 - Maintain billing OFF, no live wallet mutation, no Firestore rule deploy.
 - Android `versionCode 209`, same debug signer for install-over compatibility; compiled artifact must be marked **TEST**, not Final.
