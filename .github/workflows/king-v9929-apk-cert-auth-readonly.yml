@@ -27,13 +27,28 @@ jobs:
       - name: Read actual v9.9.29 APK certificate (no release private keys accessed)
         run: |
           set -euo pipefail
+          echo "Android SDK folder available: $([ -d "$ANDROID_HOME/build-tools" ] && echo yes || echo no)"
           SIGNER="$(find "$ANDROID_HOME/build-tools" -type f -name apksigner | sort -V | tail -1)"
+          if [ -z "$SIGNER" ]; then
+            echo 'apksigner missing; installing Android Build Tools 35'
+            yes | sdkmanager "build-tools;35.0.0" >/dev/null || true
+            SIGNER="$(find "$ANDROID_HOME/build-tools" -type f -name apksigner | sort -V | tail -1)"
+          fi
+          test -x "$SIGNER" || (echo 'apksigner missing on this runner' && exit 1)
           "$SIGNER" verify --print-certs /tmp/kingauth/KING-Plus-v9.9.29-Live-3D-Motion-TEST.apk > /tmp/kingauth/apk-cert.txt
-          grep -Ei 'Signer #1 certificate SHA-1 digest:' /tmp/kingauth/apk-cert.txt | head -1 | sed 's/.*digest:[[:space:]]*//' > /tmp/kingauth/apk-sha1
-          grep -Ei 'Signer #1 certificate SHA-256 digest:' /tmp/kingauth/apk-cert.txt | head -1 | sed 's/.*digest:[[:space:]]*//' > /tmp/kingauth/apk-sha256
-          test "$(wc -c </tmp/kingauth/apk-sha1)" -gt 32
-          test "$(wc -c </tmp/kingauth/apk-sha256)" -gt 60
-          echo 'Signed certificate checksums extracted, not printed.'
+          echo "APK cert line count: $(wc -l </tmp/kingauth/apk-cert.txt)"
+          python3 - <<'PY'
+          import re,pathlib
+          s=pathlib.Path('/tmp/kingauth/apk-cert.txt').read_text()
+          for alg,output,length in [('SHA-1','apk-sha1',40),('SHA-256','apk-sha256',64)]:
+              regex=r'certificate\\s+'+alg+r'\\s+digest:\\s*([0-9a-fA-F:]+)'
+              m=re.search(regex,s,re.I)
+              if not m: raise RuntimeError('Could not find certificate '+alg+' in verified APK output')
+              h=m.group(1).replace(':','').strip().lower()
+              if len(h)!=length:raise RuntimeError('Unexpected signed APK '+alg+' fingerprint length')
+              pathlib.Path('/tmp/kingauth/'+output).write_text(h+'\\n')
+          print('PASS: v9.9.29 actual APK verified signature, SHA1 and SHA256 fingerprints extracted')
+          PY
       - name: Validate KING production Firebase credential and install API client
         env:
           FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_JSON }}
