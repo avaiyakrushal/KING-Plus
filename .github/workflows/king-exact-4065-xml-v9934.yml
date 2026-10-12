@@ -1,0 +1,132 @@
+name: KING v9.9.34 Exact 4065 XML UI Layouts TEST
+on:
+  push:
+    branches: [work/king-4065-xml-library-v9934]
+    paths: ['tools/ui4065-v9934/**', '.github/workflows/king-exact-4065-xml-v9934.yml']
+  pull_request:
+    paths: ['tools/ui4065-v9934/**', '.github/workflows/king-exact-4065-xml-v9934.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  full-layout-build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 55
+    env:
+      GRADLE_OPTS: '-Xmx4g -XX:MaxMetaspaceSize=1024m'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+      - name: Restore signed 9.9.33 full app source and install-compatible APK
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/king9934 /tmp/king9934prev
+          gh run download 38286107375 -n KING-v9933-Real-XML-Layouts-TEST-APK-and-Source -D /tmp/king9934prev
+          echo 'ea609c199163fb1693a54ecd054a922a657cf1c0448334563f371f94fa2ea89a  /tmp/king9934prev/KING-Plus-v9.9.33-Real-XML-Layouts-Source.zip' | sha256sum -c -
+          echo '0a43f3156b415ff3e221ed53f8699b44f94f64e0b03a24b9cd7a9ffa5bf5f2ba  /tmp/king9934prev/KING-Plus-v9.9.33-Real-XML-Layouts-TEST.apk' | sha256sum -c -
+          unzip -q /tmp/king9934prev/KING-Plus-v9.9.33-Real-XML-Layouts-Source.zip -d /tmp/king9934
+          test -s app/kingplus-ci-debug.keystore
+          cp app/kingplus-ci-debug.keystore /tmp/king9934/app/kingplus-ci-debug.keystore
+      - name: Reconstruct exact original generator, create and audit all 3,888 layouts
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import base64,zlib
+          from pathlib import Path
+          p=Path('tools/ui4065-v9934/generate.py.zlib.b64')
+          Path('/tmp/king9934generator.py').write_bytes(zlib.decompress(base64.b64decode(p.read_text().strip())))
+          PY
+          echo '1e45e75fcf1aa9cfd9424ee29460d0aef0e5c5ad9b1d8e5b7872106b9bc93980  /tmp/king9934generator.py' | sha256sum -c -
+          python3 /tmp/king9934generator.py /tmp/king9934
+          python3 - <<'PY'
+          from pathlib import Path
+          from xml.etree import ElementTree as ET
+          from itertools import product
+          r=Path('/tmp/king9934');p=r/'app/src/main/res/layout'
+          names=list(p.glob('*.xml'))
+          previews=list(p.glob('king_library_*.xml'))
+          assert len(names)==3897 and len(previews)==3888
+          families='party stage mic gift vip avatar games social profile level family wallet'.split()
+          themes='royal neon gold rose sky forest indigo ember slate'.split()
+          types='banner two_column badge progress roster tile rank summary action'.split()
+          sizes='micro compact regular large'.split()
+          for f,t,v,s in product(families,themes,types,sizes):
+            name=f'king_library_{f}_{t}_{v}_{s}.xml'
+            root=ET.parse(p/name).getroot()
+            assert root.tag=='LinearLayout'
+            assert len(root)>=4 and any(n.attrib.get('{http://schemas.android.com/apk/res/android}id')=='@+id/king_catalog_action' for n in root)
+          code=(r/'app/src/main/java/com/kingplus/social/KingDeepFlowActivity.java').read_text()
+          assert 'case "ui_design_library": designLibrary9934()' in code
+          assert 'getResources().getIdentifier(resource,"layout",getPackageName())' in code
+          assert 'versionCode 213' in (r/'app/build.gradle').read_text()
+          src=r/'app/src/main/java/com/kingplus/social'
+          assert 'LIVE_RECHARGE = false' in (src/'KingRecharge974Activity.java').read_text()
+          assert 'PAID_VIP_ACTIVE = false' in (src/'KingPremiumAccess981.java').read_text()
+          print('PASS 3,888 distinct usable XML previews + 9 original KING XML files')
+          PY
+      - name: Preserve existing purchase integrity tests
+        run: |
+          node --check /tmp/king9934/functions/v3.js
+          node --test /tmp/king9934/functions/play-purchase-service.test.js
+      - name: Compile complete Android app with all 3,897 owned XML layouts
+        working-directory: /tmp/king9934
+        run: gradle :app:assembleDebug --no-daemon --max-workers=2
+      - name: Verify exactly 4,065 compiled XML layout resources and install-upgrade signer
+        run: |
+          set -euo pipefail
+          old=/tmp/king9934prev/KING-Plus-v9.9.33-Real-XML-Layouts-TEST.apk
+          new=/tmp/king9934/app/build/outputs/apk/debug/app-debug.apk
+          test -s "$old" && test -s "$new"
+          aapt="$(find "$ANDROID_HOME/build-tools" -name aapt -type f | sort -V | tail -1)"
+          signer="$(find "$ANDROID_HOME/build-tools" -name apksigner -type f | sort -V | tail -1)"
+          "$aapt" dump badging "$old" | grep "^package:" | grep "name='com.kingplus.social'" | grep "versionCode='212'"
+          "$aapt" dump badging "$new" | grep "^package:" | grep "name='com.kingplus.social'" | grep "versionCode='213'"
+          "$signer" verify --print-certs "$old" > /tmp/oldcert
+          "$signer" verify --print-certs "$new" > /tmp/newcert
+          a="$(grep -Eo '[[:xdigit:]]{64}' /tmp/oldcert | head -1)"
+          b="$(grep -Eo '[[:xdigit:]]{64}' /tmp/newcert | head -1)"
+          test -n "$a" && test "$a" = "$b"
+          python3 - <<'PY'
+          from zipfile import ZipFile
+          old='/tmp/king9934prev/KING-Plus-v9.9.33-Real-XML-Layouts-TEST.apk'
+          new='/tmp/king9934/app/build/outputs/apk/debug/app-debug.apk'
+          def count(p):
+            with ZipFile(p) as z:
+              names=set(z.namelist())
+            return sum(n.startswith('res/layout') and n.endswith('.xml') for n in names),sum(n.startswith('res/layout/king_library_') and n.endswith('.xml') for n in names)
+          previous,oldPreview=count(old)
+          total,previews=count(new)
+          print('PREVIOUS_APK_LAYOUTS',previous,'NEW_APK_LAYOUTS',total,'OWN_PREVIEW_LAYOUTS',previews)
+          assert previous==177 and oldPreview==0
+          assert total==4065, f'Expected precisely 4,065 compiled XML files; got {total}'
+          assert previews==3888
+          PY
+      - name: Package signed installable TEST APK and full source ZIP
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/king9934out
+          cp /tmp/king9934/app/build/outputs/apk/debug/app-debug.apk /tmp/king9934out/KING-Plus-v9.9.34-4065-XML-TEST.apk
+          rm -f /tmp/king9934/app/kingplus-ci-debug.keystore
+          cd /tmp/king9934
+          zip -q -r /tmp/king9934out/KING-Plus-v9.9.34-4065-XML-Source.zip . \
+            -x '*/node_modules/*' '*node_modules/*' 'app/build/*' './app/build/*' '*/build/*' \
+              './.gradle/*' '*/.gradle/*' '*.apk' '*.aab' '*.keystore' '*.jks' '*.zip' '*local.properties' '*.log'
+          sha256sum /tmp/king9934out/*
+      - uses: actions/upload-artifact@v4
+        with:
+          name: KING-v9934-4065-XML-TEST-APK-and-Source
+          path: /tmp/king9934out/*
+          retention-days: 14
+          if-no-files-found: error
