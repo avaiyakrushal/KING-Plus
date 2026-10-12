@@ -1,0 +1,134 @@
+name: KING Plus v9.9.29 - Two-user Live 3D Avatar Walk and Dance
+on:
+  push:
+    branches: [work/king-v9929-live-avatar-motion]
+    paths: ['tools/v9929/**', '.github/workflows/king-v9929-live-avatar.yml']
+  workflow_dispatch:
+permissions:
+  contents: write
+  actions: read
+concurrency:
+  group: king-v9929-live-avatar
+  cancel-in-progress: false
+jobs:
+  emulator-build-release:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 50
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+      - name: Restore verified KING v9.9.28 source and old signed Android APK
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/king9929 /tmp/king9929prev
+          gh release download v9.9.28-immersive-3d -p 'KING-Plus-v9.9.28-Immersive-3D-Source.zip' -D /tmp/king9929prev
+          gh release download v9.9.28-immersive-3d -p 'KING-Plus-v9.9.28-Immersive-3D-TEST.apk' -D /tmp/king9929prev
+          unzip -q /tmp/king9929prev/KING-Plus-v9.9.28-Immersive-3D-Source.zip -d /tmp/king9929
+          test -s /tmp/king9929/app/src/main/java/com/kingplus/social/KingNative3DRoom.java
+          test -s app/kingplus-ci-debug.keystore
+          cp app/kingplus-ci-debug.keystore /tmp/king9929/app/kingplus-ci-debug.keystore
+      - name: Integrate authenticated live 3D walking and dancing with Firebase owner rules
+        run: |
+          set -euo pipefail
+          base64 -d tools/v9929/apply.py.gz.b64 | gzip -d > tools/v9929/apply.py
+          echo '2a756e11754f0e26b0f69ab8598fb900d25e405be5f1c6fc0675d80d205be57a  tools/v9929/apply.py' | sha256sum -c -
+          python3 tools/v9929/apply.py /tmp/king9929
+          cp tools/v9929/avatar-motion-firestore.test.mjs /tmp/king9929/tests/firestore/
+          python3 - <<'PY'
+          from pathlib import Path
+          root=Path('/tmp/king9929')
+          src=root/'app/src/main/java/com/kingplus/social'
+          s=(src/'KingNative3DRoom.java').read_text()
+          p=(src/'PartyActivity.java').read_text()
+          r=(root/'firestore.rules').read_text()
+          assert 'collection("avatar_motion")' in s
+          assert 'motionMap9929' in s and 'motionDance' in s
+          assert 'surface.updateMotions(liveUids,motionMap9929)' in s
+          assert 'match /avatar_motion/{motionUid}' in r
+          assert 'motionUid == request.auth.uid' in r
+          assert 'KingAvatarStyles9928' in s
+          assert 'openLiveChess9917' in p and 'openLiveKnife9923' in p
+          assert 'addRoyalHero9924(page)' in p
+          assert 'videoMatchIncoming9922' in (src/'KingMultiVideoActivity.java').read_text()
+          assert 'KingReactionRules9927' in (src/'RoomGameActivity.java').read_text()
+          assert 'PAID_VIP_ACTIVE = false' in (src/'KingPremiumAccess981.java').read_text()
+          assert 'LIVE_RECHARGE = false' in (src/'KingRecharge974Activity.java').read_text()
+          assert 'versionCode 208' in (root/'app/build.gradle').read_text()
+          print('PASS authoritative room avatar positions, Royal UI, all existing game/RTC modules retained')
+          PY
+      - name: Execute original Java 3D Avatar motion tests
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/king9929classes
+          javac -d /tmp/king9929classes tools/v9929/KingAvatarMotion9929.java tools/v9929/KingAvatarMotion9929Test.java
+          java -cp /tmp/king9929classes com.kingplus.social.KingAvatarMotion9929Test
+      - name: Install Firebase emulator dependencies for actual two-user rule tests
+        working-directory: /tmp/king9929/tests/firestore
+        run: npm ci --no-audit --no-fund
+      - name: Validate live 3D motion access with two Firebase accounts
+        working-directory: /tmp/king9929
+        env:
+          CI: 'true'
+        run: |
+          set -euo pipefail
+          tests/firestore/node_modules/.bin/firebase emulators:exec \
+            --only firestore --project demo-king-avatar-motion-9929 --config firebase-emulator.json \
+            "node tests/firestore/avatar-motion-firestore.test.mjs"
+      - name: Build complete KING Plus Android APK with live 3D motion
+        working-directory: /tmp/king9929
+        run: gradle :app:assembleDebug --no-daemon
+      - name: Verify same Android signer and in-place version upgrade
+        run: |
+          set -euo pipefail
+          OLD=/tmp/king9929prev/KING-Plus-v9.9.28-Immersive-3D-TEST.apk
+          NEW=/tmp/king9929/app/build/outputs/apk/debug/app-debug.apk
+          test -s "$OLD" && test -s "$NEW"
+          AAPT="$(find "$ANDROID_HOME/build-tools" -name aapt -type f | sort -V | tail -1)"
+          SIGNER="$(find "$ANDROID_HOME/build-tools" -name apksigner -type f | sort -V | tail -1)"
+          "$AAPT" dump badging "$OLD" | grep "^package:" | grep "name='com.kingplus.social'" | grep "versionCode='207'"
+          "$AAPT" dump badging "$NEW" | grep "^package:" | grep "name='com.kingplus.social'" | grep "versionCode='208'"
+          "$SIGNER" verify --print-certs "$OLD" > /tmp/king9929old
+          "$SIGNER" verify --print-certs "$NEW" > /tmp/king9929new
+          a="$(grep -Eo '[[:xdigit:]]{64}' /tmp/king9929old | head -1 || true)"
+          b="$(grep -Eo '[[:xdigit:]]{64}' /tmp/king9929new | head -1 || true)"
+          test -n "$a" && test "$a" = "$b"
+          echo 'PASS KING package and old signing certificate compatible'
+      - name: Package installable TEST APK plus clean full source ZIP
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/king9929out
+          cp /tmp/king9929/app/build/outputs/apk/debug/app-debug.apk /tmp/king9929out/KING-Plus-v9.9.29-Live-3D-Motion-TEST.apk
+          rm -f /tmp/king9929/app/kingplus-ci-debug.keystore
+          cd /tmp/king9929
+          zip -q -r /tmp/king9929out/KING-Plus-v9.9.29-Live-3D-Motion-Source.zip . \
+            -x '*/node_modules/*' '*node_modules/*' '*.log' \
+               'app/build/*' './app/build/*' '*/build/*' './.gradle/*' '*/.gradle/*' \
+               '*.apk' '*.aab' '*.jks' '*.keystore' '*local.properties' '*.zip'
+          test "$(stat -c%s /tmp/king9929out/KING-Plus-v9.9.29-Live-3D-Motion-Source.zip)" -gt 100000
+          sha256sum /tmp/king9929out/*
+      - uses: actions/upload-artifact@v4
+        with:
+          name: KING-v9929-Live-3D-Motion-APK-and-Source
+          path: /tmp/king9929out/*
+          retention-days: 14
+          if-no-files-found: error
+      - name: Publish verified APK as TEST and do not claim production final
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          gh release create v9.9.29-live-3d-motion /tmp/king9929out/* \
+            --target "$GITHUB_SHA" --prerelease \
+            --title 'KING Plus v9.9.29 — Live 3D Avatar Walk and Dance TEST' \
+            --notes 'New: directional walking, dance toggle and live avatar motion via owner-only Firestore /live_rooms/{roomId}/avatar_motion/{uid}. Includes bounded world positions, real two-account Firebase Emulator rule tests (other users cannot move your avatar), plus verified full Android build, versionCode 208 and same update signer. Full Bolo Hi 3D rigging, every proprietary game, two physical devices RTC, production Firebase rule deployment, mobile/Facebook OTP provider setup, and real paid Diamond billing remain unfinished. This is a TEST candidate, NOT production Final. Actual new rules must be deployed by the owner to the production Firebase project.'
