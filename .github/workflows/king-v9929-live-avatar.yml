@@ -41,9 +41,7 @@ jobs:
       - name: Integrate authenticated live 3D walking and dancing with Firebase owner rules
         run: |
           set -euo pipefail
-          base64 -d tools/v9929/apply.py.gz.b64 | gzip -d > tools/v9929/apply.py
-          echo '2a756e11754f0e26b0f69ab8598fb900d25e405be5f1c6fc0675d80d205be57a  tools/v9929/apply.py' | sha256sum -c -
-          python3 tools/v9929/apply.py /tmp/king9929
+          python3 tools/v9929/apply_release.py /tmp/king9929
           cp tools/v9929/avatar-motion-firestore.test.mjs /tmp/king9929/tests/firestore/
           python3 - <<'PY'
           from pathlib import Path
