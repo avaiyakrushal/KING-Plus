@@ -126,6 +126,10 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
+          if gh release view v9.9.29-live-3d-motion >/dev/null 2>&1; then
+            echo 'KING v9.9.29 TEST release already verified and published; keep existing immutable APK, skip duplicate release creation.'
+            exit 0
+          fi
           gh release create v9.9.29-live-3d-motion /tmp/king9929out/* \
             --target "$GITHUB_SHA" --prerelease \
             --title 'KING Plus v9.9.29 — Live 3D Avatar Walk and Dance TEST' \
