@@ -11,7 +11,7 @@ try{
   await env.clearFirestore();
   const party=db=>doc(db,'live_rooms','verified-room-123');
   const partyMember=(db,uid)=>doc(db,'live_rooms','verified-room-123','members',uid);
-  await assertSucceeds(setDoc(party(owner),{ownerUid:'alice',name:'KING Voice',locked:false,closed:false}));
+  await assertSucceeds(setDoc(party(owner),{ownerUid:'alice',name:'KING Voice',isPrivate:false,locked:false,closed:false}));
   await assertSucceeds(setDoc(partyMember(owner,'alice'),{uid:'alice',name:'Alice'}));
   assert.equal((await assertSucceeds(getDoc(partyMember(guest,'bob')))).exists(),false);
   await assertSucceeds(setDoc(partyMember(guest,'bob'),{uid:'bob',name:'Bob'}));
