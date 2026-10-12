@@ -64,7 +64,7 @@ jobs:
           r=Path('/tmp/king9930'); j=r/'app/src/main/java/com/kingplus/social'
           vip=(j/'KingVipVisualActivity.java').read_text()
           task=(j/'KingDeepFlowActivity.java').read_text()
-          assert 'selectedTier9930=t;build()' in vip
+          assert 'selectedTier9930=selected9930;build()' in vip
           assert 'verifiedWallet972?verifiedLevel972:0' in vip
           assert 'Preview only' in vip
           assert 'LevelSystem.add(this,xp,0)' not in task[task.index('private void dailyTask'):task.index('private void eventCenter')]
