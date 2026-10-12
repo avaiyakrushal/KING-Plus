@@ -1,0 +1,147 @@
+name: KING Plus v9.9.28 - 3D Avatar Wardrobe and Live Sync
+on:
+  push:
+    branches: [work/king-v9928-live-avatar-outfits]
+    paths:
+      - 'tools/v9928/**'
+      - '.github/workflows/king-v9928-avatar-world-build.yml'
+  workflow_dispatch:
+permissions:
+  contents: write
+  actions: read
+concurrency:
+  group: king-v9928-live-avatars
+  cancel-in-progress: false
+jobs:
+  two-account-avatars-and-android:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 50
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+      - name: Download exact last verified v9.9.27 source and APK
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/king9928 /tmp/king9928previous
+          gh release download v9.9.27-real-reaction \
+            -p 'KING-Plus-v9.9.27-Real-Reaction-Source.zip' -D /tmp/king9928previous
+          gh release download v9.9.27-real-reaction \
+            -p 'KING-Plus-v9.9.27-Real-Reaction-TEST.apk' -D /tmp/king9928previous
+          unzip -q /tmp/king9928previous/KING-Plus-v9.9.27-Real-Reaction-Source.zip -d /tmp/king9928
+          test -s /tmp/king9928/app/src/main/java/com/kingplus/social/KingNative3DRoom.java
+          test -s /tmp/king9928/app/src/main/java/com/kingplus/social/PartyActivity.java
+          test -s app/kingplus-ci-debug.keystore
+          cp app/kingplus-ci-debug.keystore /tmp/king9928/app/kingplus-ci-debug.keystore
+      - name: Apply original KING 3D mesh and Firebase-synced avatar presets
+        run: |
+          set -euo pipefail
+          base64 -d tools/v9928/live_avatar_patch.diff.gz.b64 | gzip -d > /tmp/king9928-avatar.diff
+          echo '03b3edde5d8c755a1c15fa3c36ba4a625f9e58dc3c34f5744921044ff3202daa  /tmp/king9928-avatar.diff' | sha256sum -c -
+          cd /tmp/king9928
+          patch -p1 --forward --batch < /tmp/king9928-avatar.diff
+          python3 - <<'PY'
+          from pathlib import Path
+          root=Path('/tmp/king9928')
+          src=root/'app/src/main/java/com/kingplus/social'
+          room=(src/'KingNative3DRoom.java').read_text()
+          party=(src/'PartyActivity.java').read_text()
+          rules=(root/'firestore.rules').read_text()
+          assert 'void updateAvatarStyles(int[] styles)' in room
+          assert '👑 Customize MY 3D Avatar' in room
+          assert 'sphereVertexCount' in room and 'ellipsoid(x,1.22f' in room
+          assert 'SetOptions.merge()' in room
+          assert 'public_profiles' in room and 'avatar3dStyle' in room
+          assert 'avatar3dStyle <= 5' in rules
+          assert 'addRoyalHero9924(page)' in party
+          assert 'openLiveChess9917' in party and 'openLiveKnife9923' in party
+          assert 'muteOwnedSeat9920' in party
+          assert 'whereEqualTo("uid",leavingUid9919)' in party
+          assert 'videoMatchIncoming9922' in (src/'KingMultiVideoActivity.java').read_text()
+          assert 'KingSheepRace9925.score(' in (src/'RoomGameActivity.java').read_text()
+          assert 'KingReactionRules9927.score(' in (src/'RoomGameActivity.java').read_text()
+          assert 'get(Source.SERVER)' in (src/'NativeMeetBridge.java').read_text()
+          assert 'PAID_VIP_ACTIVE = false' in (src/'KingPremiumAccess981.java').read_text()
+          assert 'LIVE_RECHARGE = false' in (src/'KingRecharge974Activity.java').read_text()
+          assert 'versionCode 207' in (root/'app/build.gradle').read_text()
+          print('PASS six animated native 3D avatars, live profile style, Party/RTC/Games and billing safety')
+          PY
+      - name: Unit test styles and palette before Android build
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/king9928classes
+          javac -d /tmp/king9928classes \
+            /tmp/king9928/app/src/main/java/com/kingplus/social/KingAvatarStyles9928.java \
+            tools/v9928/KingAvatarStyles9928Test.java
+          java -cp /tmp/king9928classes com.kingplus.social.KingAvatarStyles9928Test
+      - name: Restore Firebase emulator test dependencies
+        working-directory: /tmp/king9928/tests/firestore
+        run: npm ci --no-audit --no-fund
+      - name: Two-account Firebase avatar authorization and live visibility
+        working-directory: /tmp/king9928
+        env:
+          CI: 'true'
+        run: |
+          set -euo pipefail
+          tests/firestore/node_modules/.bin/firebase emulators:exec \
+            --only firestore --project demo-king-avatar-9928 --config firebase-emulator.json \
+            "node tests/firestore/avatar-style-9928.test.mjs"
+      - name: Compile full KING Plus Android app with 3D avatar upgrade
+        working-directory: /tmp/king9928
+        run: gradle :app:assembleDebug --no-daemon
+      - name: Check APK signature, package and higher versionCode
+        run: |
+          set -euo pipefail
+          OLD=/tmp/king9928previous/KING-Plus-v9.9.27-Real-Reaction-TEST.apk
+          NEW=/tmp/king9928/app/build/outputs/apk/debug/app-debug.apk
+          test -s "$OLD" && test -s "$NEW"
+          AAPT="$(find "$ANDROID_HOME/build-tools" -name aapt -type f | sort -V | tail -1)"
+          SIGNER="$(find "$ANDROID_HOME/build-tools" -name apksigner -type f | sort -V | tail -1)"
+          "$AAPT" dump badging "$OLD" | grep "^package:" | grep "name='com.kingplus.social'" | grep "versionCode='206'"
+          "$AAPT" dump badging "$NEW" | grep "^package:" | grep "name='com.kingplus.social'" | grep "versionCode='207'"
+          "$SIGNER" verify --print-certs "$OLD" > /tmp/king9928-old-cert
+          "$SIGNER" verify --print-certs "$NEW" > /tmp/king9928-new-cert
+          a="$(grep -Eo '[[:xdigit:]]{64}' /tmp/king9928-old-cert | head -1 || true)"
+          b="$(grep -Eo '[[:xdigit:]]{64}' /tmp/king9928-new-cert | head -1 || true)"
+          test -n "$a" && test "$a" = "$b"
+          echo 'PASS KING Plus APK same install package, same signer and proper upgrade'
+      - name: Package clean source ZIP and signed TEST APK
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/king9928out
+          cp /tmp/king9928/app/build/outputs/apk/debug/app-debug.apk \
+            /tmp/king9928out/KING-Plus-v9.9.28-Live-3D-Avatars-TEST.apk
+          rm -f /tmp/king9928/app/kingplus-ci-debug.keystore
+          cd /tmp/king9928
+          zip -q -r /tmp/king9928out/KING-Plus-v9.9.28-Live-3D-Avatars-Source.zip . \
+            -x '*/node_modules/*' '*node_modules/*' '*.log' \
+               'app/build/*' './app/build/*' '*/build/*' './.gradle/*' '*/.gradle/*' \
+               '*.apk' '*.aab' '*.jks' '*.keystore' '*local.properties' '*.zip'
+          BYTES="$(stat -c%s /tmp/king9928out/KING-Plus-v9.9.28-Live-3D-Avatars-Source.zip)"
+          test "$BYTES" -gt 100000 && test "$BYTES" -lt 10000000
+          sha256sum /tmp/king9928out/*
+      - uses: actions/upload-artifact@v4
+        with:
+          name: KING-v9928-Avatar-Wardrobe-TEST-APK-Source
+          path: /tmp/king9928out/*
+          retention-days: 14
+          if-no-files-found: error
+      - name: Release only verified TEST APK, never a false Final
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          gh release create v9.9.28-live-3d-avatars /tmp/king9928out/* \
+            --target "$GITHUB_SHA" --prerelease \
+            --title 'KING Plus v9.9.28 — Live Customizable 3D Avatars TEST' \
+            --notes 'Adds original native Android GLES20 low-poly rounded animated 3D avatars instead of cuboid placeholders, 6 owner-selectable outfit/headgear styles, Firebase public profile persistence, and realtime style updates for actual seated users across accounts. Avatar style writes are owner-only and numeric 0..5 by security rules; two-account Firestore emulator and Java palette tests pass. Retains v9.9.27 Royal Neon, Party Room, mic seats, Chess/Ludo/Knife/Sheep/Reaction, Video seat/match and gifting. Android build and signing upgrade verified. This is not a complete Bolo Hi avatar world, not rigged/physics-based 3D gaming, and not a 2-phone production media test. Production Firebase rules must be deployed; third-party auth/OTP, secured real diamonds and payments remain blocked on provider configuration, verified servers and credentials. Do not call FINAL.'
