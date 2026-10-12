@@ -1,0 +1,134 @@
+name: KING v9.9.35 Exactly 8680 Original Drawables TEST
+on:
+  push:
+    branches: [work/king-8680-original-drawables-v9935]
+    paths: ['tools/drawables-v9935/**', '.github/workflows/king-original-8680-drawables-9935.yml']
+  pull_request:
+    paths: ['tools/drawables-v9935/**', '.github/workflows/king-original-8680-drawables-9935.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  drawable-and-apk-build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 55
+    env:
+      GRADLE_OPTS: '-Xmx4g -XX:MaxMetaspaceSize=1024m'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+      - name: Restore exact previous v9.9.34 full source and signed APK
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/king9935 /tmp/king9935previous
+          gh run download 38288926977 -n KING-v9934-4065-XML-TEST-APK-and-Source -D /tmp/king9935previous
+          echo '09ec451581026c8ca271e3b575e97af2afe8848fd74ac691136a945885b823e5  /tmp/king9935previous/KING-Plus-v9.9.34-4065-XML-Source.zip' | sha256sum -c -
+          echo '23236589e78e599352155668500ca6fcb8a1757de2ec5b02fcbda892fab3aa57  /tmp/king9935previous/KING-Plus-v9.9.34-4065-XML-TEST.apk' | sha256sum -c -
+          unzip -q /tmp/king9935previous/KING-Plus-v9.9.34-4065-XML-Source.zip -d /tmp/king9935
+          test -s app/kingplus-ci-debug.keystore
+          cp app/kingplus-ci-debug.keystore /tmp/king9935/app/kingplus-ci-debug.keystore
+      - name: Create & validate 7,587 usable original KING drawable XMLs
+        run: |
+          set -euo pipefail
+          python3 tools/drawables-v9935/generate.py /tmp/king9935
+          python3 - <<'PY'
+          from pathlib import Path
+          from xml.etree import ElementTree as ET
+          from itertools import product
+          root=Path('/tmp/king9935')
+          dp=root/'app/src/main/res/drawable'
+          families=('party','mic','avatar','gift','vip','games','medal','profile','entrance')
+          types=('symbol','panel','halo')
+          found=list(dp.glob('king_art_*.xml'))
+          assert len(found)==7587, f'Expected 7587 new XMLs; got {len(found)}'
+          for f,t in product(families,types):
+            for j in range(281):
+              name=f'king_art_{f}_{t}_{j:03d}.xml'
+              tree=ET.parse(dp/name)
+              assert tree.getroot().tag==('vector' if t=='symbol' else 'shape')
+              assert len(tree.getroot())>=2
+          for f in families:
+            data=[(dp/f'king_art_{f}_symbol_{j:03d}.xml').read_text() for j in range(281)]
+            assert len(set(data))==281, f'Identical graphics detected for {f}'
+          java=(root/'app/src/main/java/com/kingplus/social/KingDeepFlowActivity.java').read_text()
+          assert 'case "drawable_library": drawableLibrary9935();break;' in java
+          assert 'getResources().getIdentifier(key,"drawable",getPackageName())' in java
+          assert 'putString("king_selected_art_family",family)' in java
+          assert 'versionCode 214' in (root/'app/build.gradle').read_text()
+          assert 'LIVE_RECHARGE = false' in (root/'app/src/main/java/com/kingplus/social/KingRecharge974Activity.java').read_text()
+          assert 'PAID_VIP_ACTIVE = false' in (root/'app/src/main/java/com/kingplus/social/KingPremiumAccess981.java').read_text()
+          assert (root/'app/src/main/res/raw/king_9935_drawable_keep.xml').is_file()
+          print('PASS 7587 individually parsed, viewable & original KING graphics; billing OFF')
+          PY
+      - name: Keep existing purchase integrity regression suite
+        run: |
+          set -euo pipefail
+          node --check /tmp/king9935/functions/v3.js
+          node --test /tmp/king9935/functions/play-purchase-service.test.js
+      - name: Compile the entire Android app with new drawable resources
+        working-directory: /tmp/king9935
+        run: gradle :app:assembleDebug --no-daemon --max-workers=2
+      - name: Verify exactly 8680 compiled resources, signature, package and version
+        run: |
+          set -euo pipefail
+          old=/tmp/king9935previous/KING-Plus-v9.9.34-4065-XML-TEST.apk
+          new=/tmp/king9935/app/build/outputs/apk/debug/app-debug.apk
+          test -s "$old" && test -s "$new"
+          aapt="$(find "$ANDROID_HOME/build-tools" -name aapt -type f | sort -V | tail -1)"
+          signer="$(find "$ANDROID_HOME/build-tools" -name apksigner -type f | sort -V | tail -1)"
+          "$aapt" dump badging "$old" | grep "^package:" | grep "name='com.kingplus.social'" | grep "versionCode='213'"
+          "$aapt" dump badging "$new" | grep "^package:" | grep "name='com.kingplus.social'" | grep "versionCode='214'"
+          "$signer" verify --print-certs "$old" > /tmp/oldcert
+          "$signer" verify --print-certs "$new" > /tmp/newcert
+          a="$(grep -Eo '[[:xdigit:]]{64}' /tmp/oldcert | head -1)"
+          b="$(grep -Eo '[[:xdigit:]]{64}' /tmp/newcert | head -1)"
+          test -n "$a" && test "$a" = "$b"
+          python3 - <<'PY'
+          from zipfile import ZipFile
+          old='/tmp/king9935previous/KING-Plus-v9.9.34-4065-XML-TEST.apk'
+          new='/tmp/king9935/app/build/outputs/apk/debug/app-debug.apk'
+          def count(p):
+            with ZipFile(p) as z: names=set(z.namelist())
+            return (
+              sum(n.startswith('res/drawable') and n.endswith(('.xml','.png','.webp')) for n in names),
+              sum(n.startswith('res/drawable/king_art_') and n.endswith('.xml') for n in names),
+              sum(n.startswith('res/layout') and n.endswith('.xml') for n in names),
+            )
+          prior,old_art,old_layout=count(old)
+          current,new_art,new_layout=count(new)
+          print('PREVIOUS DRAWABLES:',prior,'NEW DRAWABLES:',current,'ORIGINAL KING ART:',new_art)
+          print('PRESERVED LAYOUTS:',old_layout,new_layout)
+          assert prior==1093 and old_art==0
+          assert current==8680, f'Expected exactly 8680 compiled drawables, got {current}'
+          assert new_art==7587
+          assert old_layout==new_layout==4065
+          PY
+      - name: Package full source ZIP and installable signed APK
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/king9935out
+          cp /tmp/king9935/app/build/outputs/apk/debug/app-debug.apk /tmp/king9935out/KING-Plus-v9.9.35-8680-Drawables-TEST.apk
+          rm -f /tmp/king9935/app/kingplus-ci-debug.keystore
+          cd /tmp/king9935
+          zip -q -r /tmp/king9935out/KING-Plus-v9.9.35-8680-Drawables-Source.zip . \
+            -x '*/node_modules/*' '*node_modules/*' 'app/build/*' './app/build/*' '*/build/*' \
+               './.gradle/*' '*/.gradle/*' '*.apk' '*.aab' '*.keystore' '*.jks' '*.zip' '*local.properties' '*.log'
+          sha256sum /tmp/king9935out/*
+      - uses: actions/upload-artifact@v4
+        with:
+          name: KING-v9935-8680-Drawables-TEST-APK-and-Source
+          path: /tmp/king9935out/*
+          retention-days: 14
+          if-no-files-found: error
