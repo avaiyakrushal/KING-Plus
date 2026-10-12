@@ -1,0 +1,136 @@
+name: KING Plus v9.9.26 - Voice and Family Call Gate TEST
+on:
+  push:
+    branches: [work/king-v9926-rtc-join-safety]
+    paths:
+      - 'tools/v9926/**'
+      - '.github/workflows/king-v9926-rtc-gate-apk.yml'
+  workflow_dispatch:
+permissions:
+  contents: write
+  actions: read
+concurrency:
+  group: king-v9926-rtc-gate
+  cancel-in-progress: false
+jobs:
+  test-and-build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+      - name: Restore last verified KING v9.9.25 source and signed APK
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/king9926 /tmp/king9926prior
+          gh release download v9.9.25-real-sheep-sprint -p 'KING-Plus-v9.9.25-Real-Sheep-Sprint-Source.zip' -D /tmp/king9926prior
+          gh release download v9.9.25-real-sheep-sprint -p 'KING-Plus-v9.9.25-Real-Sheep-Sprint-TEST.apk' -D /tmp/king9926prior
+          unzip -q /tmp/king9926prior/KING-Plus-v9.9.25-Real-Sheep-Sprint-Source.zip -d /tmp/king9926
+          test -s /tmp/king9926/app/src/main/java/com/kingplus/social/VoiceWebActivity.java
+          test -s /tmp/king9926/app/src/main/java/com/kingplus/social/PartyActivity.java
+          test -s app/kingplus-ci-debug.keystore
+          cp app/kingplus-ci-debug.keystore /tmp/king9926/app/kingplus-ci-debug.keystore
+      - name: Require live membership on native RTC, consent on fallback WebRTC
+        run: |
+          set -euo pipefail
+          cp tools/v9926/NativeMeetBridge.java /tmp/king9926/app/src/main/java/com/kingplus/social/NativeMeetBridge.java
+          python3 tools/v9926/apply_voice_gate.py /tmp/king9926
+          sed -i "s/versionCode 204; versionName '9.9.25-real-sheep-game-test'/versionCode 205; versionName '9.9.26-verified-rtc-gate-test'/" /tmp/king9926/app/build.gradle
+          python3 - <<'PY'
+          from pathlib import Path
+          src=Path('/tmp/king9926/app/src/main/java/com/kingplus/social')
+          bridge=(src/'NativeMeetBridge.java').read_text()
+          voice=(src/'VoiceWebActivity.java').read_text()
+          party=(src/'PartyActivity.java').read_text()
+          assert 'get(Source.SERVER)' in bridge
+          assert 'verifyMembership(activity,roomId,allowed->' in bridge
+          assert '.setAudioMuted(true).setVideoMuted(true)' in bridge
+          assert 'prejoinpage.enabled",true' in bridge
+          assert 'NativeMeetBridge.verifyMembership(this,room9926,allowed->' in voice
+          assert 'settings.setMediaPlaybackRequiresUserGesture(true)' in voice
+          assert 'if(!approved9926||webView==null||meetingUrl.isEmpty())return;' in voice
+          assert 'startWithVideoMuted=false' not in voice
+          assert 'openLiveChess9917' in party
+          assert 'openLiveKnife9923' in party
+          assert 'approveOrMoveMemberSeat9913' in party
+          assert 'whereEqualTo("uid",leavingUid9919)' in party
+          assert 'addRoyalHero9924(page)' in party
+          assert 'KingSheepRace9925.score(' in (src/'RoomGameActivity.java').read_text()
+          assert 'videoMatchIncoming9922' in (src/'KingMultiVideoActivity.java').read_text()
+          assert 'PAID_VIP_ACTIVE = false' in (src/'KingPremiumAccess981.java').read_text()
+          assert 'LIVE_RECHARGE = false' in (src/'KingRecharge974Activity.java').read_text()
+          assert 'versionCode 205' in Path('/tmp/king9926/app/build.gradle').read_text()
+          print('PASS RTC privacy gate and original KING Party, Royal UI, Video and Games intact')
+          PY
+          cp tools/v9926/rtc-membership-firestore.test.mjs /tmp/king9926/tests/firestore/
+      - name: Install Firebase Rules emulator dependencies
+        working-directory: /tmp/king9926/tests/firestore
+        run: npm ci --no-audit --no-fund
+      - name: Two authenticated Firebase Party and Family membership checks
+        working-directory: /tmp/king9926
+        env:
+          CI: 'true'
+        run: |
+          set -euo pipefail
+          tests/firestore/node_modules/.bin/firebase emulators:exec \
+            --only firestore --project demo-king-rtc-9926 --config firebase-emulator.json \
+            "node tests/firestore/rtc-membership-firestore.test.mjs"
+      - name: Compile the full KING Plus Android application
+        working-directory: /tmp/king9926
+        run: gradle :app:assembleDebug --no-daemon
+      - name: Check package, upgrade, and identical previous APK signer
+        run: |
+          set -euo pipefail
+          OLD=/tmp/king9926prior/KING-Plus-v9.9.25-Real-Sheep-Sprint-TEST.apk
+          NEW=/tmp/king9926/app/build/outputs/apk/debug/app-debug.apk
+          test -s "$OLD" && test -s "$NEW"
+          AAPT="$(find "$ANDROID_HOME/build-tools" -name aapt -type f | sort -V | tail -1)"
+          SIGNER="$(find "$ANDROID_HOME/build-tools" -name apksigner -type f | sort -V | tail -1)"
+          "$AAPT" dump badging "$OLD" | grep "^package:" | grep "name='com.kingplus.social'" | grep "versionCode='204'"
+          "$AAPT" dump badging "$NEW" | grep "^package:" | grep "name='com.kingplus.social'" | grep "versionCode='205'"
+          "$SIGNER" verify --print-certs "$OLD" >/tmp/king9926-oldcert
+          "$SIGNER" verify --print-certs "$NEW" >/tmp/king9926-newcert
+          a="$(grep -Eo '[[:xdigit:]]{64}' /tmp/king9926-oldcert | head -1 || true)"
+          b="$(grep -Eo '[[:xdigit:]]{64}' /tmp/king9926-newcert | head -1 || true)"
+          test -n "$a" && test "$a" = "$b"
+          echo 'PASS same KING package/signature, Android versionCode increment'
+      - name: Package APK and sanitized source ZIP without signing key
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/king9926out
+          cp /tmp/king9926/app/build/outputs/apk/debug/app-debug.apk /tmp/king9926out/KING-Plus-v9.9.26-Voice-Family-Gate-TEST.apk
+          rm -f /tmp/king9926/app/kingplus-ci-debug.keystore
+          cd /tmp/king9926
+          zip -q -r /tmp/king9926out/KING-Plus-v9.9.26-Voice-Family-Gate-Source.zip . \
+            -x '*/node_modules/*' '*node_modules/*' '*.log' 'app/build/*' './app/build/*' \
+               '*/build/*' './.gradle/*' '*/.gradle/*' '*.apk' '*.aab' \
+               '*.jks' '*.keystore' '*local.properties' '*.zip'
+          BYTES="$(stat -c%s /tmp/king9926out/KING-Plus-v9.9.26-Voice-Family-Gate-Source.zip)"
+          test "$BYTES" -gt 100000 && test "$BYTES" -lt 10000000
+          sha256sum /tmp/king9926out/*
+      - uses: actions/upload-artifact@v4
+        with:
+          name: KING-v9926-Voice-Family-Safety-Test-APK-and-Source
+          path: /tmp/king9926out/*
+          retention-days: 14
+          if-no-files-found: error
+      - name: Release verified candidate only - not a false Final
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          gh release create v9.9.26-voice-family-gate /tmp/king9926out/* \
+            --target "$GITHUB_SHA" --prerelease \
+            --title 'KING Plus v9.9.26 - Verified Voice/Family Join TEST' \
+            --notes 'Fixes a serious KING/Bolo Hi voice gap: Native Jitsi and fallback WebView could join public meetings before verifying a real signed-in Firebase Party/Family membership, and could start with live audio/video. Now both media routes require a fresh Firestore SERVER read of room+current member and refuse anonymous, invalid or closed rooms. Native conference starts with mic/camera OFF and prejoin enabled. Web fallback needs an explicit Verify & Join tap, verifies the live member again and requests media permission only after confirmation. Preserves v9.9.25 Royal Neon UI, real Chess, Flying Knife, Sheep Sprint, six Video Seats, gifting and all Party controls. Firebase emulator membership tests, Android compilation and matching upgrade signer verified. App-level room membership does NOT authenticate a publicly accessible Jitsi provider meeting. Production RTC token service, true two-phone audio/video acceptance, OTP/Facebook provider setup, real recharge and full Bolo Hi parity remain unfinished. TEST, not Final.'
