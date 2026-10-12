@@ -130,7 +130,13 @@ jobs:
             echo 'KING v9.9.29 TEST release already verified and published; keep existing immutable APK, skip duplicate release creation.'
             exit 0
           fi
-          gh release create v9.9.29-live-3d-motion /tmp/king9929out/* \
-            --target "$GITHUB_SHA" --prerelease \
-            --title 'KING Plus v9.9.29 — Live 3D Avatar Walk and Dance TEST' \
-            --notes 'New: directional walking, dance toggle and live avatar motion via owner-only Firestore /live_rooms/{roomId}/avatar_motion/{uid}. Includes bounded world positions, real two-account Firebase Emulator rule tests (other users cannot move your avatar), plus verified full Android build, versionCode 208 and same update signer. Full Bolo Hi 3D rigging, every proprietary game, two physical devices RTC, production Firebase rule deployment, mobile/Facebook OTP provider setup, and real paid Diamond billing remain unfinished. This is a TEST candidate, NOT production Final. Actual new rules must be deployed by the owner to the production Firebase project.'
+          if gh release view v9.9.29-live-3d-motion >/dev/null 2>&1; then
+            gh release view v9.9.29-live-3d-motion --json assets --jq '.assets[].name' | grep -Fxq 'KING-Plus-v9.9.29-Live-3D-Motion-TEST.apk'
+            gh release view v9.9.29-live-3d-motion --json assets --jq '.assets[].name' | grep -Fxq 'KING-Plus-v9.9.29-Live-3D-Motion-Source.zip'
+            echo 'Verified existing v9.9.29 TEST release assets — skip duplicate publication.'
+          else
+            gh release create v9.9.29-live-3d-motion /tmp/king9929out/* \
+              --target "$GITHUB_SHA" --prerelease \
+              --title 'KING Plus v9.9.29 — Live 3D Avatar Walk and Dance TEST' \
+              --notes 'Original live 3D walking/dance with two-user Firebase emulator security tests, verified Android APK signature. Production Firebase rule deployment has since been verified separately. Not complete Bolo Hi parity, phone/Facebook provider, paid Diamond billing or physical RTC acceptance.'
+          fi
