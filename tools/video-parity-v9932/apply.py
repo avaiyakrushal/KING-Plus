@@ -24,7 +24,7 @@ patchfile('KingGiftSound993.java',[
  ('if(now-lastStarted<480||!busy.compareAndSet(false,true))return;',
   'if(!busy.compareAndSet(false,true)){\n'
   '            synchronized(pending9932){\n'
-  '                if(pending9932.size()<3 && !pending9932.contains(gift))pending9932.addLast(gift);\n'
+  '                if(pending9932.size()<3 && !pending9932.contains(gift))pending9932.addLast(gift==null?"Gift":gift);\n'
   '            }\n'
   '            return;\n'
   '        }'),
@@ -66,7 +66,7 @@ patchfile('KingNative3DRoom.java',[
  ('                box(x-.13f,.23f+bob,z,.15f,.36f,.20f,.20f,.19f,.33f);\n'
   '                box(x+.13f,.23f+bob,z,.15f,.36f,.20f,.20f,.19f,.33f);',
   '                float leftLift=walking?KingAvatarAnimation9932.lift(t,i):0f;\n'
-  '                float rightLift=walking?KingAvatarAnimation9932.lift(t,i+2):0f;\n'
+  '                float rightLift=walking?KingAvatarAnimation9932.lift(t,i+1):0f;\n'
   '                box(x-.13f,.23f+bob+leftLift,z,.15f,.36f,.20f,.20f,.19f,.33f);\n'
   '                box(x+.13f,.23f+bob+rightLift,z,.15f,.36f,.20f,.20f,.19f,.33f);'),
  ('                sphere9928(x-.13f,.07f+bob,z+.08f,.14f,.075f,.19f,.13f,.13f,.18f);\n'
