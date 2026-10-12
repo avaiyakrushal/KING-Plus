@@ -1,0 +1,55 @@
+name: KING Recharge Receipt Integrity
+on:
+  push:
+    branches: [work/king-recharge-receipt-integrity]
+    paths: ['functions/**', 'tools/recharge-integrity/**', '.github/workflows/king-recharge-integrity.yml']
+  pull_request:
+    paths: ['functions/**', 'tools/recharge-integrity/**', '.github/workflows/king-recharge-integrity.yml']
+permissions:
+  contents: read
+jobs:
+  receipt-integrity:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '21'
+      - name: Run receipt and existing policy regressions
+        run: |
+          node --test functions/*.test.js
+          node --check functions/v3.js
+      - name: Restore pinned full release and integrate exact backend change
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/king-receipt-download /tmp/king-receipt-source
+          gh release download v9.9.29-live-3d-motion -p KING-Plus-v9.9.29-Live-3D-Motion-Source.zip -D /tmp/king-receipt-download
+          echo 'b5705a516ffa054ab9a2c771d5e5f905799a2aee95e077c564404afe4b1613dc  /tmp/king-receipt-download/KING-Plus-v9.9.29-Live-3D-Motion-Source.zip' | sha256sum -c -
+          unzip -q /tmp/king-receipt-download/*.zip -d /tmp/king-receipt-source
+          python3 tools/recharge-integrity/apply.py /tmp/king-receipt-source
+          cp functions/play-purchase-service.test.js /tmp/king-receipt-source/functions/
+          node --check /tmp/king-receipt-source/functions/v3.js
+          node --test /tmp/king-receipt-source/functions/play-purchase-service.test.js
+      - name: Install isolated emulator dependencies
+        working-directory: /tmp/king-receipt-source/tests/firestore
+        run: |
+          npm ci --no-audit --no-fund
+          npm install --no-save --no-audit --no-fund firebase-admin@13.5.0
+      - name: Run real Firestore transactions against emulator only
+        working-directory: /tmp/king-receipt-source
+        env:
+          CI: 'true'
+          KING_PURCHASE_EMULATOR: '1'
+        run: |
+          set -euo pipefail
+          export NODE_PATH="$PWD/tests/firestore/node_modules"
+          tests/firestore/node_modules/.bin/firebase emulators:exec \
+            --only firestore --project demo-king-receipt-integrity --config firebase-emulator.json \
+            "node --test functions/play-purchase-service.test.js"
