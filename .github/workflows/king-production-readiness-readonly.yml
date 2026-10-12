@@ -50,7 +50,7 @@ jobs:
       - name: Install known Firebase Admin dependencies
         if: steps.credential.outputs.exists == 'true'
         working-directory: /tmp/king9929prod/functions
-        run: npm ci --no-audit --no-fund
+        run: npm install --no-audit --no-fund
       - name: Inspect deployed Firestore rules and Identity Toolkit status (NO DEPLOY)
         if: steps.credential.outputs.exists == 'true'
         working-directory: /tmp/king9929prod/functions
