@@ -159,9 +159,9 @@ rules.write_text(rr.replace(marker,secured+marker,1))
 (src/'KingAvatarMotion9929.java').write_text(
  Path('tools/v9929/KingAvatarMotion9929.java').read_text())
 gradle=root/'app/build.gradle';g=gradle.read_text()
-g,n=re.subn(r'versionCode\\s+207;\\s*versionName\\s+\\'9\\.9\\.28[^\\']*\\'',
-    "versionCode 208; versionName '9.9.29-live-avatar-motion-test'",g)
-assert n==1,f'versionCode 207 mismatch {n}'
+old_version="versionCode 207; versionName '9.9.28-3d-avatar-world-test'"
+assert g.count(old_version)==1,'Expected verified KING v9.9.28 Android source version'
+g=g.replace(old_version,"versionCode 208; versionName '9.9.29-live-avatar-motion-test'")
 gradle.write_text(g)
 assert 'videoMatchIncoming9922' in (src/'KingMultiVideoActivity.java').read_text()
 assert 'openLiveKnife9923' in (src/'PartyActivity.java').read_text()
