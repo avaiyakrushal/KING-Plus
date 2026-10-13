@@ -72,7 +72,7 @@ jobs:
       - name: Install Firestore emulator test dependencies
         working-directory: /tmp/king9958/tests/firestore
         run: npm ci --no-audit --no-fund
-      - name: Test real social game: 4 live Ready players, private roles, ghost excluded, competing Host rejected
+      - name: Verify four-user Werewolf roles, ghost Ready and conflicting Host
         working-directory: /tmp/king9958
         env: {CI: 'true'}
         run: |
