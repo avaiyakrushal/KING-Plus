@@ -1,0 +1,137 @@
+name: KING v9.9.60 Real Party Tic Tac Toe Fair Live Ready TEST
+on:
+  push:
+    branches: [work/king-fair-live-ttt-v9960]
+    paths: ['tools/ttt-live-v9960/**', '.github/workflows/king-fair-live-ttt-v9960.yml']
+  pull_request:
+    paths: ['tools/ttt-live-v9960/**', '.github/workflows/king-fair-live-ttt-v9960.yml']
+  workflow_dispatch:
+permissions: {contents: read, actions: read}
+jobs:
+  build-and-test:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 55
+    env: {GRADLE_OPTS: '-Xmx4g -XX:MaxMetaspaceSize=1024m'}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v5
+        with: {distribution: temurin, java-version: '17'}
+      - uses: actions/setup-node@v4
+        with: {node-version: '22'}
+      - uses: gradle/actions/setup-gradle@v4
+        with: {gradle-version: '8.9'}
+      - name: Restore complete signed v9.9.59 Party Games Gift runtime
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/king9960 /tmp/king9960prev
+          gh run download 38367260371 -n KING-v9959-Real-Ready-Fair-Games-TEST-APK-and-Source -D /tmp/king9960prev
+          test -s /tmp/king9960prev/KING-Plus-v9.9.59-Real-Ready-Fair-Games-TEST.apk
+          unzip -q /tmp/king9960prev/KING-Plus-v9.9.59-Real-Ready-Fair-Games-Source.zip -d /tmp/king9960
+          grep -q 'versionCode 238' /tmp/king9960/app/build.gradle
+          test -s app/kingplus-ci-debug.keystore
+          cp app/kingplus-ci-debug.keystore /tmp/king9960/app/kingplus-ci-debug.keystore
+      - name: Fix real Party Tic Tac Toe Ready and fair two-player selection
+        run: |
+          set -euo pipefail
+          python3 tools/ttt-live-v9960/apply.py /tmp/king9960
+          python3 - <<'PY'
+          from pathlib import Path
+          root=Path('/tmp/king9960')
+          src=root/'app/src/main/java/com/kingplus/social'
+          room=(src/'RoomGameActivity.java').read_text()
+          ttt=room[room.index('    private void startTtt864(){'):room.index('    private void submitTtt864(int idx){')]
+          for k in ('Source.SERVER','db.runTransaction(tx->',
+                    'freshReady9951.getBoolean("ready")',
+                    'KingTttFairRoster9960.pickPair',
+                    'participantUids','tx.set(state(),value9951)'):
+            assert k in ttt,k
+          assert 'if(active9951.size()>=2)break' not in ttt
+          assert 'KingPartySocialRoster9959' in room
+          assert 'actualReady9952.getBoolean("ready")' in room
+          party=(src/'PartyActivity.java').read_text()
+          for k in ('KingPartyVoiceReconnect9957','KingPartyMicConsent9956','KingGiftReceiptRetry9955'):
+            assert k in party,k
+          assert 'LIVE_RECHARGE = false' in (src/'KingRecharge974Activity.java').read_text()
+          assert 'PAID_VIP_ACTIVE = false' in (src/'KingPremiumAccess981.java').read_text()
+          assert 'versionCode 239' in (root/'app/build.gradle').read_text()
+          print('PASS real Ready, locked two-player TTT, Voice and Gift runtime preserved')
+          PY
+      - name: Java test false Ready and random fair X O selection
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/king9960classes
+          javac -d /tmp/king9960classes \
+            /tmp/king9960/app/src/main/java/com/kingplus/social/KingTttLiveRoster9951.java \
+            /tmp/king9960/app/src/main/java/com/kingplus/social/KingTttFairRoster9960.java \
+            tools/ttt-live-v9960/KingTttFairRoster9960Test.java \
+            tools/ttt-live-v9951/KingTttLiveRoster9951Test.java
+          java -cp /tmp/king9960classes com.kingplus.social.KingTttFairRoster9960Test
+          java -cp /tmp/king9960classes com.kingplus.social.KingTttLiveRoster9951Test
+      - name: Install real Firestore emulator dependencies
+        working-directory: /tmp/king9960/tests/firestore
+        run: npm ci --no-audit --no-fund
+      - name: Firebase real Tic Tac Toe Ready off ghost and live pairing
+        working-directory: /tmp/king9960
+        env: {CI: 'true'}
+        run: |
+          set -euo pipefail
+          cp "$GITHUB_WORKSPACE/tools/ttt-live-v9960/ttt-ready-firestore.test.mjs" tests/firestore/
+          tests/firestore/node_modules/.bin/firebase emulators:exec --only firestore \
+            --project demo-king-real-ttt-9960 --config firebase-emulator.json \
+            "node tests/firestore/ttt-ready-firestore.test.mjs"
+      - name: Regression real social game roles, privacy and simultaneous Host
+        working-directory: /tmp/king9960
+        env: {CI: 'true'}
+        run: |
+          set -euo pipefail
+          cp "$GITHUB_WORKSPACE/tools/social-live-v9958/social-party-firestore.test.mjs" tests/firestore/
+          tests/firestore/node_modules/.bin/firebase emulators:exec --only firestore \
+            --project demo-king-social-party-9958 --config firebase-emulator.json \
+            "node tests/firestore/social-party-firestore.test.mjs"
+      - name: Regression real Party Gift receipts and immutable game turns
+        working-directory: /tmp/king9960
+        env: {CI: 'true'}
+        run: |
+          set -euo pipefail
+          for test in gift-delivery-firestore.test.mjs immutable-rounds-firestore.test.mjs; do
+            tests/firestore/node_modules/.bin/firebase emulators:exec --only firestore \
+              --project demo-king-live-ready-9959 --config firebase-emulator.json \
+              "node tests/firestore/$test"
+          done
+      - name: Compile complete Android Party Games Gifting APK
+        working-directory: /tmp/king9960
+        run: gradle :app:assembleDebug --no-daemon --max-workers=2
+      - name: Verify signed APK upgrade and zip integrity
+        run: |
+          set -euo pipefail
+          old=/tmp/king9960prev/KING-Plus-v9.9.59-Real-Ready-Fair-Games-TEST.apk
+          new=/tmp/king9960/app/build/outputs/apk/debug/app-debug.apk
+          aapt="$(find "$ANDROID_HOME/build-tools" -name aapt -type f | sort -V | tail -1)"
+          signer="$(find "$ANDROID_HOME/build-tools" -name apksigner -type f | sort -V | tail -1)"
+          "$aapt" dump badging "$new" | grep "^package:" | grep "name='com.kingplus.social'" | grep "versionCode='239'"
+          "$signer" verify --print-certs "$old" >/tmp/cert-old
+          "$signer" verify --print-certs "$new" >/tmp/cert-new
+          a="$(grep -Eo '[[:xdigit:]]{64}' /tmp/cert-old | head -1)"
+          b="$(grep -Eo '[[:xdigit:]]{64}' /tmp/cert-new | head -1)"
+          test -n "$a" && test "$a" = "$b"
+          unzip -tq "$new" | tail -1
+      - name: Package TEST APK and complete source, with no private signing key
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/king9960out
+          cp /tmp/king9960/app/build/outputs/apk/debug/app-debug.apk \
+            /tmp/king9960out/KING-Plus-v9.9.60-Fair-Real-Party-TTT-TEST.apk
+          rm -f /tmp/king9960/app/kingplus-ci-debug.keystore
+          cd /tmp/king9960
+          zip -q -r /tmp/king9960out/KING-Plus-v9.9.60-Fair-Real-Party-TTT-Source.zip . \
+            -x '*/node_modules/*' '*node_modules/*' 'app/build/*' './app/build/*' '*/build/*' \
+            './.gradle/*' '*/.gradle/*' '*.apk' '*.aab' '*.keystore' '*.jks' '*.zip' '*local.properties' '*.log'
+          sha256sum /tmp/king9960out/*
+      - uses: actions/upload-artifact@v4
+        with:
+          name: KING-v9960-Fair-Real-Party-TTT-TEST-APK-and-Source
+          path: /tmp/king9960out/*
+          retention-days: 14
+          if-no-files-found: error
