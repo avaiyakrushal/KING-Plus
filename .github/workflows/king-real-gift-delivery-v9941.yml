@@ -1,0 +1,129 @@
+name: KING v9.9.41 Real Gift Recipient Delivery Verification TEST
+on:
+  push:
+    branches: [work/king-party-game-gift-ack-v9941]
+    paths: ['tools/real-9941/**','.github/workflows/king-real-gift-delivery-v9941.yml']
+  pull_request:
+    paths: ['tools/real-9941/**','.github/workflows/king-real-gift-delivery-v9941.yml']
+  workflow_dispatch:
+permissions: {contents: read, actions: read}
+jobs:
+  test-and-build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 55
+    env:
+      GRADLE_OPTS: '-Xmx4g -XX:MaxMetaspaceSize=1024m'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v5
+        with: {distribution: temurin, java-version: '17'}
+      - uses: actions/setup-node@v4
+        with: {node-version: '22'}
+      - uses: gradle/actions/setup-gradle@v4
+        with: {gradle-version: '8.9'}
+      - name: Restore signed full prior KING v9.9.40 source and APK
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/king9941 /tmp/king9941prev
+          gh run download 38338752824 -n KING-v9940-Verified-Sheep-TEST-APK-and-Source -D /tmp/king9941prev
+          test -s /tmp/king9941prev/KING-Plus-v9.9.40-Verified-Sheep-TEST.apk
+          unzip -q /tmp/king9941prev/KING-Plus-v9.9.40-Verified-Sheep-Source.zip -d /tmp/king9941
+          grep -q 'versionCode 219' /tmp/king9941/app/build.gradle
+          test -s app/kingplus-ci-debug.keystore
+          cp app/kingplus-ci-debug.keystore /tmp/king9941/app/kingplus-ci-debug.keystore
+      - name: Apply new confirmed Gift delivery behavior, not resource count padding
+        run: |
+          set -euo pipefail
+          python3 tools/real-9941/apply.py /tmp/king9941
+          cp tools/real-9941/gift-delivery-firestore.test.mjs /tmp/king9941/tests/firestore/
+          node --check /tmp/king9941/functions/v3.js
+          node --test /tmp/king9941/functions/play-purchase-service.test.js
+          python3 - <<'PY'
+          from pathlib import Path
+          r=Path('/tmp/king9941');s=r/'app/src/main/java/com/kingplus/social'
+          p=(s/'PartyActivity.java').read_text()
+          f=(r/'firestore.rules').read_text()
+          assert 'confirmGiftReceived9941' in p and 'giftReceiptListener9941' in p
+          assert 'whereEqualTo("senderUid",expectedUid982)' in p
+          assert 'FREE Gift sent to Party • awaiting recipient phone acknowledgement' in p
+          assert 'match /gift_receipts/{giftId}' in f
+          assert 'get(/databases/$(database)/documents/live_rooms/$(roomId)/events/$(giftId))' in f
+          assert 'versionCode 220' in (r/'app/build.gradle').read_text()
+          assert 'LIVE_RECHARGE = false' in (s/'KingRecharge974Activity.java').read_text()
+          assert 'PAID_VIP_ACTIVE = false' in (s/'KingPremiumAccess981.java').read_text()
+          print('PASS gift RECEIVER acknowledgement integration, no billed diamonds, 4065/8680 preserved')
+          PY
+      - name: Install Firestore emulator dependencies
+        working-directory: /tmp/king9941/tests/firestore
+        run: npm ci --no-audit --no-fund
+      - name: Test actual recipient acknowledgment across independent Firebase users
+        working-directory: /tmp/king9941
+        env: {CI: 'true'}
+        run: |
+          tests/firestore/node_modules/.bin/firebase emulators:exec --only firestore \
+            --project demo-king-gift-receipts-9941 --config firebase-emulator.json \
+            "node tests/firestore/gift-delivery-firestore.test.mjs"
+      - name: Existing Party/Multiplayer/Sheep/Ludo/Gift safety regression tests
+        working-directory: /tmp/king9941
+        env: {CI: 'true'}
+        run: |
+          set -euo pipefail
+          tests/firestore/node_modules/.bin/firebase emulators:exec --only firestore \
+            --project demo-king-sheep-9940 --config firebase-emulator.json \
+            "node tests/firestore/sheep-firestore.test.mjs"
+          tests/firestore/node_modules/.bin/firebase emulators:exec --only firestore \
+            --project demo-king-party-ludo-9939 --config firebase-emulator.json \
+            "node tests/firestore/party-ludo-firestore.test.mjs"
+          tests/firestore/node_modules/.bin/firebase emulators:exec --only firestore \
+            --project demo-king-9938-live --config firebase-emulator.json \
+            "node tests/firestore/room-game-gift.test.mjs"
+          tests/firestore/node_modules/.bin/firebase emulators:exec --only firestore \
+            --project demo-king-room-v9936 --config firebase-emulator.json \
+            "node tests/firestore/functional-access.test.mjs"
+      - name: Compile complete KING Android v9.9.41
+        working-directory: /tmp/king9941
+        run: gradle :app:assembleDebug --no-daemon --max-workers=2
+      - name: Verify same signer, versionCode 220, preserved resource counts
+        run: |
+          set -euo pipefail
+          old=/tmp/king9941prev/KING-Plus-v9.9.40-Verified-Sheep-TEST.apk
+          new=/tmp/king9941/app/build/outputs/apk/debug/app-debug.apk
+          aapt="$(find "$ANDROID_HOME/build-tools" -name aapt -type f | sort -V | tail -1)"
+          signer="$(find "$ANDROID_HOME/build-tools" -name apksigner -type f | sort -V | tail -1)"
+          "$aapt" dump badging "$old" | grep "^package:" | grep "name='com.kingplus.social'" | grep "versionCode='219'"
+          "$aapt" dump badging "$new" | grep "^package:" | grep "name='com.kingplus.social'" | grep "versionCode='220'"
+          "$signer" verify --print-certs "$old" > /tmp/oldcert
+          "$signer" verify --print-certs "$new" > /tmp/newcert
+          a="$(grep -Eo '[[:xdigit:]]{64}' /tmp/oldcert | head -1)"
+          b="$(grep -Eo '[[:xdigit:]]{64}' /tmp/newcert | head -1)"
+          test -n "$a" && test "$a" = "$b"
+          python3 - <<'PY'
+          from zipfile import ZipFile
+          old='/tmp/king9941prev/KING-Plus-v9.9.40-Verified-Sheep-TEST.apk'
+          new='/tmp/king9941/app/build/outputs/apk/debug/app-debug.apk'
+          def counts(p):
+            with ZipFile(p) as z:n=set(z.namelist())
+            return (sum(x.startswith('res/layout') and x.endswith('.xml') for x in n),
+              sum(x.startswith('res/drawable') and x.endswith(('.xml','.png','.webp')) for x in n))
+          print('COUNT old/new',counts(old),counts(new))
+          assert counts(old)==counts(new)==(4065,8680)
+          PY
+      - name: Package signed TEST APK and complete reproducible source ZIP
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/king9941out
+          cp /tmp/king9941/app/build/outputs/apk/debug/app-debug.apk /tmp/king9941out/KING-Plus-v9.9.41-Gift-Received-TEST.apk
+          rm -f /tmp/king9941/app/kingplus-ci-debug.keystore
+          cd /tmp/king9941
+          zip -q -r /tmp/king9941out/KING-Plus-v9.9.41-Gift-Received-Source.zip . \
+            -x '*/node_modules/*' '*node_modules/*' 'app/build/*' './app/build/*' '*/build/*' \
+              './.gradle/*' '*/.gradle/*' '*.apk' '*.aab' '*.keystore' '*.jks' '*.zip' '*local.properties' '*.log'
+          sha256sum /tmp/king9941out/*
+      - uses: actions/upload-artifact@v4
+        with:
+          name: KING-v9941-Real-Gift-Received-TEST-APK-and-Source
+          path: /tmp/king9941out/*
+          retention-days: 14
+          if-no-files-found: error
