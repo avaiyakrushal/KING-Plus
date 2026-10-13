@@ -184,6 +184,17 @@ method('    private void giftWall(){','    private void gameCenter(){', '''
     }
 ''')
 
+
+# Retain Lucky Gift submenu, but do NOT advertise imaginary prizes.
+assert s.count('    private void gameCenter(){') == 1
+s=s.replace('    private void gameCenter(){', '''    private void giftLucky(){
+        hero("🍀 Lucky Gift","Real random reward settlement is not enabled in this TEST build.");
+        chip("No false Jackpot, Diamonds or VIP gifts are awarded locally.",()->{});
+        row("🎁","Gift Center","Open available verified free gift catalog",this::openGiftCenter);
+    }
+
+    private void gameCenter(){''',1)
+
 p.write_text(s)
 profile=java/'KingPublicProfileActivity.java'
 q=profile.read_text()
