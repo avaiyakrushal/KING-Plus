@@ -1,0 +1,134 @@
+name: KING v9.9.37 Actual Party Games and Gifting TEST
+on:
+  push:
+    branches: [work/king-room-games-gifts-v9937]
+    paths: ['tools/functional-parity-v9937/**', '.github/workflows/king-games-gifts-9937.yml']
+  pull_request:
+    paths: ['tools/functional-parity-v9937/**', '.github/workflows/king-games-gifts-9937.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  release-gate:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 55
+    env:
+      GRADLE_OPTS: '-Xmx4g -XX:MaxMetaspaceSize=1024m'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+      - name: Restore verified full KING 9.9.36 APK and source, not stale root
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/king9937prev /tmp/king9937
+          gh run download 38332702041 -n KING-v9936-Party-Access-TEST-APK-and-Source -D /tmp/king9937prev
+          unzip -q /tmp/king9937prev/KING-Plus-v9.9.36-Party-Access-Fix-Source.zip -d /tmp/king9937
+          test -s /tmp/king9937prev/KING-Plus-v9.9.36-Party-Access-Fix-TEST.apk
+          grep -q 'versionCode 215' /tmp/king9937/app/build.gradle
+          test -s app/kingplus-ci-debug.keystore
+          cp app/kingplus-ci-debug.keystore /tmp/king9937/app/kingplus-ci-debug.keystore
+      - name: Apply original verified-user Room Gift and Dice live sync improvements
+        run: |
+          set -euo pipefail
+          python3 tools/functional-parity-v9937/apply.py /tmp/king9937
+          cp tools/functional-parity-v9937/games-gifts-firestore.test.mjs /tmp/king9937/tests/firestore/
+          node --check /tmp/king9937/functions/v3.js
+          node --test /tmp/king9937/functions/play-purchase-service.test.js
+          python3 - <<'PY'
+          from pathlib import Path
+          r=Path('/tmp/king9937')
+          p=(r/'app/src/main/java/com/kingplus/social/PartyActivity.java').read_text()
+          d=(r/'app/src/main/java/com/kingplus/social/KingRoomDice997.java').read_text()
+          f=(r/'firestore.rules').read_text()
+          assert 'Source.SERVER' in p and 'giftSendPending971=true' in p
+          assert 'KingDiceLeaderboard9937' in d and 'verifiedMember9937' in d
+          assert "type != 'gift'" in f and "type != 'dice_room_997'" in f
+          assert 'versionCode 216' in (r/'app/build.gradle').read_text()
+          assert 'LIVE_RECHARGE = false' in (r/'app/src/main/java/com/kingplus/social/KingRecharge974Activity.java').read_text()
+          assert 'PAID_VIP_ACTIVE = false' in (r/'app/src/main/java/com/kingplus/social/KingPremiumAccess981.java').read_text()
+          print('PASS: real user delivery, shared multiplayer Dice scoreboard, security rules and paid wallet disabled')
+          PY
+      - name: Compile/test pure Java Dice leaderboard
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/king9937classes
+          javac -d /tmp/king9937classes \
+            /tmp/king9937/app/src/main/java/com/kingplus/social/KingDiceLeaderboard9937.java \
+            tools/functional-parity-v9937/KingDiceLeaderboard9937Test.java
+          java -cp /tmp/king9937classes com.kingplus.social.KingDiceLeaderboard9937Test
+      - name: Install Firestore emulator dependencies
+        working-directory: /tmp/king9937/tests/firestore
+        run: npm ci --no-audit --no-fund
+      - name: Real 2-account Gift and Dice Firestore acceptance
+        working-directory: /tmp/king9937
+        env: {CI: 'true'}
+        run: |
+          set -euo pipefail
+          tests/firestore/node_modules/.bin/firebase emulators:exec --only firestore \
+            --project demo-king-games-gifts-9937 --config firebase-emulator.json \
+            "node tests/firestore/games-gifts-firestore.test.mjs"
+      - name: Verify previous Party password fix stays working
+        working-directory: /tmp/king9937
+        env: {CI: 'true'}
+        run: |
+          set -euo pipefail
+          tests/firestore/node_modules/.bin/firebase emulators:exec --only firestore \
+            --project demo-king-room-v9936 --config firebase-emulator.json \
+            "node tests/firestore/functional-access.test.mjs"
+      - name: Build full KING Android app
+        working-directory: /tmp/king9937
+        run: gradle :app:assembleDebug --no-daemon --max-workers=2
+      - name: Verify Android signer, v216 upgrade and unchanged full resources
+        run: |
+          set -euo pipefail
+          old=/tmp/king9937prev/KING-Plus-v9.9.36-Party-Access-Fix-TEST.apk
+          new=/tmp/king9937/app/build/outputs/apk/debug/app-debug.apk
+          aapt="$(find "$ANDROID_HOME/build-tools" -name aapt -type f | sort -V | tail -1)"
+          signer="$(find "$ANDROID_HOME/build-tools" -name apksigner -type f | sort -V | tail -1)"
+          "$aapt" dump badging "$old" | grep "^package:" | grep "name='com.kingplus.social'" | grep "versionCode='215'"
+          "$aapt" dump badging "$new" | grep "^package:" | grep "name='com.kingplus.social'" | grep "versionCode='216'"
+          "$signer" verify --print-certs "$old" > /tmp/oldcert
+          "$signer" verify --print-certs "$new" > /tmp/newcert
+          a="$(grep -Eo '[[:xdigit:]]{64}' /tmp/oldcert | head -1)"
+          b="$(grep -Eo '[[:xdigit:]]{64}' /tmp/newcert | head -1)"
+          test -n "$a" && test "$a" = "$b"
+          python3 - <<'PY'
+          from zipfile import ZipFile
+          paths=['/tmp/king9937prev/KING-Plus-v9.9.36-Party-Access-Fix-TEST.apk',
+                 '/tmp/king9937/app/build/outputs/apk/debug/app-debug.apk']
+          def counts(p):
+            with ZipFile(p) as z:names=set(z.namelist())
+            return (sum(n.startswith('res/layout') and n.endswith('.xml') for n in names),
+                sum(n.startswith('res/drawable') and n.endswith(('.xml','.png','.webp')) for n in names))
+          print('DRAWABLE_LAYOUT_COUNTS',list(map(counts,paths)))
+          assert all(counts(p)==(4065,8680) for p in paths)
+          PY
+      - name: Package signed TEST APK and full source ZIP
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/king9937out
+          cp /tmp/king9937/app/build/outputs/apk/debug/app-debug.apk /tmp/king9937out/KING-Plus-v9.9.37-Real-Room-Games-Gifts-TEST.apk
+          rm -f /tmp/king9937/app/kingplus-ci-debug.keystore
+          cd /tmp/king9937
+          zip -q -r /tmp/king9937out/KING-Plus-v9.9.37-Real-Room-Games-Gifts-Source.zip . \
+            -x '*/node_modules/*' '*node_modules/*' 'app/build/*' './app/build/*' '*/build/*' \
+               './.gradle/*' '*/.gradle/*' '*.apk' '*.aab' '*.keystore' '*.jks' '*.zip' '*local.properties' '*.log'
+          sha256sum /tmp/king9937out/*
+      - uses: actions/upload-artifact@v4
+        with:
+          name: KING-v9937-Real-Room-Games-Gifts-TEST-APK-and-Source
+          path: /tmp/king9937out/*
+          retention-days: 14
+          if-no-files-found: error
