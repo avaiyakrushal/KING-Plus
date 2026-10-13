@@ -1,0 +1,7 @@
+    // Public VIP/Noble is never minted by a client's public profile metadata.
+    // The trusted Wallet Server is authoritative for this user's paid VIP;
+    // signed-in viewers use this *separate* server-only public grant doc.
+    match /king_public_prestige/{uid} {
+      allow read: if signedIn();
+      allow create, update, delete: if false;
+    }
