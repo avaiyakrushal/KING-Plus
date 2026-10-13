@@ -1,0 +1,127 @@
+name: KING v9.9.51 Real Live Tic Tac Toe Gameplay and Party Regression TEST
+on:
+  push:
+    branches: [work/king-ttt-live-roster-v9951]
+    paths: ['tools/ttt-live-v9951/**', '.github/workflows/king-ttt-live-roster-v9951.yml']
+  pull_request:
+    paths: ['tools/ttt-live-v9951/**', '.github/workflows/king-ttt-live-roster-v9951.yml']
+  workflow_dispatch:
+permissions: {contents: read, actions: read}
+jobs:
+  build-functional-backpack-gift:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 55
+    env: {GRADLE_OPTS: '-Xmx4g -XX:MaxMetaspaceSize=1024m'}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v5
+        with: {distribution: temurin, java-version: '17'}
+      - uses: actions/setup-node@v4
+        with: {node-version: '22'}
+      - uses: gradle/actions/setup-gradle@v4
+        with: {gradle-version: '8.9'}
+      - name: Restore verified signed full KING v9.9.49 source and APK
+        env: {GH_TOKEN: '${{ github.token }}'}
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/king9951 /tmp/king9951prev
+          gh run download 38351729171 -n KING-v9950-Real-Backpack-Gift-TEST-APK-and-Source -D /tmp/king9951prev
+          test -s /tmp/king9951prev/KING-Plus-v9.9.50-Real-Backpack-Gift-TEST.apk
+          unzip -q /tmp/king9951prev/KING-Plus-v9.9.50-Real-Backpack-Gift-Source.zip -d /tmp/king9951
+          grep -q 'versionCode 229' /tmp/king9951/app/build.gradle
+          test -s app/kingplus-ci-debug.keystore
+          cp app/kingplus-ci-debug.keystore /tmp/king9951/app/kingplus-ci-debug.keystore
+      - name: Apply server-verified Party Tic Tac Toe roster and recover pending turns
+        run: |
+          set -euo pipefail
+          python3 tools/ttt-live-v9951/apply.py /tmp/king9951
+          python3 - <<'PY'
+          from pathlib import Path
+          r=Path('/tmp/king9951')
+          src=r/'app/src/main/java/com/kingplus/social'
+          game=(src/'RoomGameActivity.java').read_text()
+          started=game[game.index('    private void startTtt864(){'):game.index('    private void submitTtt864(int idx){')]
+          assert 'Source.SERVER' in started
+          assert 'db.runTransaction' in started
+          assert 'KingTttLiveRoster9951.valid' in started
+          assert 'room().collection("members").document(uid9951)' in started
+          assert 'room().collection("game_moves").document(xu9951)' in started
+          assert 'game_moves").get()' not in started
+          assert '❌⭕ Final board' in game
+          assert 'Confirm pending Tic Tac Toe turn' in game
+          assert 'moveRef.delete();' not in game[game.index('    private void processTttMove864()'):game.index('    private void rpsControls()')]
+          assert 'pendingGiftEvents9944' in (src/'PartyActivity.java').read_text()
+          assert 'versionCode 230' in (r/'app/build.gradle').read_text()
+          assert 'LIVE_RECHARGE = false' in (src/'KingRecharge974Activity.java').read_text()
+          print('PASS live-member-only Tic Tac Toe and preserve pending turn')
+          PY
+      - name: Unit-test Real Party Tic Tac Toe live Ready membership
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/king9951classes
+          javac -d /tmp/king9951classes \
+            /tmp/king9951/app/src/main/java/com/kingplus/social/KingTttLiveRoster9951.java \
+            tools/ttt-live-v9951/KingTttLiveRoster9951Test.java
+          java -cp /tmp/king9951classes com.kingplus.social.KingTttLiveRoster9951Test
+      - name: Install Firebase emulator test dependencies
+        working-directory: /tmp/king9951/tests/firestore
+        run: npm ci --no-audit --no-fund
+      - name: Verify real Gift receipts and anti-spoof Firestore regression
+        working-directory: /tmp/king9951
+        env: {CI: 'true'}
+        run: |
+          set -euo pipefail
+          tests/firestore/node_modules/.bin/firebase emulators:exec --only firestore \
+            --project demo-king-gift-receipts-9941 --config firebase-emulator.json \
+            "node tests/firestore/gift-delivery-firestore.test.mjs"
+          tests/firestore/node_modules/.bin/firebase emulators:exec --only firestore \
+            --project demo-king-9938-live --config firebase-emulator.json \
+            "node tests/firestore/room-game-gift.test.mjs"
+      - name: Keep real RPS Dice Coin + Frozen players and Host Cancel safe
+        working-directory: /tmp/king9951
+        env: {CI: 'true'}
+        run: |
+          set -euo pipefail
+          tests/firestore/node_modules/.bin/firebase emulators:exec --only firestore \
+            --project demo-king-immutable-games-9943 --config firebase-emulator.json \
+            "node tests/firestore/immutable-rounds-firestore.test.mjs"
+          tests/firestore/node_modules/.bin/firebase emulators:exec --only firestore \
+            --project demo-king-frozen-roster-9946 --config firebase-emulator.json \
+            "node tests/firestore/frozen-ready-firestore.test.mjs"
+          tests/firestore/node_modules/.bin/firebase emulators:exec --only firestore \
+            --project demo-king-real-cancel-9947 --config firebase-emulator.json \
+            "node tests/firestore/cancel-round-firestore.test.mjs"
+      - name: Full Android compilation and signing
+        working-directory: /tmp/king9951
+        run: gradle :app:assembleDebug --no-daemon --max-workers=2
+      - name: Verify app version and unchanged signing certificate
+        run: |
+          set -euo pipefail
+          old=/tmp/king9951prev/KING-Plus-v9.9.50-Real-Backpack-Gift-TEST.apk
+          new=/tmp/king9951/app/build/outputs/apk/debug/app-debug.apk
+          aapt="$(find "$ANDROID_HOME/build-tools" -name aapt -type f | sort -V | tail -1)"
+          signer="$(find "$ANDROID_HOME/build-tools" -name apksigner -type f | sort -V | tail -1)"
+          "$aapt" dump badging "$old" | grep "^package:" | grep "name='com.kingplus.social'" | grep "versionCode='229'"
+          "$aapt" dump badging "$new" | grep "^package:" | grep "name='com.kingplus.social'" | grep "versionCode='230'"
+          "$signer" verify --print-certs "$old" > /tmp/oldcert
+          "$signer" verify --print-certs "$new" > /tmp/newcert
+          a="$(grep -Eo '[[:xdigit:]]{64}' /tmp/oldcert | head -1)"
+          b="$(grep -Eo '[[:xdigit:]]{64}' /tmp/newcert | head -1)"
+          test -n "$a" && test "$a" = "$b"
+      - name: Package full signed TEST APK and complete source
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/king9951out
+          cp /tmp/king9951/app/build/outputs/apk/debug/app-debug.apk /tmp/king9951out/KING-Plus-v9.9.51-Real-TTT-Party-Membership-TEST.apk
+          rm -f /tmp/king9951/app/kingplus-ci-debug.keystore
+          cd /tmp/king9951
+          zip -q -r /tmp/king9951out/KING-Plus-v9.9.51-Real-TTT-Party-Membership-Source.zip . \
+            -x '*/node_modules/*' '*node_modules/*' 'app/build/*' './app/build/*' '*/build/*' \
+              './.gradle/*' '*/.gradle/*' '*.apk' '*.aab' '*.keystore' '*.jks' '*.zip' '*local.properties' '*.log'
+          sha256sum /tmp/king9951out/*
+      - uses: actions/upload-artifact@v4
+        with:
+          name: KING-v9951-Real-TTT-Party-Membership-TEST-APK-and-Source
+          path: /tmp/king9951out/*
+          retention-days: 14
+          if-no-files-found: error
