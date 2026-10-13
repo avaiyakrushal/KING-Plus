@@ -1,0 +1,78 @@
+name: KING v9.9.74 Real Party Gift Sound No-Lost-Wakeup TEST
+on:
+  push:
+    branches: [work/king-gift-audio-wakeup-v9974]
+  workflow_dispatch:
+permissions: {contents: read, actions: read}
+jobs:
+  full-android-gift-wakeup:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    env: {GRADLE_OPTS: '-Xmx4g -XX:MaxMetaspaceSize=1024m'}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v5
+        with: {distribution: temurin, java-version: '17'}
+      - uses: gradle/actions/setup-gradle@v4
+        with: {gradle-version: '8.9'}
+      - name: Restore last fully successful Party Games + Gifting v9.9.73
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/king9974 /tmp/prev9974
+          gh run download 38395621824 -n KING-v9973-All-Ready-Players-Complete-TEST-APK-and-Source -D /tmp/prev9974
+          test -s /tmp/prev9974/KING-Plus-v9.9.73-All-Ready-Players-Complete-TEST.apk
+          unzip -q /tmp/prev9974/KING-Plus-v9.9.73-All-Ready-Players-Complete-Source.zip -d /tmp/king9974
+          grep -q 'versionCode 252' /tmp/king9974/app/build.gradle
+          test -s app/kingplus-ci-debug.keystore
+          cp app/kingplus-ci-debug.keystore /tmp/king9974/app/
+      - name: Repair real Party missing gift sound on worker shutdown race
+        run: |
+          set -euo pipefail
+          python3 tools/gift-audio-wakeup-v9974/apply.py /tmp/king9974
+          grep -q "versionCode 253" /tmp/king9974/app/build.gradle
+      - name: Genuine concurrent audio producer queue regression
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/king9974classes
+          javac -d /tmp/king9974classes             /tmp/king9974/app/src/main/java/com/kingplus/social/KingGiftAudioQueue9948.java             tools/gift-audio-wakeup-v9974/KingGiftAudioWakeup9974Test.java             tools/gift-audio-v9948/KingGiftAudio9948Test.java             /tmp/king9974/app/src/main/java/com/kingplus/social/KingGiftAudioPolicy9948.java
+          java -cp /tmp/king9974classes com.kingplus.social.KingGiftAudioWakeup9974Test
+          java -cp /tmp/king9974classes com.kingplus.social.KingGiftAudio9948Test
+      - name: Ensure 13 Party games still preserve 4 of 4 participant settlement
+        run: |
+          set -euo pipefail
+          javac -d /tmp/king9974classes             /tmp/king9974/app/src/main/java/com/kingplus/social/KingRoomRoster9946.java             /tmp/king9974/app/src/main/java/com/kingplus/social/KingPartyRoundRoster9972.java             /tmp/king9974/app/src/main/java/com/kingplus/social/KingPartyAllPlayed9973.java             tools/all-played-v9973/KingPartyAllPlayed9973Test.java
+          java -cp /tmp/king9974classes com.kingplus.social.KingPartyAllPlayed9973Test
+      - name: Build actual Android Room + Gift code
+        working-directory: /tmp/king9974
+        run: gradle :app:assembleDebug --no-daemon --max-workers=2
+      - name: Verify APK signer, package and versionCode
+        run: |
+          set -euo pipefail
+          old=/tmp/prev9974/KING-Plus-v9.9.73-All-Ready-Players-Complete-TEST.apk
+          new=/tmp/king9974/app/build/outputs/apk/debug/app-debug.apk
+          aapt="$(find "$ANDROID_HOME/build-tools" -name aapt -type f | sort -V | tail -1)"
+          signer="$(find "$ANDROID_HOME/build-tools" -name apksigner -type f | sort -V | tail -1)"
+          "$aapt" dump badging "$new" | grep "^package:" | grep "name='com.kingplus.social'" | grep "versionCode='253'"
+          "$signer" verify --print-certs "$old" >/tmp/old9974cert
+          "$signer" verify --print-certs "$new" >/tmp/new9974cert
+          a="$(grep -Eo '[[:xdigit:]]{64}' /tmp/old9974cert | head -1)"
+          b="$(grep -Eo '[[:xdigit:]]{64}' /tmp/new9974cert | head -1)"
+          test -n "$a" && test "$a" = "$b"
+          unzip -tq "$new" | tail -1
+      - name: Package complete TEST APK + original full source (exclude secrets)
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/out9974
+          cp /tmp/king9974/app/build/outputs/apk/debug/app-debug.apk             /tmp/out9974/KING-Plus-v9.9.74-Gift-Sound-Wakeup-TEST.apk
+          rm -f /tmp/king9974/app/kingplus-ci-debug.keystore
+          cd /tmp/king9974
+          zip -q -r /tmp/out9974/KING-Plus-v9.9.74-Gift-Sound-Wakeup-Source.zip .             -x '*/node_modules/*' '*node_modules/*' 'app/build/*' './app/build/*' '*/build/*' './.gradle/*' '*/.gradle/*' '*.apk' '*.aab' '*.keystore' '*.jks' '*.zip' '*local.properties' '*.log'
+          sha256sum /tmp/out9974/*
+      - uses: actions/upload-artifact@v4
+        with:
+          name: KING-v9974-Gift-Sound-No-Lost-Wakeup-TEST-APK-and-Source
+          path: /tmp/out9974/*
+          retention-days: 14
+          if-no-files-found: error
