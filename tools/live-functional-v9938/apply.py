@@ -30,7 +30,7 @@ replacement="""    // Real live membership, not a one-off check that stays true 
         final String checkingUid=me.getUid(),checkingRoom=roomId;
         if(membershipListener9938!=null)membershipListener9938.remove();
         membershipListener9938=room().collection("members").document(checkingUid)
-          .addSnapshotListener((member,error)->{
+          .addSnapshotListener(com.google.firebase.firestore.MetadataChanges.INCLUDE,(member,error)->{
             if(isFinishing()||isDestroyed()||!checkingRoom.equals(roomId)
                 ||me==null||!checkingUid.equals(me.getUid()))return;
             boolean active=error==null && member!=null && member.exists()
