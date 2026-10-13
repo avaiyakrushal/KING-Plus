@@ -1,0 +1,40 @@
+      match /members/{memberUid} {
+        // Only existing family members and the true Family owner see member UIDs.
+        allow read: if familyMember(familyCode) || familyOwner(familyCode);
+        function legalFamilyMember9986() {
+          return request.resource.data.keys().hasOnly(['uid','name','role','joinedAt'])
+            && request.resource.data.keys().hasAll(['uid','name','role','joinedAt'])
+            && request.resource.data.uid == memberUid
+            && request.resource.data.name is string
+            && request.resource.data.name.size() > 0
+            && request.resource.data.name.size() <= 80
+            && request.resource.data.joinedAt == request.time;
+        }
+        // Join by code, or owner initializes only their own owner record.
+        // Firebase role can never be given by typing a fabricated role locally.
+        allow create: if activeUser()
+          && memberUid == request.auth.uid
+          && legalFamilyMember9986()
+          && exists(/databases/$(database)/documents/families/$(familyCode))
+          && (
+            (request.resource.data.role == 'member'
+              && familyData(familyCode).ownerUid != request.auth.uid)
+            || (request.resource.data.role == 'owner'
+              && familyData(familyCode).ownerUid == request.auth.uid)
+          );
+        // Exactly the true owner can change another user's role.
+        // No edits to name, UID, join time or owner record.
+        allow update: if familyOwner(familyCode)
+          && memberUid != request.auth.uid
+          && memberUid != familyData(familyCode).ownerUid
+          && resource.data.uid == memberUid
+          && resource.data.role in ['member','moderator','admin']
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['role'])
+          && request.resource.data.role in ['member','moderator','admin'];
+        // A member may leave; Family owner cannot abandon their own record.
+        // Owner can remove any ordinary, moderator or admin member.
+        allow delete: if signedIn()
+          && memberUid != familyData(familyCode).ownerUid
+          && (memberUid == request.auth.uid || familyOwner(familyCode));
+      }
+
