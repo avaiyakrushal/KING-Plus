@@ -26,3 +26,21 @@ for i,l in enumerate(rules):
  if any(z in l for z in ('match /game_moves/', 'match /game_state/', 'match /game_ready/')):
   print('\n## Firestore',i+1)
   for j in range(i,min(i+75,len(rules))):print(f'{j+1}: {rules[j][:500]}')
+
+for name,lo,hi in [
+ ('KingKnifeArena9923Activity.java',112,245),
+ ('OnlineLudoActivity.java',98,174),
+ ('RoomGameActivity.java',157,180),
+ ('RoomGameActivity.java',397,430),
+ ]:
+ p=s/name
+ if not p.exists():continue
+ lines=p.read_text().splitlines()
+ print('\n### REAL DETAIL',name,lo,hi)
+ for j in range(lo-1,min(len(lines),hi)):print(str(j+1)+': '+lines[j][:1100])
+print('\n### ROOT LUDO RULES')
+lines=(r/'firestore.rules').read_text().splitlines()
+for i,x in enumerate(lines):
+ if 'match /ludo_matches/' in x or 'match /knife_duel_scores/' in x:
+  print('RULE',i+1,x)
+  for k in range(i+1,min(i+72,len(lines))):print(f'{k+1}: {lines[k][:1050]}')
