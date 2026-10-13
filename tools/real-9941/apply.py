@@ -22,12 +22,14 @@ rep("    private boolean giftSendPending971;",
     private boolean giftReceiptInitial9941=false;
     private final java.util.HashSet<String> seenGiftReceipts9941=new java.util.HashSet<>();
 """)
-rep("    private void clearListeners(){",
-"""    private void clearListeners(){
+import re
+cleanup=re.compile(r'(private void clearListeners\(\)\s*\{)')
+s,n=cleanup.subn(r"""\1
         if(giftReceiptListener9941!=null){giftReceiptListener9941.remove();giftReceiptListener9941=null;}
         giftReceiptInitial9941=false;
         seenGiftReceipts9941.clear();
-""")
+""",s,count=1)
+if n!=1:raise RuntimeError("Could not locate the room-listener cleanup method in real KING source")
 rep('''        eventsListener=room.collection("events").orderBy("createdAt",Query.Direction.ASCENDING).limitToLast(80).addSnapshotListener((snap,e)->{''',
 '''        // Watch recipient-confirmed deliveries, not just Firestore write ACK.
         // A sender only sees receipts for Gifts their own account sent.
