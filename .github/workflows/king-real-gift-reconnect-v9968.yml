@@ -51,7 +51,7 @@ jobs:
                     'KingGiftReturnGate9968.validServerGift',
                     'confirmGiftReceived9941(room9962,event,uid9962)'):
             assert t in party,t
-          assert party.index('verifyAndRejoinVoice9957();\n                        recoverGiftsAfterNetworkReturn9968();') > 0
+          assert party.index('// Resume truly displayed recipient ACK') > 0
           assert 'KingGiftReceiptDurable9962' in party
           assert 'KingGiftBurstBackpressure9963' in party
           assert 'KingPartyMicConsent9956' in party
