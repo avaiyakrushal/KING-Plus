@@ -7,7 +7,7 @@ src=root/'app/src/main/java/com/kingplus/social'
 here=Path(__file__).resolve().parent
 room=(src/'RoomGameActivity.java');s=room.read_text()
 anchor='''        controls.removeAllViews();'''
-assert s.count(anchor)==1,'RoomGameActivity controls insertion changed'
+assert '    private void renderControls(){' in s and anchor in s.split('    private void renderControls(){',1)[1], 'RoomGameActivity renderControls insertion changed'
 button='''        // REAL multiplayer 5x5 Bingo, not legacy one-tap Pick Number 1..9.
         Button realBingo9980=button("🎱 LIVE BINGO 5×5 • Real Party Match");
         realBingo9980.setOnClickListener(v->{
