@@ -48,6 +48,8 @@ jobs:
           assert 'receiptHandler9955.postDelayed' in s
           assert 'clearDisplayedGiftReceipts9955();' in s
           assert 'pauseDisplayedGiftReceipts9955();' in s
+          assert 'On background, unfinished Gift bursts were not fully seen' in s
+          assert 'inFlightGiftIds9944.clear();' in s
           assert 'receiptContext9955(job)' in s
           assert 'pendingGiftEvents9944' in s
           assert 'KingGiftSound993.play' in s
