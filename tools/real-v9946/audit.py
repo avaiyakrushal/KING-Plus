@@ -13,3 +13,9 @@ for i,l in enumerate(f):
  if 'match /game_state/{stateId}' in l or 'match /game_ready/' in l:
   print('### FIRESTORE',i+1)
   for j in range(i,min(i+100,len(f))):print(f'{j+1}: {f[j][:1500]}')
+
+f=(p/'RoomGameActivity.java').read_text().splitlines()
+for i in range(570,min(606,len(f))):
+ print(f'START_ROUND {i+1}: {f[i][:3000]}')
+for i in range(655,min(674,len(f))):
+ print(f'FINISH_ROUND {i+1}: {f[i][:3000]}')
