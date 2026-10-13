@@ -136,8 +136,7 @@ new='''                for(DocumentSnapshot message956:messages956){
                 }'''
 change(old,new)
 # Functional owner Family name editor; does NOT modify Level/Treasury.
-anchor='''            body.addView(acts);
-            TextView luckyBag951'''
+anchor='''            TextView luckyBag951'''
 replacement='''            if(owner.equals(me.getUid())){
                 TextView rename9987=button("✏ Edit Family Name",()->{
                     EditText renameInput9987=new EditText(this);
@@ -147,7 +146,9 @@ replacement='''            if(owner.equals(me.getUid())){
                         .setView(renameInput9987)
                         .setPositiveButton("Save",(dialog,which)->{
                             String renamed=renameInput9987.getText().toString().trim();
-                            if(renamed.length()<2||renamed.length()>80){toast("Family name: 2–80 characters");return;}
+                            if(renamed.length()<2||renamed.length()>80){
+                                toast("Family name: 2–80 characters");return;
+                            }
                             Map<String,Object> updates=new HashMap<>();
                             updates.put("name",renamed);
                             updates.put("updatedAt",FieldValue.serverTimestamp());
@@ -155,9 +156,8 @@ replacement='''            if(owner.equals(me.getUid())){
                                 .addOnFailureListener(e->toast("Family rename rejected"));
                         }).setNegativeButton("Cancel",null).show();
                 });
-                acts.addView(rename9987,new LinearLayout.LayoutParams(0,dp(46),1));
+                body.addView(rename9987,new LinearLayout.LayoutParams(-1,dp(46)));
             }
-            body.addView(acts);
             TextView luckyBag951'''
 change(anchor,replacement)
 f.write_text(x)
