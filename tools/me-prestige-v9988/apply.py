@@ -146,13 +146,13 @@ def public(s):
             .addOnSuccessListener(grant->{
                 if(isFinishing()||isDestroyed()||!prestigeUid9988.equals(uid))return;
                 if(!grant.exists())return;
-                Long v=grant.getLong("vipLevel"),n=grant.getLong("nobleLevel");
+                Long v=grant.getLong("vipLevel"),nobleTier9988=grant.getLong("nobleLevel");
                 Long total=grant.getLong("rechargeTotal");
-                if(v==null||n==null||total==null||
+                if(v==null||nobleTier9988==null||total==null||
                     !KingPrestigeIdentity9988.allowedVerifiedPublic(
-                        v.intValue(),n.intValue(),total.longValue()))return;
+                        v.intValue(),nobleTier9988.intValue(),total.longValue()))return;
                 lvLine.setText("✓ Verified VIP "+v+" · Activity Lv."+(lv==null?1:lv));
-                nobleBadge997.setText("✓ Verified Noble "+n+" (server record)");
+                nobleBadge997.setText("✓ Verified Noble "+nobleTier9988+" (server record)");
             }).addOnFailureListener(err->{
                 // Never substitute unverified local state on network error.
             });''',1)
