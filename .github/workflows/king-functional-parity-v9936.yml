@@ -1,0 +1,35 @@
+name: KING v9.9.36 Actual Feature Audit
+on:
+  push:
+    branches: [work/king-functional-parity-v9936]
+    paths: ['tools/functional-parity-v9936/**', '.github/workflows/king-functional-parity-v9936.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  audit:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - name: Recover actual tested full Android source
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/king9936 /tmp/king9936prev
+          gh run download 38293584474 -n KING-v9935-8680-Drawables-TEST-APK-and-Source -D /tmp/king9936prev
+          unzip -q /tmp/king9936prev/KING-Plus-v9.9.35-8680-Drawables-Source.zip -d /tmp/king9936
+          test -f /tmp/king9936/app/src/main/java/com/kingplus/social/PartyActivity.java
+      - name: Inspect real Party actions, Games classes and security rules
+        run: python3 tools/functional-parity-v9936/audit.py /tmp/king9936 > /tmp/king9936-audit.txt
+      - name: Surface critical logic for remediation
+        run: |
+          grep -n '^## FIRESTORE RULES' /tmp/king9936-audit.txt || true
+          tail -n 245 /tmp/king9936-audit.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: KING-v9936-Verified-Functionality-Audit
+          path: /tmp/king9936-audit.txt
+          retention-days: 7
