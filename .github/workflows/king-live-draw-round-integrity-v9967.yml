@@ -1,0 +1,199 @@
+name: KING v9.9.67 Real Online Draw Round and Drawer Security TEST
+on:
+  push:
+    branches: [work/king-live-draw-round-integrity-v9967]
+    paths: ['tools/draw-integrity-v9967/**', '.github/workflows/king-live-draw-round-integrity-v9967.yml']
+  pull_request:
+    paths: ['tools/draw-integrity-v9967/**', '.github/workflows/king-live-draw-round-integrity-v9967.yml']
+  workflow_dispatch:
+permissions: {contents: read, actions: read}
+jobs:
+  build-and-test:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 55
+    env: {GRADLE_OPTS: '-Xmx4g -XX:MaxMetaspaceSize=1024m'}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v5
+        with: {distribution: temurin, java-version: '17'}
+      - uses: actions/setup-node@v4
+        with: {node-version: '22'}
+      - uses: gradle/actions/setup-gradle@v4
+        with: {gradle-version: '8.9'}
+      - name: Restore complete signed v9.9.59 Party Games Gift runtime
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/king9967 /tmp/king9967prev
+          gh run download 38381989034 -n KING-v9966-Draw-Private-Role-Retry-TEST-APK-and-Source -D /tmp/king9967prev
+          test -s /tmp/king9967prev/KING-Plus-v9.9.66-Draw-Private-Role-Retry-TEST.apk
+          unzip -q /tmp/king9967prev/KING-Plus-v9.9.66-Draw-Private-Role-Retry-Source.zip -d /tmp/king9967
+          grep -q 'versionCode 245' /tmp/king9967/app/build.gradle
+          test -s app/kingplus-ci-debug.keystore
+          cp app/kingplus-ci-debug.keystore /tmp/king9967/app/kingplus-ci-debug.keystore
+      - name: Apply atomic genuine Party Draw strokes and matching Firestore rules
+        run: |
+          set -euo pipefail
+          python3 tools/draw-integrity-v9967/apply.py /tmp/king9967
+          python3 - <<'PY'
+          from pathlib import Path
+          root=Path('/tmp/king9967')
+          src=root/'app/src/main/java/com/kingplus/social'
+          game=(src/'RoomGameActivity.java').read_text()
+          start=game.index('    private void publishDrawSketch866(')
+          end=game.index('    private class DrawPad866 extends View{',start)
+          publish=game[start:end]
+          for k in ('db.runTransaction(tx->', 'tx.get(state())',
+                    'tx.get(', 'KingLiveDrawRound9967.allowed',
+                    'privateRoleRound866==expected',
+                    'tx.update(state(),update)',
+                    'FieldValue.serverTimestamp()'):
+            assert k in publish,k
+          assert 'state().update(u)' not in publish
+          rules=(root/'firestore.rules').read_text()
+          assert "hasAny(['sketch'])" in rules
+          assert "request.auth.uid == resource.data.get('drawerUid','')" in rules
+          assert "hasOnly(['sketch','actorUid','updatedAt'])" in rules
+          assert "resource.data.get('cancelled',false)" in rules
+          assert "request.resource.data.get('participantUids',[])" in rules
+          assert 'versionCode 246' in (root/'app/build.gradle').read_text()
+          for k in ('KingPartyHiddenWord9965.draw(','KingPartyPrivateRoleLoad9966.needsRequest',
+                    'KingSocialVoteRoster9964.validBallot','KingTttFairRoster9960.pickPair'):
+            assert k in game,k
+          party=(src/'PartyActivity.java').read_text()
+          for k in ('KingGiftBurstBackpressure9963','KingGiftReceiptDurable9962',
+                    'KingPartyVoiceReconnect9957','KingPartyMicConsent9956'):
+            assert k in party,k
+          assert 'LIVE_RECHARGE = false' in (src/'KingRecharge974Activity.java').read_text()
+          assert 'PAID_VIP_ACTIVE = false' in (src/'KingPremiumAccess981.java').read_text()
+          print('PASS atomic real Party Draw, only live drawer current round, no paid wallet')
+          PY
+      - name: Pure Java test genuine active drawer, stale round and sketch bounds
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/king9967classes
+          javac -d /tmp/king9967classes \
+            /tmp/king9967/app/src/main/java/com/kingplus/social/KingLiveDrawRound9967.java \
+            /tmp/king9967/app/src/main/java/com/kingplus/social/KingPartyPrivateRoleLoad9966.java \
+            /tmp/king9967/app/src/main/java/com/kingplus/social/KingPartyHiddenWord9965.java \
+            /tmp/king9967/app/src/main/java/com/kingplus/social/KingSocialVoteRoster9964.java \
+            tools/draw-integrity-v9967/KingLiveDrawRound9967Test.java \
+            tools/draw-role-v9966/KingPartyPrivateRoleLoad9966Test.java \
+            tools/social-secret-v9965/KingPartyHiddenWord9965Test.java \
+            tools/game-launch-v9964/KingSocialVoteRoster9964Test.java
+          java -cp /tmp/king9967classes com.kingplus.social.KingLiveDrawRound9967Test
+          java -cp /tmp/king9967classes com.kingplus.social.KingPartyPrivateRoleLoad9966Test
+          java -cp /tmp/king9967classes com.kingplus.social.KingPartyHiddenWord9965Test
+          java -cp /tmp/king9967classes com.kingplus.social.KingSocialVoteRoster9964Test
+      - name: Install real Firestore emulator dependencies
+        working-directory: /tmp/king9967/tests/firestore
+        run: npm ci --no-audit --no-fund
+      - name: Firestore two-account actual Draw canvas anti-spoof and stale round test
+        working-directory: /tmp/king9967
+        env: {CI: 'true'}
+        run: |
+          set -euo pipefail
+          cp "$GITHUB_WORKSPACE/tools/draw-integrity-v9967/draw-round-firestore.test.mjs" tests/firestore/
+          tests/firestore/node_modules/.bin/firebase emulators:exec --only firestore \
+            --project demo-king-draw-integrity-9967 --config firebase-emulator.json \
+            "node tests/firestore/draw-round-firestore.test.mjs"
+      - name: Firebase private Spy clues and persistent Draw word recipient security
+        working-directory: /tmp/king9967
+        env: {CI: 'true'}
+        run: |
+          set -euo pipefail
+          cp "$GITHUB_WORKSPACE/tools/draw-integrity-v9967/private-words-valid-round-transition.test.mjs" tests/firestore/private-words-firestore.test.mjs
+          tests/firestore/node_modules/.bin/firebase emulators:exec --only firestore \
+            --project demo-king-private-words-9965 --config firebase-emulator.json \
+            "node tests/firestore/private-words-firestore.test.mjs"
+      - name: Firestore multiuser Werewolf Spy ballot security and no stale finish
+        working-directory: /tmp/king9967
+        env: {CI: 'true'}
+        run: |
+          set -euo pipefail
+          cp "$GITHUB_WORKSPACE/tools/game-launch-v9964/social-vote-security-firestore.test.mjs" tests/firestore/
+          tests/firestore/node_modules/.bin/firebase emulators:exec --only firestore \
+            --project demo-king-vote-integrity-9964 --config firebase-emulator.json \
+            "node tests/firestore/social-vote-security-firestore.test.mjs"
+      - name: Firestore Party Ready true query with more than 50 stale unready
+        working-directory: /tmp/king9967
+        env: {CI: 'true'}
+        run: |
+          set -euo pipefail
+          cp "$GITHUB_WORKSPACE/tools/live-party-v9963/ready-query-firestore.test.mjs" tests/firestore/
+          tests/firestore/node_modules/.bin/firebase emulators:exec --only firestore \
+            --project demo-king-ready-filter-9963 --config firebase-emulator.json \
+            "node tests/firestore/ready-query-firestore.test.mjs"
+      - name: Firebase real Tic Tac Toe Ready off ghost and live pairing
+        working-directory: /tmp/king9967
+        env: {CI: 'true'}
+        run: |
+          set -euo pipefail
+          cp "$GITHUB_WORKSPACE/tools/ttt-live-v9960/ttt-ready-firestore.test.mjs" tests/firestore/
+          tests/firestore/node_modules/.bin/firebase emulators:exec --only firestore \
+            --project demo-king-real-ttt-9960 --config firebase-emulator.json \
+            "node tests/firestore/ttt-ready-firestore.test.mjs"
+      - name: Firestore emulator Host recipient-only private role and race protection
+        working-directory: /tmp/king9967
+        env: {CI: 'true'}
+        run: |
+          set -euo pipefail
+          cp "$GITHUB_WORKSPACE/tools/social-host-role-v9961/host-role-private-firestore.test.mjs" tests/firestore/
+          tests/firestore/node_modules/.bin/firebase emulators:exec --only firestore \
+            --project demo-king-social-party-9958 --config firebase-emulator.json \
+            "node tests/firestore/host-role-private-firestore.test.mjs"
+      - name: Regression real social game roles, privacy and simultaneous Host
+        working-directory: /tmp/king9967
+        env: {CI: 'true'}
+        run: |
+          set -euo pipefail
+          cp "$GITHUB_WORKSPACE/tools/social-live-v9958/social-party-firestore.test.mjs" tests/firestore/
+          tests/firestore/node_modules/.bin/firebase emulators:exec --only firestore \
+            --project demo-king-social-party-9958 --config firebase-emulator.json \
+            "node tests/firestore/social-party-firestore.test.mjs"
+      - name: Regression real Party Gift receipts and immutable game turns
+        working-directory: /tmp/king9967
+        env: {CI: 'true'}
+        run: |
+          set -euo pipefail
+          for test in gift-delivery-firestore.test.mjs immutable-rounds-firestore.test.mjs; do
+            tests/firestore/node_modules/.bin/firebase emulators:exec --only firestore \
+              --project demo-king-live-ready-9959 --config firebase-emulator.json \
+              "node tests/firestore/$test"
+          done
+      - name: Compile complete Android Party Games Gifting APK
+        working-directory: /tmp/king9967
+        run: gradle :app:assembleDebug --no-daemon --max-workers=2
+      - name: Verify signed APK upgrade and zip integrity
+        run: |
+          set -euo pipefail
+          old=/tmp/king9967prev/KING-Plus-v9.9.66-Draw-Private-Role-Retry-TEST.apk
+          new=/tmp/king9967/app/build/outputs/apk/debug/app-debug.apk
+          aapt="$(find "$ANDROID_HOME/build-tools" -name aapt -type f | sort -V | tail -1)"
+          signer="$(find "$ANDROID_HOME/build-tools" -name apksigner -type f | sort -V | tail -1)"
+          "$aapt" dump badging "$new" | grep "^package:" | grep "name='com.kingplus.social'" | grep "versionCode='246'"
+          "$signer" verify --print-certs "$old" >/tmp/cert-old
+          "$signer" verify --print-certs "$new" >/tmp/cert-new
+          a="$(grep -Eo '[[:xdigit:]]{64}' /tmp/cert-old | head -1)"
+          b="$(grep -Eo '[[:xdigit:]]{64}' /tmp/cert-new | head -1)"
+          test -n "$a" && test "$a" = "$b"
+          unzip -tq "$new" | tail -1
+      - name: Package TEST APK and complete source, with no private signing key
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/king9967out
+          cp /tmp/king9967/app/build/outputs/apk/debug/app-debug.apk \
+            /tmp/king9967out/KING-Plus-v9.9.67-Live-Draw-Round-Integrity-TEST.apk
+          rm -f /tmp/king9967/app/kingplus-ci-debug.keystore
+          cd /tmp/king9967
+          zip -q -r /tmp/king9967out/KING-Plus-v9.9.67-Live-Draw-Round-Integrity-Source.zip . \
+            -x '*/node_modules/*' '*node_modules/*' 'app/build/*' './app/build/*' '*/build/*' \
+            './.gradle/*' '*/.gradle/*' '*.apk' '*.aab' '*.keystore' '*.jks' '*.zip' '*local.properties' '*.log'
+          sha256sum /tmp/king9967out/*
+      - uses: actions/upload-artifact@v4
+        with:
+          name: KING-v9967-Live-Draw-Round-Integrity-TEST-APK-and-Source
+          path: /tmp/king9967out/*
+          retention-days: 14
+          if-no-files-found: error
