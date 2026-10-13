@@ -1,0 +1,13 @@
+    // Family Admin may kick only a regular member; moderator moderates Chat.
+    // Admin/Moderator cannot give themselves roles, mint treasury or impersonate.
+    function familyRole9987(code) {
+      return get(/databases/$(database)/documents/families/$(code)/members/$(request.auth.uid)).data.role;
+    }
+    function familyChatModerator9987(code) {
+      return familyOwner(code)
+        || (familyMember(code) &&
+          familyRole9987(code) in ['admin','moderator']);
+    }
+    function familyAdminCanRemove9987(code) {
+      return familyMember(code) && familyRole9987(code) == 'admin';
+    }
