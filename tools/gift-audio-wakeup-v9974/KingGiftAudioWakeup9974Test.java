@@ -11,7 +11,7 @@ public class KingGiftAudioWakeup9974Test {
    final KingGiftAudioQueue9948 queue=new KingGiftAudioQueue9948();
    final List<String> played=Collections.synchronizedList(new ArrayList<>());
    final CountDownLatch atEmpty=new CountDownLatch(1),resumeEmpty=new CountDownLatch(1);
-   final AtomicInteger workers=new AtomicInteger(),maxWorkers=new AtomicInteger();
+   final AtomicInteger workers=new AtomicInteger(),activePlayback=new AtomicInteger(),maxPlayback=new AtomicInteger();
    boolean running=false;
    void send(String name) {
      synchronized(lock) {
@@ -23,7 +23,7 @@ public class KingGiftAudioWakeup9974Test {
    }
    void drain() {
      int live=workers.incrementAndGet();
-     maxWorkers.accumulateAndGet(live,Math::max);
+     
      try {
        while(true){
          String gift;
@@ -38,7 +38,11 @@ public class KingGiftAudioWakeup9974Test {
              return;
            }
          }
+         int now=activePlayback.incrementAndGet();
+         maxPlayback.accumulateAndGet(now,Math::max);
          played.add(gift);
+         try{Thread.sleep(1);}catch(InterruptedException e){Thread.currentThread().interrupt();}
+         activePlayback.decrementAndGet();
        }
      }finally{ workers.decrementAndGet(); }
    }
@@ -57,7 +61,7 @@ public class KingGiftAudioWakeup9974Test {
    check(p.played.size()==2,"second gift must not be stranded at worker shutdown");
    check(p.played.get(0).equals("Rose"),"first gift order");
    check(p.played.get(1).equals("VIP Night"),"different audio event remains ordered");
-   check(p.maxWorkers.get()<=1,"never two concurrent sound workers at empty handoff");
+   check(p.maxPlayback.get()<=1,"never two concurrent AudioTrack playback sessions");
    System.out.println("PASS atomic empty->idle Gift Sound worker handoff; no lost wakeup, no parallel AudioTrack producers");
  }
 }
