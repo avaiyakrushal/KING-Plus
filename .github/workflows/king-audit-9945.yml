@@ -1,0 +1,24 @@
+name: KING v9.9.45 Actual Multiplayer Result Audit
+on:
+  push:
+    branches: [work/king-game-rules-parity-v9945]
+    paths: ['tools/king-9945/audit.py','.github/workflows/king-audit-9945.yml']
+  workflow_dispatch:
+permissions: {contents: read, actions: read}
+jobs:
+  audit:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download verified v9.9.44 full source
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/king9945prev /tmp/king9945
+          gh run download 38343934291 -n KING-v9944-Real-Gift-Playback-TEST-APK-and-Source -D /tmp/king9945prev
+          unzip -q /tmp/king9945prev/KING-Plus-v9.9.44-Real-Gift-Playback-Source.zip -d /tmp/king9945
+          grep -q 'versionCode 223' /tmp/king9945/app/build.gradle
+      - name: Audit real multiplayer game state, round winners and gifting
+        run: python3 tools/king-9945/audit.py /tmp/king9945
