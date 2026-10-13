@@ -1,0 +1,135 @@
+name: KING v9.9.40 Real Timed Sheep Multiplayer TEST
+on:
+  push:
+    branches: [work/king-sheep-live-gift-v9940]
+    paths: ['tools/king-functional-v9940/**','.github/workflows/king-real-sheep-v9940.yml']
+  pull_request:
+    paths: ['tools/king-functional-v9940/**','.github/workflows/king-real-sheep-v9940.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  tested-apk:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 55
+    env:
+      GRADLE_OPTS: '-Xmx4g -XX:MaxMetaspaceSize=1024m'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v5
+        with: {distribution: temurin, java-version: '17'}
+      - uses: actions/setup-node@v4
+        with: {node-version: '22'}
+      - uses: gradle/actions/setup-gradle@v4
+        with: {gradle-version: '8.9'}
+      - name: Restore verified full KING v9.9.39 source and previous signed APK
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/king9940prev /tmp/king9940
+          gh run download 38337550718 -n KING-v9939-Real-Ludo-Knife-TEST-APK-and-Source -D /tmp/king9940prev
+          test -s /tmp/king9940prev/KING-Plus-v9.9.39-Real-Ludo-Knife-TEST.apk
+          unzip -q /tmp/king9940prev/KING-Plus-v9.9.39-Real-Ludo-Knife-Source.zip -d /tmp/king9940
+          grep -q "versionCode 218" /tmp/king9940/app/build.gradle
+          test -s app/kingplus-ci-debug.keystore
+          cp app/kingplus-ci-debug.keystore /tmp/king9940/app/kingplus-ci-debug.keystore
+      - name: Apply actual 8-second Sheep server-timed match changes
+        run: |
+          set -euo pipefail
+          python3 tools/king-functional-v9940/apply.py /tmp/king9940
+          cp tools/king-functional-v9940/sheep-firestore.test.mjs /tmp/king9940/tests/firestore/
+          node --check /tmp/king9940/functions/v3.js
+          node --test /tmp/king9940/functions/play-purchase-service.test.js
+          python3 - <<'PY'
+          from pathlib import Path
+          r=Path('/tmp/king9940');s=r/'app/src/main/java/com/kingplus/social'
+          j=(s/'RoomGameActivity.java').read_text()
+          f=(r/'firestore.rules').read_text()
+          assert 'sheepStartPending9940' in j and 'sheep_starts' in j
+          assert 'duration.value(8' in f and 'validSheepStart9940()' in f
+          assert "allow read: if roomAccess(roomId) && roomMember(roomId);" in f
+          assert 'versionCode 219' in (r/'app/build.gradle').read_text()
+          assert 'LIVE_RECHARGE = false' in (s/'KingRecharge974Activity.java').read_text()
+          assert 'PAID_VIP_ACTIVE = false' in (s/'KingPremiumAccess981.java').read_text()
+          print('PASS real Sheep starter, server 8s gate and live member controls; paid billing disabled')
+          PY
+      - name: Validate original KING Sheep deterministic physics
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/king9940class
+          javac -d /tmp/king9940class /tmp/king9940/app/src/main/java/com/kingplus/social/KingSheepRace9925.java
+          test -s /tmp/king9940class/com/kingplus/social/KingSheepRace9925.class
+      - name: Install Firebase emulator dependencies
+        working-directory: /tmp/king9940/tests/firestore
+        run: npm ci --no-audit --no-fund
+      - name: Test two-player Sheep, 8-second deadline, forged scores and kicked members
+        working-directory: /tmp/king9940
+        env:
+          CI: 'true'
+        run: |
+          set -euo pipefail
+          tests/firestore/node_modules/.bin/firebase emulators:exec --only firestore \
+            --project demo-king-sheep-9940 --config firebase-emulator.json \
+            "node tests/firestore/sheep-firestore.test.mjs"
+      - name: Ensure Gift, Party passwords, Ludo and Tic Tac Toe still pass
+        working-directory: /tmp/king9940
+        env:
+          CI: 'true'
+        run: |
+          set -euo pipefail
+          tests/firestore/node_modules/.bin/firebase emulators:exec --only firestore \
+            --project demo-king-party-ludo-9939 --config firebase-emulator.json \
+            "node tests/firestore/party-ludo-firestore.test.mjs"
+          tests/firestore/node_modules/.bin/firebase emulators:exec --only firestore \
+            --project demo-king-9938-live --config firebase-emulator.json \
+            "node tests/firestore/room-game-gift.test.mjs"
+          tests/firestore/node_modules/.bin/firebase emulators:exec --only firestore \
+            --project demo-king-room-v9936 --config firebase-emulator.json \
+            "node tests/firestore/functional-access.test.mjs"
+      - name: Compile complete KING Android v9.9.40
+        working-directory: /tmp/king9940
+        run: gradle :app:assembleDebug --no-daemon --max-workers=2
+      - name: Prove same signer, version upgrade, preserved resources
+        run: |
+          set -euo pipefail
+          old=/tmp/king9940prev/KING-Plus-v9.9.39-Real-Ludo-Knife-TEST.apk
+          new=/tmp/king9940/app/build/outputs/apk/debug/app-debug.apk
+          aapt="$(find "$ANDROID_HOME/build-tools" -name aapt -type f | sort -V | tail -1)"
+          signer="$(find "$ANDROID_HOME/build-tools" -name apksigner -type f | sort -V | tail -1)"
+          "$aapt" dump badging "$old" | grep "^package:" | grep "name='com.kingplus.social'" | grep "versionCode='218'"
+          "$aapt" dump badging "$new" | grep "^package:" | grep "name='com.kingplus.social'" | grep "versionCode='219'"
+          "$signer" verify --print-certs "$old" > /tmp/oldcert
+          "$signer" verify --print-certs "$new" > /tmp/newcert
+          a="$(grep -Eo '[[:xdigit:]]{64}' /tmp/oldcert | head -1)"
+          b="$(grep -Eo '[[:xdigit:]]{64}' /tmp/newcert | head -1)"
+          test -n "$a" && test "$a" = "$b"
+          python3 - <<'PY'
+          from zipfile import ZipFile
+          old='/tmp/king9940prev/KING-Plus-v9.9.39-Real-Ludo-Knife-TEST.apk'
+          new='/tmp/king9940/app/build/outputs/apk/debug/app-debug.apk'
+          def count(p):
+            with ZipFile(p) as z: n=set(z.namelist())
+            return (sum(x.startswith('res/layout') and x.endswith('.xml') for x in n),
+              sum(x.startswith('res/drawable') and x.endswith(('.xml','.png','.webp')) for x in n))
+          print('RESOURCE_COUNTS',count(old),count(new))
+          assert count(old)==count(new)==(4065,8680)
+          PY
+      - name: Package TEST APK and full source ZIP
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/king9940out
+          cp /tmp/king9940/app/build/outputs/apk/debug/app-debug.apk /tmp/king9940out/KING-Plus-v9.9.40-Verified-Sheep-TEST.apk
+          rm -f /tmp/king9940/app/kingplus-ci-debug.keystore
+          cd /tmp/king9940
+          zip -q -r /tmp/king9940out/KING-Plus-v9.9.40-Verified-Sheep-Source.zip . \
+            -x '*/node_modules/*' '*node_modules/*' 'app/build/*' './app/build/*' '*/build/*' \
+              './.gradle/*' '*/.gradle/*' '*.apk' '*.aab' '*.keystore' '*.jks' '*.zip' '*local.properties' '*.log'
+          sha256sum /tmp/king9940out/*
+      - uses: actions/upload-artifact@v4
+        with:
+          name: KING-v9940-Verified-Sheep-TEST-APK-and-Source
+          path: /tmp/king9940out/*
+          retention-days: 14
+          if-no-files-found: error
