@@ -27,7 +27,7 @@ jobs:
           gh run download 38403496911 -n KING-v9977-Genuine-Live-Round-TEST-APK-and-Source -D /tmp/king9978prev
           test -s /tmp/king9978prev/KING-Plus-v9.9.77-Live-Round-Moves-TEST.apk
           unzip -q /tmp/king9978prev/KING-Plus-v9.9.77-Live-Round-Moves-Source.zip -d /tmp/king9978
-          grep -q 'versionCode 255' /tmp/king9978/app/build.gradle
+          grep -q 'versionCode 256' /tmp/king9978/app/build.gradle
           test -s app/kingplus-ci-debug.keystore
           cp app/kingplus-ci-debug.keystore /tmp/king9978/app/kingplus-ci-debug.keystore
       - name: Patch full Android package Firestore rules: refuse fabricated Party scores
@@ -148,7 +148,7 @@ jobs:
           set -euo pipefail
           mkdir -p /tmp/king9978out
           cp /tmp/king9978/app/build/outputs/apk/debug/app-debug.apk \
-            /tmp/king9978out/KING-Plus-v9.9.77-Live-Round-Moves-TEST.apk
+            /tmp/king9978out/KING-Plus-v9.9.78-Real-Game-Score-Validation-TEST.apk
           rm -f /tmp/king9978/app/kingplus-ci-debug.keystore
           cd /tmp/king9978
           zip -q -r /tmp/king9978out/KING-Plus-v9.9.78-Real-Game-Score-Validation-Source.zip . \
