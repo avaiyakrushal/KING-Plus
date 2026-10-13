@@ -38,3 +38,16 @@ for needle in ['function roomAccess','match /live_rooms/{roomId}','match /access
  for j in hits[:2]:
   print('---',needle, 'line',j+1)
   for k in range(max(0,j-5),min(len(rules),j+30)):print(f'{k+1}: {rules[k][:180]}')
+
+print('\n## CRITICAL PASSWORD / INVITATION CODE')
+ls=(src/'PartyActivity.java').read_text().splitlines()
+for term in ('private void grantCurrentMembersAccessThen','private void setRoomPasswordDialog','private void removeRoomPassword','private void setPrivateRoom','private void updateEntrance9931','access.put("passwordHash"','grant.put("grantedBy"','collection("access")'):
+ hits=[i for i,l in enumerate(ls) if term in l]
+ print('ANCHOR',term,'count',len(hits))
+ for j in hits[:3]:
+  for k in range(max(0,j-6),min(len(ls),j+18)):print(f'{k+1}: {ls[k][:450]}')
+for term in ('match /secrets/{','match /access/{'):
+ hits=[i for i,l in enumerate(rules) if term in l]
+ for j in hits:
+  print('FIRESTORE',term,j+1)
+  for k in range(max(0,j-4),min(len(rules),j+33)):print(f'{k+1}: {rules[k][:300]}')
