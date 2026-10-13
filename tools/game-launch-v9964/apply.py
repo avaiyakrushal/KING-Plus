@@ -10,23 +10,18 @@ root=Path(sys.argv[1]);src=root/'app/src/main/java/com/kingplus/social'
 p=src/'MainActivity.java'
 s=p.read_text()
 if '    private void kingStartGame(String game,String mode){' not in s:
-    print('SOURCE_AUDIT_MAIN_GAME_ROUTING_BEGIN',flush=True)
-    for file_name,needles in [
-       ('MainActivity.java',['game','ludo','quick','party','match','random','KingGame','Bingo']),
-       ('RoomGameActivity.java',['startRound(', 'finishRound(', 'social', 'vote', 'draw', 'game_ready']),
-       ('PartyActivity.java',['requestedGame','RoomGameActivity','game','gift','Jitsi'])]:
-       lines=(src/file_name).read_text().splitlines()
-       print('FILE',file_name,'LINES',len(lines),flush=True)
-       shown=0
-       for index,line in enumerate(lines):
-           if ('private ' in line or 'new Intent(' in line or 'setOnClickListener' in line or 'Math.random' in line or 'requestedGame' in line) and any(needle.lower() in line.lower() for needle in needles):
-               print(index+1,repr(line[:240]),flush=True)
-               if index+1<len(lines) and ('new Intent(' in line or 'requestedGame' in line):
-                   print(index+2,repr(lines[index+1][:220]),flush=True)
-               shown+=1
-               if shown>=55:break
-    print('SOURCE_AUDIT_MAIN_GAME_ROUTING_END',flush=True)
-    raise AssertionError('Need actual updated live Game Center path, legacy Quick Match method absent')
+    print('SOURCE_GAME_ACTUAL_V9963_BEGIN',flush=True)
+    for file_name,start_line,end_line in [
+        ('MainActivity.java',975,1040),
+        ('MainActivity.java',1145,1265),
+        ('PartyActivity.java',1770,1800),
+        ('RoomGameActivity.java',685,738)]:
+        lines=(src/file_name).read_text().splitlines()
+        print('FILE',file_name,'LINES',start_line,'THROUGH',end_line,flush=True)
+        for index in range(start_line-1,min(end_line,len(lines))):
+            print(str(index+1)+':'+lines[index][:260],flush=True)
+    print('SOURCE_GAME_ACTUAL_V9963_END',flush=True)
+    raise AssertionError('Legacy fake quick game method is absent: patch current routing from evidence')
 begin=s.index('    private void kingStartGame(String game,String mode){')
 end=s.index('    private void kingRecordGame(',begin)
 body=s[begin:end]
