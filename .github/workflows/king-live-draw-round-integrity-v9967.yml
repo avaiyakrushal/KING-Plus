@@ -53,8 +53,10 @@ jobs:
           assert 'state().update(u)' not in publish
           rules=(root/'firestore.rules').read_text()
           assert "hasAny(['sketch'])" in rules
-          assert 'request.auth.uid == resource.data.drawerUid' in rules
+          assert "request.auth.uid == resource.data.get('drawerUid','')" in rules
           assert "hasOnly(['sketch','actorUid','updatedAt'])" in rules
+          assert "resource.data.get('cancelled',false)" in rules
+          assert "request.resource.data.get('participantUids',[])" in rules
           assert 'versionCode 246' in (root/'app/build.gradle').read_text()
           for k in ('KingPartyHiddenWord9965.draw(','KingPartyPrivateRoleLoad9966.needsRequest',
                     'KingSocialVoteRoster9964.validBallot','KingTttFairRoster9960.pickPair'):
