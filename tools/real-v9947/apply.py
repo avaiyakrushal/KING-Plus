@@ -152,6 +152,14 @@ new="""      match /game_state/{stateId} {
         allow update: if roomModerator(roomId)
           && request.resource.data.get('participantUids',[]) is list
           && request.resource.data.get('participantUids',[]).size() <= 50
+          // Once a cancelled round is closed, it cannot be rewritten as a
+          // winner. Only a NEW higher-ID active round may replace its state.
+          && (resource.data.get('cancelled',false) != true
+              || (request.resource.data.get('cancelled',false) != true
+                  && request.resource.data.get('roundId',0) is int
+                  && resource.data.get('roundId',0) is int
+                  && request.resource.data.roundId > resource.data.roundId
+                  && request.resource.data.status == 'active'))
           // A cancelled match must be a single narrow transition from a real
           // active round. Host may not forge a winner or rewrite the roster
           // while claiming cancellation.
