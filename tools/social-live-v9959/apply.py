@@ -55,6 +55,27 @@ public final class KingPartySocialRoster9959 {
  }
 }
 ''')
+# RPS, Dice and Coin also lock only explicitly Ready members; don't count stale Ready=false docs.
+roomall=p.read_text()
+oldcall='''if(KingLivePartyRoster9952.isActiveReady(candidate9952,
+                            actualReady9952.exists(),s(actualReady9952.getString("uid")),
+                            actualMember9952.exists(),s(actualMember9952.getString("uid"))))'''
+newcall='''if(KingLivePartyRoster9952.isActiveReady(candidate9952,
+                            actualReady9952.exists(),s(actualReady9952.getString("uid")),
+                            actualReady9952.getBoolean("ready"),
+                            actualMember9952.exists(),s(actualMember9952.getString("uid"))))'''
+assert roomall.count(oldcall)==1,'v9.9.58 locked standard game source changed'
+p.write_text(roomall.replace(oldcall,newcall,1))
+legacy=src/'KingLivePartyRoster9952.java';base=legacy.read_text()
+marker=''' public static boolean isActiveReady(String expected,boolean readyExists,String readyUid,'''
+assert base.count(marker)==1
+extra=''' public static boolean isActiveReady(String expected,boolean readyExists,String readyUid,
+                                      Boolean readyFlag,boolean memberExists,String memberUid){
+   return Boolean.TRUE.equals(readyFlag) &&
+     isActiveReady(expected,readyExists,readyUid,memberExists,memberUid);
+ }
+'''
+legacy.write_text(base.replace(marker,extra+marker,1))
 g=root/'app/build.gradle';v=g.read_text()
 old="versionCode 237; versionName '9.9.58-social-games-live-roster-test'"
 assert v.count(old)==1,'Requires verified v9.9.58 source'
