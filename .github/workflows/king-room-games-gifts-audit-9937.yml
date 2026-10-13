@@ -1,0 +1,34 @@
+name: KING 9.9.37 Real Room Game and Gifting Audit
+on:
+  push:
+    branches: [work/king-room-games-gifts-v9937]
+    paths: ['tools/functional-parity-v9937/audit.py', '.github/workflows/king-room-games-gifts-audit-9937.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  audit:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - name: Retrieve exact prior signed KING v9.9.36 source from successful build
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/king9937
+          gh run download 38332702041 -n KING-v9936-Party-Access-TEST-APK-and-Source -D /tmp/king9937
+          mkdir -p /tmp/fullking
+          unzip -q /tmp/king9937/KING-Plus-v9.9.36-Party-Access-Fix-Source.zip -d /tmp/fullking
+          grep -q "versionCode 215" /tmp/fullking/app/build.gradle
+      - name: Audit actual Game screens, synchronization, Gift ledger and rules
+        run: |
+          python3 tools/functional-parity-v9937/audit.py /tmp/fullking > /tmp/king-9937-audit.log
+          cat /tmp/king-9937-audit.log
+      - uses: actions/upload-artifact@v4
+        with:
+          name: KING-v9937-Room-Game-Gift-Code-Audit
+          path: /tmp/king-9937-audit.log
+          retention-days: 7
