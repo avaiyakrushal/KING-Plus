@@ -107,17 +107,16 @@ rules_patch(
           && get(/databases/$(database)/documents/live_rooms/$(roomId)/game_state/current).data.status == 'active'
           && get(/databases/$(database)/documents/live_rooms/$(roomId)/game_state/current).data.roundId == request.resource.data.roundId
           && get(/databases/$(database)/documents/live_rooms/$(roomId)/game_state/current).data.type == request.resource.data.type''')
-rules_patch(
- '''                   && request.resource.data.score <= 8));
-        allow delete: if signedIn()''',
- '''                   && request.resource.data.score <= 8));
-        allow update: if false; // immutable submissions
-        allow delete: if roomModerator(roomId); // player cannot delete+recreate a move to cheat
-        /* old delete rule replaced below */''')
-rules_patch(
- '''        /* old delete rule replaced below */
-          && (playerUid == request.auth.uid || roomModerator(roomId));''',
- '''        // Moderator can clean up player moves when a round finishes.''')
+# Apply the final restriction in exactly the game_moves rules block.
+# The existing TTT boundary has variable indentation across generator revisions.
+start=text.index('      match /game_moves/{playerUid} {')
+end=text.index('      match /game_state/{stateId} {',start)
+block=text[start:end]
+import re
+pattern=r'allow delete:\\s*if signedIn\\(\\)\\s*&&\\s*\\(playerUid == request\\.auth\\.uid \\|\\| roomModerator\\(roomId\\)\\);'
+block2,count=re.subn(pattern,'allow update: if false; // published game choices cannot be changed\\n        allow delete: if roomModerator(roomId);',block)
+if count!=1:raise RuntimeError('Expected unique player-delete bypass to lock down, found '+str(count))
+text=text[:start]+block2+text[end:]
 rules.write_text(text)
 gradle=root/'app/build.gradle';data=gradle.read_text()
 prev="versionCode 221; versionName '9.9.42-gift-resume-game-sync-test'"
