@@ -12,6 +12,9 @@ public final class KingPartySocialRoster9959Test {
   no(KingPartySocialRoster9959.isEligible("alice",true,"bob",true,true,"alice"),"forged Ready");
   no(KingPartySocialRoster9959.isEligible("alice",true,"alice",true,true,"bob"),"forged member");
   no(KingPartySocialRoster9959.isEligible("",true,"",true,true,""),"missing UID");
+  yes(KingLivePartyRoster9952.isActiveReady("alice",true,"alice",true,true,"alice"),"RPS ready");
+  no(KingLivePartyRoster9952.isActiveReady("alice",true,"alice",false,true,"alice"),"RPS not ready");
+  no(KingLivePartyRoster9952.isActiveReady("alice",true,"alice",null,true,"alice"),"RPS missing Ready flag");
   List<String> players=Arrays.asList("alice","bob","host");
   SecureRandom hostPick=new SecureRandom(){@Override public int nextInt(int bound){return bound-1;}};
   SecureRandom guestPick=new SecureRandom(){@Override public int nextInt(int bound){return 0;}};
