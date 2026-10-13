@@ -1,0 +1,24 @@
+name: KING v9.9.47 Real Active Game Cancellation Audit
+on:
+  push:
+    branches: [work/king-room-game-cancel-resume-v9947]
+    paths: ['tools/real-v9947/audit.py','.github/workflows/king-audit-9947.yml']
+  workflow_dispatch:
+permissions: {contents: read, actions: read}
+jobs:
+  audit:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - name: Fetch verified full v9.9.46 APK source
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/king9947prev /tmp/king9947
+          gh run download 38345967470 -n KING-v9946-Ready-Players-TEST-APK-and-Source -D /tmp/king9947prev
+          unzip -q /tmp/king9947prev/KING-Plus-v9.9.46-Ready-Players-Source.zip -d /tmp/king9947
+          grep -q 'versionCode 225' /tmp/king9947/app/build.gradle
+      - name: Review real Party game state and ready/cancel code
+        run: python3 tools/real-v9947/audit.py /tmp/king9947
