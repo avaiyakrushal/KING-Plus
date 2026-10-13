@@ -151,8 +151,8 @@ jobs:
           assert 'KingAgency9982Activity' in manifest
           assert 'LIVE_RECHARGE = false' in (root/'app/src/main/java/com/kingplus/social/KingRecharge974Activity.java').read_text()
           assert 'PAID_VIP_ACTIVE = false' in (root/'app/src/main/java/com/kingplus/social/KingPremiumAccess981.java').read_text()
-          assert 'versionCode 262' in (root/'app/build.gradle').read_text()
-          print('PASS inherited Agency requests and Wallet/VIP protections under signed vCode262')
+          assert 'versionCode 263' in (root/'app/build.gradle').read_text()
+          print('PASS previous Agency requests and Wallet/VIP protections preserved in vCode263')
           PY
       - name: Pure Java verify Me Gift Wall proper-account isolation deduping and allowed wishes
         run: |
