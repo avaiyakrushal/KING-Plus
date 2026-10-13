@@ -111,8 +111,13 @@ rules_patch(
  '''                   && request.resource.data.score <= 8));
         allow delete: if signedIn()''',
  '''                   && request.resource.data.score <= 8));
-        allow update: if false; // immutable submissions; next turn after moderator DELETE
-        allow delete: if signedIn()''')
+        allow update: if false; // immutable submissions
+        allow delete: if roomModerator(roomId); // player cannot delete+recreate a move to cheat
+        /* old delete rule replaced below */''')
+rules_patch(
+ '''        /* old delete rule replaced below */
+          && (playerUid == request.auth.uid || roomModerator(roomId));''',
+ '''        // Moderator can clean up player moves when a round finishes.''')
 rules.write_text(text)
 gradle=root/'app/build.gradle';data=gradle.read_text()
 prev="versionCode 221; versionName '9.9.42-gift-resume-game-sync-test'"
