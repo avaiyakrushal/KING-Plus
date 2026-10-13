@@ -26,3 +26,5 @@ for i,x in enumerate(rules):
 dump('PartyActivity.java',2355,2405)
 dump('PartyActivity.java',5645,5695)
 dump('PartyActivity.java',3595,3625)
+
+find('PartyActivity.java',['eventsListener.remove()', 'messagesListener.remove()', 'processedEventIds.clear()', 'eventSnapshotReady=', 'onDestroy()', 'giftSendPending971'],3,50)
