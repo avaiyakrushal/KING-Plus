@@ -1,0 +1,138 @@
+{
+  "schema": 1,
+  "project": "KING Plus",
+  "baseline": "v9.9.78 signed TEST APK / versionCode257",
+  "baseline_run": "https://github.com/avaiyakrushal/KING-Plus/actions/runs/38405932696",
+  "release_kind": "TEST_ONLY",
+  "note": "No feature may be marked passed on the basis of XML/drawable counts or CI Android compile alone. Real provider, production and two-phone proof required.",
+  "gates": [
+    {
+      "id": "01",
+      "key": "login",
+      "acceptance": "Google, Facebook and real SMS OTP, genuine fresh accounts",
+      "external_dependency": true,
+      "status": "unverified",
+      "evidence": []
+    },
+    {
+      "id": "02",
+      "key": "party_room",
+      "acceptance": "Host/cohost/admin/moderation/seat/room passwords, two live accounts",
+      "external_dependency": false,
+      "status": "unverified",
+      "evidence": []
+    },
+    {
+      "id": "03",
+      "key": "rtc_voice",
+      "acceptance": "Two physical phones, WiFi-to-cellular, remote-mute privacy, rejoin",
+      "external_dependency": true,
+      "status": "unverified",
+      "evidence": []
+    },
+    {
+      "id": "04",
+      "key": "video",
+      "acceptance": "Real two-way or live Party video using authenticated provider",
+      "external_dependency": true,
+      "status": "unverified",
+      "evidence": []
+    },
+    {
+      "id": "05",
+      "key": "ordinary_multiplayer",
+      "acceptance": "All 13 live rounds start/moves/end/rematch/reconnect, no fake or ghost result",
+      "external_dependency": false,
+      "status": "unverified",
+      "evidence": []
+    },
+    {
+      "id": "06",
+      "key": "full_original_games",
+      "acceptance": "True turn rules and win conditions for Ludo Sheep Fight Bingo and game catalog",
+      "external_dependency": false,
+      "status": "unverified",
+      "evidence": []
+    },
+    {
+      "id": "07",
+      "key": "gifting",
+      "acceptance": "Correct different Gift animations and distinct sounds, dedup, receiver ACK",
+      "external_dependency": true,
+      "status": "unverified",
+      "evidence": []
+    },
+    {
+      "id": "08",
+      "key": "paid_diamonds",
+      "acceptance": "Approved merchant, webhook receipt signature, atomic ledger, idempotent credit",
+      "external_dependency": true,
+      "status": "unverified",
+      "evidence": []
+    },
+    {
+      "id": "09",
+      "key": "vip_noble",
+      "acceptance": "Real entitlement grants and expiration, noble privileges/gifts",
+      "external_dependency": true,
+      "status": "unverified",
+      "evidence": []
+    },
+    {
+      "id": "10",
+      "key": "profiles",
+      "acceptance": "DP/profile stats/charm/medals/gift history on two accounts",
+      "external_dependency": false,
+      "status": "unverified",
+      "evidence": []
+    },
+    {
+      "id": "11",
+      "key": "family_social",
+      "acceptance": "Family roles, activity, chat/friends/followers, privileges synced",
+      "external_dependency": false,
+      "status": "unverified",
+      "evidence": []
+    },
+    {
+      "id": "12",
+      "key": "pk_ktv",
+      "acceptance": "PK score/settlement and KTV microphone and song queue on separate devices",
+      "external_dependency": true,
+      "status": "unverified",
+      "evidence": []
+    },
+    {
+      "id": "13",
+      "key": "shared_3d_world",
+      "acceptance": "Multiple real 3D avatars sync movement and stages on normal Android phones",
+      "external_dependency": true,
+      "status": "unverified",
+      "evidence": []
+    },
+    {
+      "id": "14",
+      "key": "events_ranking",
+      "acceptance": "Events/rankings/rewards accurately update for multiple accounts",
+      "external_dependency": false,
+      "status": "unverified",
+      "evidence": []
+    },
+    {
+      "id": "15",
+      "key": "notifications_safety",
+      "acceptance": "FCM, block/report/ban, moderation, security rules, privacy abuse acceptance",
+      "external_dependency": true,
+      "status": "unverified",
+      "evidence": []
+    },
+    {
+      "id": "16",
+      "key": "production_release",
+      "acceptance": "Deployed Firebase rules, provider setup, crash/security/regression tests, signed AAB/APK and version rollback",
+      "external_dependency": true,
+      "status": "unverified",
+      "evidence": []
+    }
+  ]
+}
