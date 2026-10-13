@@ -1,0 +1,139 @@
+name: KING v9.9.54 Real Party Result Reconnect and Recovery TEST
+on:
+  push:
+    branches: [work/king-game-result-reconnect-v9954]
+    paths: ['tools/result-retry-v9954/**','.github/workflows/king-room-result-retry-v9954.yml']
+  pull_request:
+    paths: ['tools/result-retry-v9954/**','.github/workflows/king-room-result-retry-v9954.yml']
+  workflow_dispatch:
+permissions: {contents: read, actions: read}
+jobs:
+  compile-and-verify-real-party:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 55
+    env: {GRADLE_OPTS: '-Xmx4g -XX:MaxMetaspaceSize=1024m'}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v5
+        with: {distribution: temurin, java-version: '17'}
+      - uses: actions/setup-node@v4
+        with: {node-version: '22'}
+      - uses: gradle/actions/setup-gradle@v4
+        with: {gradle-version: '8.9'}
+      - name: Restore successful full signed v9.9.53 Party source
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/king9954prev /tmp/king9954
+          gh run download 38355272351 -n KING-v9953-Real-Auto-Multiplayer-TEST-APK-and-Source -D /tmp/king9954prev
+          test -s /tmp/king9954prev/KING-Plus-v9.9.53-Auto-Multiplayer-TEST.apk
+          unzip -q /tmp/king9954prev/KING-Plus-v9.9.53-Auto-Multiplayer-Source.zip -d /tmp/king9954
+          grep -q 'versionCode 232' /tmp/king9954/app/build.gradle
+          test -s app/kingplus-ci-debug.keystore
+          cp app/kingplus-ci-debug.keystore /tmp/king9954/app/kingplus-ci-debug.keystore
+      - name: Patch bounded reconnect retry of live Party results
+        run: |
+          set -euo pipefail
+          python3 tools/result-retry-v9954/apply.py /tmp/king9954
+          python3 - <<'PY'
+          from pathlib import Path
+          root=Path('/tmp/king9954')
+          p=root/'app/src/main/java/com/kingplus/social'
+          s=(p/'RoomGameActivity.java').read_text()
+          assert 'else maybeAutoFinish9953();' in s
+          assert 'autoSettlementInFlight9954=true;' in s
+          assert 'settlementHandler9954.postDelayed' in s
+          assert 'clearScheduledSettlement9954();' in s
+          assert 'settleFailed9954(automatic9954,expected,expectedType);' in s
+          assert 'private void finishRound(boolean automatic9954)' in s
+          a=s[s.index('    private void finishRound(boolean automatic9954){'):s.index('    private String resultFor(')]
+          assert 'Source.SERVER' in a and 'db.runTransaction(tx->' in a
+          assert 'KingRoomAutoFinish9953.shouldFinish' in s
+          assert 'KingLivePartyRoster9952' in s and 'KingTttLiveRoster9951' in s
+          assert 'pendingGiftEvents9944' in (p/'PartyActivity.java').read_text()
+          assert 'LIVE_RECHARGE = false' in (p/'KingRecharge974Activity.java').read_text()
+          assert 'PAID_VIP_ACTIVE = false' in (p/'KingPremiumAccess981.java').read_text()
+          assert 'versionCode 233' in (root/'app/build.gradle').read_text()
+          print('PASS bounded retry for failed REAL server-verified Party result, manual Host fallback, Gifting preserved')
+          PY
+      - name: Test timed retry and never retry closed/removed/unauthorized round
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/king9954classes
+          javac -d /tmp/king9954classes \
+            /tmp/king9954/app/src/main/java/com/kingplus/social/KingRoomSettleRetry9954.java \
+            tools/result-retry-v9954/KingRoomSettleRetry9954Test.java
+          java -cp /tmp/king9954classes com.kingplus.social.KingRoomSettleRetry9954Test
+      - name: Install Firestore emulator test dependencies
+        working-directory: /tmp/king9954/tests/firestore
+        run: npm ci --no-audit --no-fund
+      - name: Verify ghost Ready excluded and real-player RPS still playable
+        working-directory: /tmp/king9954
+        env: {CI: 'true'}
+        run: |
+          set -euo pipefail
+          cp "$GITHUB_WORKSPACE/tools/real-game-roster-v9952/live-roster-firestore.test.mjs" tests/firestore/
+          tests/firestore/node_modules/.bin/firebase emulators:exec --only firestore \
+            --project demo-king-live-roster-9954 --config firebase-emulator.json \
+            "node tests/firestore/live-roster-firestore.test.mjs"
+      - name: Preserve real RPS Dice Coin and Host Cancel acceptance tests
+        working-directory: /tmp/king9954
+        env: {CI: 'true'}
+        run: |
+          set -euo pipefail
+          tests/firestore/node_modules/.bin/firebase emulators:exec --only firestore \
+            --project demo-king-frozen-roster-9946 --config firebase-emulator.json \
+            "node tests/firestore/frozen-ready-firestore.test.mjs"
+          tests/firestore/node_modules/.bin/firebase emulators:exec --only firestore \
+            --project demo-king-immutable-games-9943 --config firebase-emulator.json \
+            "node tests/firestore/immutable-rounds-firestore.test.mjs"
+          tests/firestore/node_modules/.bin/firebase emulators:exec --only firestore \
+            --project demo-king-real-cancel-9947 --config firebase-emulator.json \
+            "node tests/firestore/cancel-round-firestore.test.mjs"
+          tests/firestore/node_modules/.bin/firebase emulators:exec --only firestore \
+            --project demo-king-9938-live --config firebase-emulator.json \
+            "node tests/firestore/room-game-gift.test.mjs"
+      - name: Preserve Gift receipts and anti-impersonation tests
+        working-directory: /tmp/king9954
+        env: {CI: 'true'}
+        run: |
+          set -euo pipefail
+          tests/firestore/node_modules/.bin/firebase emulators:exec --only firestore \
+            --project demo-king-gift-receipts-9941 --config firebase-emulator.json \
+            "node tests/firestore/gift-delivery-firestore.test.mjs"
+      - name: Compile full Android app
+        working-directory: /tmp/king9954
+        run: gradle :app:assembleDebug --no-daemon --max-workers=2
+      - name: Verify signed upgrade identity and exact version
+        run: |
+          set -euo pipefail
+          old=/tmp/king9954prev/KING-Plus-v9.9.53-Auto-Multiplayer-TEST.apk
+          new=/tmp/king9954/app/build/outputs/apk/debug/app-debug.apk
+          aapt="$(find "$ANDROID_HOME/build-tools" -name aapt -type f | sort -V | tail -1)"
+          signer="$(find "$ANDROID_HOME/build-tools" -name apksigner -type f | sort -V | tail -1)"
+          "$aapt" dump badging "$old" | grep "^package:" | grep "name='com.kingplus.social'" | grep "versionCode='232'"
+          "$aapt" dump badging "$new" | grep "^package:" | grep "name='com.kingplus.social'" | grep "versionCode='233'"
+          "$signer" verify --print-certs "$old" >/tmp/oldcert
+          "$signer" verify --print-certs "$new" >/tmp/newcert
+          a="$(grep -Eo '[[:xdigit:]]{64}' /tmp/oldcert | head -1)"
+          b="$(grep -Eo '[[:xdigit:]]{64}' /tmp/newcert | head -1)"
+          test -n "$a" && test "$a" = "$b"
+      - name: Package signed TEST APK and complete Android source
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/king9954out
+          cp /tmp/king9954/app/build/outputs/apk/debug/app-debug.apk \
+            /tmp/king9954out/KING-Plus-v9.9.54-Result-Reconnect-TEST.apk
+          rm -f /tmp/king9954/app/kingplus-ci-debug.keystore
+          cd /tmp/king9954
+          zip -q -r /tmp/king9954out/KING-Plus-v9.9.54-Result-Reconnect-Source.zip . \
+            -x '*/node_modules/*' '*node_modules/*' 'app/build/*' './app/build/*' '*/build/*' \
+            './.gradle/*' '*/.gradle/*' '*.apk' '*.aab' '*.keystore' '*.jks' '*.zip' '*local.properties' '*.log'
+          sha256sum /tmp/king9954out/*
+      - uses: actions/upload-artifact@v4
+        with:
+          name: KING-v9954-Verified-Result-Reconnect-TEST-APK-and-Source
+          path: /tmp/king9954out/*
+          retention-days: 14
+          if-no-files-found: error
