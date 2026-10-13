@@ -1,96 +1,273 @@
 #!/usr/bin/env python3
-"""KING v9.9.64: prevent fake one-phone random Quick Match outcomes.
-Real multiplayer choices go into the authenticated Party/Game flow.
-Unimplemented mini-games explicitly display Not Ready instead of fabricated
-wins/points. No changes to working Party games, gifting, mic/privacy or billing.
+"""KING v9.9.64: real Party Werewolf/Spy voting integrity and stale result race.
+A vote can be cast only by the current round's frozen actual room member,
+against another currently joined frozen participant, using a SERVER-verified
+roster + Firestore transaction. Moderator results only count legitimate ballots;
+finishing any social round is an atomic compare-and-set on round and game type.
 """
 from pathlib import Path
 import sys
-root=Path(sys.argv[1]);src=root/'app/src/main/java/com/kingplus/social'
-p=src/'MainActivity.java'
-s=p.read_text()
-if '    private void kingStartGame(String game,String mode){' not in s:
-    print('VOTE_AUDIT_BEGIN',flush=True)
-    lines=(src/'RoomGameActivity.java').read_text().splitlines()
-    for i in range(687,736):
-        print(str(i+1)+': '+lines[i],flush=True)
-    print('VOTE_AUDIT_END',flush=True)
-    raise AssertionError('Voting code audit before replacing live roster handling')
-begin=s.index('    private void kingStartGame(String game,String mode){')
-end=s.index('    private void kingRecordGame(',begin)
-body=s[begin:end]
-assert 'kingRecordGame(' in body or 'Math.random()' in body, 'v9.9.63 no longer has fake quick match path: inspect instead'
-assert 'kingOpenGameRoom(' in s, 'Must preserve existing Party launcher'
-assert 'new Intent(this,PartyActivity.class)' in s,'MainActivity Party intent required'
-new='''    /** Real match entry: do not manufacture a rival, score or fake win locally.
-     * A valid synchronized game requires actual verified Party members.
-     */
-    private void kingStartGame(String game,String mode){
-        if(game==null||game.trim().isEmpty()){Toast.makeText(this,
-            "Choose a real Party game",Toast.LENGTH_SHORT).show();return;}
-        final String game9964=game,mode9964=mode==null?"Party":mode;
-        int route9964=KingRealGameRoute9964.route(game9964);
-        if(route9964==KingRealGameRoute9964.PARTY_GAME){
-            new AlertDialog.Builder(this)
-                .setTitle(game9964+" • "+mode9964)
-                .setMessage("This game needs real online players in a KING Party Room. "
-                    +"Join the room, ask players to tap Ready and start it from Party Games. "
-                    +"The result is synchronized with Firebase; no fake local rival, "
-                    +"win or Game Points will be awarded.")
-                .setPositiveButton("Open real Party", (d,w)->kingOpenGameRoom(game9964))
-                .setNegativeButton("Cancel",null).show();
-            return;
-        }
-        if(route9964==KingRealGameRoute9964.VOICE_ONLY){
-            new AlertDialog.Builder(this).setTitle(game9964+" • Voice Room")
-                .setMessage("KING Plus can open a voice Party for this game. "
-                    +"It does not embed or control the separate third-party game.")
-                .setPositiveButton("Open voice Party",(d,w)->kingOpenGameRoom(game9964))
-                .setNegativeButton("Cancel",null).show();
-            return;
-        }
-        // Bingo, Crazy Zoo and unverified games cannot pretend to be online
-        // by drawing Math.random wins or adding invented persistent GP.
-        new AlertDialog.Builder(this).setTitle(game9964+" • Not live yet")
-            .setMessage("Real multiplayer "+game9964+
-                " is not yet implemented/verified in KING Plus. "
-                +"No match was played and no Game Points were credited.")
-            .setPositiveButton("OK",null).show();
-    }
+root=Path(sys.argv[1]); src=root/'app/src/main/java/com/kingplus/social'
+p=src/'RoomGameActivity.java'; s=p.read_text()
 
+a=s.index('    private void votePlayer866(){')
+b=s.index('    private void finishHiddenRound866(){',a)
+new_vote='''    /** Actual active members of this frozen Party round, not stale Ready docs. */
+    private void votePlayer866(){
+        if(me==null||db==null||roundId<=0||!gameMemberVerified992)return;
+        final long expected=roundId;
+        final String game=type, voter=me.getUid();
+        if(!("werewolf".equals(game)||"spy".equals(game)))return;
+        state().get(com.google.firebase.firestore.Source.SERVER)
+          .addOnSuccessListener(st->{
+            if(!KingSocialVoteRoster9964.isCurrent(st.exists(),
+                    st.getLong("roundId"),expected,
+                    s(st.getString("status")),s(st.getString("type")),game))return;
+            final java.util.List<String> locked=KingSocialVoteRoster9964.roster(
+                st.get("participantUids"));
+            if(!locked.contains(voter)){
+                toast("You are spectating this round • cannot vote");return;
+            }
+            room().collection("members")
+              .get(com.google.firebase.firestore.Source.SERVER)
+              .addOnSuccessListener(members->{
+                if(me==null||!voter.equals(me.getUid())||roundId!=expected)return;
+                final java.util.ArrayList<String> choices=new java.util.ArrayList<>();
+                final java.util.ArrayList<String> labels=new java.util.ArrayList<>();
+                for(DocumentSnapshot m:members.getDocuments()){
+                    String uid=m.getId();
+                    if(!uid.equals(s(m.getString("uid")))||!locked.contains(uid))continue;
+                    choices.add(uid);
+                    String name=s(m.getString("name"));
+                    labels.add(name.isEmpty()?"Player":name);
+                }
+                if(choices.isEmpty()){toast("No active Party members to vote for");return;}
+                String[] labelArray=labels.toArray(new String[0]);
+                new AlertDialog.Builder(this)
+                  .setTitle("🗳 Vote • "+("werewolf".equals(game)?
+                    "Who is the Werewolf?":"Who is the Spy?"))
+                  .setItems(labelArray,(dialog,which)->{
+                    if(which<0||which>=choices.size())return;
+                    final String target=choices.get(which),targetName=labels.get(which);
+                    if(me==null||!voter.equals(me.getUid())||roundId!=expected)return;
+                    // A Party room / player may leave between list and tap.
+                    // Fresh transaction prevents a ghost or spectator vote.
+                    db.runTransaction(tx->{
+                        DocumentSnapshot live=tx.get(state());
+                        DocumentSnapshot own=tx.get(
+                            room().collection("members").document(voter));
+                        DocumentSnapshot other=tx.get(
+                            room().collection("members").document(target));
+                        if(!KingSocialVoteRoster9964.isCurrent(live.exists(),
+                                live.getLong("roundId"),expected,
+                                s(live.getString("status")),
+                                s(live.getString("type")),game) ||
+                            !KingSocialVoteRoster9964.validBallot(
+                                voter,target,KingSocialVoteRoster9964.roster(
+                                    live.get("participantUids")),
+                                own.exists()&&voter.equals(s(own.getString("uid"))),
+                                other.exists()&&target.equals(s(other.getString("uid")))))
+                            throw new IllegalStateException(
+                                "Round/Party player changed; reopen voting");
+                        Map<String,Object> value=new HashMap<>();
+                        value.put("uid",voter);value.put("name",displayName);
+                        value.put("roundId",expected);value.put("choice",target);
+                        value.put("choiceName",targetName);
+                        value.put("updatedAt",FieldValue.serverTimestamp());
+                        tx.set(room().collection("game_votes").document(voter),value);
+                        return null;
+                    }).addOnSuccessListener(v->toast("Vote saved: "+targetName))
+                      .addOnFailureListener(e->toast("Vote denied: "+e.getMessage()));
+                  }).setNegativeButton("Close",null).show();
+              }).addOnFailureListener(e->toast("Live Party members unavailable"));
+          }).addOnFailureListener(e->toast("Active Party round unavailable"));
+    }
 '''
-s=s[:begin]+new+s[end:]
-# Safeguard actual Party launch path, never link to fake statistics.
-assert 'kingOpenGameRoom(game9964)' in s
-assert 'kingRecordGame(' not in s[s.index('    private void kingStartGame('):s.index('    private void kingRecordGame(')]
+s=s[:a]+new_vote+s[b:]
+a=s.index('    private void finishHiddenRound866(){')
+b=s.index('    private void submitDrawGuess866(EditText box){',a)
+new_finish='''    /** Ignore ghosts, spectators and forged voter IDs at round settlement. */
+    private void finishHiddenRound866(){
+        if(!moderator||me==null||db==null||
+          !("werewolf".equals(type)||"spy".equals(type))||roundId<=0)return;
+        final long expected=roundId;
+        final String game=type,targetRole="werewolf".equals(game)?"Werewolf":"Spy";
+        state().get(com.google.firebase.firestore.Source.SERVER)
+          .addOnSuccessListener(stateDoc->{
+            if(!KingSocialVoteRoster9964.isCurrent(stateDoc.exists(),
+                  stateDoc.getLong("roundId"),expected,
+                  s(stateDoc.getString("status")),
+                  s(stateDoc.getString("type")),game))return;
+            final java.util.List<String> locked=KingSocialVoteRoster9964.roster(
+                  stateDoc.get("participantUids"));
+            room().collection("game_votes")
+              .get(com.google.firebase.firestore.Source.SERVER)
+              .addOnSuccessListener(votes->{
+                if(roundId!=expected)return;
+                final Map<String,Integer> counts=new HashMap<>();
+                final Map<String,String> names=new HashMap<>();
+                for(DocumentSnapshot d:votes.getDocuments()){
+                    Long r=d.getLong("roundId");
+                    if(r==null||r.longValue()!=expected)continue;
+                    String voter=d.getId(),choice=s(d.getString("choice"));
+                    if(!KingSocialVoteRoster9964.validVoteDocument(
+                         voter,s(d.getString("uid")),choice,locked))continue;
+                    counts.put(choice,counts.containsKey(choice)?
+                        counts.get(choice)+1:1);
+                    names.put(choice,s(d.getString("choiceName")));
+                }
+                room().collection("room_invites")
+                  .get(com.google.firebase.firestore.Source.SERVER)
+                  .addOnSuccessListener(invites->{
+                    if(roundId!=expected)return;
+                    String targetUid="",targetName=targetRole;
+                    for(DocumentSnapshot d:invites.getDocuments()){
+                        Long r=d.getLong("roundId");
+                        if(r==null||r.longValue()!=expected
+                           ||!game.equals(s(d.getString("gameType"))))continue;
+                        String u=s(d.getString("recipientUid"));
+                        if(targetRole.equals(s(d.getString("role")))
+                           &&locked.contains(u)){
+                            targetUid=u;targetName=s(d.getString("recipientName"));break;
+                        }
+                    }
+                    if(targetUid.isEmpty()){
+                        toast("Private role data is unavailable");return;
+                    }
+                    int max=0;java.util.List<String> top=new ArrayList<>();
+                    for(Map.Entry<String,Integer> e:counts.entrySet()){
+                        if(e.getValue()>max){
+                            max=e.getValue();top.clear();top.add(e.getKey());
+                        }else if(e.getValue()==max)top.add(e.getKey());
+                    }
+                    String out;
+                    if(max==0)out="No valid votes • "+targetName+" was the "+targetRole;
+                    else if(top.size()!=1)out="Vote tied • "+targetName+" was the "+targetRole;
+                    else{
+                        String picked=top.get(0),pickedName=names.get(picked);
+                        if(pickedName==null||pickedName.isEmpty())pickedName="Player";
+                        boolean found=targetUid.equals(picked);
+                        out=(found?("werewolf".equals(game)?"🏆 Village wins":
+                           "🏆 Players found the Spy"):("werewolf".equals(game)?
+                           "🐺 Werewolf escaped":"🕵 Spy escaped"))
+                           +"\\nMost voted: "+pickedName+"\\n"+targetRole+": "+targetName;
+                    }
+                    closeSocialRound866(out);
+                  }).addOnFailureListener(e->toast("Private roles unavailable"));
+              }).addOnFailureListener(e->toast("Party votes unavailable"));
+          }).addOnFailureListener(e->toast("Party game changed; refresh"));
+    }
+'''
+s=s[:a]+new_finish+s[b:]
+a=s.index('    private void closeSocialRound866(String out){')
+b=s.index('    private void drawGuessControls866(){',a)
+close='''    /** The previous round MUST NOT close a new round due to an async callback. */
+    private void closeSocialRound866(String out){
+        if(!moderator||me==null||db==null||roundId<=0)return;
+        final long expected=roundId; final String expectedType=type;
+        final String expectedUid=me.getUid();
+        db.runTransaction(tx->{
+            DocumentSnapshot fresh=tx.get(state());
+            DocumentSnapshot owner=tx.get(
+                room().collection("members").document(expectedUid));
+            if(!owner.exists()||!expectedUid.equals(s(owner.getString("uid")))||
+               !KingSocialVoteRoster9964.isCurrent(fresh.exists(),
+                   fresh.getLong("roundId"),expected,
+                   s(fresh.getString("status")),
+                   s(fresh.getString("type")),expectedType))
+                throw new IllegalStateException("Party round changed; cannot finish");
+            Map<String,Object> update=new HashMap<>();
+            update.put("actorUid",expectedUid);
+            update.put("result",out);update.put("status","closed");
+            update.put("updatedAt",FieldValue.serverTimestamp());
+            tx.update(state(),update);
+            return null;
+        }).addOnSuccessListener(v->postGameEvent750(
+             "🏁 "+out.replace("\\n"," • ")))
+          .addOnFailureListener(e->toast("Finish denied: "+e.getMessage()));
+    }
+'''
+s=s[:a]+close+s[b:]
 p.write_text(s)
 
-(src/'KingRealGameRoute9964.java').write_text('''package com.kingplus.social;
-/** Real matchmaking entry policy. This is NOT a certification that a
- * specific Party game's full rules have passed two-physical-phone testing.
- */
-public final class KingRealGameRoute9964 {
- private KingRealGameRoute9964(){}
- public static final int NOT_READY=0,PARTY_GAME=1,VOICE_ONLY=2;
- public static int route(String title){
-   if(title==null)return NOT_READY;
-   String game=title.trim().toLowerCase(java.util.Locale.ROOT);
-   if(game.startsWith("ludo")||game.startsWith("sheep")
-       ||game.startsWith("werewolf")||game.startsWith("spy")
-       ||game.startsWith("draw & guess"))return PARTY_GAME;
-   if(game.startsWith("free fire"))return VOICE_ONLY;
-   // Do not fabricate a local Bingo/Crazy Zoo/Chess outcome.
-   return NOT_READY;
+(src/'KingSocialVoteRoster9964.java').write_text('''package com.kingplus.social;
+import java.util.*;
+/** Pure logic for validated, frozen, live Party game vote participants. */
+public final class KingSocialVoteRoster9964 {
+ private KingSocialVoteRoster9964(){}
+ public static boolean isCurrent(boolean exists,Long stored,long expected,
+                                 String status,String type,String required){
+   return exists&&stored!=null&&expected>0&&stored.longValue()==expected
+      &&"active".equals(status)&&required!=null&&required.equals(type);
+ }
+ public static List<String> roster(Object raw){
+   if(!(raw instanceof List))return Collections.emptyList();
+   List<String> out=new ArrayList<>();
+   for(Object v:(List<?>)raw){
+     if(v instanceof String&&!((String)v).isEmpty()&&!out.contains(v))
+       out.add((String)v);
+   }
+   return out;
+ }
+ public static boolean validBallot(String voter,String target,List<String> locked,
+                                   boolean voterPresent,boolean targetPresent){
+   return voter!=null&&target!=null&&locked!=null&&voterPresent&&targetPresent
+       &&locked.contains(voter)&&locked.contains(target);
+ }
+ public static boolean validVoteDocument(String documentUid,String claimedUid,
+                                         String choice,List<String> locked){
+   return documentUid!=null&&!documentUid.isEmpty()
+      &&documentUid.equals(claimedUid)&&choice!=null
+      &&locked!=null&&locked.contains(documentUid)&&locked.contains(choice);
  }
 }
 ''')
-g=root/'app/build.gradle';v=g.read_text()
-old="versionCode 242; versionName '9.9.63-live-ready-game-gift-overflow-test'"
-assert v.count(old)==1,'Must start at genuine complete v9.9.63 source'
-g.write_text(v.replace(old,"versionCode 243; versionName '9.9.64-real-party-game-launch-no-fake-wins-test'"))
-assert 'KingPartyMicConsent9956' in (src/'PartyActivity.java').read_text()
-assert 'KingGiftReceiptDurable9962' in (src/'PartyActivity.java').read_text()
-assert 'KingTttFairRoster9960.pickPair' in (src/'RoomGameActivity.java').read_text()
+
+rules=root/'firestore.rules'
+r=rules.read_text()
+old='''      match /game_votes/{playerUid} {
+        allow read: if roomAccess(roomId)
+          && (playerUid == request.auth.uid || roomModerator(roomId));
+        allow create, update: if roomAccess(roomId)
+          && roomMember(roomId)
+          && playerUid == request.auth.uid
+          && request.resource.data.uid == request.auth.uid;
+        allow delete: if signedIn()
+          && (playerUid == request.auth.uid || roomModerator(roomId));
+      }'''
+new='''      match /game_votes/{playerUid} {
+        allow read: if roomAccess(roomId)
+          && (playerUid == request.auth.uid || roomModerator(roomId));
+        allow create, update: if roomAccess(roomId)
+          && roomMember(roomId)
+          && playerUid == request.auth.uid
+          && request.resource.data.uid == request.auth.uid
+          && exists(/databases/$(database)/documents/live_rooms/$(roomId)/game_state/current)
+          && get(/databases/$(database)/documents/live_rooms/$(roomId)/game_state/current).data.status == 'active'
+          && get(/databases/$(database)/documents/live_rooms/$(roomId)/game_state/current).data.roundId == request.resource.data.roundId
+          && get(/databases/$(database)/documents/live_rooms/$(roomId)/game_state/current).data.participantUids is list
+          && request.auth.uid in get(/databases/$(database)/documents/live_rooms/$(roomId)/game_state/current).data.participantUids
+          && (get(/databases/$(database)/documents/live_rooms/$(roomId)/game_state/current).data.type
+                in ['werewolf','spy']
+              ? request.resource.data.choice in get(/databases/$(database)/documents/live_rooms/$(roomId)/game_state/current).data.participantUids
+              : request.resource.data.choice is string);
+        allow delete: if signedIn()
+          && (playerUid == request.auth.uid || roomModerator(roomId));
+      }'''
+assert r.count(old)==1,'Full v9.9.63 Firebase security rules changed'
+rules.write_text(r.replace(old,new,1))
+
+g=root/'app/build.gradle'
+grad=g.read_text()
+oldver="versionCode 242; versionName '9.9.63-live-ready-game-gift-overflow-test'"
+assert grad.count(oldver)==1,'requires verified v9.9.63 full app source'
+g.write_text(grad.replace(oldver,
+  "versionCode 243; versionName '9.9.64-real-social-vote-security-test'"))
+party=(src/'PartyActivity.java').read_text()
+for t in ('KingPartyMicConsent9956','KingPartyVoiceReconnect9957',
+          'KingGiftReceiptDurable9962','KingGiftBurstBackpressure9963'):
+ assert t in party,t
+assert 'KingTttFairRoster9960.pickPair' in s
 assert 'LIVE_RECHARGE = false' in (src/'KingRecharge974Activity.java').read_text()
 assert 'PAID_VIP_ACTIVE = false' in (src/'KingPremiumAccess981.java').read_text()
-print('PASS main Game Quick Match no fake wins or random scores; actual Party entry for game engine')
+print('PASS online Party votes: frozen live roster, no ghost/spectator vote, wrong-round finishing impossible')
