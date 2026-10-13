@@ -1,0 +1,54 @@
+name: KING v9.9.80 Real Bingo Source Audit
+on:
+  push:
+    branches: [work/king-real-bingo-game-v9980]
+    paths: ['.github/workflows/king-real-bingo-audit-v9980.yml']
+  workflow_dispatch:
+permissions: {contents: read, actions: read}
+jobs:
+  audit-runtime-source:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Restore last fully signed Android source
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/king9980 /tmp/king9980source
+          gh run download 38412761103 -n KING-v9979-Integrated-Games-And-16-Gates-TEST-APK-and-Source -D /tmp/king9980source
+          unzip -q /tmp/king9980source/KING-Plus-v9.9.79-Integrated-Party-TEST-Source.zip -d /tmp/king9980
+          test -s /tmp/king9980/app/src/main/java/com/kingplus/social/RoomGameActivity.java
+      - name: Audit real Bingo launch, game state, Firestore permissions
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          r=Path('/tmp/king9980')
+          paths=[
+             ('game',r/'app/src/main/java/com/kingplus/social/RoomGameActivity.java',
+               ['Bingo', 'bingo','startRoundNow750','private void listenState','private void renderControls','private void submitMove','game_moves']),
+             ('manifest',r/'app/src/main/AndroidManifest.xml',['RoomGameActivity','GameCenterActivity','Ludo']),
+             ('rules',r/'firestore.rules',["game_moves","game_state","request.resource.data.type != 'bingo'"]),
+             ('center',r/'app/src/main/java/com/kingplus/social/GameCenterActivity.java',['bingo','Bingo','RoomGameActivity'])]
+          for label,path,words in paths:
+            print('===== '+label+' path='+str(path)+' =====')
+            if not path.exists():print('FILE NOT FOUND');continue
+            lines=path.read_text().splitlines()
+            groups=[]
+            for key in words:
+              hits=[i for i,line in enumerate(lines) if key.lower() in line.lower()]
+              print('KEY',repr(key),'HITS',len(hits),'FIRST',hits[:18])
+              if key in ('bingo','Bingo','RoomGameActivity','game_moves','game_state','request.resource.data.type != \'bingo\''):
+                for i in hits[:4]:groups.append((max(0,i-6),min(len(lines),i+9)))
+            merged=[]
+            for begin,end in sorted(groups):
+              if merged and begin<=merged[-1][1]:merged[-1]=(merged[-1][0],max(end,merged[-1][1]))
+              else:merged.append((begin,end))
+            count=0
+            for begin,end in merged:
+              if count>235:break
+              for i in range(begin,min(end,begin+90)):
+                print(f'{i+1}: {lines[i]}');count+=1
+          files=list((r/'app/src/main/java/com/kingplus/social').glob('*Bingo*'))
+          print('BINGO RELATED JAVA:',[p.name for p in files])
+          PY
