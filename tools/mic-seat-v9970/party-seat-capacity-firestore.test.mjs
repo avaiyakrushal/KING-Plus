@@ -24,7 +24,7 @@ async function move(db,uid,want){
 }
 try{
  await env.clearFirestore();
- await assertSucceeds(setDoc(room(H),{ownerUid:'host',name:'Eight-seat Party',maxSeats:8,entranceMode:'free',isPrivate:false,closed:false,hasPassword:false}));
+ await assertSucceeds(setDoc(room(H),{ownerUid:'host',name:'Eight-seat Party',maxSeats:8,locked:false,muteAll:false,entranceMode:'free',isPrivate:false,closed:false,hasPassword:false}));
  for(const [db,uid] of [[H,'host'],[A,'alice'],[B,'bob'],[E,'eve']])await assertSucceeds(setDoc(member(db,uid),{uid,name:uid}));
  await assertSucceeds(setDoc(seat(A,8),seatRecord('alice')));
  await assertFails(setDoc(seat(A,9),seatRecord('alice')));
