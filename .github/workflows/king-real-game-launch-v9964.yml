@@ -1,4 +1,4 @@
-name: KING v9.9.64 Real Party Game Quick Match Entry TEST
+name: KING v9.9.64 Genuine Party Werewolf Spy Vote Integrity TEST
 on:
   push:
     branches: [work/king-real-game-launch-v9964]
@@ -32,7 +32,7 @@ jobs:
           grep -q 'versionCode 242' /tmp/king9964/app/build.gradle
           test -s app/kingplus-ci-debug.keystore
           cp app/kingplus-ci-debug.keystore /tmp/king9964/app/kingplus-ci-debug.keystore
-      - name: Replace misleading fake Game Center round with real Party entry
+      - name: Fix genuine Werewolf Spy ghost votes and atomic result settlement
         run: |
           set -euo pipefail
           python3 tools/game-launch-v9964/apply.py /tmp/king9964
@@ -40,40 +40,58 @@ jobs:
           from pathlib import Path
           root=Path('/tmp/king9964')
           src=root/'app/src/main/java/com/kingplus/social'
-          main=(src/'MainActivity.java').read_text()
-          begin=main.index('    private void kingStartGame(String game,String mode){')
-          end=main.index('    private void kingRecordGame(',begin)
-          entry=main[begin:end]
-          for token in ('KingRealGameRoute9964.route(game9964)',
-                        'kingOpenGameRoom(game9964)',
-                        'No match was played and no Game Points were credited'):
-            assert token in entry,token
-          for forbidden in ('Math.random()', 'kingRecordGame(', 'Game Points\\n', 'rival='):
-            assert forbidden not in entry,forbidden
-          assert 'new Intent(this,PartyActivity.class)' in main
+          room=(src/'RoomGameActivity.java').read_text()
+          vote=room[room.index('    private void votePlayer866(){'):
+                    room.index('    private void finishHiddenRound866(){')]
+          finish=room[room.index('    private void finishHiddenRound866(){'):
+                      room.index('    private void submitDrawGuess866(',room.index('    private void finishHiddenRound866(){'))]
+          close=room[room.index('    private void closeSocialRound866('):
+                     room.index('    private void drawGuessControls866(){')]
+          for tok in ('Source.SERVER','KingSocialVoteRoster9964.roster',
+                      'members','db.runTransaction(tx->',
+                      'KingSocialVoteRoster9964.validBallot'):
+            assert tok in vote,tok
+          for tok in ('Source.SERVER','KingSocialVoteRoster9964.validVoteDocument',
+                      'KingSocialVoteRoster9964.roster'):
+            assert tok in finish,tok
+          for tok in ('db.runTransaction(tx->','tx.get(state())',
+                      'KingSocialVoteRoster9964.isCurrent','tx.update(state(),update)'):
+            assert tok in close,tok
+          assert 'game_ready").get()' not in vote
+          assert 'state().update(u)' not in close
+          rules=(root/'firestore.rules').read_text()
+          assert "request.auth.uid in get(" in rules
+          assert "request.resource.data.choice in get(" in rules
+          assert "request.resource.data.roundId" in rules
+          assert 'versionCode 243' in (root/'app/build.gradle').read_text()
           party=(src/'PartyActivity.java').read_text()
-          game=(src/'RoomGameActivity.java').read_text()
-          for token in ('KingGiftReceiptDurable9962','KingPartyMicConsent9956',
-                        'KingPartyVoiceReconnect9957','KingGiftBurstBackpressure9963'):
-            assert token in party,token
-          assert 'KingTttFairRoster9960.pickPair' in game
-          assert 'KingPartySocialRoster9959.isEligible' in game
+          for name in ('KingPartyVoiceReconnect9957','KingPartyMicConsent9956',
+                       'KingGiftReceiptDurable9962','KingGiftBurstBackpressure9963'):
+            assert name in party,name
           assert 'LIVE_RECHARGE = false' in (src/'KingRecharge974Activity.java').read_text()
           assert 'PAID_VIP_ACTIVE = false' in (src/'KingPremiumAccess981.java').read_text()
-          assert 'versionCode 243' in (root/'app/build.gradle').read_text()
-          print('PASS fake Game Center wins stopped; authenticated Party multiplayer flow retained')
+          print('PASS actual Party votes locked to live participants and stale host close impossible')
           PY
-      - name: Java test real Party Game Center launch decisions
+      - name: Java test Party vote identities, ghost nominees and stale round guards
         run: |
           set -euo pipefail
           mkdir -p /tmp/king9964classes
           javac -d /tmp/king9964classes \
-            /tmp/king9964/app/src/main/java/com/kingplus/social/KingRealGameRoute9964.java \
-            tools/game-launch-v9964/KingRealGameRoute9964Test.java
-          java -cp /tmp/king9964classes com.kingplus.social.KingRealGameRoute9964Test
+            /tmp/king9964/app/src/main/java/com/kingplus/social/KingSocialVoteRoster9964.java \
+            tools/game-launch-v9964/KingSocialVoteRoster9964Test.java
+          java -cp /tmp/king9964classes com.kingplus.social.KingSocialVoteRoster9964Test
       - name: Install real Firestore emulator dependencies
         working-directory: /tmp/king9964/tests/firestore
         run: npm ci --no-audit --no-fund
+      - name: Firestore multiuser Werewolf Spy ballot security and no stale finish
+        working-directory: /tmp/king9964
+        env: {CI: 'true'}
+        run: |
+          set -euo pipefail
+          cp "$GITHUB_WORKSPACE/tools/game-launch-v9964/social-vote-security-firestore.test.mjs" tests/firestore/
+          tests/firestore/node_modules/.bin/firebase emulators:exec --only firestore \
+            --project demo-king-vote-integrity-9964 --config firebase-emulator.json \
+            "node tests/firestore/social-vote-security-firestore.test.mjs"
       - name: Firestore Party Ready true query with more than 50 stale unready
         working-directory: /tmp/king9964
         env: {CI: 'true'}
@@ -142,16 +160,16 @@ jobs:
           set -euo pipefail
           mkdir -p /tmp/king9964out
           cp /tmp/king9964/app/build/outputs/apk/debug/app-debug.apk \
-            /tmp/king9964out/KING-Plus-v9.9.64-Real-Party-Game-Launch-TEST.apk
+            /tmp/king9964out/KING-Plus-v9.9.64-Live-Social-Vote-Integrity-TEST.apk
           rm -f /tmp/king9964/app/kingplus-ci-debug.keystore
           cd /tmp/king9964
-          zip -q -r /tmp/king9964out/KING-Plus-v9.9.64-Real-Party-Game-Launch-Source.zip . \
+          zip -q -r /tmp/king9964out/KING-Plus-v9.9.64-Live-Social-Vote-Integrity-Source.zip . \
             -x '*/node_modules/*' '*node_modules/*' 'app/build/*' './app/build/*' '*/build/*' \
             './.gradle/*' '*/.gradle/*' '*.apk' '*.aab' '*.keystore' '*.jks' '*.zip' '*local.properties' '*.log'
           sha256sum /tmp/king9964out/*
       - uses: actions/upload-artifact@v4
         with:
-          name: KING-v9964-Real-Party-Game-Launch-TEST-APK-and-Source
+          name: KING-v9964-Live-Social-Vote-Integrity-TEST-APK-and-Source
           path: /tmp/king9964out/*
           retention-days: 14
           if-no-files-found: error
