@@ -39,8 +39,10 @@ new="""        && request.resource.data.name.size() <= 120
         && request.resource.data.createdAt == request.time
         && request.resource.data.updatedAt == request.time;
       allow update:"""
-assert r.count(old)==1,'Family create boundary changed'
-r=r.replace(old,new,1)
+family_begin=r.index('    match /families/{familyCode} {')
+family_part=r[family_begin:]
+assert family_part.count(old)==1,'Family create boundary changed'
+r=r[:family_begin]+family_part.replace(old,new,1)
 rules.write_text(r)
 
 community=src/'CommunityHubActivity.java'
