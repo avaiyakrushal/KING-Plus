@@ -19,7 +19,7 @@ button='''        // REAL multiplayer 5x5 Bingo, not legacy one-tap Pick Number 
         controls.addView(realBingo9980,new LinearLayout.LayoutParams(-1,dp(52)));
 '''
 before,after=s.split('    private void renderControls(){',1)
-s=before+'    private void renderControls(){'+after.replace(anchor,anchor+'\\n'+button,1)
+s=before+'    private void renderControls(){'+after.replace(anchor,anchor+'\n'+button,1)
 room.write_text(s)
 manifest=root/'app/src/main/AndroidManifest.xml'
 m=manifest.read_text()
