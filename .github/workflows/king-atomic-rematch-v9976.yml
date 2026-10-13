@@ -1,0 +1,140 @@
+name: KING v9.9.76 Real Party Atomic Rematch with 600 Ghost Moves TEST
+on:
+  push:
+    branches: [work/king-atomic-round-cleanup-v9976]
+    paths: ['tools/atomic-rematch-v9976/**', '.github/workflows/king-atomic-rematch-v9976.yml']
+  workflow_dispatch:
+permissions: {contents: read, actions: read}
+jobs:
+  party-real-round-cleanup:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 55
+    env: {GRADLE_OPTS: '-Xmx4g -XX:MaxMetaspaceSize=1024m'}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v5
+        with: {distribution: temurin, java-version: '17'}
+      - uses: actions/setup-node@v4
+        with: {node-version: '22'}
+      - uses: gradle/actions/setup-gradle@v4
+        with: {gradle-version: '8.9'}
+      - name: Recover full signed v9.9.75 Android Party/Games/Gifting
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/king9976 /tmp/king9976prev
+          gh run download 38400182939 -n KING-v9975-Party-Member-Result-Gate-TEST-APK-and-Source -D /tmp/king9976prev
+          test -s /tmp/king9976prev/KING-Plus-v9.9.75-No-Departed-Winner-TEST.apk
+          unzip -q /tmp/king9976prev/KING-Plus-v9.9.75-No-Departed-Winner-Source.zip -d /tmp/king9976
+          grep -q 'versionCode 254' /tmp/king9976/app/build.gradle
+          test -s app/kingplus-ci-debug.keystore
+          cp app/kingplus-ci-debug.keystore /tmp/king9976/app/kingplus-ci-debug.keystore
+      - name: Patch genuine 13 Party games rematch to clean only ready members
+        run: |
+          set -euo pipefail
+          python3 tools/atomic-rematch-v9976/apply.py /tmp/king9976
+          grep -q 'versionCode 255' /tmp/king9976/app/build.gradle
+          python3 - <<'PY'
+          from pathlib import Path
+          s=Path('/tmp/king9976/app/src/main/java/com/kingplus/social/RoomGameActivity.java').read_text()
+          begin=s.index('    private void startRoundNow750(')
+          end=s.index('    private void postGameEvent750(',begin)
+          source=s[begin:end]
+          for expected in ('KingPartyMoveCleanup9976.roster','tx.get(oldMove9976)',
+                           'tx.delete(oldMove9976)','KingPartyRoundRoster9972.isOrdinaryGame',
+                           'room().collection("members")'):
+            assert expected in source,expected
+          assert 'room().collection("game_moves").get()' not in source
+          assert 'old.getDocuments()' not in source
+          print('PASS 13 ordinary Party games have no unbounded read/delete of all game history')
+          PY
+      - name: Java participant-only cleanup, 800 ghosts and all 13 game settlement tests
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/king9976class
+          javac -d /tmp/king9976class \
+            /tmp/king9976/app/src/main/java/com/kingplus/social/KingPartyMoveCleanup9976.java \
+            /tmp/king9976/app/src/main/java/com/kingplus/social/KingPartyAllPlayed9973.java \
+            /tmp/king9976/app/src/main/java/com/kingplus/social/KingPartyRoundRoster9972.java \
+            /tmp/king9976/app/src/main/java/com/kingplus/social/KingRoomRoster9946.java \
+            /tmp/king9976/app/src/main/java/com/kingplus/social/KingPartyLiveRoster9975.java \
+            tools/atomic-rematch-v9976/KingPartyMoveCleanup9976Test.java \
+            tools/all-played-v9973/KingPartyAllPlayed9973Test.java \
+            tools/no-departed-winner-v9975/KingPartyLiveRoster9975Test.java
+          for test in KingPartyMoveCleanup9976Test KingPartyAllPlayed9973Test KingPartyLiveRoster9975Test; do
+            java -cp /tmp/king9976class com.kingplus.social."$test"
+          done
+      - name: Install emulator dependencies
+        working-directory: /tmp/king9976/tests/firestore
+        run: npm ci --no-audit --no-fund
+      - name: Actual Firebase rematch with 612 old player moves; no ghost score or game freeze
+        working-directory: /tmp/king9976
+        env: {CI: 'true'}
+        run: |
+          set -euo pipefail
+          cp "$GITHUB_WORKSPACE/tools/atomic-rematch-v9976/stale-history-rematch-firestore.test.mjs" tests/firestore/
+          tests/firestore/node_modules/.bin/firebase emulators:exec --only firestore \
+            --project demo-king-rematch-9976 --config firebase-emulator.json \
+            "node tests/firestore/stale-history-rematch-firestore.test.mjs"
+      - name: Regression departed 4th player cannot receive false winner
+        working-directory: /tmp/king9976
+        env: {CI: 'true'}
+        run: |
+          set -euo pipefail
+          cp "$GITHUB_WORKSPACE/tools/no-departed-winner-v9975/departed-player-no-winner-firestore.test.mjs" tests/firestore/
+          tests/firestore/node_modules/.bin/firebase emulators:exec --only firestore \
+            --project demo-king-departure-9975 --config firebase-emulator.json \
+            "node tests/firestore/departed-player-no-winner-firestore.test.mjs"
+      - name: Regression only 4-of-4 genuine Ready players allow winner
+        working-directory: /tmp/king9976
+        env: {CI: 'true'}
+        run: |
+          set -euo pipefail
+          cp "$GITHUB_WORKSPACE/tools/all-played-v9973/all-players-finish-firestore.test.mjs" tests/firestore/
+          tests/firestore/node_modules/.bin/firebase emulators:exec --only firestore \
+            --project demo-king-all-played-9973 --config firebase-emulator.json \
+            "node tests/firestore/all-players-finish-firestore.test.mjs"
+      - name: Regression Free Gift delivery and ACK reconnect unchanged
+        working-directory: /tmp/king9976
+        env: {CI: 'true'}
+        run: |
+          set -euo pipefail
+          cp "$GITHUB_WORKSPACE/tools/gift-reconnect-v9968/party-gift-after-network-firestore.test.mjs" tests/firestore/
+          tests/firestore/node_modules/.bin/firebase emulators:exec --only firestore \
+            --project demo-king-gift-rejoin-9968 --config firebase-emulator.json \
+            "node tests/firestore/party-gift-after-network-firestore.test.mjs"
+      - name: Compile actual complete Android app
+        working-directory: /tmp/king9976
+        run: gradle :app:assembleDebug --no-daemon --max-workers=2
+      - name: Verify identical APK signer, package and vCode 255
+        run: |
+          set -euo pipefail
+          old=/tmp/king9976prev/KING-Plus-v9.9.75-No-Departed-Winner-TEST.apk
+          new=/tmp/king9976/app/build/outputs/apk/debug/app-debug.apk
+          aapt="$(find "$ANDROID_HOME/build-tools" -name aapt -type f | sort -V | tail -1)"
+          signer="$(find "$ANDROID_HOME/build-tools" -name apksigner -type f | sort -V | tail -1)"
+          "$aapt" dump badging "$new" | grep "^package:" | grep "name='com.kingplus.social'" | grep "versionCode='255'"
+          "$signer" verify --print-certs "$old" >/tmp/old9976cert
+          "$signer" verify --print-certs "$new" >/tmp/new9976cert
+          a="$(grep -Eo '[[:xdigit:]]{64}' /tmp/old9976cert | head -1)"
+          b="$(grep -Eo '[[:xdigit:]]{64}' /tmp/new9976cert | head -1)"
+          test -n "$a" && test "$a" = "$b"
+          unzip -tq "$new" | tail -1
+      - name: Deliver TEST APK & original full source ZIP excluding signing keys
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/king9976out
+          cp /tmp/king9976/app/build/outputs/apk/debug/app-debug.apk \
+            /tmp/king9976out/KING-Plus-v9.9.76-Real-Party-Rematch-TEST.apk
+          rm -f /tmp/king9976/app/kingplus-ci-debug.keystore
+          cd /tmp/king9976
+          zip -q -r /tmp/king9976out/KING-Plus-v9.9.76-Real-Party-Rematch-Source.zip . \
+            -x '*/node_modules/*' '*node_modules/*' 'app/build/*' './app/build/*' '*/build/*' './.gradle/*' '*/.gradle/*' '*.apk' '*.aab' '*.keystore' '*.jks' '*.zip' '*local.properties' '*.log'
+          sha256sum /tmp/king9976out/*
+      - uses: actions/upload-artifact@v4
+        with:
+          name: KING-v9976-Real-Party-Round-Cleanup-TEST-APK-and-Source
+          path: /tmp/king9976out/*
+          retention-days: 14
+          if-no-files-found: error
