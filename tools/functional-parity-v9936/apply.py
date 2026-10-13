@@ -81,8 +81,9 @@ rr("""        // Access markers are intentionally not client-readable. roomAcces
             && roomData(roomId).isPrivate == true
             && roomData(roomId).hasPassword == true
             && request.resource.data.uid == request.auth.uid
-            && request.resource.data.get('entryEpoch','__missing__')
-               == roomData(roomId).get('entryEpoch','')
+            && (roomData(roomId).get('entryEpoch','') == ''
+               || request.resource.data.get('entryEpoch','__missing__')
+                  == roomData(roomId).get('entryEpoch',''))
             && request.resource.data.passwordHash is string
             && request.resource.data.passwordHash
               == get(/databases/$(database)/documents/live_rooms/$(roomId)/secrets/password).data.passwordHash;
@@ -104,16 +105,18 @@ old="""        allow create: if (
           && request.resource.data.uid == accessUid;"""
 new="""        allow create: if (roomModerator(roomId)
             && request.resource.data.uid == accessUid
-            && request.resource.data.get('entryEpoch','__missing__')
-               == roomData(roomId).get('entryEpoch',''))
+            && (roomData(roomId).get('entryEpoch','') == ''
+               || request.resource.data.get('entryEpoch','__missing__')
+                  == roomData(roomId).get('entryEpoch','')))
           || validCurrentPasswordProof9936();
         // Users with an old access document must be allowed to re-enter the
         // CURRENT valid password to replace their stale approval. Never permit
         // an arbitrary client to update or recreate a grant without proof.
         allow update: if (roomModerator(roomId)
             && request.resource.data.uid == accessUid
-            && request.resource.data.get('entryEpoch','__missing__')
-               == roomData(roomId).get('entryEpoch',''))
+            && (roomData(roomId).get('entryEpoch','') == ''
+               || request.resource.data.get('entryEpoch','__missing__')
+                  == roomData(roomId).get('entryEpoch','')))
           || validCurrentPasswordProof9936();"""
 rr(old,new)
 rules.write_text(s)
