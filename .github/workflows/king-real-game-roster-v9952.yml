@@ -69,9 +69,10 @@ jobs:
         env: {CI: 'true'}
         run: |
           set -euo pipefail
+          cp "$GITHUB_WORKSPACE/tools/real-game-roster-v9952/live-roster-firestore.test.mjs" tests/firestore/
           tests/firestore/node_modules/.bin/firebase emulators:exec --only firestore \
             --project demo-king-live-roster-9952 --config firebase-emulator.json \
-            "node $GITHUB_WORKSPACE/tools/real-game-roster-v9952/live-roster-firestore.test.mjs"
+            "node tests/firestore/live-roster-firestore.test.mjs"
       - name: RPS Dice Coin move locking and host cancel/ready regression
         working-directory: /tmp/king9952
         env: {CI: 'true'}
