@@ -151,8 +151,8 @@ jobs:
           assert 'KingAgency9982Activity' in manifest
           assert 'LIVE_RECHARGE = false' in (root/'app/src/main/java/com/kingplus/social/KingRecharge974Activity.java').read_text()
           assert 'PAID_VIP_ACTIVE = false' in (root/'app/src/main/java/com/kingplus/social/KingPremiumAccess981.java').read_text()
-          assert 'versionCode 261' in (root/'app/build.gradle').read_text()
-          print('PASS secure Agency request only, nested Me entry, Wallet/VIP closed, full Android vCode261')
+          assert 'versionCode 262' in (root/'app/build.gradle').read_text()
+          print('PASS inherited Agency requests and Wallet/VIP protections under signed vCode262')
           PY
       - name: Pure Java verify Me Gift Wall proper-account isolation deduping and allowed wishes
         run: |
@@ -275,7 +275,7 @@ jobs:
       - name: Build full Android Party Room, Games and Gifting APK
         working-directory: /tmp/king9983
         run: gradle :app:assembleDebug --no-daemon --max-workers=2
-      - name: Verify Android package vCode257 and same original APK signer
+      - name: Verify Android package vCode262 and same original APK signer
         run: |
           set -euo pipefail
           old=/tmp/king9983prev/KING-Plus-v9.9.82-Agency-Agent-Safe-TEST.apk
