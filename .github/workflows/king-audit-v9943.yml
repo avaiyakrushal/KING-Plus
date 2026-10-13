@@ -1,0 +1,24 @@
+name: KING v9.9.43 Party Gameplay and Audio Audit
+on:
+  push:
+    branches: [work/king-party-realtime-integrity-v9943]
+    paths: ['tools/real-v9943/audit.py','.github/workflows/king-audit-v9943.yml']
+  workflow_dispatch:
+permissions: {contents: read, actions: read}
+jobs:
+  audit:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Recover verified v9.9.42 full source
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/king9943p /tmp/king9943
+          gh run download 38341263920 -n KING-v9942-Reconnect-Gifts-Games-TEST-APK-and-Source -D /tmp/king9943p
+          unzip -q /tmp/king9943p/KING-Plus-v9.9.42-Reconnect-Gifts-Games-Source.zip -d /tmp/king9943
+          grep -q 'versionCode 221' /tmp/king9943/app/build.gradle
+      - name: Inspect actual Party Game and Gift code
+        run: python3 tools/real-v9943/audit.py /tmp/king9943
