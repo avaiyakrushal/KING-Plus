@@ -55,8 +55,12 @@ try {
  await assertFails(getDoc(role(B,11,'alice'))); // role private, not to other member
  await assertFails(getDoc(role(E,11,'bob')));
  await assertFails(getDoc(role(E,11,'eve')));
- await assertFails(publish(H,10,12,'spy')); // same host cannot override
- await assertFails(publish(C,10,12,'spy')); // cohost cannot override
+ for(const actor of [H,C]){
+   let staleRejected=false;
+   try{await publish(actor,10,12,'spy');}
+   catch(e){staleRejected=String(e).includes('Round changed');}
+   if(!staleRejected)throw new Error('Concurrent Host stale-round race was accepted');
+ } // both Host and CoHost are rejected BEFORE any role writes
  const after=await getDoc(state(A));
  if(after.data().roundId!==11||after.data().type!=='werewolf')
    throw new Error('Concurrent Host overwrote social round');
