@@ -22,3 +22,8 @@ for i,t in enumerate(l):
  if any(v in t for v in ['match /game_moves/','match /game_state/','match /events/','match /gift_receipts/']):
   print('RULE',i+1)
   for j in range(i,min(len(l),i+82)):print(f'{j+1}: {l[j][:1050]}')
+
+p=s/'RoomGameActivity.java';l=p.read_text().splitlines()
+print('\n### ROOM_GAME_EXACT')
+for i in list(range(35,70))+list(range(120,130))+list(range(200,230))+list(range(274,289))+list(range(595,635)):
+ if i<len(l):print(f'{i+1}: {l[i][:3000]}')
