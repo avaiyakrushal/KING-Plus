@@ -129,6 +129,13 @@ new2="""          && playerUid == request.auth.uid
           // For an active Tic Tac Toe match"""
 if s.count(old2)!=1:raise RuntimeError("game_moves anchor count changed")
 s=s.replace(old2,new2,1)
+# Kicked or unauthorised accounts cannot continue reading live game moves,
+# ready rosters, or game state merely because the Party is public.
+for coll in ('game_ready','game_moves','game_state'):
+    before="match /"+coll+"/{"+("playerUid" if coll!='game_state' else "stateId")+"} {\n        allow read: if roomAccess(roomId);"
+    after=before.replace("allow read: if roomAccess(roomId);","allow read: if roomAccess(roomId) && roomMember(roomId);")
+    if s.count(before)!=1:raise RuntimeError("Read gate anchor count changed for "+coll)
+    s=s.replace(before,after,1)
 rules.write_text(s)
 gradle=root/'app/build.gradle'
 v=gradle.read_text();base="versionCode 218; versionName '9.9.39-party-ludo-knife-membership-test'"
