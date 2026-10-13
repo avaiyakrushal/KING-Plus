@@ -48,6 +48,7 @@ jobs:
                         'participantUids','db.runTransaction(tx->','Source.SERVER'):
             assert token in start,token
           assert 'possible9958.remove(hostUid9958)' not in start
+          assert 'actualReady9952.getBoolean("ready")' in room
           party=(src/'PartyActivity.java').read_text()
           for token in ('KingPartyVoiceReconnect9957','KingPartyMicConsent9956','KingGiftReceiptRetry9955'):
             assert token in party,token
