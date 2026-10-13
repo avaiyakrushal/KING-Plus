@@ -79,49 +79,45 @@ public final class KingLiveDrawRound9967 {
 }
 ''')
 p=root/'firestore.rules';r=p.read_text()
-old='''      match /game_state/{stateId} {
-        allow read: if roomAccess(roomId);
-        allow create, update, delete: if roomModerator(roomId);
-      }'''
-new='''      match /game_state/{stateId} {
-        allow read: if roomAccess(roomId);
-        allow create, delete: if roomModerator(roomId);
-        // A moderator may change normal game state; but drawing strokes
-        // only come from this active round's authorized drawer. Starting
-        // a brand new round from a closed game may clear the old sketch.
-        allow update: if roomModerator(roomId)
+# Preserve the already-enforced active roster, cancellation, and other
+# production game_state rules (do not replace them with weaker generic rules).
+a=r.index('      match /game_state/{stateId} {')
+b=r.index('      match /game_votes/{playerUid}',a)
+block=r[a:b]
+oldtail="== resource.data.get('participantUids',[]));"
+assert block.count(oldtail)==1,'Unexpected roster guard; inspect before merge'
+newtail="""== resource.data.get('participantUids',[]))
+          // Sketch changes cannot be made by another cohost/moderator, or
+          // after this Draw round closes. A new round from a closed game
+          // may reset the old sketch while preserving the old game gates.
           && (
-            !request.resource.data.diff(resource.data).affectedKeys()
-               .hasAny(['sketch'])
-            || (
-              resource.data.type == 'draw'
-              && resource.data.status == 'active'
-              && request.resource.data.type == 'draw'
-              && request.resource.data.status == 'active'
-              && request.resource.data.roundId == resource.data.roundId
-              && request.auth.uid == resource.data.drawerUid
-              && request.resource.data.actorUid == request.auth.uid
-              && request.resource.data.sketch is string
-              && request.resource.data.sketch.size() <= 12000
-              && request.resource.data.diff(resource.data).affectedKeys()
-                   .hasOnly(['sketch','actorUid','updatedAt'])
-            )
-            || (
-              resource.data.status == 'closed'
-              && request.resource.data.status == 'active'
-              && request.resource.data.roundId > resource.data.roundId
-            )
-          );
-      }'''
-if r.count(old)!=1:
-    start=r.index('      match /game_state/{stateId} {')
-    stop=r.index('      match /game_votes/{playerUid}',start)
-    print('RULE_AUDIT_9967_START',flush=True)
-    print(r[start:stop],flush=True)
-    print('RULE_AUDIT_9967_END',flush=True)
-    raise AssertionError('Inspect exact rules before changing safety contract')
-
-p.write_text(r.replace(old,new,1))
+             !request.resource.data.diff(resource.data).affectedKeys()
+                 .hasAny(['sketch'])
+             || (
+                 resource.data.get('type','') == 'draw'
+                 && resource.data.get('status','') == 'active'
+                 && request.resource.data.get('type','') == 'draw'
+                 && request.resource.data.get('status','') == 'active'
+                 && request.resource.data.get('roundId',0) ==
+                    resource.data.get('roundId',0)
+                 && request.auth.uid == resource.data.get('drawerUid','')
+                 && request.resource.data.get('actorUid','') == request.auth.uid
+                 && request.resource.data.get('sketch','') is string
+                 && request.resource.data.get('sketch','').size() <= 12000
+                 && request.resource.data.diff(resource.data).affectedKeys()
+                      .hasOnly(['sketch','actorUid','updatedAt'])
+             )
+             || (
+                 resource.data.get('status','') == 'closed'
+                 && request.resource.data.get('status','') == 'active'
+                 && request.resource.data.get('roundId',0) is int
+                 && resource.data.get('roundId',0) is int
+                 && request.resource.data.roundId > resource.data.roundId
+             )
+          );"""
+block=block.replace(oldtail,newtail,1)
+r=r[:a]+block+r[b:]
+p.write_text(r)
 g=root/'app/build.gradle';v=g.read_text()
 oldver="versionCode 245; versionName '9.9.66-live-draw-private-role-retry-test'"
 assert v.count(oldver)==1,'Require verified full signed v9.9.66 source'
