@@ -176,7 +176,7 @@ jobs:
           assert 'db.collection("king_me_wishes").document(wishUid9983)' in p
           assert 'LIVE_RECHARGE = false' in (r/'app/src/main/java/com/kingplus/social/KingRecharge974Activity.java').read_text()
           assert 'PAID_VIP_ACTIVE = false' in (r/'app/src/main/java/com/kingplus/social/KingPremiumAccess981.java').read_text()
-          assert 'versionCode 262' in (r/'app/build.gradle').read_text()
+          assert 'versionCode 263' in (r/'app/build.gradle').read_text()
           print('PASS 2-account server Me Wish, trustworthy ledger and preserved locked payment safeguards')
           PY
       - name: Verify Me Privacy Profile has real cloud fields, owned Blocks and 10 account preferences
