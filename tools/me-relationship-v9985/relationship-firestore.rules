@@ -1,0 +1,47 @@
+    // Full KING Relationship/CP acceptance must be reciprocal.
+    // Request initiator can only make a PENDING invitation; only the other
+    // participant may ACCEPT/DECLINE. Never grant VIP or Diamonds from CP.
+    match /relationships/{relationshipId} {
+      function relationshipValid9985() {
+        return request.resource.data.keys().hasOnly([
+            'uidA','uidB','nameA','nameB','initiatorUid','status','createdAt'
+          ])
+          && request.resource.data.keys().hasAll([
+            'uidA','uidB','nameA','nameB','initiatorUid','status','createdAt'
+          ])
+          && request.resource.data.uidA is string
+          && request.resource.data.uidB is string
+          && request.resource.data.uidA.size() >= 4
+          && request.resource.data.uidB.size() >= 4
+          && request.resource.data.uidA.size() <= 128
+          && request.resource.data.uidB.size() <= 128
+          && request.resource.data.uidA < request.resource.data.uidB
+          && relationshipId == request.resource.data.uidA + '__' + request.resource.data.uidB
+          && request.resource.data.nameA is string
+          && request.resource.data.nameB is string
+          && request.resource.data.nameA.size() <= 80
+          && request.resource.data.nameB.size() <= 80
+          && request.resource.data.initiatorUid == request.auth.uid
+          && request.auth.uid in [
+              request.resource.data.uidA,request.resource.data.uidB
+          ]
+          && request.resource.data.status == 'pending'
+          && request.resource.data.createdAt == request.time;
+      }
+      allow read: if signedIn()
+        && request.auth.uid in [resource.data.uidA,resource.data.uidB];
+      allow create: if activeUser()
+        && relationshipValid9985()
+        && !exists(/databases/$(database)/documents/blocks/$(request.resource.data.uidA + '_' + request.resource.data.uidB))
+        && !exists(/databases/$(database)/documents/blocks/$(request.resource.data.uidB + '_' + request.resource.data.uidA));
+      allow update: if activeUser()
+        && resource.data.status == 'pending'
+        && request.auth.uid in [resource.data.uidA,resource.data.uidB]
+        && request.auth.uid != resource.data.initiatorUid
+        && request.resource.data.diff(resource.data).affectedKeys()
+             .hasOnly(['status','updatedAt'])
+        && request.resource.data.status in ['accepted','declined']
+        && request.resource.data.updatedAt == request.time;
+      allow delete: if signedIn()
+        && request.auth.uid in [resource.data.uidA,resource.data.uidB];
+    }
