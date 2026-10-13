@@ -36,3 +36,6 @@ for name,lo,hi in [
  a=p.read_text().splitlines()
  print('\n### SPECIFIC',name,lo,hi)
  for j in range(lo-1,min(len(a),hi)): print(f'{j+1}: {a[j][:1400]}')
+
+print('\n### FULL LIVE ROOM BASIC RULES')
+for i in range(86,121):print(f'{i+1}: {rules[i][:620]}')
