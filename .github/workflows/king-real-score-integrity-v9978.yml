@@ -30,7 +30,7 @@ jobs:
           grep -q 'versionCode 256' /tmp/king9978/app/build.gradle
           test -s app/kingplus-ci-debug.keystore
           cp app/kingplus-ci-debug.keystore /tmp/king9978/app/kingplus-ci-debug.keystore
-      - name: Patch full Android package Firestore rules: refuse fabricated Party scores
+      - name: 'Patch full Android package Firestore rules - refuse fabricated Party scores'
         run: |
           set -euo pipefail
           python3 tools/score-validation-v9978/apply.py /tmp/king9978
