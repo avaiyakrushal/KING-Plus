@@ -18,3 +18,7 @@ for name in ['PartyActivity.java','KingGiftSound993.java','RoomGameActivity.java
  for term in ['showGiftEffect(', 'displayConfirmedGift9942','confirmGiftReceived9941','giftFxActive971','play(this,gift)','onPause','onResume','getMetadata','KingGiftSound993']:
   hit=[i+1 for i,s in enumerate(a) if term in s]
   if hit:print("HIT",name,term,hit[:25])
+
+seg('PartyActivity.java',3180,3260)
+seg('PartyActivity.java',430,475)
+seg('PartyActivity.java',5745,5815)
