@@ -1,0 +1,128 @@
+name: KING v9.9.59 Real Party Ready Fair Gameplay TEST
+on:
+  push:
+    branches: [work/king-ready-fair-social-v9959]
+    paths: ['tools/social-live-v9959/**', '.github/workflows/king-ready-fair-social-v9959.yml']
+  pull_request:
+    paths: ['tools/social-live-v9959/**', '.github/workflows/king-ready-fair-social-v9959.yml']
+  workflow_dispatch:
+permissions: {contents: read, actions: read}
+jobs:
+  build-and-test:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 55
+    env: {GRADLE_OPTS: '-Xmx4g -XX:MaxMetaspaceSize=1024m'}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v5
+        with: {distribution: temurin, java-version: '17'}
+      - uses: actions/setup-node@v4
+        with: {node-version: '22'}
+      - uses: gradle/actions/setup-gradle@v4
+        with: {gradle-version: '8.9'}
+      - name: Restore complete verified v9.9.58 APK and source
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/king9959 /tmp/king9959prev
+          gh run download 38363904763 -n KING-v9958-Real-Social-Games-TEST-APK-and-Source -D /tmp/king9959prev
+          test -s /tmp/king9959prev/KING-Plus-v9.9.58-Real-Social-Games-TEST.apk
+          unzip -q /tmp/king9959prev/KING-Plus-v9.9.58-Real-Social-Games-Source.zip -d /tmp/king9959
+          grep -q 'versionCode 237' /tmp/king9959/app/build.gradle
+          test -s app/kingplus-ci-debug.keystore
+          cp app/kingplus-ci-debug.keystore /tmp/king9959/app/kingplus-ci-debug.keystore
+      - name: Apply and audit Party Ready and hidden-role runtime changes
+        run: |
+          set -euo pipefail
+          python3 tools/social-live-v9959/apply.py /tmp/king9959
+          python3 - <<'PY'
+          from pathlib import Path
+          root=Path('/tmp/king9959');src=root/'app/src/main/java/com/kingplus/social'
+          room=(src/'RoomGameActivity.java').read_text()
+          start=room[room.index('    private void startSocialRound866('):room.index('    private void startRound(String game){')]
+          for token in ('freshReady9958.getBoolean("ready")',
+                        'KingPartySocialRoster9959.isEligible',
+                        'liveUids9958.contains(hostUid9958)',
+                        'KingPartySocialRoster9959.pickHiddenRole(liveUids9958',
+                        'participantUids','db.runTransaction(tx->','Source.SERVER'):
+            assert token in start,token
+          assert 'possible9958.remove(hostUid9958)' not in start
+          assert 'actualReady9952.getBoolean("ready")' in room
+          party=(src/'PartyActivity.java').read_text()
+          for token in ('KingPartyVoiceReconnect9957','KingPartyMicConsent9956','KingGiftReceiptRetry9955'):
+            assert token in party,token
+          assert 'LIVE_RECHARGE = false' in (src/'KingRecharge974Activity.java').read_text()
+          assert 'PAID_VIP_ACTIVE = false' in (src/'KingPremiumAccess981.java').read_text()
+          assert 'versionCode 238' in (root/'app/build.gradle').read_text()
+          print('PASS genuine verified multiplayer and receipt flow retained')
+          PY
+      - name: Test real Ready, ghosts, role fairness and existing social roster
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/king9959classes
+          javac -d /tmp/king9959classes \
+            /tmp/king9959/app/src/main/java/com/kingplus/social/KingPartySocialRoster9959.java \
+            /tmp/king9959/app/src/main/java/com/kingplus/social/KingPartySocialRoster9958.java \
+            /tmp/king9959/app/src/main/java/com/kingplus/social/KingLivePartyRoster9952.java \
+            tools/social-live-v9959/KingPartySocialRoster9959Test.java \
+            tools/social-live-v9958/KingPartySocialRoster9958Test.java
+          java -cp /tmp/king9959classes com.kingplus.social.KingPartySocialRoster9959Test
+          java -cp /tmp/king9959classes com.kingplus.social.KingPartySocialRoster9958Test
+      - name: Install real Firestore emulator dependencies
+        working-directory: /tmp/king9959/tests/firestore
+        run: npm ci --no-audit --no-fund
+      - name: Regression real social game roles, privacy and simultaneous Host
+        working-directory: /tmp/king9959
+        env: {CI: 'true'}
+        run: |
+          set -euo pipefail
+          cp "$GITHUB_WORKSPACE/tools/social-live-v9958/social-party-firestore.test.mjs" tests/firestore/
+          tests/firestore/node_modules/.bin/firebase emulators:exec --only firestore \
+            --project demo-king-social-party-9958 --config firebase-emulator.json \
+            "node tests/firestore/social-party-firestore.test.mjs"
+      - name: Regression real Party Gift receipts and immutable game turns
+        working-directory: /tmp/king9959
+        env: {CI: 'true'}
+        run: |
+          set -euo pipefail
+          for test in gift-delivery-firestore.test.mjs immutable-rounds-firestore.test.mjs; do
+            tests/firestore/node_modules/.bin/firebase emulators:exec --only firestore \
+              --project demo-king-live-ready-9959 --config firebase-emulator.json \
+              "node tests/firestore/$test"
+          done
+      - name: Compile complete Android Party Games Gifting APK
+        working-directory: /tmp/king9959
+        run: gradle :app:assembleDebug --no-daemon --max-workers=2
+      - name: Verify signed APK upgrade and zip integrity
+        run: |
+          set -euo pipefail
+          old=/tmp/king9959prev/KING-Plus-v9.9.58-Real-Social-Games-TEST.apk
+          new=/tmp/king9959/app/build/outputs/apk/debug/app-debug.apk
+          aapt="$(find "$ANDROID_HOME/build-tools" -name aapt -type f | sort -V | tail -1)"
+          signer="$(find "$ANDROID_HOME/build-tools" -name apksigner -type f | sort -V | tail -1)"
+          "$aapt" dump badging "$new" | grep "^package:" | grep "name='com.kingplus.social'" | grep "versionCode='238'"
+          "$signer" verify --print-certs "$old" >/tmp/cert-old
+          "$signer" verify --print-certs "$new" >/tmp/cert-new
+          a="$(grep -Eo '[[:xdigit:]]{64}' /tmp/cert-old | head -1)"
+          b="$(grep -Eo '[[:xdigit:]]{64}' /tmp/cert-new | head -1)"
+          test -n "$a" && test "$a" = "$b"
+          unzip -tq "$new" | tail -1
+      - name: Package TEST APK and complete source, with no private signing key
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/king9959out
+          cp /tmp/king9959/app/build/outputs/apk/debug/app-debug.apk \
+            /tmp/king9959out/KING-Plus-v9.9.59-Real-Ready-Fair-Games-TEST.apk
+          rm -f /tmp/king9959/app/kingplus-ci-debug.keystore
+          cd /tmp/king9959
+          zip -q -r /tmp/king9959out/KING-Plus-v9.9.59-Real-Ready-Fair-Games-Source.zip . \
+            -x '*/node_modules/*' '*node_modules/*' 'app/build/*' './app/build/*' '*/build/*' \
+            './.gradle/*' '*/.gradle/*' '*.apk' '*.aab' '*.keystore' '*.jks' '*.zip' '*local.properties' '*.log'
+          sha256sum /tmp/king9959out/*
+      - uses: actions/upload-artifact@v4
+        with:
+          name: KING-v9959-Real-Ready-Fair-Games-TEST-APK-and-Source
+          path: /tmp/king9959out/*
+          retention-days: 14
+          if-no-files-found: error
