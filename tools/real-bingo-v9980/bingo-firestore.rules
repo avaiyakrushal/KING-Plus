@@ -1,0 +1,167 @@
+      // Real FREE 5x5 live Bingo — separate from legacy Pick 1..9 score game.
+      // Per-room game, real signed-in member cards; only a room moderator can
+      // begin or call balls. A Bingo claim must be a COMPLETE row/col/diagonal
+      // from the immutable card and the server's actual called ball history.
+      match /live_bingo9980/{bingoId} {
+        function bingoDoc9980() {
+          return /databases/$(database)/documents/live_rooms/$(roomId)/live_bingo9980/current;
+        }
+        function bingoCardDoc9980(playerUid) {
+          return /databases/$(database)/documents/live_rooms/$(roomId)/live_bingo9980/current/cards/$(playerUid);
+        }
+        function bingoKeys9980() {
+          return request.resource.data.keys().hasOnly(['roundId','status','called','participants','updatedAt'])
+            && request.resource.data.keys().hasAll(['roundId','status','called','participants','updatedAt']);
+        }
+        function bingoCalls9980(called) {
+          return called is list
+            && called.size() > 0 && called.size() <= 76
+            && called[0] == 0
+            && called.toSet().size() == called.size()
+            && called.hasOnly([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75]);
+        }
+        function bingoCard9980(board) {
+          return board is list && board.size() == 25
+            && board[12] == 0 && board.toSet().size() == 25
+      && board[0] is int && board[0] >= 1 && board[0] <= 15
+      && board[1] is int && board[1] >= 16 && board[1] <= 30
+      && board[2] is int && board[2] >= 31 && board[2] <= 45
+      && board[3] is int && board[3] >= 46 && board[3] <= 60
+      && board[4] is int && board[4] >= 61 && board[4] <= 75
+      && board[5] is int && board[5] >= 1 && board[5] <= 15
+      && board[6] is int && board[6] >= 16 && board[6] <= 30
+      && board[7] is int && board[7] >= 31 && board[7] <= 45
+      && board[8] is int && board[8] >= 46 && board[8] <= 60
+      && board[9] is int && board[9] >= 61 && board[9] <= 75
+      && board[10] is int && board[10] >= 1 && board[10] <= 15
+      && board[11] is int && board[11] >= 16 && board[11] <= 30
+      && board[13] is int && board[13] >= 46 && board[13] <= 60
+      && board[14] is int && board[14] >= 61 && board[14] <= 75
+      && board[15] is int && board[15] >= 1 && board[15] <= 15
+      && board[16] is int && board[16] >= 16 && board[16] <= 30
+      && board[17] is int && board[17] >= 31 && board[17] <= 45
+      && board[18] is int && board[18] >= 46 && board[18] <= 60
+      && board[19] is int && board[19] >= 61 && board[19] <= 75
+      && board[20] is int && board[20] >= 1 && board[20] <= 15
+      && board[21] is int && board[21] >= 16 && board[21] <= 30
+      && board[22] is int && board[22] >= 31 && board[22] <= 45
+      && board[23] is int && board[23] >= 46 && board[23] <= 60
+      && board[24] is int && board[24] >= 61 && board[24] <= 75;
+        }
+        function bingoLine9980(board, called) {
+          return bingoCard9980(board) && bingoCalls9980(called) && (
+          called.hasAll([board[0], board[1], board[2], board[3], board[4]]) ||
+          called.hasAll([board[5], board[6], board[7], board[8], board[9]]) ||
+          called.hasAll([board[10], board[11], board[12], board[13], board[14]]) ||
+          called.hasAll([board[15], board[16], board[17], board[18], board[19]]) ||
+          called.hasAll([board[20], board[21], board[22], board[23], board[24]]) ||
+          called.hasAll([board[0], board[5], board[10], board[15], board[20]]) ||
+          called.hasAll([board[1], board[6], board[11], board[16], board[21]]) ||
+          called.hasAll([board[2], board[7], board[12], board[17], board[22]]) ||
+          called.hasAll([board[3], board[8], board[13], board[18], board[23]]) ||
+          called.hasAll([board[4], board[9], board[14], board[19], board[24]]) ||
+          called.hasAll([board[0], board[6], board[12], board[18], board[24]]) ||
+          called.hasAll([board[4], board[8], board[12], board[16], board[20]])
+          );
+        }
+        function bingoActive9980() {
+          return exists(bingoDoc9980())
+            && get(bingoDoc9980()).data.status == 'active';
+        }
+        function bingoPart9980(uid) {
+          return bingoActive9980()
+            && uid in get(bingoDoc9980()).data.participants;
+        }
+        allow read: if roomAccess(roomId) && roomMember(roomId);
+        allow create: if bingoId == 'current'
+          && roomModerator(roomId) && bingoKeys9980()
+          && request.resource.data.roundId is int && request.resource.data.roundId > 0
+          && request.resource.data.status == 'waiting'
+          && request.resource.data.called == [0]
+          && request.resource.data.participants == []
+          && request.resource.data.updatedAt == request.time;
+        allow update: if bingoId == 'current'
+          && roomModerator(roomId) && bingoKeys9980()
+          && resource.data.roundId is int
+          && request.resource.data.roundId is int
+          && request.resource.data.updatedAt == request.time
+          && (
+            // Start the frozen 2–12-Ready-player real match.
+            (resource.data.status == 'waiting'
+              && request.resource.data.roundId == resource.data.roundId
+              && request.resource.data.status == 'active'
+              && request.resource.data.called == [0]
+              && request.resource.data.participants is list
+              && request.resource.data.participants.size() >= 2
+              && request.resource.data.participants.size() <= 12
+              && request.resource.data.participants.toSet().size()
+                   == request.resource.data.participants.size())
+            // Call exactly one new never-repeated 1..75 ball.
+            || (resource.data.status == 'active'
+              && request.resource.data.roundId == resource.data.roundId
+              && request.resource.data.status == 'active'
+              && request.resource.data.participants == resource.data.participants
+              && bingoCalls9980(request.resource.data.called)
+              && request.resource.data.called.size() == resource.data.called.size()+1
+              && request.resource.data.called.hasAll(resource.data.called))
+            // Moderator can end game without changing the called sequence.
+            || (resource.data.status == 'active'
+              && request.resource.data.roundId == resource.data.roundId
+              && request.resource.data.status == 'closed'
+              && request.resource.data.called == resource.data.called
+              && request.resource.data.participants == resource.data.participants)
+            // Create a new match only AFTER the previous one was closed.
+            || (resource.data.status != 'active'
+              && request.resource.data.roundId > resource.data.roundId
+              && request.resource.data.status == 'waiting'
+              && request.resource.data.called == [0]
+              && request.resource.data.participants == [])
+          );
+        allow delete: if false;
+
+        match /cards/{playerUid} {
+          function goodCard9980() {
+            return request.auth != null
+              && playerUid == request.auth.uid
+              && roomAccess(roomId) && roomMember(roomId)
+              && request.resource.data.keys().hasOnly(['uid','roundId','numbers','createdAt'])
+              && request.resource.data.keys().hasAll(['uid','roundId','numbers','createdAt'])
+              && request.resource.data.uid == playerUid
+              && bingoCard9980(request.resource.data.numbers)
+              && request.resource.data.createdAt == request.time
+              && exists(bingoDoc9980())
+              && get(bingoDoc9980()).data.status == 'waiting'
+              && request.resource.data.roundId == get(bingoDoc9980()).data.roundId;
+          }
+          allow read: if roomAccess(roomId) && roomMember(roomId);
+          allow create: if goodCard9980();
+          allow update: if goodCard9980()
+            && resource.data.uid == request.auth.uid
+            && resource.data.roundId != request.resource.data.roundId;
+          allow delete: if false;
+        }
+
+        match /claims/{playerUid} {
+          function realBingo9980() {
+            return request.auth != null && playerUid == request.auth.uid
+              && roomAccess(roomId) && roomMember(roomId)
+              && bingoPart9980(playerUid)
+              && request.resource.data.keys().hasOnly(['uid','roundId','createdAt'])
+              && request.resource.data.keys().hasAll(['uid','roundId','createdAt'])
+              && request.resource.data.uid == playerUid
+              && request.resource.data.createdAt == request.time
+              && request.resource.data.roundId == get(bingoDoc9980()).data.roundId
+              && exists(bingoCardDoc9980(playerUid))
+              && get(bingoCardDoc9980(playerUid)).data.roundId
+                   == request.resource.data.roundId
+              && bingoLine9980(get(bingoCardDoc9980(playerUid)).data.numbers,
+                               get(bingoDoc9980()).data.called);
+          }
+          allow read: if roomAccess(roomId) && roomMember(roomId);
+          allow create: if realBingo9980();
+          allow update: if realBingo9980()
+              && resource.data.uid == request.auth.uid
+              && request.resource.data.roundId != resource.data.roundId;
+          allow delete: if false;
+        }
+      }
