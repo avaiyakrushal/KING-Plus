@@ -1,0 +1,36 @@
+    // Account-owned Me Privacy and Notifications. Choices are synced, not
+    // server-issued privileges or a false promise of FCM delivery filtering.
+    match /king_me_preferences/{uid} {
+      function validMe9984() {
+        return request.resource.data.keys().hasOnly([
+            'uid','findMe','showOnlineStatus','allowRoomInvites',
+            'allowPrivateMessages','showEntranceEffects','notifyMessages',
+            'notifySocial','notifyRoomInvites','notifyGifts','notifyGames',
+            'updatedAt'
+          ])
+          && request.resource.data.keys().hasAll([
+            'uid','findMe','showOnlineStatus','allowRoomInvites',
+            'allowPrivateMessages','showEntranceEffects','notifyMessages',
+            'notifySocial','notifyRoomInvites','notifyGifts','notifyGames',
+            'updatedAt'
+          ])
+          && request.resource.data.uid == uid
+          && request.resource.data.findMe is bool
+          && request.resource.data.showOnlineStatus is bool
+          && request.resource.data.allowRoomInvites is bool
+          && request.resource.data.allowPrivateMessages is bool
+          && request.resource.data.showEntranceEffects is bool
+          && request.resource.data.notifyMessages is bool
+          && request.resource.data.notifySocial is bool
+          && request.resource.data.notifyRoomInvites is bool
+          && request.resource.data.notifyGifts is bool
+          && request.resource.data.notifyGames is bool
+          && request.resource.data.updatedAt == request.time;
+      }
+      allow read: if owner(uid);
+      allow create: if activeUser() && owner(uid) && validMe9984();
+      allow update: if activeUser() && owner(uid) && validMe9984()
+        && request.resource.data.uid == resource.data.uid;
+      allow delete: if false;
+    }
+
