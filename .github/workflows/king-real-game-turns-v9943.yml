@@ -47,7 +47,7 @@ jobs:
           rules=(r/'firestore.rules').read_text()
           assert 'Source.SERVER' in j
           assert 'gameStateVerified9943' in j and 'MetadataChanges.INCLUDE' in j
-          assert 'allow update: if false; // immutable submissions' in rules
+          assert 'allow update: if false; // published game choices cannot be changed' in rules
           assert '.data.roundId == request.resource.data.roundId' in rules
           assert 'versionCode 222' in (r/'app/build.gradle').read_text()
           assert 'LIVE_RECHARGE = false' in (s/'KingRecharge974Activity.java').read_text()
