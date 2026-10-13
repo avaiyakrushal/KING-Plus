@@ -22,3 +22,7 @@ for i,x in enumerate(rules):
  if 'match /events/' in x or 'match /messages/' in x or 'match /game_ready/' in x or 'match /game_moves/' in x or 'match /game_state/' in x:
   print("\n### RULES",i+1)
   for k in range(i,min(i+51,len(rules))):print(f"{k+1:04}: {rules[k][:1100]}")
+
+dump('PartyActivity.java',2355,2405)
+dump('PartyActivity.java',5645,5695)
+dump('PartyActivity.java',3595,3625)
