@@ -38,6 +38,15 @@ rep('''        partyVisualForeground995=false;
 '''        partyVisualForeground995=false;
         pauseDisplayedGiftReceipts9955();
         KingGiftSound993.stopRoomAudio();''')
+rep("""        clearPartyVisuals995();
+        if(inRoomVoiceJoined940)""","""        clearPartyVisuals995();
+        // On background, unfinished Gift bursts were not fully seen.
+        // Unmark their IDs so onResume SERVER replay can show/ACK them.
+        for(KingGiftDeliveryQueue9944.Entry<PendingGift9944> item9955:pendingGiftEvents9944.clear())
+            shownGiftIds9942.remove(item9955.id);
+        for(String id9955:inFlightGiftIds9944)shownGiftIds9942.remove(id9955);
+        inFlightGiftIds9944.clear();
+        if(inRoomVoiceJoined940)""")
 rep('''stopInRoomVoice940(true);unregisterMember();clearListeners();try{if(roomMusicPlayer''',
 '''stopInRoomVoice940(true);unregisterMember();clearListeners();clearDisplayedGiftReceipts9955();try{if(roomMusicPlayer''')
 start=s.index('    private void confirmGiftReceived9941(DocumentReference room,DocumentSnapshot event,String uid){')
