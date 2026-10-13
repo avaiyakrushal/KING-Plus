@@ -36,3 +36,14 @@ for p in ['match /games/{','match /game','match /gift','match /events/{']:
    print('\n## Firestore',p,'line',j+1)
    for k in range(max(0,j-3),min(j+35,len(rules))):print(f'{k+1:4} {rules[k][:280]}')
 print('\n@@END_AUDIT@@')
+
+# Concrete interactions: Party gifting/fx event listener and dice scoring.
+def segment(file,start,end):
+ ls=(src/file).read_text().splitlines()
+ print('\n## DETAIL',file,start,end)
+ for k in range(start-1,min(end,len(ls))):print(f'{k+1:4} {ls[k][:450]}')
+segment('PartyActivity.java',3070,3170)
+segment('PartyActivity.java',5620,5670)
+segment('KingRoomDice997.java',70,123)
+segment('RoomGameActivity.java',200,300)
+segment('RoomGameActivity.java',340,420)
