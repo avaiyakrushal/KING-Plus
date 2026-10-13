@@ -24,9 +24,9 @@ try {
  await assertSucceeds(setDoc(room(H),{
   ownerUid:'host',name:'KING Sheep Battle',isPrivate:false,hasPassword:false,entranceMode:'free',closed:false
  }));
- for(const uid of ['host','alice','bob']){
-  await assertSucceeds(setDoc(member(H,uid),{uid,name:uid}));
- }
+ await assertSucceeds(setDoc(member(H,'host'),{uid:'host',name:'host'}));
+ await assertSucceeds(setDoc(member(A,'alice'),{uid:'alice',name:'alice'}));
+ await assertSucceeds(setDoc(member(B,'bob'),{uid:'bob',name:'bob'}));
  await assertSucceeds(setDoc(state(H),{
   actorUid:'host',actorName:'Host',type:'sheep',status:'active',roundId:1040,
   prompt:'Run for 8 seconds',result:'',updatedAt:serverTimestamp()
