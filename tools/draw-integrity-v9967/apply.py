@@ -113,7 +113,14 @@ new='''      match /game_state/{stateId} {
             )
           );
       }'''
-assert r.count(old)==1,'Current complete v9.9.66 Firestore game_state rule changed'
+if r.count(old)!=1:
+    start=r.index('      match /game_state/{stateId} {')
+    stop=r.index('      match /game_votes/{playerUid}',start)
+    print('RULE_AUDIT_9967_START',flush=True)
+    print(r[start:stop],flush=True)
+    print('RULE_AUDIT_9967_END',flush=True)
+    raise AssertionError('Inspect exact rules before changing safety contract')
+
 p.write_text(r.replace(old,new,1))
 g=root/'app/build.gradle';v=g.read_text()
 oldver="versionCode 245; versionName '9.9.66-live-draw-private-role-retry-test'"
