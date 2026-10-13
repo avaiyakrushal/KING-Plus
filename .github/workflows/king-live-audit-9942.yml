@@ -1,0 +1,24 @@
+name: KING v9.9.42 Live Gift Reconnect Audit
+on:
+  push:
+    branches: [work/king-resilient-gift-game-reconnect-v9942]
+    paths: ['tools/real-9942/audit.py', '.github/workflows/king-live-audit-9942.yml']
+  workflow_dispatch:
+permissions: {contents: read, actions: read}
+jobs:
+  audit:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - name: Recover verified full v9.9.41 source
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/king9942prev /tmp/king9942
+          gh run download 38340138420 -n KING-v9941-Real-Gift-Received-TEST-APK-and-Source -D /tmp/king9942prev
+          unzip -q /tmp/king9942prev/KING-Plus-v9.9.41-Gift-Received-Source.zip -d /tmp/king9942
+          grep -q 'versionCode 220' /tmp/king9942/app/build.gradle
+      - name: Audit gift reconnect and Game lifecycle source
+        run: python3 tools/real-9942/audit.py /tmp/king9942
