@@ -26,7 +26,8 @@ jobs:
         run: python3 tools/functional-parity-v9936/audit.py /tmp/king9936 > /tmp/king9936-audit.txt
       - name: Surface critical logic for remediation
         run: |
-          sed -n '1,290p' /tmp/king9936-audit.txt
+          grep -n '^## FIRESTORE RULES' /tmp/king9936-audit.txt || true
+          tail -n 245 /tmp/king9936-audit.txt
       - uses: actions/upload-artifact@v4
         with:
           name: KING-v9936-Verified-Functionality-Audit
