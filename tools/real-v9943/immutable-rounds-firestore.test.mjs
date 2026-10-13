@@ -38,6 +38,7 @@ try {
  await assertSucceeds(setDoc(move(B,'bob'),play('bob','rps',1043,'Paper',2)));
  await assertSucceeds(getDoc(move(B,'alice'))); // both players see each other's submission
  await assertFails(updateDoc(move(A,'alice'),{move:'Scissors',score:3,updatedAt:serverTimestamp()}));
+ await assertFails(deleteDoc(move(A,'alice'))); // cannot remove a losing move and re-submit
  await assertFails(setDoc(move(A,'alice'),play('alice','rps',1043,'Scissors',3))); // overwrite denied
  await assertFails(setDoc(move(B,'bob'),play('bob','rps',1043,'Rock',1))); // no second move
  await assertSucceeds(updateDoc(state(H),{
