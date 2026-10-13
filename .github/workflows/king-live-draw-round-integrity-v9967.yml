@@ -103,7 +103,7 @@ jobs:
         env: {CI: 'true'}
         run: |
           set -euo pipefail
-          cp "$GITHUB_WORKSPACE/tools/social-secret-v9965/private-words-firestore.test.mjs" tests/firestore/
+          cp "$GITHUB_WORKSPACE/tools/draw-integrity-v9967/private-words-valid-round-transition.test.mjs" tests/firestore/private-words-firestore.test.mjs
           tests/firestore/node_modules/.bin/firebase emulators:exec --only firestore \
             --project demo-king-private-words-9965 --config firebase-emulator.json \
             "node tests/firestore/private-words-firestore.test.mjs"
