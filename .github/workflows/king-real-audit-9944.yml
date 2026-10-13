@@ -1,0 +1,24 @@
+name: KING v9.9.44 Real Gift and Game Audit
+on:
+  push:
+    branches: [work/king-real-party-gift-game-v9944]
+    paths: ['tools/real-v9944/audit.py','.github/workflows/king-real-audit-9944.yml']
+  workflow_dispatch:
+permissions: {contents: read, actions: read}
+jobs:
+  inspect:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - name: Recover full verified KING v9.9.43 source
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/king9944p /tmp/king9944
+          gh run download 38342646902 -n KING-v9943-Real-Multiplayer-Turns-TEST-APK-and-Source -D /tmp/king9944p
+          unzip -q /tmp/king9944p/KING-Plus-v9.9.43-Real-Multiplayer-Turns-Source.zip -d /tmp/king9944
+          grep -q 'versionCode 222' /tmp/king9944/app/build.gradle
+      - name: Audit real gift visuals/audio and multiplayer game code
+        run: python3 tools/real-v9944/audit.py /tmp/king9944
