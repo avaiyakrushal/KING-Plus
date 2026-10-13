@@ -128,7 +128,7 @@ new='''                for(DocumentSnapshot message956:messages956){
                             new AlertDialog.Builder(this).setTitle("Moderate Family Chat")
                                 .setMessage("Delete this message for all Family members?")
                                 .setPositiveButton("Delete",(dialog,which)->message956.getReference()
-                                    .delete().addOnFailureListener(error->toast("Message deletion denied")))
+                                    .delete().addOnFailureListener(deleteFailure9987->toast("Message deletion denied")))
                                 .setNegativeButton("Cancel",null).show();
                             return true;
                         });
