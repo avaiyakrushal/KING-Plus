@@ -1,0 +1,135 @@
+name: KING v9.9.52 Real Multiplayer Ready Party Gate TEST
+on:
+  push:
+    branches: [work/king-live-ready-roster-v9952]
+    paths: ['tools/real-game-roster-v9952/**','.github/workflows/king-real-game-roster-v9952.yml']
+  pull_request:
+    paths: ['tools/real-game-roster-v9952/**','.github/workflows/king-real-game-roster-v9952.yml']
+  workflow_dispatch:
+permissions: {contents: read, actions: read}
+jobs:
+  compile-and-verify-real-party:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 55
+    env: {GRADLE_OPTS: '-Xmx4g -XX:MaxMetaspaceSize=1024m'}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v5
+        with: {distribution: temurin, java-version: '17'}
+      - uses: actions/setup-node@v4
+        with: {node-version: '22'}
+      - uses: gradle/actions/setup-gradle@v4
+        with: {gradle-version: '8.9'}
+      - name: Recover signed complete v9.9.51 Android source
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/king9952prev /tmp/king9952
+          gh run download 38352738463 -n KING-v9951-Real-TTT-Party-Membership-TEST-APK-and-Source -D /tmp/king9952prev
+          test -s /tmp/king9952prev/KING-Plus-v9.9.51-Real-TTT-Party-Membership-TEST.apk
+          unzip -q /tmp/king9952prev/KING-Plus-v9.9.51-Real-TTT-Party-Membership-Source.zip -d /tmp/king9952
+          grep -q 'versionCode 230' /tmp/king9952/app/build.gradle
+          test -s app/kingplus-ci-debug.keystore
+          cp app/kingplus-ci-debug.keystore /tmp/king9952/app/kingplus-ci-debug.keystore
+      - name: Apply real live membership check to multiplayer RPS Dice Coin start
+        run: |
+          set -euo pipefail
+          python3 tools/real-game-roster-v9952/apply.py /tmp/king9952
+          python3 - <<'PY'
+          from pathlib import Path
+          r=Path('/tmp/king9952')
+          s=(r/'app/src/main/java/com/kingplus/social/RoomGameActivity.java').read_text()
+          part=s[s.index('    private void startRoundNow750('):s.index('    private void postGameEvent750(')]
+          assert 'KingLivePartyRoster9952.isActiveReady' in part
+          assert 'game_ready").document(candidate9952)' in part
+          assert 'members").document(candidate9952)' in part
+          assert 'value.put("participantUids",activeReady9952);' in part
+          assert part.index('members").document(candidate9952)') < part.index('tx.delete(move.getReference())')
+          assert 'KingTttLiveRoster9951.valid' in s
+          assert 'KingPartyGameFairPlay9949' in s
+          assert 'versionCode 231' in (r/'app/build.gradle').read_text()
+          assert 'LIVE_RECHARGE = false' in (r/'app/src/main/java/com/kingplus/social/KingRecharge974Activity.java').read_text()
+          assert 'PAID_VIP_ACTIVE = false' in (r/'app/src/main/java/com/kingplus/social/KingPremiumAccess981.java').read_text()
+          print('PASS real Party-only RPS/Dice/Coin participants; TTT and Gifting preserved')
+          PY
+      - name: Unit-test removed Ready user and forged identity
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/king9952classes
+          javac -d /tmp/king9952classes \
+            /tmp/king9952/app/src/main/java/com/kingplus/social/KingLivePartyRoster9952.java \
+            tools/real-game-roster-v9952/KingLivePartyRoster9952Test.java
+          java -cp /tmp/king9952classes com.kingplus.social.KingLivePartyRoster9952Test
+      - name: Install Firestore emulator test dependencies
+        working-directory: /tmp/king9952/tests/firestore
+        run: npm ci --no-audit --no-fund
+      - name: Verify ghost Ready excluded and real-player RPS still playable
+        working-directory: /tmp/king9952
+        env: {CI: 'true'}
+        run: |
+          set -euo pipefail
+          cp "$GITHUB_WORKSPACE/tools/real-game-roster-v9952/live-roster-firestore.test.mjs" tests/firestore/
+          tests/firestore/node_modules/.bin/firebase emulators:exec --only firestore \
+            --project demo-king-live-roster-9952 --config firebase-emulator.json \
+            "node tests/firestore/live-roster-firestore.test.mjs"
+      - name: RPS Dice Coin move locking and host cancel/ready regression
+        working-directory: /tmp/king9952
+        env: {CI: 'true'}
+        run: |
+          set -euo pipefail
+          tests/firestore/node_modules/.bin/firebase emulators:exec --only firestore \
+            --project demo-king-frozen-roster-9946 --config firebase-emulator.json \
+            "node tests/firestore/frozen-ready-firestore.test.mjs"
+          tests/firestore/node_modules/.bin/firebase emulators:exec --only firestore \
+            --project demo-king-immutable-games-9943 --config firebase-emulator.json \
+            "node tests/firestore/immutable-rounds-firestore.test.mjs"
+          tests/firestore/node_modules/.bin/firebase emulators:exec --only firestore \
+            --project demo-king-real-cancel-9947 --config firebase-emulator.json \
+            "node tests/firestore/cancel-round-firestore.test.mjs"
+          tests/firestore/node_modules/.bin/firebase emulators:exec --only firestore \
+            --project demo-king-9938-live --config firebase-emulator.json \
+            "node tests/firestore/room-game-gift.test.mjs"
+      - name: Verify Gifting receiver receipts and anti-impersonation unchanged
+        working-directory: /tmp/king9952
+        env: {CI: 'true'}
+        run: |
+          set -euo pipefail
+          tests/firestore/node_modules/.bin/firebase emulators:exec --only firestore \
+            --project demo-king-gift-receipts-9941 --config firebase-emulator.json \
+            "node tests/firestore/gift-delivery-firestore.test.mjs"
+      - name: Compile full Android app
+        working-directory: /tmp/king9952
+        run: gradle :app:assembleDebug --no-daemon --max-workers=2
+      - name: Verify signed upgrade identity and exact version
+        run: |
+          set -euo pipefail
+          old=/tmp/king9952prev/KING-Plus-v9.9.51-Real-TTT-Party-Membership-TEST.apk
+          new=/tmp/king9952/app/build/outputs/apk/debug/app-debug.apk
+          aapt="$(find "$ANDROID_HOME/build-tools" -name aapt -type f | sort -V | tail -1)"
+          signer="$(find "$ANDROID_HOME/build-tools" -name apksigner -type f | sort -V | tail -1)"
+          "$aapt" dump badging "$old" | grep "^package:" | grep "name='com.kingplus.social'" | grep "versionCode='230'"
+          "$aapt" dump badging "$new" | grep "^package:" | grep "name='com.kingplus.social'" | grep "versionCode='231'"
+          "$signer" verify --print-certs "$old" >/tmp/oldcert
+          "$signer" verify --print-certs "$new" >/tmp/newcert
+          a="$(grep -Eo '[[:xdigit:]]{64}' /tmp/oldcert | head -1)"
+          b="$(grep -Eo '[[:xdigit:]]{64}' /tmp/newcert | head -1)"
+          test -n "$a" && test "$a" = "$b"
+      - name: Package signed TEST APK and complete Android source
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/king9952out
+          cp /tmp/king9952/app/build/outputs/apk/debug/app-debug.apk \
+            /tmp/king9952out/KING-Plus-v9.9.52-Live-Party-Games-TEST.apk
+          rm -f /tmp/king9952/app/kingplus-ci-debug.keystore
+          cd /tmp/king9952
+          zip -q -r /tmp/king9952out/KING-Plus-v9.9.52-Live-Party-Games-Source.zip . \
+            -x '*/node_modules/*' '*node_modules/*' 'app/build/*' './app/build/*' '*/build/*' \
+            './.gradle/*' '*/.gradle/*' '*.apk' '*.aab' '*.keystore' '*.jks' '*.zip' '*local.properties' '*.log'
+          sha256sum /tmp/king9952out/*
+      - uses: actions/upload-artifact@v4
+        with:
+          name: KING-v9952-Verified-Live-Party-Games-TEST-APK-Source
+          path: /tmp/king9952out/*
+          retention-days: 14
+          if-no-files-found: error
