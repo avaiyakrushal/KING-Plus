@@ -81,7 +81,7 @@ patches=[
                       && request.resource.data.get('move','') is string
                       && request.resource.data.move.matches('^Reaction [0-9]{1,5} ms$')
                       && request.resource.data.move ==
-                         'Reaction ' + string(100000 - request.resource.data.score) + ' ms'))))""")
+                         'Reaction ' + string(100000 - request.resource.data.score) + ' ms')))""")
 ]
 for a,b in patches:
     assert r.count(a)==1, 'Firestore rules score validation anchor absent: '+a[:45]
