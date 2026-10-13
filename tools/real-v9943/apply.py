@@ -88,11 +88,15 @@ def rules_patch(old,new):
  if text.count(old)!=1:raise RuntimeError(f'Rules anchor mismatch {text.count(old)}: {old[:140]}')
  text=text.replace(old,new,1)
 rules_patch(
- '''        allow create, update: if roomAccess(roomId)
+ '''      match /game_moves/{playerUid} {
+        allow read: if roomAccess(roomId) && roomMember(roomId);
+        allow create, update: if roomAccess(roomId)
           && roomMember(roomId)
           && playerUid == request.auth.uid
           && request.resource.data.uid == request.auth.uid''',
- '''        // Immutable move = a player cannot revise a Dice/RPS/etc. choice after
+ '''      match /game_moves/{playerUid} {
+        allow read: if roomAccess(roomId) && roomMember(roomId);
+        // Immutable move = a player cannot revise a Dice/RPS/etc. choice after
         // seeing other participants' scores. Every move must match the one
         // current active shared game and round, even non-Sheep/TTT games.
         allow create: if roomAccess(roomId)
