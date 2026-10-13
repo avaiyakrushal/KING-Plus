@@ -71,7 +71,7 @@ public final class KingAgency9982Activity extends Activity {
         content=new LinearLayout(this);content.setOrientation(LinearLayout.VERTICAL);
         content.setPadding(dp(14),dp(14),dp(14),dp(32));sc.addView(content);setContentView(sc);
         if(uid.isEmpty()){title("Agency & Agent Recharge");line("Sign in to your KING Plus account first.");return;}
-        user.getIdTokenResult(true).addOnSuccessListener(token->{
+        user.getIdToken(true).addOnSuccessListener(token->{
             Object flag=token.getClaims().get("admin");
             admin=Boolean.TRUE.equals(flag);
             refresh();
