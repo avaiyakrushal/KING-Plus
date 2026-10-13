@@ -25,10 +25,10 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p /tmp/king9951 /tmp/king9951prev
-          gh run download 38349470539 -n KING-v9949-Fair-Game-Reveal-TEST-APK-and-Source -D /tmp/king9951prev
-          test -s /tmp/king9951prev/KING-Plus-v9.9.49-Fair-Game-Reveal-TEST.apk
-          unzip -q /tmp/king9951prev/KING-Plus-v9.9.49-Fair-Game-Reveal-Source.zip -d /tmp/king9951
-          grep -q 'versionCode 228' /tmp/king9951/app/build.gradle
+          gh run download 38351729171 -n KING-v9950-Real-Backpack-Gift-TEST-APK-and-Source -D /tmp/king9951prev
+          test -s /tmp/king9951prev/KING-Plus-v9.9.50-Real-Backpack-Gift-TEST.apk
+          unzip -q /tmp/king9951prev/KING-Plus-v9.9.50-Real-Backpack-Gift-Source.zip -d /tmp/king9951
+          grep -q 'versionCode 229' /tmp/king9951/app/build.gradle
           test -s app/kingplus-ci-debug.keystore
           cp app/kingplus-ci-debug.keystore /tmp/king9951/app/kingplus-ci-debug.keystore
       - name: Apply server-verified Party Tic Tac Toe roster and recover pending turns
@@ -97,11 +97,11 @@ jobs:
       - name: Verify app version and unchanged signing certificate
         run: |
           set -euo pipefail
-          old=/tmp/king9951prev/KING-Plus-v9.9.49-Fair-Game-Reveal-TEST.apk
+          old=/tmp/king9951prev/KING-Plus-v9.9.50-Real-Backpack-Gift-TEST.apk
           new=/tmp/king9951/app/build/outputs/apk/debug/app-debug.apk
           aapt="$(find "$ANDROID_HOME/build-tools" -name aapt -type f | sort -V | tail -1)"
           signer="$(find "$ANDROID_HOME/build-tools" -name apksigner -type f | sort -V | tail -1)"
-          "$aapt" dump badging "$old" | grep "^package:" | grep "name='com.kingplus.social'" | grep "versionCode='228'"
+          "$aapt" dump badging "$old" | grep "^package:" | grep "name='com.kingplus.social'" | grep "versionCode='229'"
           "$aapt" dump badging "$new" | grep "^package:" | grep "name='com.kingplus.social'" | grep "versionCode='230'"
           "$signer" verify --print-certs "$old" > /tmp/oldcert
           "$signer" verify --print-certs "$new" > /tmp/newcert
@@ -112,7 +112,7 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p /tmp/king9951out
-          cp /tmp/king9951/app/build/outputs/apk/debug/app-debug.apk /tmp/king9951out/KING-Plus-v9.9.50-Real-Backpack-Gift-TEST.apk
+          cp /tmp/king9951/app/build/outputs/apk/debug/app-debug.apk /tmp/king9951out/KING-Plus-v9.9.51-Real-TTT-Party-Membership-TEST.apk
           rm -f /tmp/king9951/app/kingplus-ci-debug.keystore
           cd /tmp/king9951
           zip -q -r /tmp/king9951out/KING-Plus-v9.9.51-Real-TTT-Party-Membership-Source.zip . \
