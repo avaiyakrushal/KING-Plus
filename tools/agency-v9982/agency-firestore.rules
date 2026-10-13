@@ -1,0 +1,97 @@
+    // KING Agency/Agent governance. No client-side actual recharge, payment,
+    // credit, VIP, or balance write, even by a Super Admin.
+    function kingAgencyActive9982(agencyUid) {
+      return signedIn() && agencyUid is string
+        && exists(/databases/$(database)/documents/king_agencies/$(agencyUid))
+        && get(/databases/$(database)/documents/king_agencies/$(agencyUid)).data.active == true;
+    }
+    function kingAgentActive9982(agentUid, agencyUid) {
+      return signedIn() && agentUid is string
+        && exists(/databases/$(database)/documents/king_agents/$(agentUid))
+        && get(/databases/$(database)/documents/king_agents/$(agentUid)).data.active == true
+        && get(/databases/$(database)/documents/king_agents/$(agentUid)).data.agencyUid == agencyUid;
+    }
+    function kingPack9982(value) {
+      return value in [100, 600, 1300];
+    }
+    match /king_agencies/{agencyUid} {
+      allow get, list: if admin() || owner(agencyUid);
+      allow create: if admin()
+        && request.resource.data.keys().hasOnly(['uid','name','active','approvedByUid','createdAt','updatedAt'])
+        && request.resource.data.keys().hasAll(['uid','name','active','approvedByUid','createdAt','updatedAt'])
+        && request.resource.data.uid == agencyUid
+        && request.resource.data.name is string
+        && request.resource.data.name.size() > 0 && request.resource.data.name.size() <= 80
+        && request.resource.data.active == true
+        && request.resource.data.approvedByUid == request.auth.uid
+        && request.resource.data.createdAt == request.time
+        && request.resource.data.updatedAt == request.time;
+      allow update: if admin()
+        && request.resource.data.keys().hasOnly(['uid','name','active','approvedByUid','createdAt','updatedAt'])
+        && request.resource.data.uid == resource.data.uid
+        && request.resource.data.createdAt == resource.data.createdAt
+        && request.resource.data.approvedByUid is string
+        && request.resource.data.approvedByUid == request.auth.uid
+        && request.resource.data.name is string
+        && request.resource.data.name.size() > 0 && request.resource.data.name.size() <= 80
+        && request.resource.data.active is bool
+        && request.resource.data.updatedAt == request.time;
+      allow delete: if false;
+    }
+    match /king_agents/{agentUid} {
+      allow get: if admin() || owner(agentUid)
+        || (signedIn() && resource.data.agencyUid == request.auth.uid
+            && kingAgencyActive9982(request.auth.uid));
+      allow list: if admin() || (signedIn()
+        && resource.data.agencyUid == request.auth.uid
+        && kingAgencyActive9982(request.auth.uid));
+      allow create: if signedIn()
+        && kingAgencyActive9982(request.auth.uid)
+        && agentUid != request.auth.uid
+        && request.resource.data.keys().hasOnly(['uid','agencyUid','active','createdAt','updatedAt'])
+        && request.resource.data.keys().hasAll(['uid','agencyUid','active','createdAt','updatedAt'])
+        && request.resource.data.uid == agentUid
+        && request.resource.data.agencyUid == request.auth.uid
+        && request.resource.data.active == true
+        && request.resource.data.createdAt == request.time
+        && request.resource.data.updatedAt == request.time;
+      allow update: if signedIn()
+        && kingAgencyActive9982(request.auth.uid)
+        && resource.data.agencyUid == request.auth.uid
+        && resource.data.uid == agentUid
+        && request.resource.data.keys().hasOnly(['uid','agencyUid','active','createdAt','updatedAt'])
+        && request.resource.data.uid == resource.data.uid
+        && request.resource.data.agencyUid == resource.data.agencyUid
+        && request.resource.data.createdAt == resource.data.createdAt
+        && request.resource.data.active is bool
+        && request.resource.data.updatedAt == request.time;
+      allow delete: if false;
+    }
+    match /king_agent_recharge_requests/{orderId} {
+      allow read: if signedIn() && (admin()
+        || resource.data.agentUid == request.auth.uid
+        || (resource.data.agencyUid == request.auth.uid
+            && kingAgencyActive9982(request.auth.uid)));
+      // A request is only a pending order, not a verified money movement.
+      allow create: if activeUser()
+        && request.resource.data.keys().hasOnly([
+          'agentUid','agencyUid','targetUid','diamonds','status','createdAt'])
+        && request.resource.data.keys().hasAll([
+          'agentUid','agencyUid','targetUid','diamonds','status','createdAt'])
+        && request.resource.data.agentUid == request.auth.uid
+        && request.resource.data.agencyUid is string
+        && request.resource.data.targetUid is string
+        && request.resource.data.targetUid.size() >= 4
+        && request.resource.data.targetUid.size() <= 128
+        && request.resource.data.status == 'pending'
+        && kingPack9982(request.resource.data.diamonds)
+        && request.resource.data.createdAt == request.time
+        && kingAgencyActive9982(request.resource.data.agencyUid)
+        && (request.resource.data.agencyUid == request.auth.uid
+          || kingAgentActive9982(request.auth.uid, request.resource.data.agencyUid));
+      // Even Super Admin cannot mark fake payment "approved" through client.
+      // Actual credits may only be performed by verified trusted backend
+      // with idempotent merchant receipt and append-only wallet ledger.
+      allow update, delete: if false;
+    }
+
