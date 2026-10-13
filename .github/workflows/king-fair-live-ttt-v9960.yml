@@ -26,10 +26,10 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p /tmp/king9960 /tmp/king9960prev
-          gh run download 38367260371 -n KING-v9960-Fair-Real-Party-TTT-TEST-APK-and-Source -D /tmp/king9960prev
-          test -s /tmp/king9960prev/KING-Plus-v9.9.60-Fair-Real-Party-TTT-TEST.apk
-          unzip -q /tmp/king9960prev/KING-Plus-v9.9.60-Fair-Real-Party-TTT-Source.zip -d /tmp/king9960
-          grep -q 'versionCode 239' /tmp/king9960/app/build.gradle
+          gh run download 38367260371 -n KING-v9959-Real-Ready-Fair-Games-TEST-APK-and-Source -D /tmp/king9960prev
+          test -s /tmp/king9960prev/KING-Plus-v9.9.59-Real-Ready-Fair-Games-TEST.apk
+          unzip -q /tmp/king9960prev/KING-Plus-v9.9.59-Real-Ready-Fair-Games-Source.zip -d /tmp/king9960
+          grep -q 'versionCode 238' /tmp/king9960/app/build.gradle
           test -s app/kingplus-ci-debug.keystore
           cp app/kingplus-ci-debug.keystore /tmp/king9960/app/kingplus-ci-debug.keystore
       - name: Fix real Party Tic Tac Toe Ready and fair two-player selection
@@ -106,7 +106,7 @@ jobs:
       - name: Verify signed APK upgrade and zip integrity
         run: |
           set -euo pipefail
-          old=/tmp/king9960prev/KING-Plus-v9.9.60-Fair-Real-Party-TTT-TEST.apk
+          old=/tmp/king9960prev/KING-Plus-v9.9.59-Real-Ready-Fair-Games-TEST.apk
           new=/tmp/king9960/app/build/outputs/apk/debug/app-debug.apk
           aapt="$(find "$ANDROID_HOME/build-tools" -name aapt -type f | sort -V | tail -1)"
           signer="$(find "$ANDROID_HOME/build-tools" -name apksigner -type f | sort -V | tail -1)"
