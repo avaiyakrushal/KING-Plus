@@ -64,6 +64,7 @@ jobs:
           javac -d /tmp/king9959classes \
             /tmp/king9959/app/src/main/java/com/kingplus/social/KingPartySocialRoster9959.java \
             /tmp/king9959/app/src/main/java/com/kingplus/social/KingPartySocialRoster9958.java \
+            /tmp/king9959/app/src/main/java/com/kingplus/social/KingLivePartyRoster9952.java \
             tools/social-live-v9959/KingPartySocialRoster9959Test.java \
             tools/social-live-v9958/KingPartySocialRoster9958Test.java
           java -cp /tmp/king9959classes com.kingplus.social.KingPartySocialRoster9959Test
