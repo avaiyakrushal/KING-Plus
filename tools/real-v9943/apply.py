@@ -113,8 +113,8 @@ start=text.index('      match /game_moves/{playerUid} {')
 end=text.index('      match /game_state/{stateId} {',start)
 block=text[start:end]
 import re
-pattern=r'allow delete:\\s*if signedIn\\(\\)\\s*&&\\s*\\(playerUid == request\\.auth\\.uid \\|\\| roomModerator\\(roomId\\)\\);'
-block2,count=re.subn(pattern,'allow update: if false; // published game choices cannot be changed\\n        allow delete: if roomModerator(roomId);',block)
+pattern=r'allow delete:\s*if signedIn\(\)\s*&&\s*\(playerUid == request\.auth\.uid \|\| roomModerator\(roomId\)\);'
+block2,count=re.subn(pattern,'allow update: if false; // published game choices cannot be changed\n        allow delete: if roomModerator(roomId);',block)
 if count!=1:raise RuntimeError('Expected unique player-delete bypass to lock down, found '+str(count))
 text=text[:start]+block2+text[end:]
 rules.write_text(text)
