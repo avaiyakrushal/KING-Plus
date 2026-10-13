@@ -32,11 +32,14 @@ new='''                // SERVER transaction reads of each participant's previou
                     KingPartyMoveCleanup9976.roster(value.get("participantUids"));
                 if(!KingPartyMoveCleanup9976.valid(cleanup9976))
                     throw new IllegalStateException("Live Ready roster unavailable for rematch");
-                for(String uid9976:cleanup9976)
-                    tx.get(room().collection("game_moves").document(uid9976));
-                // At most 50 move deletes + one game_state write.
-                for(String uid9976:cleanup9976)
-                    tx.delete(room().collection("game_moves").document(uid9976));
+                java.util.List<DocumentReference> previousMoves9976=new java.util.ArrayList<>();
+                for(String uid9976:cleanup9976){
+                    DocumentReference oldMove9976=room().collection("game_moves").document(uid9976);
+                    if(tx.get(oldMove9976).exists())previousMoves9976.add(oldMove9976);
+                }
+                // At most 50 existing move deletes + one game_state write.
+                for(DocumentReference oldMove9976:previousMoves9976)
+                    tx.delete(oldMove9976);
                 tx.set(state(),value);return null;'''
 assert s.count(old)==1,"expected all-history delete in real transaction"
 s=s.replace(old,new,1)
