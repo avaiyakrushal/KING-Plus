@@ -122,6 +122,11 @@ rep("""          && playerUid == request.auth.uid
       match /game_state/{stateId} {""",
 """          && playerUid == request.auth.uid
           && request.resource.data.uid == request.auth.uid
+          // For an active Tic Tac Toe match no user may sneak in a differently
+          // labeled game move to bypass the real TURN validation.
+          && (!exists(/databases/$(database)/documents/live_rooms/$(roomId)/game_state/current)
+              || get(/databases/$(database)/documents/live_rooms/$(roomId)/game_state/current).data.get('type','') != 'ttt'
+              || request.resource.data.get('type','') == 'ttt')
           && (request.resource.data.get('type','') != 'ttt'
               || (exists(/databases/$(database)/documents/live_rooms/$(roomId)/game_state/current)
                   && get(/databases/$(database)/documents/live_rooms/$(roomId)/game_state/current).data.type == 'ttt'
