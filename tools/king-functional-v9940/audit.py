@@ -24,3 +24,15 @@ for i,line in enumerate(rules):
  if any(x in line for x in ['match /game_moves/', 'match /game_state/', 'match /events/', 'match /game_ready/']):
   print("\n### FIRESTORE",i+1)
   for j in range(i,min(len(rules),i+71)):print(f'{j+1}: {rules[j][:480]}')
+
+for name,lo,hi in [
+ ("RoomGameActivity.java",32,60),
+ ("RoomGameActivity.java",75,120),
+ ("RoomGameActivity.java",217,315),
+ ("RoomGameActivity.java",435,604),
+ ("PartyActivity.java",3140,3185)
+]:
+ p=java/name
+ a=p.read_text().splitlines()
+ print('\n### SPECIFIC',name,lo,hi)
+ for j in range(lo-1,min(len(a),hi)): print(f'{j+1}: {a[j][:1400]}')
