@@ -52,10 +52,11 @@ try {
  await assertFails(deleteDoc(person(Mod,'member123')));
  await assertFails(deleteDoc(person(Admin,'moderator123')));
  await assertFails(deleteDoc(person(Admin,'owner123')));
- await assertFails(deleteDoc(person(Admin,'admin123')));
  await assertSucceeds(deleteDoc(person(Admin,'member123')));
  const gone=await assertSucceeds(getDoc(person(Owner,'member123')));
  if(gone.exists())throw Error('Admin kick failed to remove member across phone');
+ // An Admin may voluntarily leave the Family; they cannot kick other Admins.
+ await assertSucceeds(deleteDoc(person(Admin,'admin123')));
  await assertFails(setDoc(treas(Owner,'forgedOwner'),{uid:'owner123',amount:100}));
  await assertFails(setDoc(treas(Admin,'forgedAdmin'),{uid:'admin123',amount:10000}));
  await assertFails(setDoc(treas(Member,'forgedMember'),{uid:'member123',amount:1}));
