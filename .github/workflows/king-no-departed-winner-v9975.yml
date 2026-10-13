@@ -1,0 +1,116 @@
+name: KING v9.9.75 Party No Departed Winner TEST
+on:
+  push:
+    branches: [work/king-no-departed-winner-v9975]
+    paths: ['tools/no-departed-winner-v9975/**', '.github/workflows/king-no-departed-winner-v9975.yml']
+  workflow_dispatch:
+permissions: {contents: read, actions: read}
+jobs:
+  full-party-play:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 55
+    env: {GRADLE_OPTS: '-Xmx4g -XX:MaxMetaspaceSize=1024m'}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v5
+        with: {distribution: temurin, java-version: '17'}
+      - uses: actions/setup-node@v4
+        with: {node-version: '22'}
+      - uses: gradle/actions/setup-gradle@v4
+        with: {gradle-version: '8.9'}
+      - name: Restore fully signed Party Games and Gifting v9.9.74
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/king9975 /tmp/king9975prev
+          gh run download 38398397934 -n KING-v9974-Gift-Sound-No-Lost-Wakeup-TEST-APK-and-Source -D /tmp/king9975prev
+          test -s /tmp/king9975prev/KING-Plus-v9.9.74-Gift-Sound-Wakeup-TEST.apk
+          unzip -q /tmp/king9975prev/KING-Plus-v9.9.74-Gift-Sound-Wakeup-Source.zip -d /tmp/king9975
+          grep -q 'versionCode 253' /tmp/king9975/app/build.gradle
+          test -s app/kingplus-ci-debug.keystore
+          cp app/kingplus-ci-debug.keystore /tmp/king9975/app/kingplus-ci-debug.keystore
+      - name: Patch actual Android Party result transaction and live member UI
+        run: |
+          set -euo pipefail
+          python3 tools/no-departed-winner-v9975/apply.py /tmp/king9975
+          grep -q 'versionCode 254' /tmp/king9975/app/build.gradle
+          grep -q 'KingPartyLiveRoster9975.member' /tmp/king9975/app/src/main/java/com/kingplus/social/RoomGameActivity.java
+          grep -q 'Ready player left Party' /tmp/king9975/app/src/main/java/com/kingplus/social/RoomGameActivity.java
+      - name: Java tests current four-of-four AND actual live members
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/king9975classes
+          javac -d /tmp/king9975classes \
+            /tmp/king9975/app/src/main/java/com/kingplus/social/KingPartyLiveRoster9975.java \
+            /tmp/king9975/app/src/main/java/com/kingplus/social/KingPartyAllPlayed9973.java \
+            /tmp/king9975/app/src/main/java/com/kingplus/social/KingPartyRoundRoster9972.java \
+            /tmp/king9975/app/src/main/java/com/kingplus/social/KingRoomRoster9946.java \
+            tools/no-departed-winner-v9975/KingPartyLiveRoster9975Test.java \
+            tools/all-played-v9973/KingPartyAllPlayed9973Test.java
+          java -cp /tmp/king9975classes com.kingplus.social.KingPartyLiveRoster9975Test
+          java -cp /tmp/king9975classes com.kingplus.social.KingPartyAllPlayed9973Test
+      - name: Install Firebase test dependencies
+        working-directory: /tmp/king9975/tests/firestore
+        run: npm ci --no-audit --no-fund
+      - name: Firebase 5-account Party departed scorer cannot win
+        working-directory: /tmp/king9975
+        env: {CI: 'true'}
+        run: |
+          set -euo pipefail
+          cp "$GITHUB_WORKSPACE/tools/no-departed-winner-v9975/departed-player-no-winner-firestore.test.mjs" tests/firestore/
+          tests/firestore/node_modules/.bin/firebase emulators:exec --only firestore \
+            --project demo-king-departure-9975 --config firebase-emulator.json \
+            "node tests/firestore/departed-player-no-winner-firestore.test.mjs"
+      - name: Regression game cannot finish 2-of-4, and spectator cannot win
+        working-directory: /tmp/king9975
+        env: {CI: 'true'}
+        run: |
+          set -euo pipefail
+          cp "$GITHUB_WORKSPACE/tools/all-played-v9973/all-players-finish-firestore.test.mjs" tests/firestore/
+          tests/firestore/node_modules/.bin/firebase emulators:exec --only firestore \
+            --project demo-king-all-played-9973 --config firebase-emulator.json \
+            "node tests/firestore/all-players-finish-firestore.test.mjs"
+      - name: Regression real Gift delivery ACK after reconnect
+        working-directory: /tmp/king9975
+        env: {CI: 'true'}
+        run: |
+          set -euo pipefail
+          cp "$GITHUB_WORKSPACE/tools/gift-reconnect-v9968/party-gift-after-network-firestore.test.mjs" tests/firestore/
+          tests/firestore/node_modules/.bin/firebase emulators:exec --only firestore \
+            --project demo-king-gift-rejoin-9968 --config firebase-emulator.json \
+            "node tests/firestore/party-gift-after-network-firestore.test.mjs"
+      - name: Compile complete Android app
+        working-directory: /tmp/king9975
+        run: gradle :app:assembleDebug --no-daemon --max-workers=2
+      - name: Verify same package signing certificate and new versionCode254
+        run: |
+          set -euo pipefail
+          old=/tmp/king9975prev/KING-Plus-v9.9.74-Gift-Sound-Wakeup-TEST.apk
+          new=/tmp/king9975/app/build/outputs/apk/debug/app-debug.apk
+          aapt="$(find "$ANDROID_HOME/build-tools" -name aapt -type f | sort -V | tail -1)"
+          signer="$(find "$ANDROID_HOME/build-tools" -name apksigner -type f | sort -V | tail -1)"
+          "$aapt" dump badging "$new" | grep "^package:" | grep "name='com.kingplus.social'" | grep "versionCode='254'"
+          "$signer" verify --print-certs "$old" >/tmp/old9975cert
+          "$signer" verify --print-certs "$new" >/tmp/new9975cert
+          a="$(grep -Eo '[[:xdigit:]]{64}' /tmp/old9975cert | head -1)"
+          b="$(grep -Eo '[[:xdigit:]]{64}' /tmp/new9975cert | head -1)"
+          test -n "$a" && test "$a" = "$b"
+          unzip -tq "$new" | tail -1
+      - name: Package TEST APK and full source with no private signing key
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/king9975out
+          cp /tmp/king9975/app/build/outputs/apk/debug/app-debug.apk \
+            /tmp/king9975out/KING-Plus-v9.9.75-No-Departed-Winner-TEST.apk
+          rm -f /tmp/king9975/app/kingplus-ci-debug.keystore
+          cd /tmp/king9975
+          zip -q -r /tmp/king9975out/KING-Plus-v9.9.75-No-Departed-Winner-Source.zip . \
+            -x '*/node_modules/*' '*node_modules/*' 'app/build/*' './app/build/*' '*/build/*' './.gradle/*' '*/.gradle/*' '*.apk' '*.aab' '*.keystore' '*.jks' '*.zip' '*local.properties' '*.log'
+          sha256sum /tmp/king9975out/*
+      - uses: actions/upload-artifact@v4
+        with:
+          name: KING-v9975-Party-Member-Result-Gate-TEST-APK-and-Source
+          path: /tmp/king9975out/*
+          retention-days: 14
+          if-no-files-found: error
