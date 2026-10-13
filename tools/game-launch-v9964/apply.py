@@ -10,18 +10,12 @@ root=Path(sys.argv[1]);src=root/'app/src/main/java/com/kingplus/social'
 p=src/'MainActivity.java'
 s=p.read_text()
 if '    private void kingStartGame(String game,String mode){' not in s:
-    print('SOURCE_GAME_ACTUAL_V9963_BEGIN',flush=True)
-    for file_name,start_line,end_line in [
-        ('MainActivity.java',975,1040),
-        ('MainActivity.java',1145,1265),
-        ('PartyActivity.java',1770,1800),
-        ('RoomGameActivity.java',685,738)]:
-        lines=(src/file_name).read_text().splitlines()
-        print('FILE',file_name,'LINES',start_line,'THROUGH',end_line,flush=True)
-        for index in range(start_line-1,min(end_line,len(lines))):
-            print(str(index+1)+':'+lines[index][:260],flush=True)
-    print('SOURCE_GAME_ACTUAL_V9963_END',flush=True)
-    raise AssertionError('Legacy fake quick game method is absent: patch current routing from evidence')
+    print('VOTE_AUDIT_BEGIN',flush=True)
+    lines=(src/'RoomGameActivity.java').read_text().splitlines()
+    for i in range(687,736):
+        print(str(i+1)+': '+lines[i],flush=True)
+    print('VOTE_AUDIT_END',flush=True)
+    raise AssertionError('Voting code audit before replacing live roster handling')
 begin=s.index('    private void kingStartGame(String game,String mode){')
 end=s.index('    private void kingRecordGame(',begin)
 body=s[begin:end]
