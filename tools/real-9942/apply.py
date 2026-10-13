@@ -15,17 +15,25 @@ def one(old,new):
 one("    private final java.util.HashSet<String> seenGiftReceipts9941=new java.util.HashSet<>();",
 """    private final java.util.HashSet<String> seenGiftReceipts9941=new java.util.HashSet<>();
     private final java.util.HashSet<String> shownGiftIds9942=new java.util.HashSet<>();
+    private String shownGiftRoom9942="";
 """)
 one("""        seenGiftReceipts9941.clear();
 
         ++roomListenerGeneration982;""",
 """        seenGiftReceipts9941.clear();
-        shownGiftIds9942.clear();
+        // Preserve per-room event IDs across renderParty() rerenders.
 
         ++roomListenerGeneration982;""")
 one("""        partyVisualForeground995=true;""",
 """        partyVisualForeground995=true;
         recoverRecentGifts9942();""")
+one('''        eventsListener=room.collection("events").orderBy("createdAt",Query.Direction.ASCENDING).limitToLast(80).addSnapshotListener((snap,e)->{''',
+'''        eventsListener=room.collection("events").orderBy("createdAt",Query.Direction.ASCENDING).limitToLast(80)
+          .addSnapshotListener(com.google.firebase.firestore.MetadataChanges.INCLUDE,(snap,e)->{''')
+one('''            if(!activeRoomCallback982(expectedRoom982,expectedUid982,visit982,binding982)||e!=null||snap==null||feedBox==null)return;feedBox.removeAllViews();refreshSupporters(snap);''',
+'''            if(!activeRoomCallback982(expectedRoom982,expectedUid982,visit982,binding982)||e!=null||snap==null||feedBox==null)return;
+            if(snap.getMetadata().isFromCache())return; // server must verify before Gift ID dedupe
+            feedBox.removeAllViews();refreshSupporters(snap);''')
 one("""                String id=d.getId();if(!eventSnapshotReady){processedEventIds.add(id);continue;}if(processedEventIds.contains(id))continue;processedEventIds.add(id);""",
 """                String id=d.getId();
                 if(!eventSnapshotReady){
@@ -97,6 +105,9 @@ methods="""    // As a user returns from a game, call, or screen lock, reload re
         if(created9942==null||
            !KingGiftReplayGuard9942.allow(System.currentTimeMillis(),
                created9942.toDate().getTime(),sender9942,ownUid9942,replay,isRecipient9942))return;
+        if(!room.getId().equals(shownGiftRoom9942)){
+            shownGiftRoom9942=room.getId();shownGiftIds9942.clear();
+        }
         if(!shownGiftIds9942.add(event.getId()))return;
         if(shownGiftIds9942.size()>220){
             shownGiftIds9942.clear();shownGiftIds9942.add(event.getId());
