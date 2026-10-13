@@ -48,7 +48,7 @@ try {
  await assertFails(setDoc(move(E,'eve'),ttt('eve',1001,1)));
  await assertFails(setDoc(move(A,'alice'),ttt('alice',1000,1)));
  await assertFails(setDoc(move(A,'alice'),ttt('alice',1001,11)));
- await assertFails(setDoc(move(A,'alice'),ttt('alice',1001,1,'ttt')));
+ await assertFails(setDoc(move(A,'alice'),ttt('alice',1001,1,'dice'))); // wrong game type cannot bypass turn rules
  await assertSucceeds(setDoc(move(A,'alice'),ttt('alice',1001,1)));
  await assertFails(setDoc(move(B,'bob'),ttt('bob',1001,2)));
  // The host accepts Alice's move, deletes her pending entry, updates current turn.
