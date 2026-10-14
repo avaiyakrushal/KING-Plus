@@ -1,0 +1,107 @@
+name: KING v10.0.16 Me Home Party Relationship Paging and Room Seat Request TEST APK
+on:
+  push:
+    branches: [work/king-me-home-party-v10016]
+    paths:
+      - 'tools/me-home-party-v10016/**'
+      - '.github/workflows/king-me-home-party-v10016.yml'
+  workflow_dispatch:
+permissions: {contents: read, actions: read}
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with: {distribution: temurin, java-version: '17'}
+      - uses: gradle/actions/setup-gradle@v4
+        with: {gradle-version: '8.9'}
+      - name: Restore exactly the signed v10.0.15 APK source
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/king10016prev /tmp/king10016
+          gh run download 38563835685 -n KING-v10015-Me-Home-Party-TEST-APK-and-Source -D /tmp/king10016prev
+          unzip -q /tmp/king10016prev/KING-Plus-v10.0.15-Me-Home-Party-TEST-Source.zip -d /tmp/king10016
+          cp app/kingplus-ci-debug.keystore /tmp/king10016/app/
+          python3 tools/me-home-party-v10016/apply.py /tmp/king10016
+      - name: v10.0.16 Me Home Party source regression checks
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          r=Path('/tmp/king10016')
+          me=(r/'app/src/main/java/com/kingplus/social/MainActivity.java').read_text()
+          home=(r/'app/src/main/java/com/kingplus/social/CommunityHubActivity.java').read_text()
+          party=(r/'app/src/main/java/com/kingplus/social/PartyActivity.java').read_text()
+          assert 'Refresh my hosted Party rooms' in me
+          assert 'loadPartyRecordsV600(host)' in me
+          assert 'hostedRoomsCurrent10015(' in me
+          assert 'loadRelationshipPage10016(' in home
+          assert 'whereEqualTo(field10016,account10016).limit(30)' in home
+          assert 'query10016.startAfter(cursor10016)' in home
+          assert 'Load more CP requests' in home
+          assert 'currentSection10003("Relationship",token10016,host10016,account10016)' in home
+          assert 'tx10015.delete(d.getReference())' in home
+          assert 'seatRequestContext10016(' in party
+          assert 'isActivePresence967(room10016,actor10016,generation10016)' in party
+          assert 'latest10016.getLong("seatNo")' in party
+          assert 'tx10016.delete(req.getReference())' in party
+          assert 'approveSeatRequest(req.getId(),uid,name,no)' in party
+          assert "versionCode 295;" in (r/'app/build.gradle').read_text()
+          print('PASS v10.0.16 Me/Home/Party workflow and source tests')
+          PY
+      - name: Existing Me Home Party policy regression tests
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/king10016tests
+          javac -d /tmp/king10016tests /tmp/king10016/app/src/main/java/com/kingplus/social/KingMeHomePartyPolicy10010.java tools/me-home-party-v10010/KingMeHomePartyPolicy10010Test.java
+          java -cp /tmp/king10016tests com.kingplus.social.KingMeHomePartyPolicy10010Test
+      - uses: actions/setup-node@v4
+        with: {node-version: '22'}
+      - name: Firestore test dependencies
+        working-directory: /tmp/king10016/tests/firestore
+        run: npm ci --no-audit --no-fund
+      - name: Two-account moderation and relationship security
+        working-directory: /tmp/king10016
+        env:
+          CI: 'true'
+        run: |
+          cp "$GITHUB_WORKSPACE/tools/me-home-party-v10011/moderation-firestore.test.mjs" tests/firestore/
+          cp "$GITHUB_WORKSPACE/tools/me-home-party-v10012/me-home-party-security.test.mjs" tests/firestore/
+          cp "$GITHUB_WORKSPACE/tools/me-home-party-v10013/role-safety.test.mjs" tests/firestore/
+          tests/firestore/node_modules/.bin/firebase emulators:exec --only firestore --project demo-king-atomic-moderation-v10011 --config firebase-emulator.json "node tests/firestore/moderation-firestore.test.mjs && node tests/firestore/me-home-party-security.test.mjs && node tests/firestore/role-safety.test.mjs"
+      - name: Full Android APK compile
+        working-directory: /tmp/king10016
+        run: gradle :app:assembleDebug --no-daemon --max-workers=2
+      - name: Verify package/version and signing continuity
+        run: |
+          set -euo pipefail
+          old=/tmp/king10016prev/KING-Plus-v10.0.15-Me-Home-Party-TEST.apk
+          new=/tmp/king10016/app/build/outputs/apk/debug/app-debug.apk
+          aapt="$(find "$ANDROID_HOME/build-tools" -name aapt -type f | sort -V | tail -1)"
+          signer="$(find "$ANDROID_HOME/build-tools" -name apksigner -type f | sort -V | tail -1)"
+          "$aapt" dump badging "$new" | grep "^package:" | grep "name='com.kingplus.social'" | grep "versionCode='295'"
+          "$signer" verify --print-certs "$old" > /tmp/kingoldcert
+          "$signer" verify --print-certs "$new" > /tmp/kingnewcert
+          a="$(grep -Eo '[[:xdigit:]]{64}' /tmp/kingoldcert | head -1)"
+          b="$(grep -Eo '[[:xdigit:]]{64}' /tmp/kingnewcert | head -1)"
+          test -n "$a" && test "$a" = "$b"
+      - name: Package APK and exact updated source
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/king10016out /tmp/king10016/tools/me-home-party-v10016
+          cp tools/me-home-party-v10016/* /tmp/king10016/tools/me-home-party-v10016/
+          cp .github/workflows/king-me-home-party-v10016.yml /tmp/king10016/.github/workflows/
+          cp /tmp/king10016/app/build/outputs/apk/debug/app-debug.apk /tmp/king10016out/KING-Plus-v10.0.16-Me-Home-Party-TEST.apk
+          rm -f /tmp/king10016/app/kingplus-ci-debug.keystore
+          cd /tmp/king10016
+          zip -qr /tmp/king10016out/KING-Plus-v10.0.16-Me-Home-Party-TEST-Source.zip . -x '*node_modules/*' 'app/build/*' '*/build/*' '.gradle/*' '*/.gradle/*' '*.apk' '*.aab' '*.keystore' '*.jks' '*.zip' '*local.properties' '*.log'
+          sha256sum /tmp/king10016out/*
+      - uses: actions/upload-artifact@v4
+        with:
+          name: KING-v10016-Me-Home-Party-TEST-APK-and-Source
+          path: /tmp/king10016out/*
+          retention-days: 14
+          if-no-files-found: error
