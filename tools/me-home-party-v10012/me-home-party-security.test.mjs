@@ -1,0 +1,33 @@
+import {readFileSync} from 'node:fs';
+import {initializeTestEnvironment,assertSucceeds,assertFails} from '@firebase/rules-unit-testing';
+import {doc,setDoc,deleteDoc,getDoc,updateDoc,serverTimestamp} from 'firebase/firestore';
+const env=await initializeTestEnvironment({projectId:'demo-king-atomic-moderation-v10011',firestore:{host:'127.0.0.1',port:8080,rules:readFileSync('firestore.rules','utf8')}});
+try{
+ await env.clearFirestore();
+ const ctx=(uid)=>env.authenticatedContext(uid).firestore();
+ const host=ctx('host'),cohost=ctx('bob'),target=ctx('charlie'),other=ctx('dave');
+ const room='live_rooms/king-v10012-role-seat';
+ const at=(db,path)=>doc(db,room,...path.split('/'));
+ await assertSucceeds(setDoc(doc(host,room),{ownerUid:'host',name:'KING moderation',entranceMode:'free',closed:false,isPrivate:false,locked:false,muteAll:false,maxSeats:12}));
+ for(const [db,uid] of [[host,'host'],[cohost,'bob'],[target,'charlie'],[other,'dave']])await assertSucceeds(setDoc(at(db,'members/'+uid),{uid,name:uid}));
+ for(const uid of ['bob','charlie'])await assertSucceeds(setDoc(at(host,'roles/'+uid),{uid,role:'cohost',grantedBy:'host'}));
+ await assertSucceeds(setDoc(at(target,'seats/2'),{uid:'charlie',name:'Charlie',micOn:false}));
+ await assertSucceeds(setDoc(at(other,'seats/1'),{uid:'dave',name:'Dave',micOn:false}));
+ await assertFails(deleteDoc(at(cohost,'seats/2')));
+ if(!(await assertSucceeds(getDoc(at(host,'seats/2')))).exists())throw Error('Co-host removed another co-host seat');
+ await assertSucceeds(deleteDoc(at(target,'seats/2')));
+ await assertSucceeds(setDoc(at(target,'seats/2'),{uid:'charlie',name:'Charlie',micOn:false}));
+ await assertSucceeds(deleteDoc(at(host,'seats/2')));
+ await assertSucceeds(deleteDoc(at(cohost,'seats/1')));
+ const alice='alice10012',brad='brad10012',A=ctx(alice),B=ctx(brad);
+ const cp=doc(A,'relationships/'+alice+'__'+brad);
+ const payload={uidA:alice,uidB:brad,nameA:'Alice',nameB:'Brad',initiatorUid:alice,status:'pending',createdAt:serverTimestamp()};
+ await assertSucceeds(setDoc(cp,payload));
+ await assertFails(setDoc(cp,payload));
+ await assertFails(updateDoc(cp,{status:'accepted',updatedAt:serverTimestamp()}));
+ await assertSucceeds(updateDoc(doc(B,cp.path),{status:'accepted',updatedAt:serverTimestamp()}));
+ if((await assertSucceeds(getDoc(cp))).data().status!=='accepted')throw Error('CP acceptance not durable');
+ await assertFails(updateDoc(doc(B,cp.path),{status:'declined',updatedAt:serverTimestamp()}));
+ await assertSucceeds(deleteDoc(cp));
+ console.log('PASS v10.0.12 CP non-overwrite, reciprocal accept, co-host seat moderation');
+}finally{await env.cleanup();}
