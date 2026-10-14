@@ -34,9 +34,9 @@ jobs:
           from pathlib import Path
           me=Path('app/src/main/java/com/kingplus/social/MainActivity.java').read_text()
           party=Path('app/src/main/java/com/kingplus/social/PartyActivity.java').read_text()
-          assert 'meGalleryListener9994' in me
+          assert 'meGalleryListener9993' in me
           assert 'addSnapshotListener(com.google.firebase.firestore.MetadataChanges.INCLUDE,(result,error)' in me
-          assert 'stopMeGallery9994(); stopWallet9989();' in me
+          assert 'stopMeGallery9993(); stopWallet9989();' in me
           assert 'intentGeneration9989=++inviteGeneration9989' in party
           assert 'if(intentGeneration9989!=inviteGeneration9989)return;' in party
           assert 'Search more live rooms' in party
