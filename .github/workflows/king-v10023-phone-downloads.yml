@@ -1,0 +1,89 @@
+name: KING v10.0.23 Phone APK and Source Separate Downloads
+on:
+  push:
+    branches: [work/king-six-pages-v10023-live-data-batch]
+    paths:
+      - '.github/workflows/king-v10023-phone-downloads.yml'
+  workflow_dispatch:
+permissions: {contents: read, actions: read}
+jobs:
+  package:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Restore successful signed v10.0.23 APK and source
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/kingv10023 /tmp/splits
+          gh run download 38604389814 -n KING-v10023-Six-Pages-TEST-APK-and-Source -D /tmp/kingv10023
+          test -s /tmp/kingv10023/KING-Plus-v10.0.23-Six-Pages-TEST.apk
+          test -s /tmp/kingv10023/KING-Plus-v10.0.23-Six-Pages-TEST-Source.zip
+          unzip -t /tmp/kingv10023/KING-Plus-v10.0.23-Six-Pages-TEST.apk | tail -1
+          unzip -t /tmp/kingv10023/KING-Plus-v10.0.23-Six-Pages-TEST-Source.zip | tail -1
+          split -d -a 2 -b 15000000 /tmp/kingv10023/KING-Plus-v10.0.23-Six-Pages-TEST.apk /tmp/splits/KING-Plus-v10.0.23-APK.part
+          sha256sum /tmp/kingv10023/KING-Plus-v10.0.23-Six-Pages-TEST.apk > /tmp/splits/COMPLETE-APK-SHA256.txt
+          stat -c '%n %s bytes' /tmp/splits/*
+      - uses: actions/upload-artifact@v4
+        with:
+          name: KING-v10023-APK-Phone-Part-00
+          path: /tmp/splits/KING-Plus-v10.0.23-APK.part00
+          compression-level: 0
+          retention-days: 14
+          if-no-files-found: ignore
+      - uses: actions/upload-artifact@v4
+        with:
+          name: KING-v10023-APK-Phone-Part-01
+          path: /tmp/splits/KING-Plus-v10.0.23-APK.part01
+          compression-level: 0
+          retention-days: 14
+          if-no-files-found: ignore
+      - uses: actions/upload-artifact@v4
+        with:
+          name: KING-v10023-APK-Phone-Part-02
+          path: /tmp/splits/KING-Plus-v10.0.23-APK.part02
+          compression-level: 0
+          retention-days: 14
+          if-no-files-found: ignore
+      - uses: actions/upload-artifact@v4
+        with:
+          name: KING-v10023-APK-Phone-Part-03
+          path: /tmp/splits/KING-Plus-v10.0.23-APK.part03
+          compression-level: 0
+          retention-days: 14
+          if-no-files-found: ignore
+      - uses: actions/upload-artifact@v4
+        with:
+          name: KING-v10023-APK-Phone-Part-04
+          path: /tmp/splits/KING-Plus-v10.0.23-APK.part04
+          compression-level: 0
+          retention-days: 14
+          if-no-files-found: ignore
+      - uses: actions/upload-artifact@v4
+        with:
+          name: KING-v10023-APK-Phone-Part-05
+          path: /tmp/splits/KING-Plus-v10.0.23-APK.part05
+          compression-level: 0
+          retention-days: 14
+          if-no-files-found: ignore
+      - uses: actions/upload-artifact@v4
+        with:
+          name: KING-v10023-APK-Phone-Part-06
+          path: /tmp/splits/KING-Plus-v10.0.23-APK.part06
+          compression-level: 0
+          retention-days: 14
+          if-no-files-found: ignore
+      - uses: actions/upload-artifact@v4
+        with:
+          name: KING-v10023-Source-Direct
+          path: /tmp/kingv10023/KING-Plus-v10.0.23-Six-Pages-TEST-Source.zip
+          compression-level: 0
+          retention-days: 14
+          if-no-files-found: error
+      - uses: actions/upload-artifact@v4
+        with:
+          name: KING-v10023-APK-Integrity
+          path: /tmp/splits/COMPLETE-APK-SHA256.txt
+          retention-days: 14
