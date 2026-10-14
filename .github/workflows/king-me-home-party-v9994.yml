@@ -1,0 +1,134 @@
+name: KING v9.9.94 Me Home Party Search and Lifecycle APK
+on:
+  push:
+    branches: [work/king-me-home-party-v9994]
+    paths: ['tools/me-home-party-v9994/**', '.github/workflows/king-me-home-party-v9994.yml']
+  workflow_dispatch:
+permissions: {contents: read, actions: read}
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v5
+        with: {distribution: temurin, java-version: '17'}
+      - uses: gradle/actions/setup-gradle@v4
+        with: {gradle-version: '8.9'}
+      - name: Recover exact v9.9.91 tested source and signing key
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/king9994prev /tmp/king9994
+          gh run download 38507073474 -n KING-v9993-Me-Home-Party-TEST-APK-and-Source -D /tmp/king9994prev
+          unzip -q /tmp/king9994prev/KING-Plus-v9.9.93-Me-Home-Party-TEST-Source.zip -d /tmp/king9994
+          cp app/kingplus-ci-debug.keystore /tmp/king9994/app/
+          base64 --decode tools/me-home-party-v9994/changes.patch.gz.b64 | gzip -dc > tools/me-home-party-v9994/changes.patch
+          sha256sum tools/me-home-party-v9994/changes.patch
+          python3 tools/me-home-party-v9994/apply.py /tmp/king9994
+      - name: v9.9.94 source regression gates
+        working-directory: /tmp/king9994
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          me=Path('app/src/main/java/com/kingplus/social/MainActivity.java').read_text()
+          party=Path('app/src/main/java/com/kingplus/social/PartyActivity.java').read_text()
+          assert 'meGalleryListener9993' in me
+          assert 'addSnapshotListener(com.google.firebase.firestore.MetadataChanges.INCLUDE,(result,error)' in me
+          assert 'stopMeGallery9993(); stopWallet9989();' in me
+          assert 'intentGeneration9989=++inviteGeneration9989' in party
+          assert 'if(intentGeneration9989!=inviteGeneration9989)return;' in party
+          assert 'Search more live rooms' in party
+          print('PASS Me live Gallery and Party invite generation regressions')
+          PY
+      - name: Saved room policy tests
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/king9994tests
+          javac -d /tmp/king9994tests /tmp/king9994/app/src/main/java/com/kingplus/social/KingMeRoomHistory9981.java /tmp/king9994/app/src/main/java/com/kingplus/social/KingSavedRoomsPolicy9990.java /tmp/king9994/tools/me-home-party-v9990/KingSavedRoomsPolicy9990Test.java "$GITHUB_WORKSPACE/tools/me-home-party-v9992/KingSavedRoomsRemove9992Test.java"
+          java -cp /tmp/king9994tests com.kingplus.social.KingSavedRoomsPolicy9990Test
+          java -cp /tmp/king9994tests com.kingplus.social.KingSavedRoomsRemove9992Test
+      - uses: actions/setup-node@v4
+        with: {node-version: '22'}
+      - name: Firestore test dependencies
+        working-directory: /tmp/king9994/tests/firestore
+        run: npm ci --no-audit --no-fund
+      - name: Two-client saved room sync privacy and concurrent update test
+        working-directory: /tmp/king9994
+        env: {CI: 'true'}
+        run: |
+          cp "$GITHUB_WORKSPACE/tools/me-home-party-v9990/saved-rooms-firestore.test.mjs" tests/firestore/
+          tests/firestore/node_modules/.bin/firebase emulators:exec --only firestore --project demo-king-saved-rooms-9990 --config firebase-emulator.json "node tests/firestore/saved-rooms-firestore.test.mjs"
+      - name: Shared Me photo and account privacy Firestore acceptance
+        working-directory: /tmp/king9994
+        env: {CI: 'true'}
+        run: |
+          cp "$GITHUB_WORKSPACE/tools/me-home-party-v9991/me-moments-firestore.test.mjs" tests/firestore/
+          tests/firestore/node_modules/.bin/firebase emulators:exec --only firestore --project demo-king-me-moments-9993 --config firebase-emulator.json "node tests/firestore/me-moments-firestore.test.mjs"
+      - name: Remote saved-room delete from Me and Home acceptance
+        working-directory: /tmp/king9994
+        env: {CI: 'true'}
+        run: |
+          cp "$GITHUB_WORKSPACE/tools/me-home-party-v9992/saved-rooms-removal-firestore.test.mjs" tests/firestore/
+          tests/firestore/node_modules/.bin/firebase emulators:exec --only firestore --project demo-king-saved-remove-9993 --config firebase-emulator.json "node tests/firestore/saved-rooms-removal-firestore.test.mjs"
+      - name: Live two-client Me Gallery listener integration
+        working-directory: /tmp/king9994
+        env: {CI: 'true'}
+        run: |
+          cp "$GITHUB_WORKSPACE/tools/me-home-party-v9993/me-gallery-live-firestore.test.mjs" tests/firestore/
+          tests/firestore/node_modules/.bin/firebase emulators:exec --only firestore --project demo-king-me-gallery-9994 --config firebase-emulator.json "node tests/firestore/me-gallery-live-firestore.test.mjs"
+      - name: Home live-room cursor pagination Firestore regression
+        working-directory: /tmp/king9994
+        env: {CI: 'true'}
+        run: |
+          cp "$GITHUB_WORKSPACE/tools/me-home-party-v9994/community-search-firestore.test.mjs" tests/firestore/
+          tests/firestore/node_modules/.bin/firebase emulators:exec --only firestore --project demo-king-search-paging-9994 --config firebase-emulator.json "node tests/firestore/community-search-firestore.test.mjs"
+      - name: Search and Me lifecycle source regressions
+        working-directory: /tmp/king9994
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          root=Path('app/src/main/java/com/kingplus/social')
+          community=(root/'CommunityHubActivity.java').read_text()
+          me=(root/'MainActivity.java').read_text()
+          rooms=(root/'KingSavedRooms9990Activity.java').read_text()
+          assert 'validSearch9994' in community and 'loadOlderRooms9994' in community
+          assert 'startAfter(after)' in community and 'searchGeneration9994' in community
+          assert 'galleryTicket9994!=meGalleryGeneration9994' in me
+          assert 'ticket!=roomOpenGeneration9994' in rooms
+          print('PASS v9.9.94 UI async lifecycle regression gates')
+          PY
+      - name: Full Android compile and APK
+        working-directory: /tmp/king9994
+        run: gradle :app:assembleDebug --no-daemon --max-workers=2
+      - name: Verify package version and same APK signer
+        run: |
+          set -euo pipefail
+          old=/tmp/king9994prev/KING-Plus-v9.9.93-Me-Home-Party-TEST.apk
+          new=/tmp/king9994/app/build/outputs/apk/debug/app-debug.apk
+          aapt="$(find "$ANDROID_HOME/build-tools" -name aapt -type f | sort -V | tail -1)"
+          signer="$(find "$ANDROID_HOME/build-tools" -name apksigner -type f | sort -V | tail -1)"
+          "$aapt" dump badging "$new" | grep "^package:" | grep "name='com.kingplus.social'" | grep "versionCode='273'"
+          "$signer" verify --print-certs "$old" > /tmp/old9993cert
+          "$signer" verify --print-certs "$new" > /tmp/new9993cert
+          a="$(grep -Eo '[[:xdigit:]]{64}' /tmp/old9993cert | head -1)"
+          b="$(grep -Eo '[[:xdigit:]]{64}' /tmp/new9993cert | head -1)"
+          test -n "$a" && test "$a" = "$b"
+      - name: Package updated APK and full source
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/king9994out /tmp/king9994/tools/me-home-party-v9994
+          cp tools/me-home-party-v9994/* /tmp/king9994/tools/me-home-party-v9994/
+          cp .github/workflows/king-me-home-party-v9994.yml /tmp/king9994/.github/workflows/
+          cp /tmp/king9994/app/build/outputs/apk/debug/app-debug.apk /tmp/king9994out/KING-Plus-v9.9.94-Me-Home-Party-TEST.apk
+          rm /tmp/king9994/app/kingplus-ci-debug.keystore
+          cd /tmp/king9994
+          zip -qr /tmp/king9994out/KING-Plus-v9.9.94-Me-Home-Party-TEST-Source.zip . -x '*node_modules/*' 'app/build/*' '*/build/*' '.gradle/*' '*/.gradle/*' '*.apk' '*.aab' '*.keystore' '*.jks' '*.zip' '*local.properties' '*.log'
+          sha256sum /tmp/king9994out/*
+      - uses: actions/upload-artifact@v4
+        with:
+          name: KING-v9994-Me-Home-Party-TEST-APK-and-Source
+          path: /tmp/king9994out/*
+          retention-days: 14
+          if-no-files-found: error
