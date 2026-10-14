@@ -1,0 +1,77 @@
+name: KING v9.9.90 Me Home Party regression and APK
+on:
+  push:
+    branches: [work/king-me-home-party-v9990]
+    paths: ['tools/me-home-party-v9990/**', '.github/workflows/king-me-home-party-v9990.yml']
+  workflow_dispatch:
+permissions: {contents: read, actions: read}
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v5
+        with: {distribution: temurin, java-version: '17'}
+      - uses: gradle/actions/setup-gradle@v4
+        with: {gradle-version: '8.9'}
+      - name: Recover exact v9.9.89 tested source and signing key
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/king9990prev /tmp/king9990
+          gh run download 38500364323 -n KING-v9989-Me-Home-Party-TEST-APK-and-Source -D /tmp/king9990prev
+          unzip -q /tmp/king9990prev/KING-Plus-v9.9.89-Me-Home-Party-TEST-Source.zip -d /tmp/king9990
+          cp app/kingplus-ci-debug.keystore /tmp/king9990/app/
+          python3 tools/me-home-party-v9990/apply.py /tmp/king9990
+      - name: Saved room policy tests
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/king9990tests
+          javac -d /tmp/king9990tests /tmp/king9990/app/src/main/java/com/kingplus/social/KingMeRoomHistory9981.java /tmp/king9990/app/src/main/java/com/kingplus/social/KingSavedRoomsPolicy9990.java tools/me-home-party-v9990/KingSavedRoomsPolicy9990Test.java
+          java -cp /tmp/king9990tests com.kingplus.social.KingSavedRoomsPolicy9990Test
+      - uses: actions/setup-node@v4
+        with: {node-version: '22'}
+      - name: Firestore test dependencies
+        working-directory: /tmp/king9990/tests/firestore
+        run: npm ci --no-audit --no-fund
+      - name: Two-client saved room sync privacy and concurrent update test
+        working-directory: /tmp/king9990
+        env: {CI: 'true'}
+        run: |
+          cp "$GITHUB_WORKSPACE/tools/me-home-party-v9990/saved-rooms-firestore.test.mjs" tests/firestore/
+          tests/firestore/node_modules/.bin/firebase emulators:exec --only firestore --project demo-king-saved-rooms-9990 --config firebase-emulator.json "node tests/firestore/saved-rooms-firestore.test.mjs"
+      - name: Full Android compile and APK
+        working-directory: /tmp/king9990
+        run: gradle :app:assembleDebug --no-daemon --max-workers=2
+      - name: Verify package version and same APK signer
+        run: |
+          set -euo pipefail
+          old=/tmp/king9990prev/KING-Plus-v9.9.89-Me-Home-Party-TEST.apk
+          new=/tmp/king9990/app/build/outputs/apk/debug/app-debug.apk
+          aapt="$(find "$ANDROID_HOME/build-tools" -name aapt -type f | sort -V | tail -1)"
+          signer="$(find "$ANDROID_HOME/build-tools" -name apksigner -type f | sort -V | tail -1)"
+          "$aapt" dump badging "$new" | grep "^package:" | grep "name='com.kingplus.social'" | grep "versionCode='269'"
+          "$signer" verify --print-certs "$old" > /tmp/old9990cert
+          "$signer" verify --print-certs "$new" > /tmp/new9990cert
+          a="$(grep -Eo '[[:xdigit:]]{64}' /tmp/old9990cert | head -1)"
+          b="$(grep -Eo '[[:xdigit:]]{64}' /tmp/new9990cert | head -1)"
+          test -n "$a" && test "$a" = "$b"
+      - name: Package updated APK and full source
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/king9990out /tmp/king9990/tools/me-home-party-v9990
+          cp tools/me-home-party-v9990/* /tmp/king9990/tools/me-home-party-v9990/
+          cp .github/workflows/king-me-home-party-v9990.yml /tmp/king9990/.github/workflows/
+          cp /tmp/king9990/app/build/outputs/apk/debug/app-debug.apk /tmp/king9990out/KING-Plus-v9.9.90-Me-Home-Party-TEST.apk
+          rm /tmp/king9990/app/kingplus-ci-debug.keystore
+          cd /tmp/king9990
+          zip -qr /tmp/king9990out/KING-Plus-v9.9.90-Me-Home-Party-TEST-Source.zip . -x '*node_modules/*' 'app/build/*' '*/build/*' '.gradle/*' '*/.gradle/*' '*.apk' '*.aab' '*.keystore' '*.jks' '*.zip' '*local.properties' '*.log'
+          sha256sum /tmp/king9990out/*
+      - uses: actions/upload-artifact@v4
+        with:
+          name: KING-v9990-Me-Home-Party-TEST-APK-and-Source
+          path: /tmp/king9990out/*
+          retention-days: 14
+          if-no-files-found: error

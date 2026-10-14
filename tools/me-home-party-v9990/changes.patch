@@ -1,0 +1,186 @@
+--- a/app/src/main/java/com/kingplus/social/MainActivity.java
++++ b/app/src/main/java/com/kingplus/social/MainActivity.java
+@@ -1631,22 +1631,7 @@
+     }
+     private void showMeRoomHistory9981(String tab){
+         if(firebaseAuth==null||firebaseAuth.getCurrentUser()==null){login();return;}
+-        SharedPreferences p=getSharedPreferences("king_party",MODE_PRIVATE);
+-        java.util.List<KingMeRoomHistory9981.Room> rooms9981=KingMeRoomHistory9981.from(
+-            p.getStringSet(KingAccountRoomHistory9989.key("favorite_rooms_940",firebaseAuth.getCurrentUser().getUid()),new HashSet<>()),
+-            p.getStringSet(KingAccountRoomHistory9989.key("recent_rooms_940",firebaseAuth.getCurrentUser().getUid()),new HashSet<>()),tab);
+-        if(rooms9981.isEmpty()){
+-            new AlertDialog.Builder(this).setTitle("Me • "+tab+" rooms")
+-                .setMessage("No saved live rooms. Tap ★ Favorite in a real Party room.")
+-                .setPositiveButton("Open Party",(d,w)->openPartyActivity())
+-                .setNegativeButton("Close",null).show();return;
+-        }
+-        String[] labels=new String[rooms9981.size()];
+-        for(int i=0;i<rooms9981.size();i++)labels[i]=rooms9981.get(i).label();
+-        new AlertDialog.Builder(this).setTitle("Me • "+tab+" rooms")
+-            .setItems(labels,(d,index)->openVerifiedMeRoom9981(rooms9981.get(index).id))
+-            .setPositiveButton("Party",(d,w)->openPartyActivity())
+-            .setNegativeButton("Close",null).show();
++        Intent intent=new Intent(this,KingSavedRooms9990Activity.class);intent.putExtra("tab",tab);startActivity(intent);
+     }
+     private void openVerifiedMeRoom9981(String roomId9981){
+         if(firestore==null||firebaseAuth==null||firebaseAuth.getCurrentUser()==null
+--- a/app/src/main/java/com/kingplus/social/PartyActivity.java
++++ b/app/src/main/java/com/kingplus/social/PartyActivity.java
+@@ -426,12 +426,14 @@
+     @Override protected void onResume(){
+         super.onResume();
+         partyVisualForeground995=true;
++        listenSavedRooms9990();
+         FirebaseUser signed9989=FirebaseAuth.getInstance().getCurrentUser();
+         String previous9989=user==null?"":user.getUid();
+         String current9989=signed9989==null?"":signed9989.getUid();
+         if(!previous9989.equals(current9989)){
+             leaveRoom(); // Revoke the previous account's microphone and pending callbacks.
+             user=signed9989;
++            listenSavedRooms9990();
+             renderLobby("Hot");
+             return;
+         }
+@@ -635,7 +637,9 @@
+         if(requested==null||requested.isEmpty())return;
+         if(!KingMeRoomHistory9981.validId(requested)){toast("Invalid Party invite");return;}
+         final String target=requested;
+-        if(target.equals(roomId))return;
++        requestedPanel940=safe(incoming.getStringExtra("requestedPanel"),"");
++        incoming.removeExtra("requestedPanel");
++        if(target.equals(roomId)){if(memberSeen)openRequestedPanel940();return;}
+         if(db==null||user==null){toast("Sign in to open Party invites");return;}
+         Runnable join=()->{
+             if(roomId!=null)leaveRoom();
+@@ -659,7 +663,7 @@
+         if(roomId==null)join.run();
+         else new AlertDialog.Builder(this).setTitle("Switch Party room?")
+             .setMessage("Leave this room and open the invited Party?")
+-            .setNegativeButton("Stay",null).setPositiveButton("Switch",(d,w)->join.run()).show();
++            .setNegativeButton("Stay",(d,w)->requestedPanel940="").setPositiveButton("Switch",(d,w)->join.run()).show();
+     }
+ 
+     private void renderLobby(String selected) {
+@@ -2839,7 +2843,7 @@
+     }
+ 
+     private void openRequestedPanel940(){
+-        if(requestedPanel940==null||requestedPanel940.trim().isEmpty()||isFinishing()||isDestroyed())return;
++        if(!memberSeen||!cloudRoom||roomId==null||requestedPanel940==null||requestedPanel940.trim().isEmpty()||isFinishing()||isDestroyed())return;
+         String panel=requestedPanel940;requestedPanel940="";
+         if("music".equals(panel))musicPanel();
+         else if("song".equals(panel))karaokeDialog();
+@@ -4937,33 +4941,42 @@
+         for(String x:fav){int p=x.indexOf('\u0001');String id=p<0?x:x.substring(0,p);if(roomId.equals(id))return true;}
+         return false;
+     }
++    private boolean savingFavorite9990;
+     private void toggleFavoriteRoom940(){
+-        if(!cloudRoom||roomId==null){toast("Open a live Party room first");return;}
+-        Set<String> fav=new HashSet<>(prefs.getStringSet(KingAccountRoomHistory9989.key("favorite_rooms_940",user==null?null:user.getUid()),new HashSet<>()));
+-        String found=null;for(String x:fav){int p=x.indexOf('\u0001');String id=p<0?x:x.substring(0,p);if(roomId.equals(id)){found=x;break;}}
+-        if(found!=null){fav.remove(found);toast("Removed from favorite rooms");}
+-        else{fav.add(roomFavKey940(roomId,roomName));toast("Room saved to favorites ★");}
+-        prefs.edit().putStringSet(KingAccountRoomHistory9989.key("favorite_rooms_940",user==null?null:user.getUid()),fav).apply();
++        if(!cloudRoom||roomId==null||user==null||savingFavorite9990)return;
++        savingFavorite9990=true;
++        KingSavedRoomsCloud9990.change(this,db,user.getUid(),roomId,roomName,true,error->{
++            savingFavorite9990=false;if(partyUiDead())return;
++            toast(error==null?"Favorite updated on your account":"Could not save favorite. Check connection; maximum 60 favorites.");
++        });
+     }
+     private void recordRoomVisit940(){
+-        if(!cloudRoom||roomId==null||roomId.trim().isEmpty())return;
+-        Set<String> raw=new HashSet<>(prefs.getStringSet(KingAccountRoomHistory9989.key("recent_rooms_940",user==null?null:user.getUid()),new HashSet<>()));
+-        List<String> keep=new ArrayList<>();
+-        for(String x:raw){String[] p=x.split("::",3);if(p.length<3||roomId.equals(p[1]))continue;keep.add(x);}
+-        keep.sort((a,b)->b.compareTo(a));if(keep.size()>19)keep=new ArrayList<>(keep.subList(0,19));
+-        String safeId=roomId.replace("::","");String safeName=(roomName==null?"Live Party":roomName).replace("::"," ");
+-        keep.add(String.format(java.util.Locale.US,"%013d::%s::%s",System.currentTimeMillis(),safeId,safeName));
+-        prefs.edit().putStringSet(KingAccountRoomHistory9989.key("recent_rooms_940",user==null?null:user.getUid()),new HashSet<>(keep)).apply();
++        if(!cloudRoom||roomId==null||user==null)return;
++        KingSavedRoomsCloud9990.change(this,db,user.getUid(),roomId,roomName,false,error->{
++            if(error!=null)KingStability.nonFatal(this,"saved-room-visit",error);
++        });
+     }
+     private void roomHistoryPanel940(){
+-        Set<String> fav=new HashSet<>(prefs.getStringSet(KingAccountRoomHistory9989.key("favorite_rooms_940",user==null?null:user.getUid()),new HashSet<>()));
+-        Set<String> recentSet=new HashSet<>(prefs.getStringSet(KingAccountRoomHistory9989.key("recent_rooms_940",user==null?null:user.getUid()),new HashSet<>()));
+-        List<String> ids=new ArrayList<>(),labels=new ArrayList<>();
+-        for(String x:fav){int p=x.indexOf('\u0001');if(p<=0)continue;ids.add(x.substring(0,p));labels.add("★  "+x.substring(p+1));}
+-        List<String> recent=new ArrayList<>(recentSet);recent.sort((a,b)->b.compareTo(a));
+-        for(String x:recent){String[] p=x.split("::",3);if(p.length<3)continue;boolean duplicate=false;for(String id:ids)if(id.equals(p[1])){duplicate=true;break;}if(duplicate)continue;ids.add(p[1]);labels.add("🕘  "+p[2]);if(labels.size()>=25)break;}
+-        if(labels.isEmpty()){new AlertDialog.Builder(this).setTitle("🕘 Room history").setMessage("No recent or favorite Party rooms yet.").setPositiveButton("OK",null).show();return;}
+-        new AlertDialog.Builder(this).setTitle("🕘 Recent & Favorite Rooms").setItems(labels.toArray(new String[0]),(d,w)->{if(db==null||user==null){toast("Sign in required");return;}joinRoomDocument891(ids.get(w));}).setNegativeButton("Close",null).show();
++        Intent intent=new Intent(this,KingSavedRooms9990Activity.class);intent.putExtra("tab","recent");startActivity(intent);
++    }
++    private com.google.firebase.firestore.ListenerRegistration savedRooms9990;
++    private int savedRoomsGeneration9990;
++    private void stopSavedRooms9990(){
++        ++savedRoomsGeneration9990;
++        if(savedRooms9990!=null){savedRooms9990.remove();savedRooms9990=null;}
++        savingFavorite9990=false;
++    }
++    private void listenSavedRooms9990(){
++        stopSavedRooms9990();if(user==null||db==null)return;
++        final String uid=user.getUid();final int generation=savedRoomsGeneration9990;
++        savedRooms9990=db.collection("users").document(uid).addSnapshotListener((doc,error)->{
++            if(generation!=savedRoomsGeneration9990||partyUiDead()||!KingSavedRoomsCloud9990.account(uid)||doc==null||error!=null)return;
++            if(!doc.contains(KingSavedRoomsPolicy9990.FIELD)){
++                if(!doc.getMetadata().isFromCache())KingSavedRoomsCloud9990.importLocal(this,db,uid);
++                return;
++            }
++            KingSavedRoomsCloud9990.cache(this,uid,doc.get(KingSavedRoomsPolicy9990.FIELD));
++        });
+     }
+ 
+     private void teamUpPanel940(){
+@@ -6818,6 +6831,7 @@
+     }
+ 
+     @Override protected void onStop(){
++        stopSavedRooms9990();
+         partyVisualForeground995=false;
+         pauseVoiceRejoin9957();
+         pauseDisplayedGiftReceipts9955();
+--- a/app/src/main/java/com/kingplus/social/CommunityHubActivity.java
++++ b/app/src/main/java/com/kingplus/social/CommunityHubActivity.java
+@@ -76,7 +76,7 @@
+     private void toggleFollow(String uid,String name){String id=me.getUid()+"__"+uid;DocumentReference r=db.collection("follows").document(id);r.get().addOnSuccessListener(x->{if(x.exists())r.delete().addOnSuccessListener(v->toast("Unfollowed "+name));else{Map<String,Object>m=new HashMap<>();m.put("followerUid",me.getUid());m.put("targetUid",uid);m.put("createdAt",FieldValue.serverTimestamp());r.set(m).addOnSuccessListener(v->toast("Following "+name));}});}
+     private void openChat(String uid,String name){Intent i=new Intent(this,ChatActivity.class);i.putExtra("peerUid",uid);i.putExtra("peerName",name);startActivity(i);}
+     private void shareId(String uid,String name){Intent i=new Intent(Intent.ACTION_SEND);i.setType("text/plain");i.putExtra(Intent.EXTRA_TEXT,"Find "+name+" on KING Plus • KING ID "+publicId(uid));startActivity(Intent.createChooser(i,"Share KING ID"));}
+-    private void searchRooms(String raw){if(!cloud()){toast("Sign in required");return;}clearResults("Room results");String q=raw.toLowerCase(Locale.US);db.collection("live_rooms").orderBy("createdAt",Query.Direction.DESCENDING).limit(80).get(com.google.firebase.firestore.Source.SERVER).addOnSuccessListener(s->{int n=0;for(DocumentSnapshot d:s.getDocuments()){if(Boolean.TRUE.equals(d.getBoolean("closed")))continue;String name=safe(d.getString("name"),"Live Party"),cat=safe(d.getString("category"),"Chat"),owner=safe(d.getString("ownerName"),"KING Host");if(!q.isEmpty()&&!(name+" "+cat+" "+owner+" "+d.getId()).toLowerCase(Locale.US).contains(q))continue;TextView r=tv("🎤  "+name+"\n     "+cat+" • Host "+owner,14,DARK,true);r.setBackground(bg(CARD,14));String rid=d.getId();r.setOnClickListener(v->{Intent i=new Intent(this,PartyActivity.class);i.putExtra("roomId",rid);i.putExtra("roomName",name);startActivity(i);});LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(-1,dp(68));lp.setMargins(0,dp(5),0,dp(5));body.addView(r,lp);if(++n>=30)break;}if(n==0)body.addView(tv("No matching live rooms.",14,MUTED,false));});}
++    private void searchRooms(String raw){if(!cloud()){toast("Sign in required");return;}clearResults("Room results");String q=raw.toLowerCase(Locale.US);db.collection("live_rooms").orderBy("createdAt",Query.Direction.DESCENDING).limit(80).get(com.google.firebase.firestore.Source.SERVER).addOnSuccessListener(s->{int n=0;for(DocumentSnapshot d:s.getDocuments()){if(Boolean.TRUE.equals(d.getBoolean("closed")))continue;String name=safe(d.getString("name"),"Live Party"),cat=safe(d.getString("category"),"Chat"),owner=safe(d.getString("ownerName"),"KING Host");if(!q.isEmpty()&&!(name+" "+cat+" "+owner+" "+d.getId()).toLowerCase(Locale.US).contains(q))continue;TextView r=tv("🎤  "+name+"\n     "+cat+" • Host "+owner,14,DARK,true);r.setBackground(bg(CARD,14));String rid=d.getId();r.setOnClickListener(v->{Intent i=new Intent(this,PartyActivity.class);i.putExtra("directRoomId",rid);i.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP|Intent.FLAG_ACTIVITY_SINGLE_TOP);startActivity(i);});LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(-1,dp(68));lp.setMargins(0,dp(5),0,dp(5));body.addView(r,lp);if(++n>=30)break;}if(n==0)body.addView(tv("No matching live rooms.",14,MUTED,false));});}
+ 
+     private void moments(){
+         body.addView(tv("Moments / Square",21,DARK,true));
+@@ -98,7 +98,7 @@
+             if(shown==0)body.addView(tv("No Moments in "+selectedTopic940+" yet.",14,MUTED,false));
+         }).addOnFailureListener(e->toast("Moments unavailable"));
+     }
+-    private void addMoment(DocumentSnapshot d){String uid=safe(d.getString("uid"),""),name=safe(d.getString("name"),"KING User"),text=safe(d.getString("text"),"");LinearLayout card=new LinearLayout(this);card.setOrientation(LinearLayout.VERTICAL);card.setPadding(dp(12),dp(10),dp(12),dp(10));card.setBackground(bg(CARD,14));card.addView(tv("● "+name,14,DARK,true));String topic940=safe(d.getString("topic"),"General");TextView tag940=tv("#"+topic940,11,PURPLE,true);tag940.setOnClickListener(v->{selectedTopic940=topic940;render("Moments");});card.addView(tag940,new LinearLayout.LayoutParams(-1,dp(30)));card.addView(tv(text,15,DARK,false));String type940=safe(d.getString("type"),"");String roomId940=safe(d.getString("roomId"),"");String roomName940=safe(d.getString("roomName"),"Live Party");if("room_broadcast".equals(type940)&&!roomId940.isEmpty()){TextView join940=button("🎤 Join "+roomName940,()->{Intent i=new Intent(this,PartyActivity.class);i.putExtra("roomId",roomId940);i.putExtra("roomName",roomName940);startActivity(i);});LinearLayout.LayoutParams jp940=new LinearLayout.LayoutParams(-1,dp(44));jp940.setMargins(0,dp(6),0,dp(6));card.addView(join940,jp940);}LinearLayout a=new LinearLayout(this);TextView like=button("♡ Like",()->toggleMomentLike(d.getReference()));a.addView(like,new LinearLayout.LayoutParams(0,dp(42),1));if(!uid.equals(me.getUid())){TextView msg=button("💬 Message",()->openChat(uid,name));LinearLayout.LayoutParams ml=new LinearLayout.LayoutParams(0,dp(42),1);ml.setMargins(dp(6),0,0,0);a.addView(msg,ml);}else{TextView del=button("Delete",()->d.getReference().delete().addOnSuccessListener(v->render("Moments")));LinearLayout.LayoutParams dl=new LinearLayout.LayoutParams(0,dp(42),1);dl.setMargins(dp(6),0,0,0);a.addView(del,dl);}card.addView(a);LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(-1,-2);lp.setMargins(0,dp(6),0,dp(6));body.addView(card,lp);}
++    private void addMoment(DocumentSnapshot d){String uid=safe(d.getString("uid"),""),name=safe(d.getString("name"),"KING User"),text=safe(d.getString("text"),"");LinearLayout card=new LinearLayout(this);card.setOrientation(LinearLayout.VERTICAL);card.setPadding(dp(12),dp(10),dp(12),dp(10));card.setBackground(bg(CARD,14));card.addView(tv("● "+name,14,DARK,true));String topic940=safe(d.getString("topic"),"General");TextView tag940=tv("#"+topic940,11,PURPLE,true);tag940.setOnClickListener(v->{selectedTopic940=topic940;render("Moments");});card.addView(tag940,new LinearLayout.LayoutParams(-1,dp(30)));card.addView(tv(text,15,DARK,false));String type940=safe(d.getString("type"),"");String roomId940=safe(d.getString("roomId"),"");String roomName940=safe(d.getString("roomName"),"Live Party");if("room_broadcast".equals(type940)&&!roomId940.isEmpty()){TextView join940=button("🎤 Join "+roomName940,()->{Intent i=new Intent(this,PartyActivity.class);i.putExtra("directRoomId",roomId940);i.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP|Intent.FLAG_ACTIVITY_SINGLE_TOP);startActivity(i);});LinearLayout.LayoutParams jp940=new LinearLayout.LayoutParams(-1,dp(44));jp940.setMargins(0,dp(6),0,dp(6));card.addView(join940,jp940);}LinearLayout a=new LinearLayout(this);TextView like=button("♡ Like",()->toggleMomentLike(d.getReference()));a.addView(like,new LinearLayout.LayoutParams(0,dp(42),1));if(!uid.equals(me.getUid())){TextView msg=button("💬 Message",()->openChat(uid,name));LinearLayout.LayoutParams ml=new LinearLayout.LayoutParams(0,dp(42),1);ml.setMargins(dp(6),0,0,0);a.addView(msg,ml);}else{TextView del=button("Delete",()->d.getReference().delete().addOnSuccessListener(v->render("Moments")));LinearLayout.LayoutParams dl=new LinearLayout.LayoutParams(0,dp(42),1);dl.setMargins(dp(6),0,0,0);a.addView(del,dl);}card.addView(a);LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(-1,-2);lp.setMargins(0,dp(6),0,dp(6));body.addView(card,lp);}
+     private void toggleMomentLike(DocumentReference ref){DocumentReference l=ref.collection("likes").document(me.getUid());l.get().addOnSuccessListener(x->{if(x.exists())l.delete();else{Map<String,Object>m=new HashMap<>();m.put("uid",me.getUid());m.put("createdAt",FieldValue.serverTimestamp());l.set(m);}});}
+ 
+     private String[] topicNames940(){return new String[]{"All","General","Friends","Music","Games","KTV","Ludo","Family","Love","PK","Newcomers"};}
+--- a/app/src/main/java/com/kingplus/social/KingDeepFlowActivity.java
++++ b/app/src/main/java/com/kingplus/social/KingDeepFlowActivity.java
+@@ -609,7 +609,7 @@
+ 
+     private void openPartyPanel940(String panel){
+         if(roomId==null||roomId.trim().isEmpty()){toast("Join a live Party room first");KingNav.openRoot(this,0);return;}
+-        Intent i=new Intent(this,PartyActivity.class);i.putExtra("directRoomId",roomId);i.putExtra("directRoomName",roomName);i.putExtra("displayName",safe(mainPrefs.getString("name","KING User"),"KING User"));i.putExtra("requestedPanel",panel);startActivity(i);
++        Intent i=new Intent(this,PartyActivity.class);i.putExtra("directRoomId",roomId);i.putExtra("directRoomName",roomName);i.putExtra("displayName",safe(mainPrefs.getString("name","KING User"),"KING User"));i.putExtra("requestedPanel",panel);i.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP|Intent.FLAG_ACTIVITY_SINGLE_TOP);startActivity(i);
+     }
+     private void openGiftCenter(){Intent i=new Intent(this,KingGiftCenterActivity.class);startActivity(i);}
+     private void openCommunity(String tab){Intent i=new Intent(this,CommunityHubActivity.class);i.putExtra("tab",tab);startActivity(i);}
+--- a/app/src/main/AndroidManifest.xml
++++ b/app/src/main/AndroidManifest.xml
+@@ -22,6 +22,7 @@
+         <activity android:name=".GamePlayActivity" android:exported="false" />
+         <activity android:name=".KingLudoLobbyActivity" android:exported="false" />
+         <activity android:name=".KingVipVisualActivity" android:exported="false" />
++        <activity android:name=".KingSavedRooms9990Activity" android:exported="false" />
+         <activity android:name=".KingMeVerifiedPrestige9988Activity" android:exported="false" />
+         <activity android:name=".KingFrameGallery981Activity" android:exported="false" />
+         <activity android:name=".KingRecharge974Activity" android:exported="false" />
