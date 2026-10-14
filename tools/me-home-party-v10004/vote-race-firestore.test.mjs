@@ -28,7 +28,12 @@ try{
   await assertSucceeds(setDoc(game(H),state(300)));
   await assertSucceeds(commit(300,'Ludo'));
   await assertSucceeds(setDoc(game(H),state(301)));
-  await assertFails(commit(300,'KTV'));
+  let staleRejected=false;
+  try {await commit(300,'KTV');} catch(e) {
+    if(!String(e).includes('Vote changed'))throw e;
+    staleRejected=true;
+  }
+  if(!staleRejected)throw Error('Stale round unexpectedly committed');
   const old=await assertSucceeds(getDoc(vote(A)));
   if(old.data().roundId!==300||old.data().choice!=='Ludo')throw Error('Rejected transaction mutated existing ballot');
   await assertFails(setDoc(vote(A),ballot(300,'KTV')));
@@ -36,6 +41,11 @@ try{
   const current=await assertSucceeds(getDoc(vote(A)));
   if(current.data().roundId!==301||current.data().choice!=='KTV')throw Error('Current vote failed');
   await assertSucceeds(setDoc(game(H),{...state(301),status:'closed'}));
-  await assertFails(commit(301,'Ludo'));
+  let closedRejected=false;
+  try {await commit(301,'Ludo');} catch(e) {
+    if(!String(e).includes('Vote changed'))throw e;
+    closedRejected=true;
+  }
+  if(!closedRejected)throw Error('Closed round unexpectedly committed');
   console.log('PASS v10.0.4: atomic vote, stale-round denial, live member ballot, closed-round denial');
 } finally {await env.cleanup();}
