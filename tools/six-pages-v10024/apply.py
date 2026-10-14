@@ -11,6 +11,13 @@ assert sha=="050f388d2e620dbc109863288d95ab70f2951be5e7074e518175e993135d1366", 
 patchpath=asset/'verified.patch'
 patchpath.write_bytes(patch)
 subprocess.run(['patch','--batch','--fuzz=0','-p1','-i',str(patchpath)],cwd=root,check=True)
+# Build-safe qualified Firebase type; does not change patch provenance.
+discover=root/'app/src/main/java/com/kingplus/social/DiscoverActivity.java'
+source=discover.read_text()
+assert source.count('.set(x,SetOptions.merge())')==1
+discover.write_text(source.replace('.set(x,SetOptions.merge())',
+                                   '.set(x,com.google.firebase.firestore.SetOptions.merge())'))
+
 assert "versionCode 303;" in gradle.read_text()
 assert "10.0.24-six-page-live-batch-test" in gradle.read_text()
 print("PASS exact complete six-page source patch v10.0.24")
