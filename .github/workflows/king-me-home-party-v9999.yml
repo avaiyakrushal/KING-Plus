@@ -1,0 +1,246 @@
+name: KING v9.9.99 Real Party Vote and Verified Account IDs APK
+on:
+  push:
+    branches: [work/king-me-home-party-v9999]
+    paths: ['tools/me-home-party-v9999/**', '.github/workflows/king-me-home-party-v9999.yml']
+  workflow_dispatch:
+permissions: {contents: read, actions: read}
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v5
+        with: {distribution: temurin, java-version: '17'}
+      - uses: gradle/actions/setup-gradle@v4
+        with: {gradle-version: '8.9'}
+      - name: Recover exact v9.9.98 tested source and signing key
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/king9999prev /tmp/king9999
+          gh run download 38514240176 -n KING-v9998-Me-Home-Party-TEST-APK-and-Source -D /tmp/king9999prev
+          unzip -q /tmp/king9999prev/KING-Plus-v9.9.99-Me-Home-Party-TEST-Source.zip -d /tmp/king9999
+          cp app/kingplus-ci-debug.keystore /tmp/king9999/app/
+          python3 tools/me-home-party-v9999/apply.py /tmp/king9999
+      - name: v9.9.98 source regression gates
+        working-directory: /tmp/king9999
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          me=Path('app/src/main/java/com/kingplus/social/MainActivity.java').read_text()
+          party=Path('app/src/main/java/com/kingplus/social/PartyActivity.java').read_text()
+          assert 'meGalleryListener9993' in me
+          assert 'addSnapshotListener(com.google.firebase.firestore.MetadataChanges.INCLUDE,(result,error)' in me
+          assert 'stopMeGallery9993(); stopWallet9989();' in me
+          assert 'intentGeneration9989=++inviteGeneration9989' in party
+          assert 'if(intentGeneration9989!=inviteGeneration9989)return;' in party
+          assert 'Search more live rooms' in party
+          print('PASS Me live Gallery and Party invite generation regressions')
+          PY
+      - name: Saved room policy tests
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/king9999tests
+          javac -d /tmp/king9999tests /tmp/king9999/app/src/main/java/com/kingplus/social/KingMeRoomHistory9981.java /tmp/king9999/app/src/main/java/com/kingplus/social/KingSavedRoomsPolicy9990.java /tmp/king9999/tools/me-home-party-v9990/KingSavedRoomsPolicy9990Test.java "$GITHUB_WORKSPACE/tools/me-home-party-v9992/KingSavedRoomsRemove9992Test.java"
+          java -cp /tmp/king9999tests com.kingplus.social.KingSavedRoomsPolicy9990Test
+          java -cp /tmp/king9999tests com.kingplus.social.KingSavedRoomsRemove9992Test
+      - uses: actions/setup-node@v4
+        with: {node-version: '22'}
+      - name: Firestore test dependencies
+        working-directory: /tmp/king9999/tests/firestore
+        run: npm ci --no-audit --no-fund
+      - name: Two-client saved room sync privacy and concurrent update test
+        working-directory: /tmp/king9999
+        env: {CI: 'true'}
+        run: |
+          cp "$GITHUB_WORKSPACE/tools/me-home-party-v9990/saved-rooms-firestore.test.mjs" tests/firestore/
+          tests/firestore/node_modules/.bin/firebase emulators:exec --only firestore --project demo-king-saved-rooms-9990 --config firebase-emulator.json "node tests/firestore/saved-rooms-firestore.test.mjs"
+      - name: Shared Me photo and account privacy Firestore acceptance
+        working-directory: /tmp/king9999
+        env: {CI: 'true'}
+        run: |
+          cp "$GITHUB_WORKSPACE/tools/me-home-party-v9991/me-moments-firestore.test.mjs" tests/firestore/
+          tests/firestore/node_modules/.bin/firebase emulators:exec --only firestore --project demo-king-me-moments-9993 --config firebase-emulator.json "node tests/firestore/me-moments-firestore.test.mjs"
+      - name: Remote saved-room delete from Me and Home acceptance
+        working-directory: /tmp/king9999
+        env: {CI: 'true'}
+        run: |
+          cp "$GITHUB_WORKSPACE/tools/me-home-party-v9992/saved-rooms-removal-firestore.test.mjs" tests/firestore/
+          tests/firestore/node_modules/.bin/firebase emulators:exec --only firestore --project demo-king-saved-remove-9993 --config firebase-emulator.json "node tests/firestore/saved-rooms-removal-firestore.test.mjs"
+      - name: Live two-client Me Gallery listener integration
+        working-directory: /tmp/king9999
+        env: {CI: 'true'}
+        run: |
+          cp "$GITHUB_WORKSPACE/tools/me-home-party-v9993/me-gallery-live-firestore.test.mjs" tests/firestore/
+          tests/firestore/node_modules/.bin/firebase emulators:exec --only firestore --project demo-king-me-gallery-9994 --config firebase-emulator.json "node tests/firestore/me-gallery-live-firestore.test.mjs"
+      - name: Home live-room cursor pagination Firestore regression
+        working-directory: /tmp/king9999
+        env: {CI: 'true'}
+        run: |
+          cp "$GITHUB_WORKSPACE/tools/me-home-party-v9994/community-search-firestore.test.mjs" tests/firestore/
+          tests/firestore/node_modules/.bin/firebase emulators:exec --only firestore --project demo-king-search-paging-9994 --config firebase-emulator.json "node tests/firestore/community-search-firestore.test.mjs"
+      - name: Search and Me lifecycle source regressions
+        working-directory: /tmp/king9999
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          root=Path('app/src/main/java/com/kingplus/social')
+          community=(root/'CommunityHubActivity.java').read_text()
+          me=(root/'MainActivity.java').read_text()
+          rooms=(root/'KingSavedRooms9990Activity.java').read_text()
+          assert 'validSearch9994' in community and 'loadOlderRooms9995' in community
+          assert 'startAfter(after)' in community and 'searchGeneration9994' in community
+          assert 'galleryTicket9994!=meGalleryGeneration9994' in me
+          assert 'ticket!=roomOpenGeneration9994' in rooms
+          assert 'Delete published Moment?' in me and 'doc.getReference().delete()' in me
+          assert 'loadOlderRooms9995(q,host,account,token,last,extraAutoPages-1)' in community
+          assert 'People search unavailable • tap to retry' in community
+          party=(root/'PartyActivity.java').read_text()
+          assert 'Only the host or co-host can control shared room music' in party
+          print('PASS v9.9.96 UI async lifecycle regression gates')
+          PY
+      - name: Issued KING ID correctness unit test
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/king9999-idtests
+          javac -d /tmp/king9999-idtests /tmp/king9999/app/src/main/java/com/kingplus/social/KingPublicId9996.java tools/me-home-party-v9996/KingPublicId9996Test.java
+          java -cp /tmp/king9999-idtests com.kingplus.social.KingPublicId9996Test
+      - name: Me Home Party regression assertions
+        working-directory: /tmp/king9999
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          root=Path("app/src/main/java/com/kingplus/social")
+          me=(root/"MainActivity.java").read_text()
+          home=(root/"CommunityHubActivity.java").read_text()
+          party=(root/"PartyActivity.java").read_text()
+          assert "meGalleryLimit9996=Math.min(320,meGalleryLimit9996+40)" in me
+          assert "whereEqualTo(\"uid\",account).limit(meGalleryLimit9996)" in me
+          assert 'KingPublicId9996.verified(d.getString("publicId"))' in home
+          assert "if(id==null){toast(" in home
+          assert 'releaseMusicPlayer();sharedMusicUrl="";currentSong="";' in party
+          assert 'generation9996!=roomListenerGeneration982' in party
+          print("PASS v9.9.96 Me Gallery paging, issued Home IDs, old Party music disposal")
+          PY
+      - name: Shared Follow and Fan Club transaction policy Java test
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/king9999-follow-tests
+          javac -d /tmp/king9999-follow-tests /tmp/king9999/app/src/main/java/com/kingplus/social/KingFollowPolicy9997.java tools/me-home-party-v9997/KingFollowPolicy9997Test.java
+          java -cp /tmp/king9999-follow-tests com.kingplus.social.KingFollowPolicy9997Test
+      - name: Two-phone cross-account Follow Firestore acceptance
+        working-directory: /tmp/king9999
+        env: {CI: 'true'}
+        run: |
+          cp "$GITHUB_WORKSPACE/tools/me-home-party-v9997/follow-sync-firestore.test.mjs" tests/firestore/
+          tests/firestore/node_modules/.bin/firebase emulators:exec --only firestore --project demo-king-follow-9997 --config firebase-emulator.json "node tests/firestore/follow-sync-firestore.test.mjs"
+      - name: Me Home Party follow integration assertions
+        working-directory: /tmp/king9999
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          root=Path("app/src/main/java/com/kingplus/social")
+          home=(root/"CommunityHubActivity.java").read_text()
+          party=(root/"PartyActivity.java").read_text()
+          helper=(root/"KingFollowLive9997.java").read_text()
+          me=(root/"MainActivity.java").read_text()
+          assert "KingFollowLive9997.toggle(db,me,uid,displayName" in home
+          assert "KingFollowLive9997.toggle(db,user,ownerUid,safeName()" in party
+          assert "KingFollowLive9997.toggle(db,user,uid,safeName()" in party
+          assert "KingFollowLive9997.ensureFollowing(db,user,uid,safeName()" in party
+          assert "followListener9997[0].remove()" in party
+          assert "db.runTransaction(tx->" in helper
+          assert "tx.delete(ref)" in helper and "tx.set(ref,record)" in helper
+          assert "startProfileFollowUpdates965(uid)" in me
+          print("PASS live Follow shared across Home, Me counters, profile and Party Fan Club")
+          PY
+      - name: Fan Club with 121 members, exact membership and count test
+        working-directory: /tmp/king9999
+        env: {CI: 'true'}
+        run: |
+          cp "$GITHUB_WORKSPACE/tools/me-home-party-v9998/fanclub-over-100-firestore.test.mjs" tests/firestore/
+          tests/firestore/node_modules/.bin/firebase emulators:exec --only firestore --project demo-king-fanclub-9998 --config firebase-emulator.json "node tests/firestore/fanclub-over-100-firestore.test.mjs"
+      - name: Me Home Public Profile Party functional regression gates
+        working-directory: /tmp/king9999
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          root=Path('app/src/main/java/com/kingplus/social')
+          main=(root/'MainActivity.java').read_text()
+          profile=(root/'KingPublicProfileActivity.java').read_text()
+          party=(root/'PartyActivity.java').read_text()
+          assert 'shareMyIssuedKingId9998' in main
+          assert 'KingPublicId9996.verified(p.getString("publicId"))' in main
+          assert 'KingFollowLive9997.toggle(db,me,target,displayName()' in profile
+          assert 'KING ID  "+(issued9998==null?"Not issued":issued9998)' in profile
+          assert 'This profile has no issued KING ID' in profile
+          assert 'final String relation=KingFollowPolicy9997.key(account,hostUid)' in party
+          assert 'fans.count().get(com.google.firebase.firestore.AggregateSource.SERVER)' in party
+          assert 'total>100?' in party
+          print('PASS v9.9.98 account ID, transaction Follow, 100+ Fan Club')
+          PY
+      - name: Real Party Room Vote (all live members, no forgery, no stale rounds)
+        working-directory: /tmp/king9999
+        env: {CI: 'true'}
+        run: |
+          cp "$GITHUB_WORKSPACE/tools/me-home-party-v9999/party-room-vote-firestore.test.mjs" tests/firestore/
+          tests/firestore/node_modules/.bin/firebase emulators:exec --only firestore --project demo-king-room-vote-9999 --config firebase-emulator.json "node tests/firestore/party-room-vote-firestore.test.mjs"
+      - name: Existing Werewolf and Spy game voting security regression
+        working-directory: /tmp/king9999
+        env: {CI: 'true'}
+        run: |
+          tests/firestore/node_modules/.bin/firebase emulators:exec --only firestore --project demo-king-vote-integrity-9964 --config firebase-emulator.json "node tests/firestore/social-vote-security-firestore.test.mjs"
+      - name: No generated account IDs or dummy Me profiles
+        working-directory: /tmp/king9999
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          d=Path('app/src/main/java/com/kingplus/social')
+          p=(d/'PartyActivity.java').read_text()
+          m=(d/'MainActivity.java').read_text()
+          h=(d/'KingParityHubActivity.java').read_text()
+          assert 'm.put("publicId",publicId(user.getUid()))' not in p
+          assert 'KingPublicId9996.verified(profile.getString("publicId"))' in p
+          assert 'x.put("participantUids",new ArrayList<String>())' in p
+          assert 'String id=KingPublicId9996.verified(profile.getString("publicId"))' in p
+          assert 'Math.abs(who.hashCode()%900000+100000)' not in m
+          assert 'safe(p.getString("publicId"),publicId(uid))' not in h
+          assert 'safe(d.getString("publicId"),publicId(uid))' not in h
+          print('PASS No fake IDs, no local Follow for unverified seats, real room member vote')
+          PY
+      - name: Full Android compile and APK
+        working-directory: /tmp/king9999
+        run: gradle :app:assembleDebug --no-daemon --max-workers=2
+      - name: Verify package version and same APK signer
+        run: |
+          set -euo pipefail
+          old=/tmp/king9999prev/KING-Plus-v9.9.99-Me-Home-Party-TEST.apk
+          new=/tmp/king9999/app/build/outputs/apk/debug/app-debug.apk
+          aapt="$(find "$ANDROID_HOME/build-tools" -name aapt -type f | sort -V | tail -1)"
+          signer="$(find "$ANDROID_HOME/build-tools" -name apksigner -type f | sort -V | tail -1)"
+          "$aapt" dump badging "$new" | grep "^package:" | grep "name='com.kingplus.social'" | grep "versionCode='278'"
+          "$signer" verify --print-certs "$old" > /tmp/old9993cert
+          "$signer" verify --print-certs "$new" > /tmp/new9993cert
+          a="$(grep -Eo '[[:xdigit:]]{64}' /tmp/old9993cert | head -1)"
+          b="$(grep -Eo '[[:xdigit:]]{64}' /tmp/new9993cert | head -1)"
+          test -n "$a" && test "$a" = "$b"
+      - name: Package updated APK and full source
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/king9999out /tmp/king9999/tools/me-home-party-v9999
+          cp tools/me-home-party-v9999/* /tmp/king9999/tools/me-home-party-v9999/
+          cp .github/workflows/king-me-home-party-v9999.yml /tmp/king9999/.github/workflows/
+          cp /tmp/king9999/app/build/outputs/apk/debug/app-debug.apk /tmp/king9999out/KING-Plus-v9.9.99-Me-Home-Party-TEST.apk
+          rm /tmp/king9999/app/kingplus-ci-debug.keystore
+          cd /tmp/king9999
+          zip -qr /tmp/king9999out/KING-Plus-v9.9.99-Me-Home-Party-TEST-Source.zip . -x '*node_modules/*' 'app/build/*' '*/build/*' '.gradle/*' '*/.gradle/*' '*.apk' '*.aab' '*.keystore' '*.jks' '*.zip' '*local.properties' '*.log'
+          sha256sum /tmp/king9999out/*
+      - uses: actions/upload-artifact@v4
+        with:
+          name: KING-v9999-Me-Home-Party-TEST-APK-and-Source
+          path: /tmp/king9999out/*
+          retention-days: 14
+          if-no-files-found: error
