@@ -272,7 +272,7 @@ jobs:
           assert 'body!=topicHost10002||searchGeneration9994!=topicGeneration10002' in home
           assert 'final String startedInRoom10002=roomId;' in party
           assert 'final DocumentReference resultsRef10002=db.collection("live_rooms").document(resultsRoom10002);' in party
-          assert 'latestRound10002==null||latestRound10002!=round' in party
+          assert 'latestRound10004==null||latestRound10004.longValue()!=round' in party
           assert 'versionCode 283;' in Path('app/build.gradle').read_text()
           print("PASS v10.0.2 verified Me ID, Home async lifecycle, room + round voting guards")
           PYTEST
