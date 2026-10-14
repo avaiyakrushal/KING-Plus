@@ -31,12 +31,12 @@ jobs:
         run: |
           set -euo pipefail
           python3 tools/me-home-party-v10007/source_checks.py /tmp/king10007
-      - name: Banner and room-bound async callback tests
+      - name: Me/Home/Party lifecycle and game-state tests
         run: |
           set -euo pipefail
           mkdir -p /tmp/king10007tests
-          javac -d /tmp/king10007tests /tmp/king10007/app/src/main/java/com/kingplus/social/KingRoomLifecycle10007.java tools/me-home-party-v10007/KingRoomLifecycle10007Test.java
-          java -cp /tmp/king10007tests com.kingplus.social.KingRoomLifecycle10007Test
+          javac -d /tmp/king10007tests /tmp/king10007/app/src/main/java/com/kingplus/social/KingMeHomePartyGuard10007.java tools/me-home-party-v10007/KingMeHomePartyGuard10007Test.java
+          java -cp /tmp/king10007tests com.kingplus.social.KingMeHomePartyGuard10007Test
       - name: Full Android APK compile
         working-directory: /tmp/king10007
         run: gradle :app:assembleDebug --no-daemon --max-workers=2
