@@ -48,7 +48,7 @@ jobs:
           mkdir -p /tmp/king9994tests
           javac -d /tmp/king9994tests /tmp/king9994/app/src/main/java/com/kingplus/social/KingMeRoomHistory9981.java /tmp/king9994/app/src/main/java/com/kingplus/social/KingSavedRoomsPolicy9990.java /tmp/king9994/tools/me-home-party-v9990/KingSavedRoomsPolicy9990Test.java "$GITHUB_WORKSPACE/tools/me-home-party-v9992/KingSavedRoomsRemove9992Test.java"
           java -cp /tmp/king9994tests com.kingplus.social.KingSavedRoomsPolicy9990Test
-          java -cp /tmp/king9994tests com.kingplus.social.KingSavedRoomsRemove9993Test
+          java -cp /tmp/king9994tests com.kingplus.social.KingSavedRoomsRemove9992Test
       - uses: actions/setup-node@v4
         with: {node-version: '22'}
       - name: Firestore test dependencies
