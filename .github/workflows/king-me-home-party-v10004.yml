@@ -251,7 +251,7 @@ jobs:
           assert 'if(loadAutomatically10001)load.run()' in home
           assert 'photoLoading10001[0]' in home
           assert 'currentVoteRoom10001(expectedRoom10001,expectedUid10001,binding10001)' in party
-          assert 'liveRoom10001.collection("game_votes").document(expectedUid10001).set(vote)' in party
+          assert 'tx.set(ballotRef10004,vote)' in party
           assert 'versionCode 283;' in Path('app/build.gradle').read_text()
           print('PASS all-photo Me Gallery, bounded Home photo load, room-bound vote callback guards')
           PYTEST
