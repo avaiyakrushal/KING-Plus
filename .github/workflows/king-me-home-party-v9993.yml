@@ -1,0 +1,113 @@
+name: KING v9.9.93 Me Home Party APK
+on:
+  push:
+    branches: [work/king-me-home-party-v9993]
+    paths: ['tools/me-home-party-v9993/**', '.github/workflows/king-me-home-party-v9993.yml']
+  workflow_dispatch:
+permissions: {contents: read, actions: read}
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v5
+        with: {distribution: temurin, java-version: '17'}
+      - uses: gradle/actions/setup-gradle@v4
+        with: {gradle-version: '8.9'}
+      - name: Recover exact v9.9.91 tested source and signing key
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/king9993prev /tmp/king9993
+          gh run download 38505794190 -n KING-v9992-Me-Home-Party-TEST-APK-and-Source -D /tmp/king9993prev
+          unzip -q /tmp/king9993prev/KING-Plus-v9.9.92-Me-Home-Party-TEST-Source.zip -d /tmp/king9993
+          cp app/kingplus-ci-debug.keystore /tmp/king9993/app/
+          base64 --decode tools/me-home-party-v9993/changes.patch.gz.b64 | gzip -dc > tools/me-home-party-v9993/changes.patch
+          sha256sum tools/me-home-party-v9993/changes.patch
+          python3 tools/me-home-party-v9993/apply.py /tmp/king9993
+      - name: v9.9.93 source regression gates
+        working-directory: /tmp/king9993
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          me=Path('app/src/main/java/com/kingplus/social/MainActivity.java').read_text()
+          party=Path('app/src/main/java/com/kingplus/social/PartyActivity.java').read_text()
+          assert 'meGalleryListener9993' in me
+          assert 'addSnapshotListener(com.google.firebase.firestore.MetadataChanges.INCLUDE,(result,error)' in me
+          assert 'stopMeGallery9993(); stopWallet9989();' in me
+          assert 'intentGeneration9989=++inviteGeneration9989' in party
+          assert 'if(intentGeneration9989!=inviteGeneration9989)return;' in party
+          assert 'Search more live rooms' in party
+          print('PASS Me live Gallery and Party invite generation regressions')
+          PY
+      - name: Saved room policy tests
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/king9993tests
+          javac -d /tmp/king9993tests /tmp/king9993/app/src/main/java/com/kingplus/social/KingMeRoomHistory9981.java /tmp/king9993/app/src/main/java/com/kingplus/social/KingSavedRoomsPolicy9990.java /tmp/king9993/tools/me-home-party-v9990/KingSavedRoomsPolicy9990Test.java "$GITHUB_WORKSPACE/tools/me-home-party-v9992/KingSavedRoomsRemove9992Test.java"
+          java -cp /tmp/king9993tests com.kingplus.social.KingSavedRoomsPolicy9990Test
+          java -cp /tmp/king9993tests com.kingplus.social.KingSavedRoomsRemove9992Test
+      - uses: actions/setup-node@v4
+        with: {node-version: '22'}
+      - name: Firestore test dependencies
+        working-directory: /tmp/king9993/tests/firestore
+        run: npm ci --no-audit --no-fund
+      - name: Two-client saved room sync privacy and concurrent update test
+        working-directory: /tmp/king9993
+        env: {CI: 'true'}
+        run: |
+          cp "$GITHUB_WORKSPACE/tools/me-home-party-v9990/saved-rooms-firestore.test.mjs" tests/firestore/
+          tests/firestore/node_modules/.bin/firebase emulators:exec --only firestore --project demo-king-saved-rooms-9990 --config firebase-emulator.json "node tests/firestore/saved-rooms-firestore.test.mjs"
+      - name: Shared Me photo and account privacy Firestore acceptance
+        working-directory: /tmp/king9993
+        env: {CI: 'true'}
+        run: |
+          cp "$GITHUB_WORKSPACE/tools/me-home-party-v9991/me-moments-firestore.test.mjs" tests/firestore/
+          tests/firestore/node_modules/.bin/firebase emulators:exec --only firestore --project demo-king-me-moments-9992 --config firebase-emulator.json "node tests/firestore/me-moments-firestore.test.mjs"
+      - name: Remote saved-room delete from Me and Home acceptance
+        working-directory: /tmp/king9993
+        env: {CI: 'true'}
+        run: |
+          cp "$GITHUB_WORKSPACE/tools/me-home-party-v9992/saved-rooms-removal-firestore.test.mjs" tests/firestore/
+          tests/firestore/node_modules/.bin/firebase emulators:exec --only firestore --project demo-king-saved-remove-9992 --config firebase-emulator.json "node tests/firestore/saved-rooms-removal-firestore.test.mjs"
+      - name: Live two-client Me Gallery listener integration
+        working-directory: /tmp/king9993
+        env: {CI: 'true'}
+        run: |
+          cp "$GITHUB_WORKSPACE/tools/me-home-party-v9993/me-gallery-live-firestore.test.mjs" tests/firestore/
+          tests/firestore/node_modules/.bin/firebase emulators:exec --only firestore --project demo-king-me-gallery-9993 --config firebase-emulator.json "node tests/firestore/me-gallery-live-firestore.test.mjs"
+      - name: Full Android compile and APK
+        working-directory: /tmp/king9993
+        run: gradle :app:assembleDebug --no-daemon --max-workers=2
+      - name: Verify package version and same APK signer
+        run: |
+          set -euo pipefail
+          old=/tmp/king9993prev/KING-Plus-v9.9.92-Me-Home-Party-TEST.apk
+          new=/tmp/king9993/app/build/outputs/apk/debug/app-debug.apk
+          aapt="$(find "$ANDROID_HOME/build-tools" -name aapt -type f | sort -V | tail -1)"
+          signer="$(find "$ANDROID_HOME/build-tools" -name apksigner -type f | sort -V | tail -1)"
+          "$aapt" dump badging "$new" | grep "^package:" | grep "name='com.kingplus.social'" | grep "versionCode='272'"
+          "$signer" verify --print-certs "$old" > /tmp/old9992cert
+          "$signer" verify --print-certs "$new" > /tmp/new9992cert
+          a="$(grep -Eo '[[:xdigit:]]{64}' /tmp/old9992cert | head -1)"
+          b="$(grep -Eo '[[:xdigit:]]{64}' /tmp/new9992cert | head -1)"
+          test -n "$a" && test "$a" = "$b"
+      - name: Package updated APK and full source
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/king9993out /tmp/king9993/tools/me-home-party-v9993
+          cp tools/me-home-party-v9993/* /tmp/king9993/tools/me-home-party-v9993/
+          cp .github/workflows/king-me-home-party-v9993.yml /tmp/king9993/.github/workflows/
+          cp /tmp/king9993/app/build/outputs/apk/debug/app-debug.apk /tmp/king9993out/KING-Plus-v9.9.93-Me-Home-Party-TEST.apk
+          rm /tmp/king9993/app/kingplus-ci-debug.keystore
+          cd /tmp/king9993
+          zip -qr /tmp/king9993out/KING-Plus-v9.9.93-Me-Home-Party-TEST-Source.zip . -x '*node_modules/*' 'app/build/*' '*/build/*' '.gradle/*' '*/.gradle/*' '*.apk' '*.aab' '*.keystore' '*.jks' '*.zip' '*local.properties' '*.log'
+          sha256sum /tmp/king9993out/*
+      - uses: actions/upload-artifact@v4
+        with:
+          name: KING-v9993-Me-Home-Party-TEST-APK-and-Source
+          path: /tmp/king9993out/*
+          retention-days: 14
+          if-no-files-found: error
