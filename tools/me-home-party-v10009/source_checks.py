@@ -10,6 +10,7 @@ assert 'if(profileFriendsNumber!=null)profileFriendsNumber.setText("—");' in m
 assert 'db.runTransaction(tx->{' in home
 assert 'tx.set(ownerRef10009,mem)' in home
 assert 'saveCreatedFamily10009(familyUid10009,code,familyName955,' in home
+assert 'private void saveCreatedFamily10009(String ownerUid' in home
 assert 'tx.set(r,f)' in home
 assert 'KING_FAMILY_CODE_COLLISION_10009' in home
 assert 'r.delete();familyError955("Could not create owner membership"' not in home
@@ -18,4 +19,4 @@ assert 'KingMeHomePartyGuard10009.nextGameRound' in party
 assert 'tx.set(currentGame10009,d)' in party
 assert 'if(!isModerator()||!memberSeen)' in party
 assert 'versionCode 288;' in (p/'app/build.gradle').read_text()
-print('PASS KING v10.0.9 Me, Home, Party source checks (14 cases)')
+print('PASS KING v10.0.9 Me, Home, Party source checks (15 cases)')
