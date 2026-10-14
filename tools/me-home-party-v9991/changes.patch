@@ -1,0 +1,249 @@
+--- a/app/build.gradle
++++ b/app/build.gradle
+@@ -14,7 +14,7 @@
+         }
+     }
+ 
+-    defaultConfig { applicationId 'com.kingplus.social'; minSdk 26; targetSdk 35; versionCode 269; versionName '9.9.90-live-saved-rooms-party-test' }
++    defaultConfig { applicationId 'com.kingplus.social'; minSdk 26; targetSdk 35; versionCode 270; versionName '9.9.91-live-me-moments-photo-party-test' }
+     buildTypes {
+         debug { signingConfig signingConfigs.debug }
+         release {
+--- a/app/src/main/java/com/kingplus/social/MainActivity.java
++++ b/app/src/main/java/com/kingplus/social/MainActivity.java
+@@ -278,11 +278,11 @@
+         try{if(action!=null)action.run();}
+         catch(Throwable e){KingStability.nonFatal(this,area,e);if(!isFinishing()&&!isDestroyed())Toast.makeText(this,"This action could not open safely. Please try again.",Toast.LENGTH_LONG).show();}
+     }
+-    private void button(String title, int color, Runnable action) {
++    private Button button(String title, int color, Runnable action) {
+         Button b = new Button(this); b.setText(title); b.setTextColor(Color.WHITE); b.setAllCaps(false);
+         b.setTextSize(16); b.setBackground(background(color, 18));
+         LinearLayout.LayoutParams p = new LinearLayout.LayoutParams(-1, dp(56)); p.setMargins(0, dp(7), 0, dp(7));
+-        page.addView(b,p);b.setOnClickListener(v->safeUiAction940("main-button:"+title,action));
++        page.addView(b,p);b.setOnClickListener(v->safeUiAction940("main-button:"+title,action));return b;
+     }
+     private EditText input(String hint, String value) {
+         EditText e = new EditText(this); e.setSingleLine(true); e.setHint(hint); e.setText(value);
+@@ -833,8 +833,10 @@
+     }
+ 
+     private void simplePage(String title, String message){ screen="sub"; base(title,null); text(message,18,Color.WHITE,true); button("પાછા Party પર જાઓ",PURPLE,this::home); }
++    // v9.9.91: Me's composer publishes to the SAME shared Moments stream as Home/Community.
++    // Pre-9.9.91 device-only posts remain in the legacy Gallery below, never silently deleted.
+     private void composePost() {
+-        screen = "compose"; selectedPhoto = null; base("નવી પોસ્ટ", "તમારી વાત અને ફોટો શેર કરો");
++        screen = "compose"; selectedPhoto = null; base("નવી પોસ્ટ", "બંને ફોનમાં દેખાય તેવી પોસ્ટ શેર કરો");
+         EditText caption = input("શું ચાલી રહ્યું છે?", "");
+         caption.setSingleLine(false); caption.setMinLines(3);
+         button("ગેલેરીમાંથી ફોટો પસંદ કરો", CARD, () -> {
+@@ -848,21 +850,54 @@
+         photoPreview.setAdjustViewBounds(true);
+         photoPreview.setMaxHeight(dp(260));
+         page.addView(photoPreview, new LinearLayout.LayoutParams(-1, -2));
+-        button("પોસ્ટ સાચવો", PURPLE, () -> {
+-            String body = caption.getText().toString().trim();
+-            if (body.isEmpty() && selectedPhoto == null) { caption.setError("લખાણ અથવા ફોટો ઉમેરો"); return; }
++        TextView status=text("આ પોસ્ટ તમારા KING Plus એકાઉન્ટમાં સેવ થશે.",13,MUTED,false);
++        Button publish=button("પોસ્ટ શેર કરો", PURPLE, () -> {});
++        publish.setOnClickListener(v -> {
++            String body=caption.getText().toString().trim();
++            if(body.length()>1000){caption.setError("1000 અક્ષરથી ઓછી પોસ્ટ લખો");return;}
++            final Uri photo=selectedPhoto;
++            if(body.isEmpty()&&photo==null){caption.setError("લખાણ અથવા ફોટો ઉમેરો");return;}
++            FirebaseUser me=firebaseAuth==null?null:firebaseAuth.getCurrentUser();
++            if(me==null||firestore==null){status.setText("પોસ્ટ માટે ફરી લોગીન કરો.");return;}
++            final String uid=me.getUid();
++            publish.setEnabled(false);status.setText("પોસ્ટ અપલોડ થઈ રહી છે…");
++            final String momentText=body.isEmpty()?"📷 Photo":body;
++            java.util.function.Consumer<String> save=photoUrl->{
++                if(isFinishing()||isDestroyed())return;
++                FirebaseUser current=firebaseAuth==null?null:firebaseAuth.getCurrentUser();
++                if(current==null||!uid.equals(current.getUid())){publish.setEnabled(true);status.setText("એકાઉન્ટ બદલાયું. ફરી પ્રયાસ કરો.");return;}
++                Map<String,Object> moment=new HashMap<>();
++                moment.put("uid",uid);moment.put("name",displayName==null||displayName.trim().isEmpty()?"KING User":displayName);
++                moment.put("text",momentText);moment.put("topic","General");
++                moment.put("createdAt",com.google.firebase.firestore.FieldValue.serverTimestamp());
++                if(photoUrl!=null&&!photoUrl.isEmpty())moment.put("photoUrl",photoUrl);
++                firestore.collection("moments").add(moment).addOnSuccessListener(doc->{
++                    if(isFinishing()||isDestroyed())return;
++                    addXp(5);incrementMission("mission_post",1);
++                    Toast.makeText(this,"પોસ્ટ સફળતાપૂર્વક શેર થઈ",Toast.LENGTH_SHORT).show();
++                    momentsPage();
++                }).addOnFailureListener(e->{
++                    if(isFinishing()||isDestroyed())return;
++                    publish.setEnabled(true);status.setText("પોસ્ટ શેર થઈ નથી. ઈન્ટરનેટ ચકાસી ફરી પ્રયાસ કરો.");
++                });
++            };
++            if(photo==null){save.accept("");return;}
+             try {
+-                JSONArray posts = new JSONArray(getPreferences(0).getString("posts", "[]"));
+-                JSONObject post = new JSONObject();
+-                post.put("name", displayName); post.put("body", body);
+-                post.put("photo", selectedPhoto == null ? "" : selectedPhoto.toString());
+-                post.put("time", System.currentTimeMillis());
+-                JSONArray updated = new JSONArray(); updated.put(post);
+-                for (int i = 0; i < Math.min(posts.length(), 99); i++) updated.put(posts.get(i));
+-                getPreferences(0).edit().putString("posts", updated.toString()).apply();
+-                addXp(5); incrementMission("mission_post",1);
+-                momentsPage();
+-            } catch (Exception ex) { Toast.makeText(this, "પોસ્ટ સાચવી શકાઈ નથી", Toast.LENGTH_SHORT).show(); }
++                android.content.res.AssetFileDescriptor file=getContentResolver().openAssetFileDescriptor(photo,"r");
++                if(file==null){publish.setEnabled(true);status.setText("ફોટો વાંચી શકાયો નથી.");return;}
++                long length=file.getLength();file.close();
++                if(length>10L*1024*1024){publish.setEnabled(true);status.setText("10 MBથી નાનો ફોટો પસંદ કરો.");return;}
++                StorageReference target=FirebaseStorage.getInstance().getReference().child(
++                    "chat_media/"+uid+"/moments/"+java.util.UUID.randomUUID());
++                target.putFile(photo).continueWithTask(t->{
++                    if(!t.isSuccessful()){Exception e=t.getException();if(e!=null)throw e;throw new IllegalStateException("Upload failed");}
++                    return target.getDownloadUrl();
++                }).addOnSuccessListener(url->save.accept(url.toString()))
++                  .addOnFailureListener(e->{
++                    if(isFinishing()||isDestroyed())return;
++                    publish.setEnabled(true);status.setText("ફોટો અપલોડ થયો નથી. Storage/ઇન્ટરનેટ ચકાસો.");
++                  });
++            } catch(Exception e){publish.setEnabled(true);status.setText("ફોટો ખોલવામાં સમસ્યા છે.");}
+         });
+         button("પાછા જાઓ", CARD, this::home);
+     }
+@@ -1860,7 +1895,7 @@
+             ImageView img=new ImageView(this); img.setAdjustViewBounds(true); img.setMaxHeight(dp(320));
+             try{img.setImageURI(Uri.parse(photo));page.addView(img,new LinearLayout.LayoutParams(-1,-2));}catch(Exception ignored){}
+         }
+-        button("＋ Add Photo / Moment",PURPLE,this::composePost); text("Photos & Moments",18,Color.WHITE,true); showPosts();
++        button("＋ Add Photo / Moment",PURPLE,this::composePost); button("☁ Live Moments (બંને ફોન)",PURPLE,this::momentsPage); text("આ ફોનની જૂની પોસ્ટ (Local Archive)",16,Color.WHITE,true); showPosts();
+         button("Back to Me",CARD,this::profile);
+     }
+ 
+--- a/app/src/main/java/com/kingplus/social/CommunityHubActivity.java
++++ b/app/src/main/java/com/kingplus/social/CommunityHubActivity.java
+@@ -5,6 +5,9 @@
+ import android.content.Intent;
+ import android.content.SharedPreferences;
+ import android.graphics.Color;
++import android.graphics.BitmapFactory;
++import android.widget.ImageView;
++import com.google.firebase.storage.FirebaseStorage;
+ import android.graphics.Typeface;
+ import android.graphics.drawable.GradientDrawable;
+ import android.os.Bundle;
+@@ -83,10 +86,22 @@
+         if(!cloud()){body.addView(tv("Sign in to publish Moments.",14,MUTED,false));return;}
+         TextView topic=tv("🏷 Topic: "+selectedTopic940+"   ›",13,DARK,true);topic.setGravity(Gravity.CENTER_VERTICAL);topic.setBackground(bg(0xffeee9ff,12));topic.setOnClickListener(v->chooseTopic940(true));body.addView(topic,new LinearLayout.LayoutParams(-1,dp(46)));
+         EditText e=new EditText(this);e.setHint("Share a moment…");e.setBackground(bg(CARD,14));e.setMinLines(2);LinearLayout.LayoutParams ep=new LinearLayout.LayoutParams(-1,dp(78));ep.setMargins(0,dp(8),0,0);body.addView(e,ep);
+-        TextView post=button("Post Moment",()->postMoment(e));LinearLayout.LayoutParams pp=new LinearLayout.LayoutParams(-1,dp(46));pp.setMargins(0,dp(7),0,dp(10));body.addView(post,pp);
++        TextView post=button("Post Moment",()->{});post.setOnClickListener(v->postMoment(e,post));LinearLayout.LayoutParams pp=new LinearLayout.LayoutParams(-1,dp(46));pp.setMargins(0,dp(7),0,dp(10));body.addView(post,pp);
+         loadMoments();
+     }
+-    private void postMoment(EditText e){String text=e.getText().toString().trim();if(text.isEmpty())return;if(text.length()>1000){toast("Moments must be under 1000 characters");return;}Map<String,Object>m=new HashMap<>();m.put("uid",me.getUid());m.put("name",displayName);m.put("text",text);m.put("topic","All".equals(selectedTopic940)?"General":selectedTopic940);m.put("createdAt",FieldValue.serverTimestamp());db.collection("moments").add(m).addOnSuccessListener(v->{e.setText("");render("Moments");}).addOnFailureListener(x->toast("Could not post"));}
++    private void postMoment(EditText e,TextView post){
++        if(!cloud()||!KingSavedRoomsCloud9990.account(me.getUid())){toast("Sign in required");return;}
++        String text=e.getText().toString().trim();
++        if(text.isEmpty()){e.setError("Write a Moment first");return;}
++        if(text.length()>1000){e.setError("Moments must be under 1000 characters");return;}
++        post.setEnabled(false);post.setText("Posting…");
++        Map<String,Object> m=new HashMap<>();m.put("uid",me.getUid());m.put("name",displayName);
++        m.put("text",text);m.put("topic","All".equals(selectedTopic940)?"General":selectedTopic940);
++        m.put("createdAt",FieldValue.serverTimestamp());
++        db.collection("moments").add(m)
++          .addOnSuccessListener(v->{if(isFinishing()||isDestroyed())return;e.setText("");post.setEnabled(true);post.setText("Post Moment");})
++          .addOnFailureListener(x->{if(isFinishing()||isDestroyed())return;post.setEnabled(true);post.setText("Post Moment");toast("Could not post. Try again.");});
++    }
+     private com.google.firebase.firestore.ListenerRegistration momentsListener9990;
+     private int momentsGeneration9990;
+     private void stopMoments9990(){
+@@ -113,8 +128,69 @@
+                 if(shown==0)feed.addView(tv("No Moments in "+topicFilter+" yet.",14,MUTED,false));
+             });
+     }
+-    private void addMoment(DocumentSnapshot d,LinearLayout feed){String uid=safe(d.getString("uid"),""),name=safe(d.getString("name"),"KING User"),text=safe(d.getString("text"),"");LinearLayout card=new LinearLayout(this);card.setOrientation(LinearLayout.VERTICAL);card.setPadding(dp(12),dp(10),dp(12),dp(10));card.setBackground(bg(CARD,14));card.addView(tv("● "+name,14,DARK,true));String topic940=safe(d.getString("topic"),"General");TextView tag940=tv("#"+topic940,11,PURPLE,true);tag940.setOnClickListener(v->{selectedTopic940=topic940;render("Moments");});card.addView(tag940,new LinearLayout.LayoutParams(-1,dp(30)));card.addView(tv(text,15,DARK,false));String type940=safe(d.getString("type"),"");String roomId940=safe(d.getString("roomId"),"");String roomName940=safe(d.getString("roomName"),"Live Party");if("room_broadcast".equals(type940)&&!roomId940.isEmpty()){TextView join940=button("🎤 Join "+roomName940,()->{Intent i=new Intent(this,PartyActivity.class);i.putExtra("directRoomId",roomId940);i.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP|Intent.FLAG_ACTIVITY_SINGLE_TOP);startActivity(i);});LinearLayout.LayoutParams jp940=new LinearLayout.LayoutParams(-1,dp(44));jp940.setMargins(0,dp(6),0,dp(6));card.addView(join940,jp940);}LinearLayout a=new LinearLayout(this);TextView like=button("♡ Like",()->{});like.setOnClickListener(v->toggleMomentLike9990(d.getReference(),like));
+-        d.getReference().collection("likes").document(me.getUid()).get().addOnSuccessListener(liked->like.setText(liked.exists()?"♥ Liked":"♡ Like"));a.addView(like,new LinearLayout.LayoutParams(0,dp(42),1));if(!uid.equals(me.getUid())){TextView msg=button("💬 Message",()->openChat(uid,name));LinearLayout.LayoutParams ml=new LinearLayout.LayoutParams(0,dp(42),1);ml.setMargins(dp(6),0,0,0);a.addView(msg,ml);}else{TextView del=button("Delete",()->d.getReference().delete().addOnSuccessListener(v->render("Moments")));LinearLayout.LayoutParams dl=new LinearLayout.LayoutParams(0,dp(42),1);dl.setMargins(dp(6),0,0,0);a.addView(del,dl);}card.addView(a);LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(-1,-2);lp.setMargins(0,dp(6),0,dp(6));feed.addView(card,lp);}
++    private void showMomentPhoto9991(String url,LinearLayout card){
++        if(url==null||!url.startsWith("https://firebasestorage.googleapis.com/"))return;
++        TextView placeholder=tv("📷 Loading photo…",12,MUTED,false);
++        card.addView(placeholder);
++        ImageView image=new ImageView(this);image.setAdjustViewBounds(true);
++        image.setScaleType(ImageView.ScaleType.CENTER_CROP);
++        image.setVisibility(android.view.View.GONE);
++        card.addView(image,new LinearLayout.LayoutParams(-1,dp(210)));
++        Runnable load=()->{
++            placeholder.setText("📷 Loading photo…");
++            try{
++                FirebaseStorage.getInstance().getReferenceFromUrl(url).getBytes(8L*1024*1024)
++                  .addOnSuccessListener(bytes->{
++                    if(isFinishing()||isDestroyed()||image.getParent()==null)return;
++                    BitmapFactory.Options opts=new BitmapFactory.Options();opts.inJustDecodeBounds=true;
++                    BitmapFactory.decodeByteArray(bytes,0,bytes.length,opts);
++                    opts.inJustDecodeBounds=false;opts.inSampleSize=Math.max(1,Math.max(opts.outWidth/800,opts.outHeight/800));
++                    android.graphics.Bitmap bitmap=BitmapFactory.decodeByteArray(bytes,0,bytes.length,opts);
++                    if(bitmap!=null){image.setImageBitmap(bitmap);image.setVisibility(android.view.View.VISIBLE);placeholder.setVisibility(android.view.View.GONE);}
++                    else placeholder.setText("Photo not available • tap to retry");
++                  }).addOnFailureListener(err->placeholder.setText("Photo unavailable • tap to retry"));
++            }catch(Exception ex){placeholder.setText("Photo unavailable • tap to retry");}
++        };
++        placeholder.setOnClickListener(v->load.run());load.run();
++    }
++    private void addMoment(DocumentSnapshot d,LinearLayout feed){
++        if(me==null)return;
++        String uid=safe(d.getString("uid"),""),name=safe(d.getString("name"),"KING User"),text=safe(d.getString("text"),"");
++        LinearLayout card=new LinearLayout(this);card.setOrientation(LinearLayout.VERTICAL);
++        card.setPadding(dp(12),dp(10),dp(12),dp(10));card.setBackground(bg(CARD,14));
++        card.addView(tv("● "+name,14,DARK,true));
++        String topic=safe(d.getString("topic"),"General");
++        TextView tag=tv("#"+topic,11,PURPLE,true);
++        tag.setOnClickListener(v->{selectedTopic940=topic;render("Moments");});
++        card.addView(tag,new LinearLayout.LayoutParams(-1,dp(30)));
++        card.addView(tv(text,15,DARK,false));
++        showMomentPhoto9991(d.getString("photoUrl"),card);
++        String type=safe(d.getString("type"),""),roomId=safe(d.getString("roomId"),""),roomName=safe(d.getString("roomName"),"Live Party");
++        if("room_broadcast".equals(type)&&!roomId.isEmpty()){
++            TextView join=button("🎤 Join "+roomName,()->{
++                Intent i=new Intent(this,PartyActivity.class);i.putExtra("directRoomId",roomId);
++                i.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP|Intent.FLAG_ACTIVITY_SINGLE_TOP);startActivity(i);
++            });
++            LinearLayout.LayoutParams jp=new LinearLayout.LayoutParams(-1,dp(44));jp.setMargins(0,dp(6),0,dp(6));card.addView(join,jp);
++        }
++        LinearLayout actions=new LinearLayout(this);
++        TextView like=button("♡ Like",()->{});like.setEnabled(false);
++        like.setOnClickListener(v->toggleMomentLike9990(d.getReference(),like));
++        final String account=me.getUid();
++        d.getReference().collection("likes").document(account).get()
++          .addOnSuccessListener(liked->{if(!isFinishing()&&!isDestroyed()&&KingSavedRoomsCloud9990.account(account)&&like.getParent()!=null){like.setText(liked.exists()?"♥ Liked":"♡ Like");like.setEnabled(true);}})
++          .addOnFailureListener(e->{if(!isFinishing()&&!isDestroyed()){like.setEnabled(true);like.setText("♡ Like");}});
++        actions.addView(like,new LinearLayout.LayoutParams(0,dp(42),1));
++        TextView other;
++        if(!uid.equals(account))other=button("💬 Message",()->openChat(uid,name));
++        else other=button("Delete",()->new AlertDialog.Builder(this)
++            .setTitle("Delete this Moment?").setMessage("Remove this post from the shared feed?")
++            .setNegativeButton("Cancel",null).setPositiveButton("Delete",(dialog,w)->
++                d.getReference().delete().addOnFailureListener(e->toast("Could not delete Moment"))).show());
++        LinearLayout.LayoutParams op=new LinearLayout.LayoutParams(0,dp(42),1);op.setMargins(dp(6),0,0,0);
++        actions.addView(other,op);card.addView(actions);
++        LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(-1,-2);lp.setMargins(0,dp(6),0,dp(6));feed.addView(card,lp);
++    }
+     private void toggleMomentLike9990(DocumentReference ref,TextView button){
+         if(me==null||!KingSavedRoomsCloud9990.account(me.getUid()))return;
+         button.setEnabled(false);String uid=me.getUid();DocumentReference like=ref.collection("likes").document(uid);
+--- a/app/src/main/java/com/kingplus/social/PartyActivity.java
++++ b/app/src/main/java/com/kingplus/social/PartyActivity.java
+@@ -642,7 +642,8 @@
+         if(target.equals(roomId)){if(memberSeen)openRequestedPanel940();return;}
+         if(db==null||user==null){toast("Sign in to open Party invites");return;}
+         Runnable join=()->{
+-            if(roomId!=null)leaveRoom();
++            // Verify the destination BEFORE leaving the currently joined room.
++            // A stale/invalid favorite or invite must never throw users out.
+             final int generation=++inviteGeneration9989;
+             final String account=user.getUid();
+             db.collection("live_rooms").document(target)
+@@ -652,8 +653,9 @@
+                     FirebaseUser signed=FirebaseAuth.getInstance().getCurrentUser();
+                     if(signed==null||!account.equals(signed.getUid()))return;
+                     if(!doc.exists()||Boolean.TRUE.equals(doc.getBoolean("closed"))){
+-                        toast("This Party room is unavailable");return;
++                        toast("This Party room is unavailable. You stayed in your current room.");return;
+                     }
++                    if(roomId!=null)leaveRoom();
+                     openRoomDoc891(doc);
+                 }).addOnFailureListener(e->{
+                     if(generation==inviteGeneration9989&&!partyUiDead())
