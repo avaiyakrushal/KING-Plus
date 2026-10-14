@@ -46,7 +46,7 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p /tmp/king9994tests
-          javac -d /tmp/king9994tests /tmp/king9994/app/src/main/java/com/kingplus/social/KingMeRoomHistory9981.java /tmp/king9994/app/src/main/java/com/kingplus/social/KingSavedRoomsPolicy9990.java /tmp/king9994/tools/me-home-party-v9990/KingSavedRoomsPolicy9990Test.java "$GITHUB_WORKSPACE/tools/me-home-party-v9993/KingSavedRoomsRemove9993Test.java"
+          javac -d /tmp/king9994tests /tmp/king9994/app/src/main/java/com/kingplus/social/KingMeRoomHistory9981.java /tmp/king9994/app/src/main/java/com/kingplus/social/KingSavedRoomsPolicy9990.java /tmp/king9994/tools/me-home-party-v9990/KingSavedRoomsPolicy9990Test.java "$GITHUB_WORKSPACE/tools/me-home-party-v9992/KingSavedRoomsRemove9992Test.java"
           java -cp /tmp/king9994tests com.kingplus.social.KingSavedRoomsPolicy9990Test
           java -cp /tmp/king9994tests com.kingplus.social.KingSavedRoomsRemove9993Test
       - uses: actions/setup-node@v4
@@ -70,13 +70,13 @@ jobs:
         working-directory: /tmp/king9994
         env: {CI: 'true'}
         run: |
-          cp "$GITHUB_WORKSPACE/tools/me-home-party-v9993/saved-rooms-removal-firestore.test.mjs" tests/firestore/
+          cp "$GITHUB_WORKSPACE/tools/me-home-party-v9992/saved-rooms-removal-firestore.test.mjs" tests/firestore/
           tests/firestore/node_modules/.bin/firebase emulators:exec --only firestore --project demo-king-saved-remove-9993 --config firebase-emulator.json "node tests/firestore/saved-rooms-removal-firestore.test.mjs"
       - name: Live two-client Me Gallery listener integration
         working-directory: /tmp/king9994
         env: {CI: 'true'}
         run: |
-          cp "$GITHUB_WORKSPACE/tools/me-home-party-v9994/me-gallery-live-firestore.test.mjs" tests/firestore/
+          cp "$GITHUB_WORKSPACE/tools/me-home-party-v9993/me-gallery-live-firestore.test.mjs" tests/firestore/
           tests/firestore/node_modules/.bin/firebase emulators:exec --only firestore --project demo-king-me-gallery-9994 --config firebase-emulator.json "node tests/firestore/me-gallery-live-firestore.test.mjs"
       - name: Home live-room cursor pagination Firestore regression
         working-directory: /tmp/king9994
