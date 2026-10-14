@@ -1,0 +1,102 @@
+name: KING v10.0.13 Me Home Party Moderator and Post Safety TEST APK
+on:
+  push:
+    branches: [work/king-me-home-party-v10013]
+    paths:
+      - 'tools/me-home-party-v10013/**'
+      - '.github/workflows/king-me-home-party-v10013.yml'
+  workflow_dispatch:
+permissions: {contents: read, actions: read}
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with: {distribution: temurin, java-version: '17'}
+      - uses: gradle/actions/setup-gradle@v4
+        with: {gradle-version: '8.9'}
+      - name: Restore exactly the signed v10.0.11 APK source
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/king10013prev /tmp/king10013
+          gh run download 38558134155 -n KING-v10012-Me-Home-Party-TEST-APK-and-Source -D /tmp/king10013prev
+          unzip -q /tmp/king10013prev/KING-Plus-v10.0.12-Me-Home-Party-TEST-Source.zip -d /tmp/king10013
+          cp app/kingplus-ci-debug.keystore /tmp/king10013/app/
+          python3 tools/me-home-party-v10013/apply.py /tmp/king10013
+      - name: Me Home Party v10.0.13 source regressions
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          r=Path('/tmp/king10013')
+          me=(r/'app/src/main/java/com/kingplus/social/MainActivity.java').read_text()
+          home=(r/'app/src/main/java/com/kingplus/social/CommunityHubActivity.java').read_text()
+          party=(r/'app/src/main/java/com/kingplus/social/PartyActivity.java').read_text()
+          rules=(r/'firestore.rules').read_text()
+          assert 'Tap to retry loading your rooms' in me
+          assert 'host.getParent()==null' in me
+          assert 'pendingMomentAccount10013' in home
+          assert home.count('if(postingUid10007.equals(pendingMomentAccount10013))pendingMomentAccount10013=null;')==2
+          assert 'kickSeatV530(no,false)' in party
+          assert 'Only the seated member can switch their mic on' in party
+          assert 'Seat changed; reopen member menu' in party
+          assert 'members/$(roleUid)' in rules and 'room_bans/$(roleUid)' in rules
+          assert "versionCode 292;" in (r/'app/build.gradle').read_text()
+          print('PASS v10.0.13 Me/Home/Party source and version checks')
+          PY
+      - name: Existing Me Home Party policy regression tests
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/king10013tests
+          javac -d /tmp/king10013tests /tmp/king10013/app/src/main/java/com/kingplus/social/KingMeHomePartyPolicy10010.java tools/me-home-party-v10010/KingMeHomePartyPolicy10010Test.java
+          java -cp /tmp/king10013tests com.kingplus.social.KingMeHomePartyPolicy10010Test
+      - uses: actions/setup-node@v4
+        with: {node-version: '22'}
+      - name: Firestore test dependencies
+        working-directory: /tmp/king10013/tests/firestore
+        run: npm ci --no-audit --no-fund
+      - name: Two-account moderation and relationship security
+        working-directory: /tmp/king10013
+        env:
+          CI: 'true'
+        run: |
+          cp "$GITHUB_WORKSPACE/tools/me-home-party-v10011/moderation-firestore.test.mjs" tests/firestore/
+          cp "$GITHUB_WORKSPACE/tools/me-home-party-v10012/me-home-party-security.test.mjs" tests/firestore/
+          cp "$GITHUB_WORKSPACE/tools/me-home-party-v10013/role-safety.test.mjs" tests/firestore/
+          tests/firestore/node_modules/.bin/firebase emulators:exec --only firestore --project demo-king-atomic-moderation-v10011 --config firebase-emulator.json "node tests/firestore/moderation-firestore.test.mjs && node tests/firestore/me-home-party-security.test.mjs && node tests/firestore/role-safety.test.mjs"
+      - name: Full Android APK compile
+        working-directory: /tmp/king10013
+        run: gradle :app:assembleDebug --no-daemon --max-workers=2
+      - name: Verify package/version and signing continuity
+        run: |
+          set -euo pipefail
+          old=/tmp/king10013prev/KING-Plus-v10.0.12-Me-Home-Party-TEST.apk
+          new=/tmp/king10013/app/build/outputs/apk/debug/app-debug.apk
+          aapt="$(find "$ANDROID_HOME/build-tools" -name aapt -type f | sort -V | tail -1)"
+          signer="$(find "$ANDROID_HOME/build-tools" -name apksigner -type f | sort -V | tail -1)"
+          "$aapt" dump badging "$new" | grep "^package:" | grep "name='com.kingplus.social'" | grep "versionCode='292'"
+          "$signer" verify --print-certs "$old" > /tmp/kingoldcert
+          "$signer" verify --print-certs "$new" > /tmp/kingnewcert
+          a="$(grep -Eo '[[:xdigit:]]{64}' /tmp/kingoldcert | head -1)"
+          b="$(grep -Eo '[[:xdigit:]]{64}' /tmp/kingnewcert | head -1)"
+          test -n "$a" && test "$a" = "$b"
+      - name: Package APK and exact updated source
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/king10013out /tmp/king10013/tools/me-home-party-v10013
+          cp tools/me-home-party-v10013/* /tmp/king10013/tools/me-home-party-v10013/
+          cp .github/workflows/king-me-home-party-v10013.yml /tmp/king10013/.github/workflows/
+          cp /tmp/king10013/app/build/outputs/apk/debug/app-debug.apk /tmp/king10013out/KING-Plus-v10.0.13-Me-Home-Party-TEST.apk
+          rm -f /tmp/king10013/app/kingplus-ci-debug.keystore
+          cd /tmp/king10013
+          zip -qr /tmp/king10013out/KING-Plus-v10.0.13-Me-Home-Party-TEST-Source.zip . -x '*node_modules/*' 'app/build/*' '*/build/*' '.gradle/*' '*/.gradle/*' '*.apk' '*.aab' '*.keystore' '*.jks' '*.zip' '*local.properties' '*.log'
+          sha256sum /tmp/king10013out/*
+      - uses: actions/upload-artifact@v4
+        with:
+          name: KING-v10013-Me-Home-Party-TEST-APK-and-Source
+          path: /tmp/king10013out/*
+          retention-days: 14
+          if-no-files-found: error
