@@ -50,6 +50,9 @@ jobs:
           assert 'voted10025[0]=true;vote.setEnabled(false);' in game
           assert 'nextPublicProfilePage10025(' in discover
           assert 'Retry loading next 60 profiles' in discover
+          assert 'pageLastServerDoc10025=snap.isEmpty()' in discover
+          assert 'final DocumentSnapshot last10025=pageLastServerDoc10025;' in discover
+          assert 'pageLastServerDoc10025=snap10025.getDocuments()' in discover
           assert 'No KING profile found for this UID' in inbox
           assert 'Reopen Messages with your current KING account' in inbox
           assert 'versionCode 304;' in (root/'app/build.gradle').read_text()
