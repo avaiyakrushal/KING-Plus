@@ -7,7 +7,7 @@ try{
  const host=env.authenticatedContext('host').firestore(),bob=env.authenticatedContext('bob').firestore(),charlie=env.authenticatedContext('charlie').firestore(),dave=env.authenticatedContext('dave').firestore(),eve=env.authenticatedContext('eve').firestore();
  const room='live_rooms/moderation-room-10011';
  const r=(db,path)=>doc(db,room,...path.split('/'));
- await assertSucceeds(setDoc(doc(host,room),{ownerUid:'host',name:'KING Moderation TEST',entranceMode:'free',closed:false,isPrivate:false,maxSeats:12}));
+ await assertSucceeds(setDoc(doc(host,room),{ownerUid:'host',name:'KING Moderation TEST',entranceMode:'free',closed:false,isPrivate:false,locked:false,muteAll:false,maxSeats:12}));
  for(const [db,uid] of [[host,'host'],[bob,'bob'],[charlie,'charlie'],[dave,'dave']])await assertSucceeds(setDoc(r(db,'members/'+uid),{uid,name:uid}));
  for(const uid of ['bob','charlie'])await assertSucceeds(setDoc(r(host,'roles/'+uid),{uid,role:'cohost',grantedBy:'host'}));
  await assertSucceeds(setDoc(r(dave,'seats/1'),{uid:'dave',name:'Dave',micOn:false}));
