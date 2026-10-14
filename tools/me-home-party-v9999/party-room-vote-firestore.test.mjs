@@ -1,0 +1,42 @@
+import {readFileSync} from 'node:fs';
+import {initializeTestEnvironment,assertSucceeds,assertFails} from '@firebase/rules-unit-testing';
+import {doc,setDoc,getDoc,getDocs,collection,deleteDoc,serverTimestamp} from 'firebase/firestore';
+const env=await initializeTestEnvironment({projectId:'demo-king-room-vote-9999',firestore:{host:'127.0.0.1',port:8080,rules:readFileSync('firestore.rules','utf8')}});
+try {
+ await env.clearFirestore();
+ const H=env.authenticatedContext('host').firestore();
+ const A=env.authenticatedContext('alice').firestore();
+ const B=env.authenticatedContext('bob').firestore();
+ const E=env.authenticatedContext('eve').firestore();
+ const guest=env.unauthenticatedContext().firestore();
+ const path='live_rooms/room-vote-9999';
+ const game=db=>doc(db,path,'game_state','current');
+ const ballot=(db,uid)=>doc(db,path,'game_votes',uid);
+ await assertSucceeds(setDoc(doc(H,path),{ownerUid:'host',name:'Real Party Vote',entranceMode:'free',isPrivate:false,closed:false,hasPassword:false}));
+ for(const [db,uid] of [[H,'host'],[A,'alice'],[B,'bob'],[E,'eve']])await assertSucceeds(setDoc(doc(db,path,'members',uid),{uid,name:uid}));
+ await assertSucceeds(deleteDoc(doc(E,path,'members','eve')));
+ const state=(round,status='active')=>({type:'vote',roundId:round,actorUid:'host',prompt:'Which room event?',status,
+   result:'',participantUids:[],options:['Game','Music','Chat'],updatedAt:serverTimestamp()});
+ const vote=(uid,choice,round)=>({uid,name:uid,roundId:round,choice,choiceIndex:0,updatedAt:serverTimestamp()});
+ await assertSucceeds(setDoc(game(H),state(123)));
+ await assertSucceeds(setDoc(ballot(A,'alice'),vote('alice','Game',123)));
+ await assertSucceeds(setDoc(ballot(B,'bob'),vote('bob','Music',123)));
+ await assertSucceeds(setDoc(ballot(H,'host'),vote('host','Chat',123)));
+ const seen=await assertSucceeds(getDoc(ballot(A,'alice')));
+ if(seen.data().choice!=='Game')throw Error('Voter cannot see their own ballot');
+ await assertFails(getDoc(ballot(A,'bob')));
+ await assertFails(setDoc(ballot(E,'eve'),vote('eve','Game',123)));
+ await assertFails(setDoc(ballot(A,'bob'),vote('bob','Music',123)));
+ await assertFails(setDoc(ballot(A,'alice'),vote('alice','Forged reward',123)));
+ await assertFails(setDoc(ballot(A,'alice'),vote('alice','Game',122)));
+ await assertFails(getDoc(ballot(guest,'alice')));
+ await assertSucceeds(setDoc(ballot(A,'alice'),vote('alice','Chat',123)));
+ const votes=await assertSucceeds(getDocs(collection(H,path,'game_votes')));
+ if(votes.size!==3)throw Error('Incorrect moderator vote count');
+ await assertSucceeds(setDoc(game(H),state(123,'closed')));
+ await assertFails(setDoc(ballot(B,'bob'),vote('bob','Music',123)));
+ await assertSucceeds(setDoc(game(H),{type:'werewolf',roundId:124,actorUid:'host',prompt:'Wolf?',result:'',status:'active',participantUids:['host','alice'],updatedAt:serverTimestamp()}));
+ await assertFails(setDoc(ballot(B,'bob'),vote('bob','alice',124)));
+ await assertSucceeds(setDoc(ballot(A,'alice'),vote('alice','host',124)));
+ console.log('PASS Party Vote: actual members, choices, no impersonation/stale/guest/departed votes, moderator results, Werewolf roster protection');
+}finally{await env.cleanup();}
