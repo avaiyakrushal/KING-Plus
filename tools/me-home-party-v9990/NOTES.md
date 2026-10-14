@@ -5,6 +5,7 @@
 - 60 favorites and 40 recent visits retained. Favorite-only changes do not create fake visits. Existing account-scoped local history is imported only if cloud history is absent; unowned pre-v9.9.89 history is not imported.
 - Moments room broadcasts and Community search now pass the correct verified room identifier.
 - Deep Party menus reuse the existing Party Activity and requested Music/Admin/Theme/etc. panels open after membership is established, including new intents for the same room.
+- Me Status/Moments now uses the shared live feed instead of local-only posts. Live feed updates preserve the composer; Like/unlike uses transactions and displays its actual result. Old local post data remains stored.
 - Previous v9.9.89 fixes are preserved. No paid credits, VIP grants or simulated recharge introduced.
 
 CI: pure Java data/retention regressions, Firebase emulator with two clients sharing one account plus a denied second user/guest, concurrent transactions and live listener, full Android compile and same APK signer check.

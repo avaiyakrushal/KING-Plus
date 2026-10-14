@@ -1,6 +1,6 @@
 import {readFileSync} from 'node:fs';
 import {initializeTestEnvironment,assertSucceeds,assertFails} from '@firebase/rules-unit-testing';
-import {doc,setDoc,getDoc,runTransaction,onSnapshot} from 'firebase/firestore';
+import {doc,setDoc,getDoc,runTransaction,onSnapshot,deleteDoc,serverTimestamp} from 'firebase/firestore';
 const env=await initializeTestEnvironment({projectId:'demo-king-saved-rooms-9990',firestore:{host:'127.0.0.1',port:8080,rules:readFileSync('firestore.rules','utf8')}});
 const a=env.authenticatedContext('alice').firestore(),a2=env.authenticatedContext('alice').firestore(),b=env.authenticatedContext('bob').firestore(),guest=env.unauthenticatedContext().firestore();
 const account=db=>doc(db,'users','alice');const field='savedPartyRooms9990';
@@ -22,5 +22,14 @@ try{
  await assertSucceeds(runTransaction(a,async tx=>{const s=await tx.get(account(a));const rooms=s.data()[field];rooms.room1.favorite=false;tx.set(account(a),{[field]:rooms},{mergeFields:[field]});}));
  await live;
  if((await getDoc(account(a2))).data()[field].room1.visited!==100)throw Error('Unfavorite removed visit');
+ const moment=doc(a,'moments','live-moment');
+ await assertSucceeds(setDoc(moment,{uid:'alice',name:'Alice',text:'A real shared Moment',topic:'General',createdAt:serverTimestamp()}));
+ if((await assertSucceeds(getDoc(doc(b,'moments','live-moment')))).data().text!=='A real shared Moment')throw Error('Shared moment missing');
+ const bobLike=doc(b,'moments','live-moment','likes','bob');
+ await assertSucceeds(setDoc(bobLike,{uid:'bob',createdAt:serverTimestamp()}));
+ await assertFails(deleteDoc(doc(a,'moments','live-moment','likes','bob')));
+ await assertSucceeds(deleteDoc(bobLike));
+ await assertFails(deleteDoc(doc(b,'moments','live-moment')));
+ await assertSucceeds(deleteDoc(moment));
  console.log('PASS two emulator clients: live sync, account privacy, concurrent writes and profile preservation');
 }finally{await env.cleanup();}
