@@ -320,7 +320,7 @@ jobs:
           assert 'closeVoteFromPanel10004(panelRoom10004,panelUid10004,panelBinding10004)' in party
           assert 'else closeActiveGame();' not in party
           assert "versionCode 284;" in Path("app/build.gradle").read_text()
-          assert "10.0.4-me-home-room-vote-test" in Path("app/build.gradle").read_text()
+          assert "10.0.5-visitor-history-room-state-test" in Path("app/build.gradle").read_text()
           print("PASS Me visitor callback, Home feed replacement, transaction vote, scoped vote close")
           PYTEST
       - name: Two-client Firestore atomically guarded Party voting
