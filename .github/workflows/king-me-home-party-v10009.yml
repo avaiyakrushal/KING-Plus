@@ -27,6 +27,7 @@ jobs:
           unzip -q /tmp/king10009prev/KING-Plus-v10.0.8-Me-Home-Party-TEST-Source.zip -d /tmp/king10009
           cp app/kingplus-ci-debug.keystore /tmp/king10009/app/
           python3 tools/me-home-party-v10009/apply.py /tmp/king10009
+          python3 tools/me-home-party-v10009/finish_family_method.py /tmp/king10009
       - name: Me, Home and Party source regression checks
         run: |
           set -euo pipefail
