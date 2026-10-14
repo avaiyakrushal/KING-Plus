@@ -23,8 +23,8 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p /tmp/king10014prev /tmp/king10014
-          gh run download 38559645206 -n KING-v10014-Me-Home-Party-TEST-APK-and-Source -D /tmp/king10014prev
-          unzip -q /tmp/king10014prev/KING-Plus-v10.0.14-Me-Home-Party-TEST-Source.zip -d /tmp/king10014
+          gh run download 38559645206 -n KING-v10013-Me-Home-Party-TEST-APK-and-Source -D /tmp/king10014prev
+          unzip -q /tmp/king10014prev/KING-Plus-v10.0.13-Me-Home-Party-TEST-Source.zip -d /tmp/king10014
           cp app/kingplus-ci-debug.keystore /tmp/king10014/app/
           python3 tools/me-home-party-v10014/apply.py /tmp/king10014
       - name: Me Home Party v10.0.14 source regressions
@@ -73,7 +73,7 @@ jobs:
       - name: Verify package/version and signing continuity
         run: |
           set -euo pipefail
-          old=/tmp/king10014prev/KING-Plus-v10.0.14-Me-Home-Party-TEST.apk
+          old=/tmp/king10014prev/KING-Plus-v10.0.13-Me-Home-Party-TEST.apk
           new=/tmp/king10014/app/build/outputs/apk/debug/app-debug.apk
           aapt="$(find "$ANDROID_HOME/build-tools" -name aapt -type f | sort -V | tail -1)"
           signer="$(find "$ANDROID_HOME/build-tools" -name apksigner -type f | sort -V | tail -1)"
