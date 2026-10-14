@@ -93,7 +93,23 @@
      }
  
      /** Refresh real Gift delivery when Android network comes back while
-@@ -625,7 +616,45 @@
+@@ -435,6 +426,15 @@
+     @Override protected void onResume(){
+         super.onResume();
+         partyVisualForeground995=true;
++        FirebaseUser signed9989=FirebaseAuth.getInstance().getCurrentUser();
++        String previous9989=user==null?"":user.getUid();
++        String current9989=signed9989==null?"":signed9989.getUid();
++        if(!previous9989.equals(current9989)){
++            leaveRoom(); // Revoke the previous account's microphone and pending callbacks.
++            user=signed9989;
++            renderLobby("Hot");
++            return;
++        }
+         if(voiceReconnectPending9957)verifyAndRejoinVoice9957();
+         drainPendingGifts9944();
+         retryDisplayedGiftReceipts9955();
+@@ -625,7 +625,45 @@
          gameSnapshotReady=false; activeGameRound=0L; activeGameType=""; activeGamePrompt=""; activeGameResult="";
      }
  
@@ -139,7 +155,7 @@
          final int generation9911=++lobbyRenderGeneration9911;
          stopPartyJoinTimeout977();
          ++partyReconnectGeneration979;clearPartyReconnect979();
-@@ -694,7 +723,7 @@
+@@ -694,7 +732,7 @@
              TextView lobbyState940=tv(KingNetwork.online(this)?"Loading live Party rooms…":"Offline • checking cached Party rooms…",13,0xffdacdf1,true);
              lobbyState940.setGravity(Gravity.CENTER);
              lobbyState940.setBackground(royalNeon9924(0xff372050,0xff1b1231,0x88bb88d8,14));LinearLayout.LayoutParams lobbyStateLp940=new LinearLayout.LayoutParams(-1,dp(64));lobbyStateLp940.setMargins(dp(6),dp(8),dp(6),0);cloudList.addView(lobbyState940,lobbyStateLp940);
@@ -148,7 +164,7 @@
                  .addSnapshotListener((snap,error) -> {
                      if(partyUiDead() || generation9911!=lobbyRenderGeneration9911 || roomId!=null)return;
                      if (error != null) { showLobbyError(cloudList,KingNetwork.online(this)?"Live rooms unavailable • tap to retry":"Offline • cached rooms unavailable • tap to retry",selected); return; }
-@@ -702,7 +731,12 @@
+@@ -702,7 +740,12 @@
                      int shown = 0;
                      LinearLayout row = null;
                      if (snap != null) {
@@ -162,7 +178,7 @@
                              if (Boolean.TRUE.equals(doc.getBoolean("closed"))) continue;
                              String name = str(doc,"name","Live Party");
                              String host = str(doc,"ownerName","KING Host");
-@@ -724,6 +758,12 @@
+@@ -724,6 +767,12 @@
                          }
                      }
                      if (shown == 0) showEmptyLobby(cloudList,selected);
@@ -175,7 +191,7 @@
                  });
          } else {
              addSignInPartyCard();
-@@ -960,6 +1000,7 @@
+@@ -960,6 +1009,7 @@
          openCloudRoom(id,name,hostUid,hostName,false,false);
      }
      private void openCloudRoom(String id,String name,String hostUid,String hostName,boolean priv,boolean password) {
@@ -183,7 +199,7 @@
          if(id==null||id.trim().isEmpty()){toast("Invalid Party Room ID");return;}
          if(cloudRoom&&roomId!=null&&!roomId.equals(id.trim()))unregisterMember();
          clearVoiceRejoin9957();
-@@ -4883,31 +4924,31 @@
+@@ -4883,31 +4933,31 @@
      }
      private boolean isFavoriteRoom940(){
          if(!cloudRoom||roomId==null)return false;
@@ -222,7 +238,7 @@
          List<String> ids=new ArrayList<>(),labels=new ArrayList<>();
          for(String x:fav){int p=x.indexOf('\u0001');if(p<=0)continue;ids.add(x.substring(0,p));labels.add("★  "+x.substring(p+1));}
          List<String> recent=new ArrayList<>(recentSet);recent.sort((a,b)->b.compareTo(a));
-@@ -6784,7 +6825,7 @@
+@@ -6784,7 +6834,7 @@
          }catch(Throwable e){KingStability.nonFatal(this,"party-jitsi-pause",e);}
          super.onStop();
      }
