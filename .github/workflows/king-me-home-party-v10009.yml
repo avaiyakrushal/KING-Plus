@@ -1,0 +1,73 @@
+name: KING v10.0.9 Me Home Party Atomic Family Create and Safe Party Game Start TEST APK
+on:
+  push:
+    branches: [work/king-me-home-party-v10009]
+    paths:
+      - 'tools/me-home-party-v10009/**'
+      - '.github/workflows/king-me-home-party-v10009.yml'
+  workflow_dispatch:
+permissions: {contents: read, actions: read}
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with: {distribution: temurin, java-version: '17'}
+      - uses: gradle/actions/setup-gradle@v4
+        with: {gradle-version: '8.9'}
+      - name: Recover exact successfully built v10.0.8 source
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/king10009prev /tmp/king10009
+          gh run download 38536298804 -n KING-v10008-Me-Home-Party-TEST-APK-and-Source -D /tmp/king10009prev
+          unzip -q /tmp/king10009prev/KING-Plus-v10.0.8-Me-Home-Party-TEST-Source.zip -d /tmp/king10009
+          cp app/kingplus-ci-debug.keystore /tmp/king10009/app/
+          python3 tools/me-home-party-v10009/apply.py /tmp/king10009
+          python3 tools/me-home-party-v10009/finish_family_method.py /tmp/king10009
+      - name: Me, Home and Party source regression checks
+        run: |
+          set -euo pipefail
+          python3 tools/me-home-party-v10009/source_checks.py /tmp/king10009
+      - name: Me/Home/Party lifecycle and game-state tests
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/king10009tests
+          javac -d /tmp/king10009tests /tmp/king10009/app/src/main/java/com/kingplus/social/KingMeHomePartyGuard10009.java tools/me-home-party-v10009/KingMeHomePartyGuard10009Test.java
+          java -cp /tmp/king10009tests com.kingplus.social.KingMeHomePartyGuard10009Test
+      - name: Full Android APK compile
+        working-directory: /tmp/king10009
+        run: gradle :app:assembleDebug --no-daemon --max-workers=2
+      - name: Verify v10.0.9 app ID and unchanged signing certificate
+        run: |
+          set -euo pipefail
+          old=/tmp/king10009prev/KING-Plus-v10.0.8-Me-Home-Party-TEST.apk
+          new=/tmp/king10009/app/build/outputs/apk/debug/app-debug.apk
+          aapt="$(find "$ANDROID_HOME/build-tools" -name aapt -type f | sort -V | tail -1)"
+          signer="$(find "$ANDROID_HOME/build-tools" -name apksigner -type f | sort -V | tail -1)"
+          "$aapt" dump badging "$new" | grep "^package:" | grep "name='com.kingplus.social'" | grep "versionCode='288'"
+          "$signer" verify --print-certs "$old" > /tmp/kingoldcert
+          "$signer" verify --print-certs "$new" > /tmp/kingnewcert
+          a="$(grep -Eo '[[:xdigit:]]{64}' /tmp/kingoldcert | head -1)"
+          b="$(grep -Eo '[[:xdigit:]]{64}' /tmp/kingnewcert | head -1)"
+          test -n "$a" && test "$a" = "$b"
+      - name: Package APK and full updated source
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/king10009out /tmp/king10009/tools/me-home-party-v10009
+          cp tools/me-home-party-v10009/* /tmp/king10009/tools/me-home-party-v10009/
+          cp .github/workflows/king-me-home-party-v10009.yml /tmp/king10009/.github/workflows/
+          cp /tmp/king10009/app/build/outputs/apk/debug/app-debug.apk /tmp/king10009out/KING-Plus-v10.0.9-Me-Home-Party-TEST.apk
+          rm -f /tmp/king10009/app/kingplus-ci-debug.keystore
+          cd /tmp/king10009
+          zip -qr /tmp/king10009out/KING-Plus-v10.0.9-Me-Home-Party-TEST-Source.zip . -x '*node_modules/*' 'app/build/*' '*/build/*' '.gradle/*' '*/.gradle/*' '*.apk' '*.aab' '*.keystore' '*.jks' '*.zip' '*local.properties' '*.log'
+          sha256sum /tmp/king10009out/*
+      - uses: actions/upload-artifact@v4
+        with:
+          name: KING-v10009-Me-Home-Party-TEST-APK-and-Source
+          path: /tmp/king10009out/*
+          retention-days: 14
+          if-no-files-found: error
