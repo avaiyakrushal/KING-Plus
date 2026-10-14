@@ -22,7 +22,7 @@ jobs:
           set -euo pipefail
           mkdir -p /tmp/king9999prev /tmp/king9999
           gh run download 38514240176 -n KING-v9998-Me-Home-Party-TEST-APK-and-Source -D /tmp/king9999prev
-          unzip -q /tmp/king9999prev/KING-Plus-v9.9.99-Me-Home-Party-TEST-Source.zip -d /tmp/king9999
+          unzip -q /tmp/king9999prev/KING-Plus-v9.9.98-Me-Home-Party-TEST-Source.zip -d /tmp/king9999
           cp app/kingplus-ci-debug.keystore /tmp/king9999/app/
           python3 tools/me-home-party-v9999/apply.py /tmp/king9999
       - name: v9.9.98 source regression gates
@@ -217,7 +217,7 @@ jobs:
       - name: Verify package version and same APK signer
         run: |
           set -euo pipefail
-          old=/tmp/king9999prev/KING-Plus-v9.9.99-Me-Home-Party-TEST.apk
+          old=/tmp/king9999prev/KING-Plus-v9.9.98-Me-Home-Party-TEST.apk
           new=/tmp/king9999/app/build/outputs/apk/debug/app-debug.apk
           aapt="$(find "$ANDROID_HOME/build-tools" -name aapt -type f | sort -V | tail -1)"
           signer="$(find "$ANDROID_HOME/build-tools" -name apksigner -type f | sort -V | tail -1)"
