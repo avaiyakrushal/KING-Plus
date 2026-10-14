@@ -86,7 +86,7 @@ jobs:
       - name: Package APK and exact updated source
         run: |
           set -euo pipefail
-          mkdir -p /tmp/king10014out /tmp/king10014/tools/me-home-party-v10013
+          mkdir -p /tmp/king10014out /tmp/king10014/tools/me-home-party-v10014
           cp tools/me-home-party-v10014/* /tmp/king10014/tools/me-home-party-v10014/
           cp .github/workflows/king-me-home-party-v10014.yml /tmp/king10014/.github/workflows/
           cp /tmp/king10014/app/build/outputs/apk/debug/app-debug.apk /tmp/king10014out/KING-Plus-v10.0.14-Me-Home-Party-TEST.apk
