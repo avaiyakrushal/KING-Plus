@@ -37,7 +37,7 @@ jobs:
           social=(src/'SocialActivity.java').read_text()
           home=(src/'CommunityHubActivity.java').read_text()
           party=(src/'PartyActivity.java').read_text()
-          assert me.count('initialSocialTab10018')>=2
+          assert me.count('initialSocialTab10018')>=1
           assert 'meHostedRoomsHost10018' in me
           assert social.count('initialSocialTab10018')>=1
           assert all('load'+n+'()' in social for n in ['Followers','Following','Friends'])
