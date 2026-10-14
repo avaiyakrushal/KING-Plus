@@ -1,0 +1,92 @@
+name: KING v9.9.92 Me Home Party APK
+on:
+  push:
+    branches: [work/king-me-home-party-v9992]
+    paths: ['tools/me-home-party-v9992/**', '.github/workflows/king-me-home-party-v9992.yml']
+  workflow_dispatch:
+permissions: {contents: read, actions: read}
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v5
+        with: {distribution: temurin, java-version: '17'}
+      - uses: gradle/actions/setup-gradle@v4
+        with: {gradle-version: '8.9'}
+      - name: Recover exact v9.9.91 tested source and signing key
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/king9992prev /tmp/king9992
+          gh run download 38503902123 -n KING-v9991-Me-Home-Party-TEST-APK-and-Source -D /tmp/king9992prev
+          unzip -q /tmp/king9992prev/KING-Plus-v9.9.91-Me-Home-Party-TEST-Source.zip -d /tmp/king9992
+          cp app/kingplus-ci-debug.keystore /tmp/king9992/app/
+          base64 --decode tools/me-home-party-v9992/changes.patch.gz.b64 | gzip -dc > tools/me-home-party-v9992/changes.patch
+          sha256sum tools/me-home-party-v9992/changes.patch
+          python3 tools/me-home-party-v9992/apply.py /tmp/king9992
+      - name: Saved room policy tests
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/king9992tests
+          javac -d /tmp/king9992tests /tmp/king9992/app/src/main/java/com/kingplus/social/KingMeRoomHistory9981.java /tmp/king9992/app/src/main/java/com/kingplus/social/KingSavedRoomsPolicy9990.java /tmp/king9992/tools/me-home-party-v9990/KingSavedRoomsPolicy9990Test.java "$GITHUB_WORKSPACE/tools/me-home-party-v9992/KingSavedRoomsRemove9992Test.java"
+          java -cp /tmp/king9992tests com.kingplus.social.KingSavedRoomsPolicy9990Test
+          java -cp /tmp/king9992tests com.kingplus.social.KingSavedRoomsRemove9992Test
+      - uses: actions/setup-node@v4
+        with: {node-version: '22'}
+      - name: Firestore test dependencies
+        working-directory: /tmp/king9992/tests/firestore
+        run: npm ci --no-audit --no-fund
+      - name: Two-client saved room sync privacy and concurrent update test
+        working-directory: /tmp/king9992
+        env: {CI: 'true'}
+        run: |
+          cp "$GITHUB_WORKSPACE/tools/me-home-party-v9990/saved-rooms-firestore.test.mjs" tests/firestore/
+          tests/firestore/node_modules/.bin/firebase emulators:exec --only firestore --project demo-king-saved-rooms-9990 --config firebase-emulator.json "node tests/firestore/saved-rooms-firestore.test.mjs"
+      - name: Shared Me photo and account privacy Firestore acceptance
+        working-directory: /tmp/king9992
+        env: {CI: 'true'}
+        run: |
+          cp "$GITHUB_WORKSPACE/tools/me-home-party-v9991/me-moments-firestore.test.mjs" tests/firestore/
+          tests/firestore/node_modules/.bin/firebase emulators:exec --only firestore --project demo-king-me-moments-9992 --config firebase-emulator.json "node tests/firestore/me-moments-firestore.test.mjs"
+      - name: Remote saved-room delete from Me and Home acceptance
+        working-directory: /tmp/king9992
+        env: {CI: 'true'}
+        run: |
+          cp "$GITHUB_WORKSPACE/tools/me-home-party-v9992/saved-rooms-removal-firestore.test.mjs" tests/firestore/
+          tests/firestore/node_modules/.bin/firebase emulators:exec --only firestore --project demo-king-saved-remove-9992 --config firebase-emulator.json "node tests/firestore/saved-rooms-removal-firestore.test.mjs"
+      - name: Full Android compile and APK
+        working-directory: /tmp/king9992
+        run: gradle :app:assembleDebug --no-daemon --max-workers=2
+      - name: Verify package version and same APK signer
+        run: |
+          set -euo pipefail
+          old=/tmp/king9992prev/KING-Plus-v9.9.91-Me-Home-Party-TEST.apk
+          new=/tmp/king9992/app/build/outputs/apk/debug/app-debug.apk
+          aapt="$(find "$ANDROID_HOME/build-tools" -name aapt -type f | sort -V | tail -1)"
+          signer="$(find "$ANDROID_HOME/build-tools" -name apksigner -type f | sort -V | tail -1)"
+          "$aapt" dump badging "$new" | grep "^package:" | grep "name='com.kingplus.social'" | grep "versionCode='271'"
+          "$signer" verify --print-certs "$old" > /tmp/old9992cert
+          "$signer" verify --print-certs "$new" > /tmp/new9992cert
+          a="$(grep -Eo '[[:xdigit:]]{64}' /tmp/old9992cert | head -1)"
+          b="$(grep -Eo '[[:xdigit:]]{64}' /tmp/new9992cert | head -1)"
+          test -n "$a" && test "$a" = "$b"
+      - name: Package updated APK and full source
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/king9992out /tmp/king9992/tools/me-home-party-v9992
+          cp tools/me-home-party-v9992/* /tmp/king9992/tools/me-home-party-v9992/
+          cp .github/workflows/king-me-home-party-v9992.yml /tmp/king9992/.github/workflows/
+          cp /tmp/king9992/app/build/outputs/apk/debug/app-debug.apk /tmp/king9992out/KING-Plus-v9.9.92-Me-Home-Party-TEST.apk
+          rm /tmp/king9992/app/kingplus-ci-debug.keystore
+          cd /tmp/king9992
+          zip -qr /tmp/king9992out/KING-Plus-v9.9.92-Me-Home-Party-TEST-Source.zip . -x '*node_modules/*' 'app/build/*' '*/build/*' '.gradle/*' '*/.gradle/*' '*.apk' '*.aab' '*.keystore' '*.jks' '*.zip' '*local.properties' '*.log'
+          sha256sum /tmp/king9992out/*
+      - uses: actions/upload-artifact@v4
+        with:
+          name: KING-v9992-Me-Home-Party-TEST-APK-and-Source
+          path: /tmp/king9992out/*
+          retention-days: 14
+          if-no-files-found: error
