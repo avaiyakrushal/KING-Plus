@@ -1,12 +1,12 @@
 name: KING Plus v10.0.37 Six-Page Integrity TEST APK
 on:
   push:
-    branches: [work/king-v10037-six-pages-recovery]
+    branches: [work/king-v10037-six-pages-integrity]
     paths:
       - 'tools/six-pages-v10037/**'
       - '.github/workflows/king-v10037-six-pages.yml'
   pull_request:
-    branches: [work/king-v10037-six-pages-functional-fixes]
+    branches: [work/king-v10036-six-pages-recovery]
     paths: ['tools/six-pages-v10037/**','.github/workflows/king-v10037-six-pages.yml']
   workflow_dispatch:
 permissions: {contents: write, actions: read}
@@ -26,7 +26,7 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p /tmp/king-prev /tmp/king-next
-          gh run download 38755762770 -n KING-v10037-Six-Pages-TEST-APK-and-Source -D /tmp/king-prev
+          gh run download 38755762770 -n KING-v10036-Six-Pages-TEST-APK-and-Source -D /tmp/king-prev
           unzip -q /tmp/king-prev/KING-Plus-v10.0.36-Six-Pages-TEST-Source.zip -d /tmp/king-next
           cp app/kingplus-ci-debug.keystore /tmp/king-next/app/
           python3 - <<'PY'
@@ -42,8 +42,8 @@ jobs:
       - name: Document ID behavioral boundary regression
         run: |
           mkdir -p /tmp/id-tests
-          javac -d /tmp/id-tests /tmp/king-next/app/src/main/java/com/kingplus/social/KingDocumentId10036.java /tmp/king-next//tmp/king-next/tools/six-pages-v10036/KingDocumentId10036Test.java
-          java -cp /tmp/id-tests com.kingplus.social.KingDocumentId10037Test
+          javac -d /tmp/id-tests /tmp/king-next/app/src/main/java/com/kingplus/social/KingDocumentId10036.java /tmp/king-next/tools/six-pages-v10036/KingDocumentId10036Test.java
+          java -cp /tmp/id-tests com.kingplus.social.KingDocumentId10036Test
           cd /tmp/king-next
           python3 tools/integrated-release/check_release.py --mode test
       - name: Java policy regression
