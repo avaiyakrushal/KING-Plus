@@ -5,6 +5,9 @@ on:
     paths:
       - 'tools/vip-style-v10041/**'
       - '.github/workflows/king-v10041-vip-identity.yml'
+  pull_request:
+    branches: [work/king-v10040-six-pages-live-integrity]
+    paths: ['tools/vip-style-v10041/**', '.github/workflows/king-v10041-vip-identity.yml']
   workflow_dispatch:
 permissions:
   contents: read
