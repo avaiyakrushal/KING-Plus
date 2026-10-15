@@ -1,0 +1,114 @@
+name: KING v10.0.27 Faster Party Join and Remote Ghost Presence Recovery TEST APK
+on:
+  push:
+    branches: [work/king-party-presence-v10027-fast-join]
+    paths:
+      - 'tools/party-presence-v10027/**'
+      - '.github/workflows/king-party-presence-v10027.yml'
+  workflow_dispatch:
+permissions: {contents: read, actions: read}
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with: {distribution: temurin, java-version: '17'}
+      - uses: gradle/actions/setup-gradle@v4
+        with: {gradle-version: '8.9'}
+      - name: Restore exactly the signed v10.0.26 APK source
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/king10027prev /tmp/king10027
+          gh run download 38621330502 -n KING-v10026-Party-Room-TEST-APK-and-Source -D /tmp/king10027prev
+          unzip -q /tmp/king10027prev/KING-Plus-v10.0.26-Party-Room-TEST-Source.zip -d /tmp/king10027
+          cp app/kingplus-ci-debug.keystore /tmp/king10027/app/
+          python3 tools/party-presence-v10027/apply.py /tmp/king10027
+      - name: v10.0.27 ghost-seat and parallel room join regression checks
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          r=Path('/tmp/king10027')
+          p=(r/'app/src/main/java/com/kingplus/social/PartyActivity.java').read_text()
+          gradle=(r/'app/build.gradle').read_text()
+          assert "versionCode 306;" in gradle
+          assert "10.0.27-party-presence-fast-join-test" in gradle
+          assert 'Tasks.whenAllSuccess(' in p
+          assert 'responses10027.get(0)' in p and 'responses10027.get(1)' in p
+          assert 'isCurrentPartyJoin966(expectedId966,expectedUid966,token966)' in p
+          assert 'if(now967-lastCleanup910<60000L)return;' in p
+          assert 'KingRoomPresence967.isStale(last967.toDate().getTime(),now967,180000L)' in p
+          assert 'for(int seatNumber10027=1;seatNumber10027<=12;seatNumber10027++)' in p
+          assert 'db.runTransaction(tx10027->' in p
+          assert 'KingRoomPresence967.canRemove(' in p
+          assert 'tx10027.delete(backupRefs10027.get(seatIndex10027))' in p
+          assert 'tx10027.delete(member9919);' in p
+          assert 'seatNames.clear();seatUids.clear();seatMics.clear();lockedSeats.clear();' in p
+          assert 'roomVisitStarted10026=0L;' in p
+          print('PASS v10.0.27 Room fast join, stale presence and safe exit source regression checks')
+          PY
+      - name: Existing Me Home Party policy regression tests
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/king10027tests
+          javac -d /tmp/king10027tests /tmp/king10027/app/src/main/java/com/kingplus/social/KingMeHomePartyPolicy10010.java tools/me-home-party-v10010/KingMeHomePartyPolicy10010Test.java
+          java -cp /tmp/king10027tests com.kingplus.social.KingMeHomePartyPolicy10010Test
+      - uses: actions/setup-node@v4
+        with: {node-version: '22'}
+      - name: Firestore test dependencies
+        working-directory: /tmp/king10027/tests/firestore
+        run: npm ci --no-audit --no-fund
+      - name: Two-account moderation and relationship security
+        working-directory: /tmp/king10027
+        env:
+          CI: 'true'
+        run: |
+          cp "$GITHUB_WORKSPACE/tools/me-home-party-v10011/moderation-firestore.test.mjs" tests/firestore/
+          cp "$GITHUB_WORKSPACE/tools/me-home-party-v10012/me-home-party-security.test.mjs" tests/firestore/
+          cp "$GITHUB_WORKSPACE/tools/me-home-party-v10013/role-safety.test.mjs" tests/firestore/
+          tests/firestore/node_modules/.bin/firebase emulators:exec --only firestore --project demo-king-atomic-moderation-v10011 --config firebase-emulator.json "node tests/firestore/moderation-firestore.test.mjs && node tests/firestore/me-home-party-security.test.mjs && node tests/firestore/role-safety.test.mjs"
+      - name: Combined Me/Home/Party 12 real-data security scenarios
+        working-directory: /tmp/king10027
+        env:
+          CI: 'true'
+        run: |
+          set -euo pipefail
+          cp "$GITHUB_WORKSPACE/tools/me-home-party-v10019/rtc-membership-current-rules.test.mjs" tests/firestore/rtc-membership-firestore.test.mjs
+          cp "$GITHUB_WORKSPACE/tools/me-home-party-v10020/mute-all-contract.test.mjs" tests/firestore/mute-all-contract.test.mjs
+          tests/firestore/node_modules/.bin/firebase emulators:exec --only firestore --project demo-king-10020-combined --config firebase-emulator.json "node tests/firestore/visitor-pages-firestore.test.mjs && node tests/firestore/me-gallery-live-firestore.test.mjs && node tests/firestore/moments-cross-device-firestore.test.mjs && node tests/firestore/mic-consent-firestore.test.mjs && node tests/firestore/rtc-membership-firestore.test.mjs && node tests/firestore/room-game-gift.test.mjs && node tests/firestore/host-role-private-firestore.test.mjs && node tests/firestore/party-room-vote-firestore.test.mjs && node tests/firestore/mute-all-contract.test.mjs"
+      - name: Full Android APK compile
+        working-directory: /tmp/king10027
+        run: gradle :app:assembleDebug --no-daemon --max-workers=2
+      - name: Verify package/version and signing continuity
+        run: |
+          set -euo pipefail
+          old=/tmp/king10027prev/KING-Plus-v10.0.26-Party-Room-TEST.apk
+          new=/tmp/king10027/app/build/outputs/apk/debug/app-debug.apk
+          aapt="$(find "$ANDROID_HOME/build-tools" -name aapt -type f | sort -V | tail -1)"
+          signer="$(find "$ANDROID_HOME/build-tools" -name apksigner -type f | sort -V | tail -1)"
+          "$aapt" dump badging "$new" | grep "^package:" | grep "name='com.kingplus.social'" | grep "versionCode='306'"
+          "$signer" verify --print-certs "$old" > /tmp/kingoldcert
+          "$signer" verify --print-certs "$new" > /tmp/kingnewcert
+          a="$(grep -Eo '[[:xdigit:]]{64}' /tmp/kingoldcert | head -1)"
+          b="$(grep -Eo '[[:xdigit:]]{64}' /tmp/kingnewcert | head -1)"
+          test -n "$a" && test "$a" = "$b"
+      - name: Package APK and exact updated source
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/king10027out /tmp/king10027/tools/party-presence-v10027
+          cp tools/party-presence-v10027/* /tmp/king10027/tools/party-presence-v10027/
+          cp .github/workflows/king-party-presence-v10027.yml /tmp/king10027/.github/workflows/
+          cp /tmp/king10027/app/build/outputs/apk/debug/app-debug.apk /tmp/king10027out/KING-Plus-v10.0.27-Party-Room-TEST.apk
+          rm -f /tmp/king10027/app/kingplus-ci-debug.keystore
+          cd /tmp/king10027
+          zip -qr /tmp/king10027out/KING-Plus-v10.0.27-Party-Room-TEST-Source.zip . -x '*node_modules/*' 'app/build/*' '*/build/*' '.gradle/*' '*/.gradle/*' '*.apk' '*.aab' '*.keystore' '*.jks' '*.zip' '*local.properties' '*.log'
+          sha256sum /tmp/king10027out/*
+      - uses: actions/upload-artifact@v4
+        with:
+          name: KING-v10027-Party-Room-TEST-APK-and-Source
+          path: /tmp/king10027out/*
+          retention-days: 14
+          if-no-files-found: error
