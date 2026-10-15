@@ -3,6 +3,9 @@ on:
   push:
     branches: [work/king-v10034-integrated-six-pages]
     paths: ['.github/workflows/king-v10034-integrated-six-pages.yml']
+  pull_request:
+    branches: [work/king-six-pages-v10033-rooms-messages-bingo]
+    paths: ['.github/workflows/king-v10034-integrated-six-pages.yml']
   workflow_dispatch:
 permissions:
   contents: write
@@ -157,7 +160,7 @@ jobs:
           retention-days: 14
           if-no-files-found: error
       - name: Publish tested APK and source ZIP as GitHub prerelease
-        if: success()
+        if: success() && github.event_name == 'push'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
