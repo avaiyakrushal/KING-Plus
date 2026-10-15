@@ -33,7 +33,7 @@ jobs:
           python3 - <<'PY'
           from pathlib import Path
           import base64,gzip,hashlib
-          raw=gzip.decompress(base64.b64decode(Path("$GITHUB_WORKSPACE/tools/six-pages-v10040/changes.patch.gz.b64").read_text().strip()))
+          raw=gzip.decompress(base64.b64decode(Path(__import__("os").environ["GITHUB_WORKSPACE"],"tools/six-pages-v10040/changes.patch.gz.b64").read_text().strip()))
           assert hashlib.sha256(raw).hexdigest()=="922b06154b83c09c8b0b6db4e09125f6ac8a73f8f07679f992b937bb0e4b62f3"
           Path("/tmp/king-v10040.patch").write_bytes(raw)
           PY
