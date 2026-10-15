@@ -1,0 +1,130 @@
+name: KING Plus v10.0.35 Six-Page Functional Corrections TEST APK
+on:
+  push:
+    branches: [work/king-v10035-six-pages-functional-fixes]
+    paths:
+      - 'tools/six-pages-v10035/**'
+      - '.github/workflows/king-v10035-six-pages.yml'
+  pull_request:
+    branches: [work/king-v10034-integrated-six-pages]
+    paths: ['tools/six-pages-v10035/**','.github/workflows/king-v10035-six-pages.yml']
+  workflow_dispatch:
+permissions: {contents: write, actions: read}
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 55
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with: {distribution: temurin, java-version: '17'}
+      - uses: gradle/actions/setup-gradle@v4
+        with: {gradle-version: '8.9'}
+      - name: Restore exact signed v10.0.34 source, apply verified six-page corrections
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/king-prev /tmp/king-next
+          gh run download 38749379554 -n KING-v10034-Integrated-TEST-APK-and-Source -D /tmp/king-prev
+          unzip -q /tmp/king-prev/KING-Plus-v10.0.34-Integrated-TEST-Source.zip -d /tmp/king-next
+          cp app/kingplus-ci-debug.keystore /tmp/king-next/app/
+          python3 - <<'PY'
+          import base64,gzip,hashlib
+          from pathlib import Path
+          raw=gzip.decompress(base64.b64decode(Path('tools/six-pages-v10035/patch.txt.gz.b64').read_text().strip()))
+          digest=hashlib.sha256(raw).hexdigest()
+          assert digest=='5520fa0e0de899d80614a30986228fd868941c2db5a86b128727a4fee73f16c9',digest
+          Path('/tmp/king-v10035.patch').write_bytes(raw)
+          PY
+          cd /tmp/king-next
+          patch --batch --fuzz=0 -p1 -i /tmp/king-v10035.patch
+      - name: Six screens regression and signed version assertions
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('/tmp/king-next/app/src/main/java/com/kingplus/social')
+          checks={
+            'MainActivity.java':['Play video ','videoPickerOwner10035','profile_videos_','Remove saved video '],
+            'CommunityHubActivity.java':['chatOwner10033.equals(now10035.getUid())','sendButton10033[0].getParent()!=comp'],
+            'PartyActivity.java':['lobbyOwner10035.equals(currentLobbyAccount10035.getUid())'],
+            'GamePlayActivity.java':['historyLabel10035','Last calls: ','nums[12]=0'],
+            'DiscoverActivity.java':['rankingCurrent10035','Rankings unavailable • tap to retry','Source.SERVER'],
+            'InboxActivity.java':['limit(200).get(com.google.firebase.firestore.Source.SERVER)','Notification has no valid sender']
+          }
+          for filename,needles in checks.items():
+              src=(p/filename).read_text()
+              for needle in needles: assert needle in src,filename+': '+needle
+          gradle=Path('/tmp/king-next/app/build.gradle').read_text()
+          assert 'versionCode 314;' in gradle and '10.0.35-six-pages-functional-test' in gradle
+          print('PASS six-screen source regression, version and no fake payment changes')
+          PY
+      - name: Java policy regression
+        run: |
+          mkdir -p /tmp/king-tests
+          javac -d /tmp/king-tests /tmp/king-next/app/src/main/java/com/kingplus/social/KingMeHomePartyPolicy10010.java tools/me-home-party-v10010/KingMeHomePartyPolicy10010Test.java
+          java -cp /tmp/king-tests com.kingplus.social.KingMeHomePartyPolicy10010Test
+      - uses: actions/setup-node@v4
+        with: {node-version: '22'}
+      - name: Install Firestore test dependencies
+        working-directory: /tmp/king-next/tests/firestore
+        run: npm ci --no-audit --no-fund
+      - name: Firestore two-account moderation and relationship tests
+        working-directory: /tmp/king-next
+        env: {CI: 'true'}
+        run: |
+          cp "$GITHUB_WORKSPACE/tools/me-home-party-v10011/moderation-firestore.test.mjs" tests/firestore/
+          cp "$GITHUB_WORKSPACE/tools/me-home-party-v10012/me-home-party-security.test.mjs" tests/firestore/
+          cp "$GITHUB_WORKSPACE/tools/me-home-party-v10013/role-safety.test.mjs" tests/firestore/
+          tests/firestore/node_modules/.bin/firebase emulators:exec --only firestore --project demo-king-10035-security --config firebase-emulator.json "node tests/firestore/moderation-firestore.test.mjs && node tests/firestore/me-home-party-security.test.mjs && node tests/firestore/role-safety.test.mjs"
+      - name: Firestore Me Home Party cross-user regression scenarios
+        working-directory: /tmp/king-next
+        env: {CI: 'true'}
+        run: |
+          cp "$GITHUB_WORKSPACE/tools/me-home-party-v10019/rtc-membership-current-rules.test.mjs" tests/firestore/rtc-membership-firestore.test.mjs
+          cp "$GITHUB_WORKSPACE/tools/me-home-party-v10020/mute-all-contract.test.mjs" tests/firestore/mute-all-contract.test.mjs
+          tests/firestore/node_modules/.bin/firebase emulators:exec --only firestore --project demo-king-10035-regression --config firebase-emulator.json "node tests/firestore/visitor-pages-firestore.test.mjs && node tests/firestore/me-gallery-live-firestore.test.mjs && node tests/firestore/moments-cross-device-firestore.test.mjs && node tests/firestore/mic-consent-firestore.test.mjs && node tests/firestore/rtc-membership-firestore.test.mjs && node tests/firestore/room-game-gift.test.mjs && node tests/firestore/host-role-private-firestore.test.mjs && node tests/firestore/party-room-vote-firestore.test.mjs && node tests/firestore/mute-all-contract.test.mjs"
+      - name: Compile full Android app
+        working-directory: /tmp/king-next
+        run: gradle :app:assembleDebug --no-daemon --max-workers=2
+      - name: Verify APK version and existing app signing identity
+        run: |
+          set -euo pipefail
+          old=/tmp/king-prev/KING-Plus-v10.0.34-Integrated-TEST.apk
+          new=/tmp/king-next/app/build/outputs/apk/debug/app-debug.apk
+          aapt="$(find "$ANDROID_HOME/build-tools" -name aapt -type f | sort -V | tail -1)"
+          signer="$(find "$ANDROID_HOME/build-tools" -name apksigner -type f | sort -V | tail -1)"
+          "$aapt" dump badging "$new" | grep "^package:" | grep "name='com.kingplus.social'" | grep "versionCode='314'"
+          "$signer" verify --print-certs "$old" > /tmp/old-certs
+          "$signer" verify --print-certs "$new" > /tmp/new-certs
+          a="$(grep -Eo '[[:xdigit:]]{64}' /tmp/old-certs | head -1)"
+          b="$(grep -Eo '[[:xdigit:]]{64}' /tmp/new-certs | head -1)"
+          test -n "$a" && test "$a" = "$b"
+      - name: Package verified APK and exact source ZIP
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/king-out /tmp/king-next/tools/six-pages-v10035
+          cp -a tools/six-pages-v10035/. /tmp/king-next/tools/six-pages-v10035/
+          cp .github/workflows/king-v10035-six-pages.yml /tmp/king-next/.github/workflows/
+          cp /tmp/king-next/app/build/outputs/apk/debug/app-debug.apk /tmp/king-out/KING-Plus-v10.0.35-Six-Pages-TEST.apk
+          rm -f /tmp/king-next/app/kingplus-ci-debug.keystore
+          cd /tmp/king-next
+          zip -qr /tmp/king-out/KING-Plus-v10.0.35-Six-Pages-TEST-Source.zip . -x '*node_modules/*' 'app/build/*' '*/build/*' '.gradle/*' '*/.gradle/*' '*.apk' '*.aab' '*.keystore' '*.jks' '*.zip' '*local.properties' '*.log'
+          sha256sum /tmp/king-out/*
+      - uses: actions/upload-artifact@v4
+        with:
+          name: KING-v10035-Six-Pages-TEST-APK-and-Source
+          path: /tmp/king-out/*
+          retention-days: 14
+          if-no-files-found: error
+      - name: Publish test prerelease to enable Chrome direct download
+        if: success() && github.event_name == 'push'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create v10.0.35-six-pages-test \
+            /tmp/king-out/KING-Plus-v10.0.35-Six-Pages-TEST.apk \
+            /tmp/king-out/KING-Plus-v10.0.35-Six-Pages-TEST-Source.zip \
+            --target "$GITHUB_SHA" --title "KING Plus v10.0.35 Six-Pages TEST" \
+            --notes "Six-screen reliability corrections from signed v10.0.34: account-scoped local Me video playback/removal, protected Home Family send callbacks, Party lobby account guards, Bingo call history, Discover rankings retry/security, Messages notification validity/history. CI-verified TEST only. True two-phone RTC, multiplayer, paid gifting, recharge and providers require production acceptance." \
+            --prerelease
