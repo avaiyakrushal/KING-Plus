@@ -5,6 +5,9 @@ on:
     paths:
       - 'tools/six-pages-v10035/**'
       - '.github/workflows/king-v10035-six-pages.yml'
+  pull_request:
+    branches: [work/king-v10034-integrated-six-pages]
+    paths: ['tools/six-pages-v10035/**','.github/workflows/king-v10035-six-pages.yml']
   workflow_dispatch:
 permissions: {contents: write, actions: read}
 jobs:
