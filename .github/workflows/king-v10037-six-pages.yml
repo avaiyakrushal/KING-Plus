@@ -1,0 +1,106 @@
+name: KING Plus v10.0.37 Six-Page Integrity TEST APK
+on:
+  push:
+    branches: [work/king-v10037-six-pages-integrity]
+    paths:
+      - 'tools/six-pages-v10037/**'
+      - '.github/workflows/king-v10037-six-pages.yml'
+  pull_request:
+    branches: [work/king-v10036-six-pages-recovery]
+    paths: ['tools/six-pages-v10037/**','.github/workflows/king-v10037-six-pages.yml']
+  workflow_dispatch:
+permissions: {contents: write, actions: read}
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 55
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with: {distribution: temurin, java-version: '17'}
+      - uses: gradle/actions/setup-gradle@v4
+        with: {gradle-version: '8.9'}
+      - name: Restore exact signed v10.0.36 source, apply verified six-page corrections
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/king-prev /tmp/king-next
+          gh run download 38755762770 -n KING-v10036-Six-Pages-TEST-APK-and-Source -D /tmp/king-prev
+          unzip -q /tmp/king-prev/KING-Plus-v10.0.36-Six-Pages-TEST-Source.zip -d /tmp/king-next
+          cp app/kingplus-ci-debug.keystore /tmp/king-next/app/
+          python3 - <<'PY'
+          import base64,gzip,hashlib
+          from pathlib import Path
+          raw=gzip.decompress(base64.b64decode(Path('tools/six-pages-v10037/patch.txt.gz.b64').read_text().strip()))
+          digest=hashlib.sha256(raw).hexdigest()
+          assert digest=='0c998c19848c5b716b50d30576d6638d06e7da622b95763563e210dd0b9cf273',digest
+          Path('/tmp/king-v10037.patch').write_bytes(raw)
+          PY
+          cd /tmp/king-next
+          patch --batch --fuzz=0 -p1 -i /tmp/king-v10037.patch
+      - name: Document ID behavioral boundary regression
+        run: |
+          mkdir -p /tmp/id-tests
+          javac -d /tmp/id-tests /tmp/king-next/app/src/main/java/com/kingplus/social/KingDocumentId10036.java /tmp/king-next/tools/six-pages-v10036/KingDocumentId10036Test.java
+          java -cp /tmp/id-tests com.kingplus.social.KingDocumentId10036Test
+          cd /tmp/king-next
+          python3 tools/integrated-release/check_release.py --mode test
+      - name: Java policy regression
+        run: |
+          mkdir -p /tmp/king-tests
+          javac -d /tmp/king-tests /tmp/king-next/app/src/main/java/com/kingplus/social/KingMeHomePartyPolicy10010.java tools/me-home-party-v10010/KingMeHomePartyPolicy10010Test.java
+          java -cp /tmp/king-tests com.kingplus.social.KingMeHomePartyPolicy10010Test
+      - uses: actions/setup-node@v4
+        with: {node-version: '22'}
+      - name: Install Firestore test dependencies
+        working-directory: /tmp/king-next/tests/firestore
+        run: npm ci --no-audit --no-fund
+      - name: Firestore two-account moderation and relationship tests
+        working-directory: /tmp/king-next
+        env: {CI: 'true'}
+        run: |
+          cp "$GITHUB_WORKSPACE/tools/me-home-party-v10011/moderation-firestore.test.mjs" tests/firestore/
+          cp "$GITHUB_WORKSPACE/tools/me-home-party-v10012/me-home-party-security.test.mjs" tests/firestore/
+          cp "$GITHUB_WORKSPACE/tools/me-home-party-v10013/role-safety.test.mjs" tests/firestore/
+          tests/firestore/node_modules/.bin/firebase emulators:exec --only firestore --project demo-king-10037-security --config firebase-emulator.json "node tests/firestore/moderation-firestore.test.mjs && node tests/firestore/me-home-party-security.test.mjs && node tests/firestore/role-safety.test.mjs"
+      - name: Firestore Me Home Party cross-user regression scenarios
+        working-directory: /tmp/king-next
+        env: {CI: 'true'}
+        run: |
+          cp "$GITHUB_WORKSPACE/tools/me-home-party-v10019/rtc-membership-current-rules.test.mjs" tests/firestore/rtc-membership-firestore.test.mjs
+          cp "$GITHUB_WORKSPACE/tools/me-home-party-v10020/mute-all-contract.test.mjs" tests/firestore/mute-all-contract.test.mjs
+          tests/firestore/node_modules/.bin/firebase emulators:exec --only firestore --project demo-king-10037-regression --config firebase-emulator.json "node tests/firestore/visitor-pages-firestore.test.mjs && node tests/firestore/me-gallery-live-firestore.test.mjs && node tests/firestore/moments-cross-device-firestore.test.mjs && node tests/firestore/mic-consent-firestore.test.mjs && node tests/firestore/rtc-membership-firestore.test.mjs && node tests/firestore/room-game-gift.test.mjs && node tests/firestore/host-role-private-firestore.test.mjs && node tests/firestore/party-room-vote-firestore.test.mjs && node tests/firestore/mute-all-contract.test.mjs"
+      - name: Compile full Android app
+        working-directory: /tmp/king-next
+        run: gradle :app:assembleDebug --no-daemon --max-workers=2
+      - name: Verify APK version and existing app signing identity
+        run: |
+          set -euo pipefail
+          old=/tmp/king-prev/KING-Plus-v10.0.36-Six-Pages-TEST.apk
+          new=/tmp/king-next/app/build/outputs/apk/debug/app-debug.apk
+          aapt="$(find "$ANDROID_HOME/build-tools" -name aapt -type f | sort -V | tail -1)"
+          signer="$(find "$ANDROID_HOME/build-tools" -name apksigner -type f | sort -V | tail -1)"
+          "$aapt" dump badging "$new" | grep "^package:" | grep "name='com.kingplus.social'" | grep "versionCode='316'"
+          "$signer" verify --print-certs "$old" > /tmp/old-certs
+          "$signer" verify --print-certs "$new" > /tmp/new-certs
+          a="$(grep -Eo '[[:xdigit:]]{64}' /tmp/old-certs | head -1)"
+          b="$(grep -Eo '[[:xdigit:]]{64}' /tmp/new-certs | head -1)"
+          test -n "$a" && test "$a" = "$b"
+      - name: Package verified APK and exact source ZIP
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/king-out /tmp/king-next/tools/six-pages-v10037
+          cp -a tools/six-pages-v10037/. /tmp/king-next/tools/six-pages-v10037/
+          cp .github/workflows/king-v10037-six-pages.yml /tmp/king-next/.github/workflows/
+          cp /tmp/king-next/app/build/outputs/apk/debug/app-debug.apk /tmp/king-out/KING-Plus-v10.0.37-Six-Pages-TEST.apk
+          rm -f /tmp/king-next/app/kingplus-ci-debug.keystore
+          cd /tmp/king-next
+          zip -qr /tmp/king-out/KING-Plus-v10.0.37-Six-Pages-TEST-Source.zip . -x '*node_modules/*' 'app/build/*' '*/build/*' '.gradle/*' '*/.gradle/*' '*.apk' '*.aab' '*.keystore' '*.jks' '*.zip' '*local.properties' '*.log'
+          sha256sum /tmp/king-out/*
+      - uses: actions/upload-artifact@v4
+        with:
+          name: KING-v10037-Six-Pages-TEST-APK-and-Source
+          path: /tmp/king-out/*
+          retention-days: 14
+          if-no-files-found: error
