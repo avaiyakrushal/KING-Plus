@@ -1,0 +1,116 @@
+name: KING v10.0.32 One Integrated Six-Pages Live State and Account Safety TEST APK
+on:
+  push:
+    branches: [work/king-six-pages-v10032-stale-state]
+    paths:
+      - 'tools/six-pages-v10032/**'
+      - '.github/workflows/king-six-pages-v10032-stale-state.yml'
+  workflow_dispatch:
+permissions: {contents: read, actions: read}
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with: {distribution: temurin, java-version: '17'}
+      - uses: gradle/actions/setup-gradle@v4
+        with: {gradle-version: '8.9'}
+      - name: Restore exactly the signed v10.0.31 APK source
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/king10032prev /tmp/king10032
+          gh run download 38674168043 -n KING-v10031-Six-Pages-TEST-APK-and-Source -D /tmp/king10032prev
+          unzip -q /tmp/king10032prev/KING-Plus-v10.0.31-Six-Pages-TEST-Source.zip -d /tmp/king10032
+          cp app/kingplus-ci-debug.keystore /tmp/king10032/app/
+          python3 tools/six-pages-v10032/apply.py /tmp/king10032
+      - name: v10.0.32 six-page live account and state regression checks
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          r=Path('/tmp/king10032');s=r/'app/src/main/java/com/kingplus/social'
+          me=(s/'MainActivity.java').read_text()
+          home=(s/'CommunityHubActivity.java').read_text()
+          party=(s/'PartyActivity.java').read_text()
+          game=(s/'GamePlayActivity.java').read_text()
+          discover=(s/'DiscoverActivity.java').read_text()
+          inbox=(s/'InboxActivity.java').read_text()
+          assert 'recommendationsCurrent10032(own,box940,list)' in me
+          assert '.get(com.google.firebase.firestore.Source.SERVER).addOnSuccessListener(snap->' in me
+          assert 'signedUid10032.equals(cachedUid10032)' in home
+          assert 'if(!more.isEnabled()||partyUiDead()' in party
+          assert 'lobbyRoomLimit9989=Math.min(300,lobbyRoomLimit9989+50)' in party
+          assert 'final View dominoPage10032=page' in game
+          assert 'page!=dominoPage10032' in game
+          assert 'nearbyResultsCurrent10032(' in discover
+          assert 'get(com.google.firebase.firestore.Source.SERVER).addOnSuccessListener(s->' in discover
+          assert 'snap.getMetadata().isFromCache()' in inbox
+          assert 'members.get(0).equals(members.get(1))' in inbox
+          assert 'versionCode 311;' in (r/'app/build.gradle').read_text()
+          print('PASS six-section v10.0.32 source regressions')
+          PY
+      - name: Existing Me Home Party policy regression tests
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/king10032tests
+          javac -d /tmp/king10032tests /tmp/king10032/app/src/main/java/com/kingplus/social/KingMeHomePartyPolicy10010.java tools/me-home-party-v10010/KingMeHomePartyPolicy10010Test.java
+          java -cp /tmp/king10032tests com.kingplus.social.KingMeHomePartyPolicy10010Test
+      - uses: actions/setup-node@v4
+        with: {node-version: '22'}
+      - name: Firestore test dependencies
+        working-directory: /tmp/king10032/tests/firestore
+        run: npm ci --no-audit --no-fund
+      - name: Two-account moderation and relationship security
+        working-directory: /tmp/king10032
+        env:
+          CI: 'true'
+        run: |
+          cp "$GITHUB_WORKSPACE/tools/me-home-party-v10011/moderation-firestore.test.mjs" tests/firestore/
+          cp "$GITHUB_WORKSPACE/tools/me-home-party-v10012/me-home-party-security.test.mjs" tests/firestore/
+          cp "$GITHUB_WORKSPACE/tools/me-home-party-v10013/role-safety.test.mjs" tests/firestore/
+          tests/firestore/node_modules/.bin/firebase emulators:exec --only firestore --project demo-king-atomic-moderation-v10011 --config firebase-emulator.json "node tests/firestore/moderation-firestore.test.mjs && node tests/firestore/me-home-party-security.test.mjs && node tests/firestore/role-safety.test.mjs"
+      - name: Combined Me/Home/Party 12 real-data security scenarios
+        working-directory: /tmp/king10032
+        env:
+          CI: 'true'
+        run: |
+          set -euo pipefail
+          cp "$GITHUB_WORKSPACE/tools/me-home-party-v10019/rtc-membership-current-rules.test.mjs" tests/firestore/rtc-membership-firestore.test.mjs
+          cp "$GITHUB_WORKSPACE/tools/me-home-party-v10020/mute-all-contract.test.mjs" tests/firestore/mute-all-contract.test.mjs
+          tests/firestore/node_modules/.bin/firebase emulators:exec --only firestore --project demo-king-10020-combined --config firebase-emulator.json "node tests/firestore/visitor-pages-firestore.test.mjs && node tests/firestore/me-gallery-live-firestore.test.mjs && node tests/firestore/moments-cross-device-firestore.test.mjs && node tests/firestore/mic-consent-firestore.test.mjs && node tests/firestore/rtc-membership-firestore.test.mjs && node tests/firestore/room-game-gift.test.mjs && node tests/firestore/host-role-private-firestore.test.mjs && node tests/firestore/party-room-vote-firestore.test.mjs && node tests/firestore/mute-all-contract.test.mjs"
+      - name: Full Android APK compile
+        working-directory: /tmp/king10032
+        run: gradle :app:assembleDebug --no-daemon --max-workers=2
+      - name: Verify package/version and signing continuity
+        run: |
+          set -euo pipefail
+          old=/tmp/king10032prev/KING-Plus-v10.0.31-Six-Pages-TEST.apk
+          new=/tmp/king10032/app/build/outputs/apk/debug/app-debug.apk
+          aapt="$(find "$ANDROID_HOME/build-tools" -name aapt -type f | sort -V | tail -1)"
+          signer="$(find "$ANDROID_HOME/build-tools" -name apksigner -type f | sort -V | tail -1)"
+          "$aapt" dump badging "$new" | grep "^package:" | grep "name='com.kingplus.social'" | grep "versionCode='311'"
+          "$signer" verify --print-certs "$old" > /tmp/kingoldcert
+          "$signer" verify --print-certs "$new" > /tmp/kingnewcert
+          a="$(grep -Eo '[[:xdigit:]]{64}' /tmp/kingoldcert | head -1)"
+          b="$(grep -Eo '[[:xdigit:]]{64}' /tmp/kingnewcert | head -1)"
+          test -n "$a" && test "$a" = "$b"
+      - name: Package APK and exact updated source
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/king10032out /tmp/king10032/tools/six-pages-v10032
+          cp tools/six-pages-v10032/* /tmp/king10032/tools/six-pages-v10032/
+          cp .github/workflows/king-six-pages-v10032-stale-state.yml /tmp/king10032/.github/workflows/
+          cp /tmp/king10032/app/build/outputs/apk/debug/app-debug.apk /tmp/king10032out/KING-Plus-v10.0.32-Six-Pages-TEST.apk
+          rm -f /tmp/king10032/app/kingplus-ci-debug.keystore
+          cd /tmp/king10032
+          zip -qr /tmp/king10032out/KING-Plus-v10.0.32-Six-Pages-TEST-Source.zip . -x '*node_modules/*' 'app/build/*' '*/build/*' '.gradle/*' '*/.gradle/*' '*.apk' '*.aab' '*.keystore' '*.jks' '*.zip' '*local.properties' '*.log'
+          sha256sum /tmp/king10032out/*
+      - uses: actions/upload-artifact@v4
+        with:
+          name: KING-v10032-Six-Pages-TEST-APK-and-Source
+          path: /tmp/king10032out/*
+          retention-days: 14
+          if-no-files-found: error
