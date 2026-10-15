@@ -1,0 +1,158 @@
+name: KING Plus v10.0.34 Integrated Six Pages TEST APK and Source
+on:
+  push:
+    branches: [work/king-v10034-integrated-six-pages]
+    paths: ['.github/workflows/king-v10034-integrated-six-pages.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 55
+    steps:
+      - uses: actions/checkout@v4
+        with: {fetch-depth: 0}
+      - uses: actions/setup-java@v4
+        with: {distribution: temurin, java-version: '17'}
+      - uses: gradle/actions/setup-gradle@v4
+        with: {gradle-version: '8.9'}
+      - name: Restore exact passing v10.0.32 signed source and patches from BOTH v10.0.33 PRs
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/king-prev /tmp/king-base /tmp/patch-live
+          gh run download 38675849757 -n KING-v10032-Six-Pages-TEST-APK-and-Source -D /tmp/king-prev
+          unzip -q /tmp/king-prev/KING-Plus-v10.0.32-Six-Pages-TEST-Source.zip -d /tmp/king-base
+          git fetch origin work/king-six-pages-v10033-live-actions
+          git show FETCH_HEAD:tools/six-pages-v10033/apply.py > /tmp/patch-live/apply.py
+          for i in 0 1 2; do git show "FETCH_HEAD:tools/six-pages-v10033/chunk${i}.txt" > "/tmp/patch-live/chunk${i}.txt"; done
+          cp -a /tmp/king-base /tmp/king-live
+          cp -a /tmp/king-base /tmp/king-rooms
+          cp -a /tmp/king-base /tmp/king-final
+          python3 /tmp/patch-live/apply.py /tmp/king-live
+          python3 tools/six-pages-v10033/apply.py /tmp/king-rooms
+      - name: Three-way merge ALL changes from both PRs, without discarding either
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import subprocess, shutil
+          base=Path('/tmp/king-base'); a=Path('/tmp/king-live'); b=Path('/tmp/king-rooms'); out=Path('/tmp/king-final')
+          paths=set()
+          for side in (a,b):
+              for f in side.rglob('*'):
+                  if not f.is_file(): continue
+                  rel=f.relative_to(side)
+                  old=base/rel
+                  if not old.exists() or f.read_bytes()!=old.read_bytes(): paths.add(rel)
+          print('Modified files:', [str(p) for p in sorted(paths)])
+          for rel in sorted(paths):
+              old=base/rel; af=a/rel; bf=b/rel; target=out/rel
+              target.parent.mkdir(parents=True,exist_ok=True)
+              if rel.as_posix()=='app/build.gradle':
+                  raw=af.read_text()
+                  assert 'versionCode 312;' in raw
+                  raw=raw.replace('versionCode 312;','versionCode 313;')
+                  raw=raw.replace('10.0.33-six-pages-live-actions-test','10.0.34-six-pages-integrated-test')
+                  assert '10.0.34-six-pages-integrated-test' in raw
+                  target.write_text(raw)
+                  continue
+              if not old.exists():
+                  if af.exists() and bf.exists() and af.read_bytes()!=bf.read_bytes():
+                      raise RuntimeError('Collision on newly added file '+str(rel))
+                  shutil.copy2(af if af.exists() else bf,target)
+                  continue
+              changed_a=af.exists() and af.read_bytes()!=old.read_bytes()
+              changed_b=bf.exists() and bf.read_bytes()!=old.read_bytes()
+              if changed_a and not changed_b: shutil.copy2(af,target); continue
+              if changed_b and not changed_a: shutil.copy2(bf,target); continue
+              if not changed_a and not changed_b: continue
+              if af.read_bytes()==bf.read_bytes(): shutil.copy2(af,target); continue
+              r=subprocess.run(['git','merge-file','-p','-L','Live Actions','-L','v10.0.32','-L','Rooms and Bingo',str(af),str(old),str(bf)],capture_output=True)
+              if r.returncode>1: raise RuntimeError('merge-file failed for '+str(rel)+': '+r.stderr.decode(errors='replace'))
+              if r.returncode==1:
+                  print('Overlapping inserts in',rel,': attempting union of both fixes')
+                  r=subprocess.run(['git','merge-file','-p','--union',str(af),str(old),str(bf)],capture_output=True)
+                  if r.returncode>1: raise RuntimeError('Cannot union '+str(rel))
+              target.write_bytes(r.stdout)
+          s=out/'app/src/main/java/com/kingplus/social'
+          files={p:(s/p).read_text() for p in ('MainActivity.java','CommunityHubActivity.java','PartyActivity.java','GamePlayActivity.java','DiscoverActivity.java','InboxActivity.java')}
+          checks={
+            'MainActivity.java':['Collections.shuffle(suggestions10033)','reload10016.isEnabled()'],
+            'CommunityHubActivity.java':['followPending10033.add(flight10033)','sending10033[0]=true','chatOwner10033'],
+            'PartyActivity.java':['partyNavigationPending10033=true','Offline/cached rooms'],
+            'GamePlayActivity.java':['Next match power resets to 45','nums[12]=0','marked[12]=true'],
+            'DiscoverActivity.java':['discoverSectionCurrent10033','whereEqualTo("closed",false).limit(24)'],
+            'InboxActivity.java':['membersValue10033 instanceof List','noticeAccountCurrent10010(me.getUid())']
+          }
+          for f,needles in checks.items():
+              for needle in needles:
+                  assert needle in files[f], 'Missing '+needle+' in '+f
+          assert 'versionCode 313;' in (out/'app/build.gradle').read_text()
+          print('PASS: integrated code from both PRs; 6 screens, 15 regression assertions.')
+          PY
+      - name: Existing Java Me Home Party policy regression tests
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/king-policy-tests
+          javac -d /tmp/king-policy-tests /tmp/king-final/app/src/main/java/com/kingplus/social/KingMeHomePartyPolicy10010.java tools/me-home-party-v10010/KingMeHomePartyPolicy10010Test.java
+          java -cp /tmp/king-policy-tests com.kingplus.social.KingMeHomePartyPolicy10010Test
+      - uses: actions/setup-node@v4
+        with: {node-version: '22'}
+      - name: Install Firestore emulator test dependencies
+        working-directory: /tmp/king-final/tests/firestore
+        run: npm ci --no-audit --no-fund
+      - name: Two-account moderation and relationship security
+        working-directory: /tmp/king-final
+        env: {CI: 'true'}
+        run: |
+          cp "$GITHUB_WORKSPACE/tools/me-home-party-v10011/moderation-firestore.test.mjs" tests/firestore/
+          cp "$GITHUB_WORKSPACE/tools/me-home-party-v10012/me-home-party-security.test.mjs" tests/firestore/
+          cp "$GITHUB_WORKSPACE/tools/me-home-party-v10013/role-safety.test.mjs" tests/firestore/
+          tests/firestore/node_modules/.bin/firebase emulators:exec --only firestore --project demo-king-atomic-moderation-v10011 --config firebase-emulator.json "node tests/firestore/moderation-firestore.test.mjs && node tests/firestore/me-home-party-security.test.mjs && node tests/firestore/role-safety.test.mjs"
+      - name: Combined Me Home Party cross-user Firebase scenarios
+        working-directory: /tmp/king-final
+        env: {CI: 'true'}
+        run: |
+          set -euo pipefail
+          cp "$GITHUB_WORKSPACE/tools/me-home-party-v10019/rtc-membership-current-rules.test.mjs" tests/firestore/rtc-membership-firestore.test.mjs
+          cp "$GITHUB_WORKSPACE/tools/me-home-party-v10020/mute-all-contract.test.mjs" tests/firestore/mute-all-contract.test.mjs
+          tests/firestore/node_modules/.bin/firebase emulators:exec --only firestore --project demo-king-10020-combined --config firebase-emulator.json "node tests/firestore/visitor-pages-firestore.test.mjs && node tests/firestore/me-gallery-live-firestore.test.mjs && node tests/firestore/moments-cross-device-firestore.test.mjs && node tests/firestore/mic-consent-firestore.test.mjs && node tests/firestore/rtc-membership-firestore.test.mjs && node tests/firestore/room-game-gift.test.mjs && node tests/firestore/host-role-private-firestore.test.mjs && node tests/firestore/party-room-vote-firestore.test.mjs && node tests/firestore/mute-all-contract.test.mjs"
+      - name: Compile full Android APK
+        working-directory: /tmp/king-final
+        run: |
+          cp "$GITHUB_WORKSPACE/app/kingplus-ci-debug.keystore" app/
+          gradle :app:assembleDebug --no-daemon --max-workers=2
+      - name: Verify version and same signing certificate as previously installable APK
+        run: |
+          set -euo pipefail
+          old=/tmp/king-prev/KING-Plus-v10.0.32-Six-Pages-TEST.apk
+          new=/tmp/king-final/app/build/outputs/apk/debug/app-debug.apk
+          aapt="$(find "$ANDROID_HOME/build-tools" -name aapt -type f | sort -V | tail -1)"
+          signer="$(find "$ANDROID_HOME/build-tools" -name apksigner -type f | sort -V | tail -1)"
+          "$aapt" dump badging "$new" | grep "^package:" | grep "name='com.kingplus.social'" | grep "versionCode='313'"
+          "$signer" verify --print-certs "$old" >/tmp/old-certs
+          "$signer" verify --print-certs "$new" >/tmp/new-certs
+          a="$(grep -Eo '[[:xdigit:]]{64}' /tmp/old-certs | head -1)"
+          b="$(grep -Eo '[[:xdigit:]]{64}' /tmp/new-certs | head -1)"
+          test -n "$a" && test "$a" = "$b"
+      - name: Package APK and exact updated source ZIP
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/king-out /tmp/king-final/tools/six-pages-v10034
+          cp -a tools/six-pages-v10033 /tmp/king-final/tools/six-pages-v10034/rooms-messages-bingo
+          cp -a /tmp/patch-live /tmp/king-final/tools/six-pages-v10034/live-actions
+          cp .github/workflows/king-v10034-integrated-six-pages.yml /tmp/king-final/.github/workflows/
+          cp /tmp/king-final/app/build/outputs/apk/debug/app-debug.apk /tmp/king-out/KING-Plus-v10.0.34-Integrated-TEST.apk
+          rm -f /tmp/king-final/app/kingplus-ci-debug.keystore
+          cd /tmp/king-final
+          zip -qr /tmp/king-out/KING-Plus-v10.0.34-Integrated-TEST-Source.zip . -x '*node_modules/*' 'app/build/*' '*/build/*' '.gradle/*' '*/.gradle/*' '*.apk' '*.aab' '*.keystore' '*.jks' '*.zip' '*local.properties' '*.log'
+          sha256sum /tmp/king-out/*
+      - uses: actions/upload-artifact@v4
+        with:
+          name: KING-v10034-Integrated-TEST-APK-and-Source
+          path: /tmp/king-out/*
+          retention-days: 14
+          if-no-files-found: error
