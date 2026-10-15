@@ -5,7 +5,7 @@ on:
     paths: ['.github/workflows/king-v10034-integrated-six-pages.yml']
   workflow_dispatch:
 permissions:
-  contents: read
+  contents: write
   actions: read
 jobs:
   build:
@@ -156,3 +156,10 @@ jobs:
           path: /tmp/king-out/*
           retention-days: 14
           if-no-files-found: error
+      - name: Publish tested APK and source ZIP as GitHub prerelease
+        if: success()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          gh release create v10.0.34-integrated-test             /tmp/king-out/KING-Plus-v10.0.34-Integrated-TEST.apk             /tmp/king-out/KING-Plus-v10.0.34-Integrated-TEST-Source.zip             --target "$GITHUB_SHA"             --title "KING Plus v10.0.34 Integrated TEST (Me Home Party Game Discover Messages)"             --notes "Integrated changes from PR #141 and PR #142 based on v10.0.32. CI-gated Android compile, signing continuity, Java and Firestore emulator tests. This is a debug-signed TEST prerelease; physical two-phone RTC, games, recharge and provider acceptance are not established."             --prerelease
