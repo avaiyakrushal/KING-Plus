@@ -51,8 +51,8 @@ jobs:
           grep -q 'LIVE_RECHARGE = false' app/src/main/java/com/kingplus/social/KingRecharge974Activity.java
           grep -q 'cashfree_recharge_active' firestore.rules
           grep -q 'verifiedUnpaidTerminal' functions/cashfree-recharge-service.js
-          grep -q 'link.link_status!==\x27ACTIVE\x27' functions/cashfree-recharge-service.js
-          grep -q 'current.get(\x27status\x27)===\x27credited\x27' functions/cashfree-recharge-service.js
+          grep -Fq "link.link_status!=='ACTIVE'" functions/cashfree-recharge-service.js
+          grep -Fq "current.get('status')==='credited'" functions/cashfree-recharge-service.js
           grep -q 'Previous recharge is still pending' functions/cashfree-recharge-service.js
           grep -q 'getCashfreeRechargeCatalog' app/src/main/java/com/kingplus/social/KingRecharge974Activity.java
           grep -q 'createCashfreeRechargeLink' functions/v3.js
