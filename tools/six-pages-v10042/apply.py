@@ -56,9 +56,9 @@ fix("RoomGameActivity.java",'.addOnSuccessListener(q->{\n                java.ut
                    ||!roundOwner10042.equals(now10042.getUid())||!gameMemberVerified992)return;
                 java.util.ArrayList<DocumentSnapshot> a=new java.util.ArrayList<>();''')
 fix("RoomGameActivity.java",'.addOnSuccessListener(serverRound->{\n                    if(!serverRound.exists()', '''.addOnSuccessListener(serverRound->{
-                    FirebaseUser now10042=FirebaseAuth.getInstance().getCurrentUser();
-                    if(isFinishing()||isDestroyed()||now10042==null
-                       ||!roundOwner10042.equals(now10042.getUid())||!gameMemberVerified992)return;
+                    FirebaseUser serverNow10042=FirebaseAuth.getInstance().getCurrentUser();
+                    if(isFinishing()||isDestroyed()||serverNow10042==null
+                       ||!roundOwner10042.equals(serverNow10042.getUid())||!gameMemberVerified992)return;
                     if(!serverRound.exists()''')
 # Discover: account-specific influence deltas and non-fabricated profile labels.
 fix("DiscoverActivity.java",'private int scoreDelta(){int prev=getSharedPreferences("discover_public",MODE_PRIVATE).getInt("last_total",0),now=gameScore+chatScore+eventScore;getSharedPreferences("discover_public",MODE_PRIVATE).edit().putInt("last_total",now).apply();return now-prev;}', '''private int scoreDelta(){
