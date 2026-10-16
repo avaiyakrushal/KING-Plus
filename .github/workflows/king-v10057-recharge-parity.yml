@@ -139,7 +139,7 @@ jobs:
           python3 - <<'PY'
           from zipfile import ZipFile
           from pathlib import Path
-          prev=Path('/tmp/king-prev/KING-Plus-v10.0.55-Recharge-Shop-Route-TEST.apk')
+          prev=Path('/tmp/king-prev/KING-Plus-v10.0.56-Recharge-Demo-TEST.apk')
           new=Path('/tmp/king-next/app/build/outputs/apk/debug/app-debug.apk')
           with ZipFile(prev) as a, ZipFile(new) as b:
               before=set(a.namelist());after=set(b.namelist())
