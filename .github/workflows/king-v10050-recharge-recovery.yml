@@ -28,7 +28,7 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p /tmp/king-prev /tmp/king-next
-          gh run download 38917821600 -n KING-v10050-Recharge-Recovery-TEST-APK-and-Source -D /tmp/king-prev
+          gh run download 38917821600 -n KING-v10049-UPI-Recharge-TEST-APK-and-Source -D /tmp/king-prev
           unzip -q /tmp/king-prev/KING-Plus-v10.0.49-UPI-Recharge-TEST-Source.zip -d /tmp/king-next
           cp app/kingplus-ci-debug.keystore /tmp/king-next/app/
           python3 - <<'PY'
