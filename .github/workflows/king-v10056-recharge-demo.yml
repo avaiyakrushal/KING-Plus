@@ -1,0 +1,164 @@
+name: KING Plus v10.0.56 Safe Recharge DEMO TEST APK
+on:
+  push:
+    branches: [work/king-v10056-safe-recharge-demo]
+    paths:
+      - 'tools/recharge-v10056/**'
+      - '.github/workflows/king-v10056-recharge-demo.yml'
+  pull_request:
+    branches: [work/king-v10055-wallet-recharge-navigation]
+    paths: ['tools/recharge-v10056/**', '.github/workflows/king-v10056-recharge-demo.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 55
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with: {distribution: temurin, java-version: '17'}
+      - uses: gradle/actions/setup-gradle@v4
+        with: {gradle-version: '8.9'}
+      - name: Restore signed v10.0.55 source and apply safe Recharge DEMO patch
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/king-prev /tmp/king-next
+          gh run download 38951068998 -n KING-v10055-Recharge-Shop-Route-TEST-APK-and-Source -D /tmp/king-prev
+          unzip -q /tmp/king-prev/KING-Plus-v10.0.55-Recharge-Shop-Route-TEST-Source.zip -d /tmp/king-next
+          cp app/kingplus-ci-debug.keystore /tmp/king-next/app/
+          python3 - <<'PY'
+          import base64,gzip,hashlib
+          from pathlib import Path
+          raw=gzip.decompress(base64.b64decode(Path('tools/recharge-v10056/patch.gz.b64').read_text().strip()))
+          assert hashlib.sha256(raw).hexdigest()=='2c5ff68f6ab33a343d30cad19707f37f01248c1b3702f28cb26975031a4a7ede'
+          Path('/tmp/king-v10056.patch').write_bytes(raw)
+          print("Verified v10.0.56 safe DEMO patch:",len(raw),"bytes")
+          PY
+          cd /tmp/king-next
+          patch --batch --fuzz=0 -p1 -i /tmp/king-v10056.patch
+
+      - name: Verify DEMO payment isolation and prior real-payment protections
+        working-directory: /tmp/king-next
+        run: |
+          set -euo pipefail
+          grep -q 'versionCode 335' app/build.gradle
+          python3 tools/recharge-v10055/check_routes.py
+          python3 tools/recharge-v10056/check_source.py
+          python3 -m json.tool firestore.indexes.json >/dev/null
+          grep -q 'LIVE_RECHARGE = false' app/src/main/java/com/kingplus/social/KingRecharge974Activity.java
+          grep -q 'cashfree_recharge_active' firestore.rules
+          grep -q 'verifiedUnpaidTerminal' functions/cashfree-recharge-service.js
+          grep -Fq "link.link_status!=='ACTIVE'" functions/cashfree-recharge-service.js
+          grep -Fq "current.get('status')==='credited'" functions/cashfree-recharge-service.js
+          grep -q 'Previous recharge is still pending' functions/cashfree-recharge-service.js
+          grep -q 'getCashfreeRechargeCatalog' app/src/main/java/com/kingplus/social/KingRecharge974Activity.java
+          grep -q 'createCashfreeRechargeLink' functions/v3.js
+          grep -q 'confirmCashfreeRecharge' functions/v3.js
+          grep -q 'KING_CASHFREE_CLIENT_SECRET' functions/v3.js
+          grep -q 'KingLiveGuard10046.progressPatch' app/src/main/java/com/kingplus/social/ChatActivity.java
+          node --check functions/cashfree-recharge-service.js
+          node --check functions/cashfree-recharge-provider.js
+          node --check functions/cashfree-recharge-config.js
+          grep -q 'getCashfreeRechargeHistory' functions/v3.js
+          grep -q 'getCashfreeRechargeHistory' app/src/main/java/com/kingplus/social/KingRecharge974Activity.java
+          grep -q 'KING_CASHFREE_ENABLED' functions/v3.js
+          grep -q 'paymentEnabled' functions/cashfree-recharge-config.js
+          node --check functions/v3.js
+          grep -q 'resumeCashfreeRecharge' functions/v3.js
+          grep -q 'resumeUpiOrder' app/src/main/java/com/kingplus/social/KingRecharge974Activity.java
+          grep -q '"indexes": "firestore.indexes.json"' firebase.json
+          grep -q 'orderBy('\''createdAt'\'','\''desc'\'')' functions/cashfree-recharge-service.js
+          node --check functions/cashfree-recharge-service.js
+          node --test functions/cashfree-recharge-service.test.js functions/cashfree-recharge-config.test.js
+          mkdir -p /tmp/v10046-java
+          javac -d /tmp/v10046-java app/src/main/java/com/kingplus/social/KingLiveGuard10046.java tools/six-pages-v10046/KingLiveGuard10046Test.java
+          java -cp /tmp/v10046-java com.kingplus.social.KingLiveGuard10046Test
+      - name: VIP purchasing validation and transaction replay tests
+        working-directory: /tmp/king-next
+        run: |
+          node --check functions/v3.js
+          node --check functions/vip-style-service.js
+          node --test functions/vip-style-policy.test.js functions/vip-style-service.test.js
+      - name: Six-page Java and release regression checks
+        working-directory: /tmp/king-next
+        run: |
+          mkdir -p /tmp/six-java-tests
+          javac -d /tmp/six-java-tests app/src/main/java/com/kingplus/social/KingDocumentId10036.java tools/six-pages-v10036/KingDocumentId10036Test.java
+          java -cp /tmp/six-java-tests com.kingplus.social.KingDocumentId10036Test
+          javac -d /tmp/six-java-tests app/src/main/java/com/kingplus/social/KingDocumentId10036.java app/src/main/java/com/kingplus/social/KingSixPages10038.java tools/six-pages-v10038/KingSixPages10038Test.java
+          java -cp /tmp/six-java-tests com.kingplus.social.KingSixPages10038Test
+          python3 tools/integrated-release/check_release.py --mode test
+      - uses: actions/setup-node@v4
+        with: {node-version: '22'}
+      - name: Install Firestore emulator dependencies
+        working-directory: /tmp/king-next/tests/firestore
+        run: npm ci --no-audit --no-fund
+      - name: VIP Firestore access rules tests
+        working-directory: /tmp/king-next
+        env: {CI: 'true'}
+        run: |
+          tests/firestore/node_modules/.bin/firebase emulators:exec --only firestore --project demo-king-vipstyle-10041 --config firebase-emulator.json "node tests/firestore/vip-style-security.test.mjs"
+      - name: Firestore Party Game and cross-device regression tests
+        working-directory: /tmp/king-next
+        env: {CI: 'true'}
+        run: |
+          tests/firestore/node_modules/.bin/firebase emulators:exec --only firestore --project demo-king-10056 --config firebase-emulator.json "node tests/firestore/room-game-gift.test.mjs && node tests/firestore/visitor-pages-firestore.test.mjs && node tests/firestore/moments-cross-device-firestore.test.mjs && node tests/firestore/moments-idempotent-v10048.test.mjs && node tests/firestore/mic-consent-firestore.test.mjs"
+      - name: Verify Cashfree wallet catalog rules reject client writes
+        working-directory: /tmp/king-next
+        run: |
+          grep -q 'cashfree_recharge_catalog' firestore.rules
+          grep -q 'cashfree_recharge_orders' firestore.rules
+          grep -q 'cashfree_recharge_receipts' firestore.rules
+      - name: Compile complete Android app
+        working-directory: /tmp/king-next
+        run: gradle :app:assembleDebug --no-daemon --max-workers=2
+      - name: Confirm v10.0.56 and same signing identity
+        run: |
+          set -euo pipefail
+          old=/tmp/king-prev/KING-Plus-v10.0.55-Recharge-Shop-Route-TEST.apk
+          new=/tmp/king-next/app/build/outputs/apk/debug/app-debug.apk
+          aapt="$(find "$ANDROID_HOME/build-tools" -name aapt -type f | sort -V | tail -1)"
+          signer="$(find "$ANDROID_HOME/build-tools" -name apksigner -type f | sort -V | tail -1)"
+          "$aapt" dump badging "$new" | grep '^package:' | grep "name='com.kingplus.social'" | grep "versionCode='335'"
+          "$signer" verify --print-certs "$old" >/tmp/king-old-cert
+          "$signer" verify --print-certs "$new" >/tmp/king-new-cert
+          a="$(grep -Eo '[[:xdigit:]]{64}' /tmp/king-old-cert | head -1)"
+          b="$(grep -Eo '[[:xdigit:]]{64}' /tmp/king-new-cert | head -1)"
+          test -n "$a" && test "$a" = "$b"
+          grep -q 'LIVE_RECHARGE = false' /tmp/king-next/app/src/main/java/com/kingplus/social/KingRecharge974Activity.java
+      - name: Compare complete APK contents and prohibit accidental bloat/shrink
+        run: |
+          python3 - <<'PY'
+          from zipfile import ZipFile
+          from pathlib import Path
+          prev=Path('/tmp/king-prev/KING-Plus-v10.0.55-Recharge-Shop-Route-TEST.apk')
+          new=Path('/tmp/king-next/app/build/outputs/apk/debug/app-debug.apk')
+          with ZipFile(prev) as a, ZipFile(new) as b:
+              before=set(a.namelist());after=set(b.namelist())
+              assert before==after, f"APK files changed: removed={sorted(before-after)[:8]}, added={sorted(after-before)[:8]}"
+              assert a.testzip() is None and b.testzip() is None
+          assert abs(new.stat().st_size-prev.stat().st_size)<1_000_000
+          print('Full APK contents and ZIP integrity verified. Difference:',new.stat().st_size-prev.stat().st_size,'bytes')
+          PY
+      - name: Package signed v10.0.56 TEST APK and exact source
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/king-out /tmp/king-next/tools/recharge-v10056
+          cp tools/recharge-v10056/patch.gz.b64 /tmp/king-next/tools/recharge-v10056/
+          cp .github/workflows/king-v10056-recharge-demo.yml /tmp/king-next/.github/workflows/
+          cp /tmp/king-next/app/build/outputs/apk/debug/app-debug.apk /tmp/king-out/KING-Plus-v10.0.56-Recharge-Demo-TEST.apk
+          rm -f /tmp/king-next/app/kingplus-ci-debug.keystore
+          cd /tmp/king-next
+          zip -qr /tmp/king-out/KING-Plus-v10.0.56-Recharge-Demo-TEST-Source.zip . -x '*node_modules/*' 'app/build/*' '*/build/*' '.gradle/*' '*/.gradle/*' '*.apk' '*.aab' '*.keystore' '*.jks' '*.zip' '*local.properties' '*.log'
+          sha256sum /tmp/king-out/*
+      - uses: actions/upload-artifact@v4
+        with:
+          name: KING-v10056-Recharge-Demo-TEST-APK-and-Source
+          path: /tmp/king-out/*
+          retention-days: 14
+          if-no-files-found: error
