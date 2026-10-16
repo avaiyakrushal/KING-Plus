@@ -58,7 +58,8 @@ jobs:
           node --check functions/cashfree-recharge-config.js
           grep -q 'getCashfreeRechargeHistory' functions/v3.js
           grep -q 'getCashfreeRechargeHistory' app/src/main/java/com/kingplus/social/KingRecharge974Activity.java
-          grep -q 'KING_CASHFREE_ENABLED' functions/cashfree-recharge-config.js
+          grep -q 'KING_CASHFREE_ENABLED' functions/v3.js
+          grep -q 'paymentEnabled' functions/cashfree-recharge-config.js
           node --check functions/v3.js
           node --test functions/cashfree-recharge-service.test.js functions/cashfree-recharge-config.test.js
           mkdir -p /tmp/v10046-java
