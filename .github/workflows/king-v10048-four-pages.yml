@@ -1,0 +1,118 @@
+name: KING Plus v10.0.48 Four-Page Live Delivery TEST APK
+on:
+  push:
+    branches: [work/king-v10048-four-pages-real-time]
+    paths:
+      - 'tools/four-pages-v10048/**'
+      - '.github/workflows/king-v10048-four-pages.yml'
+  pull_request:
+    branches: [work/king-v10047-six-pages-live-delivery]
+    paths: ['tools/four-pages-v10048/**', '.github/workflows/king-v10048-four-pages.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 55
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with: {distribution: temurin, java-version: '17'}
+      - uses: gradle/actions/setup-gradle@v4
+        with: {gradle-version: '8.9'}
+      - name: Restore exact signed v10.0.47 source and apply v10.0.48 four-page patch
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/king-prev /tmp/king-next
+          gh run download 38908941683 -n KING-v10047-Six-Pages-TEST-APK-and-Source -D /tmp/king-prev
+          unzip -q /tmp/king-prev/KING-Plus-v10.0.47-Six-Pages-TEST-Source.zip -d /tmp/king-next
+          cp app/kingplus-ci-debug.keystore /tmp/king-next/app/
+          python3 - <<'PY'
+          import base64,gzip,hashlib
+          from pathlib import Path
+          raw=gzip.decompress(base64.b64decode(Path('tools/four-pages-v10048/patch.gz.b64').read_text().strip()))
+          assert hashlib.sha256(raw).hexdigest()=='7a1de3d17ac60a5a9a011f1dbcfc650fd1fe6e6fbdba051fd815c3179c5841b1'
+          Path('/tmp/king-v10048.patch').write_bytes(raw)
+          print("Verified v10.0.48 four-page patch:",len(raw),"bytes")
+          PY
+          cd /tmp/king-next
+          patch --batch --fuzz=0 -p1 -i /tmp/king-v10048.patch
+
+      - name: Verify Me Home Discover Messages safeguards and no Game changes
+        working-directory: /tmp/king-next
+        run: |
+          set -euo pipefail
+          python3 tools/four-pages-v10048/check_source.py
+          grep -q 'versionCode 327' app/build.gradle
+          grep -q 'KingLiveGuard10046.progressPatch' app/src/main/java/com/kingplus/social/ChatActivity.java
+          mkdir -p /tmp/v10046-java
+          javac -d /tmp/v10046-java app/src/main/java/com/kingplus/social/KingLiveGuard10046.java tools/six-pages-v10046/KingLiveGuard10046Test.java
+          java -cp /tmp/v10046-java com.kingplus.social.KingLiveGuard10046Test
+      - name: VIP purchasing validation and transaction replay tests
+        working-directory: /tmp/king-next
+        run: |
+          node --check functions/v3.js
+          node --check functions/vip-style-service.js
+          node --test functions/vip-style-policy.test.js functions/vip-style-service.test.js
+      - name: Six-page Java and release regression checks
+        working-directory: /tmp/king-next
+        run: |
+          mkdir -p /tmp/six-java-tests
+          javac -d /tmp/six-java-tests app/src/main/java/com/kingplus/social/KingDocumentId10036.java tools/six-pages-v10036/KingDocumentId10036Test.java
+          java -cp /tmp/six-java-tests com.kingplus.social.KingDocumentId10036Test
+          javac -d /tmp/six-java-tests app/src/main/java/com/kingplus/social/KingDocumentId10036.java app/src/main/java/com/kingplus/social/KingSixPages10038.java tools/six-pages-v10038/KingSixPages10038Test.java
+          java -cp /tmp/six-java-tests com.kingplus.social.KingSixPages10038Test
+          python3 tools/integrated-release/check_release.py --mode test
+      - uses: actions/setup-node@v4
+        with: {node-version: '22'}
+      - name: Install Firestore emulator dependencies
+        working-directory: /tmp/king-next/tests/firestore
+        run: npm ci --no-audit --no-fund
+      - name: VIP Firestore access rules tests
+        working-directory: /tmp/king-next
+        env: {CI: 'true'}
+        run: |
+          tests/firestore/node_modules/.bin/firebase emulators:exec --only firestore --project demo-king-vipstyle-10041 --config firebase-emulator.json "node tests/firestore/vip-style-security.test.mjs"
+      - name: Firestore Party Game and cross-device regression tests
+        working-directory: /tmp/king-next
+        env: {CI: 'true'}
+        run: |
+          tests/firestore/node_modules/.bin/firebase emulators:exec --only firestore --project demo-king-10048 --config firebase-emulator.json "node tests/firestore/room-game-gift.test.mjs && node tests/firestore/visitor-pages-firestore.test.mjs && node tests/firestore/moments-cross-device-firestore.test.mjs && node tests/firestore/moments-idempotent-v10048.test.mjs && node tests/firestore/mic-consent-firestore.test.mjs"
+      - name: Compile complete Android app
+        working-directory: /tmp/king-next
+        run: gradle :app:assembleDebug --no-daemon --max-workers=2
+      - name: Confirm v10.0.48 and same signing identity
+        run: |
+          set -euo pipefail
+          old=/tmp/king-prev/KING-Plus-v10.0.47-Six-Pages-TEST.apk
+          new=/tmp/king-next/app/build/outputs/apk/debug/app-debug.apk
+          aapt="$(find "$ANDROID_HOME/build-tools" -name aapt -type f | sort -V | tail -1)"
+          signer="$(find "$ANDROID_HOME/build-tools" -name apksigner -type f | sort -V | tail -1)"
+          "$aapt" dump badging "$new" | grep '^package:' | grep "name='com.kingplus.social'" | grep "versionCode='327'"
+          "$signer" verify --print-certs "$old" >/tmp/king-old-cert
+          "$signer" verify --print-certs "$new" >/tmp/king-new-cert
+          a="$(grep -Eo '[[:xdigit:]]{64}' /tmp/king-old-cert | head -1)"
+          b="$(grep -Eo '[[:xdigit:]]{64}' /tmp/king-new-cert | head -1)"
+          test -n "$a" && test "$a" = "$b"
+          grep -q 'LIVE_RECHARGE = false' /tmp/king-next/app/src/main/java/com/kingplus/social/KingRecharge974Activity.java
+      - name: Package signed v10.0.48 TEST APK and exact source
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/king-out /tmp/king-next/tools/four-pages-v10048
+          cp tools/four-pages-v10048/patch.gz.b64 /tmp/king-next/tools/four-pages-v10048/
+          cp .github/workflows/king-v10048-four-pages.yml /tmp/king-next/.github/workflows/
+          cp /tmp/king-next/app/build/outputs/apk/debug/app-debug.apk /tmp/king-out/KING-Plus-v10.0.48-Four-Pages-TEST.apk
+          rm -f /tmp/king-next/app/kingplus-ci-debug.keystore
+          cd /tmp/king-next
+          zip -qr /tmp/king-out/KING-Plus-v10.0.48-Four-Pages-TEST-Source.zip . -x '*node_modules/*' 'app/build/*' '*/build/*' '.gradle/*' '*/.gradle/*' '*.apk' '*.aab' '*.keystore' '*.jks' '*.zip' '*local.properties' '*.log'
+          sha256sum /tmp/king-out/*
+      - uses: actions/upload-artifact@v4
+        with:
+          name: KING-v10048-Four-Pages-TEST-APK-and-Source
+          path: /tmp/king-out/*
+          retention-days: 14
+          if-no-files-found: error
