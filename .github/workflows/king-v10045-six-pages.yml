@@ -22,13 +22,13 @@ jobs:
         with: {distribution: temurin, java-version: '17'}
       - uses: gradle/actions/setup-gradle@v4
         with: {gradle-version: '8.9'}
-      - name: Restore exact signed v10.0.43 source and verify all six-page changes
+      - name: Restore exact signed v10.0.44 source and verify all six-page changes
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
           mkdir -p /tmp/king-prev /tmp/king-next
-          gh run download 38842608587 -n KING-v10045-Six-Pages-TEST-APK-and-Source -D /tmp/king-prev
+          gh run download 38842608587 -n KING-v10044-Six-Pages-TEST-APK-and-Source -D /tmp/king-prev
           unzip -q /tmp/king-prev/KING-Plus-v10.0.44-Six-Pages-TEST-Source.zip -d /tmp/king-next
           cp app/kingplus-ci-debug.keystore /tmp/king-next/app/
           python3 - <<'PY'
@@ -41,7 +41,7 @@ jobs:
           PY
           cd /tmp/king-next
           patch --batch --fuzz=0 -p1 -i /tmp/king-v10045.patch
-          sed -i 's/versionCode 323/versionCode 324/' app/build.gradle
+          sed -i 's/versionCode 323/versionCode 324/;s/versionName '\''10.0.44'\''/versionName '\''10.0.45'\''/' app/build.gradle
 
       - name: Verify all six production-safety source changes
         working-directory: /tmp/king-next
@@ -102,7 +102,7 @@ jobs:
           b="$(grep -Eo '[[:xdigit:]]{64}' /tmp/king-new-cert | head -1)"
           test -n "$a" && test "$a" = "$b"
           grep -q 'LIVE_RECHARGE = false' /tmp/king-next/app/src/main/java/com/kingplus/social/KingRecharge974Activity.java
-      - name: Package signed v10.0.44 TEST APK and exact source
+      - name: Package signed v10.0.45 TEST APK and exact source
         run: |
           set -euo pipefail
           mkdir -p /tmp/king-out /tmp/king-next/tools/six-pages-v10045
