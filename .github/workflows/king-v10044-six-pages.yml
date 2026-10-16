@@ -28,8 +28,8 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p /tmp/king-prev /tmp/king-next
-          gh run download 38840675806 -n KING-v10044-Six-Pages-TEST-APK-and-Source -D /tmp/king-prev
-          unzip -q /tmp/king-prev/KING-Plus-v10.0.44-Six-Pages-TEST-Source.zip -d /tmp/king-next
+          gh run download 38840675806 -n KING-v10043-Six-Pages-TEST-APK-and-Source -D /tmp/king-prev
+          unzip -q /tmp/king-prev/KING-Plus-v10.0.43-Six-Pages-TEST-Source.zip -d /tmp/king-next
           cp app/kingplus-ci-debug.keystore /tmp/king-next/app/
           python3 - <<'PY'
           import base64,hashlib,lzma
@@ -91,7 +91,7 @@ jobs:
       - name: Confirm v10.0.44 and same signing identity
         run: |
           set -euo pipefail
-          old=/tmp/king-prev/KING-Plus-v10.0.44-Six-Pages-TEST.apk
+          old=/tmp/king-prev/KING-Plus-v10.0.43-Six-Pages-TEST.apk
           new=/tmp/king-next/app/build/outputs/apk/debug/app-debug.apk
           aapt="$(find "$ANDROID_HOME/build-tools" -name aapt -type f | sort -V | tail -1)"
           signer="$(find "$ANDROID_HOME/build-tools" -name apksigner -type f | sort -V | tail -1)"
