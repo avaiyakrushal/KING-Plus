@@ -47,6 +47,7 @@ jobs:
         run: |
           set -euo pipefail
           grep -q 'versionCode 335' app/build.gradle
+          sed -i 's/Version 334/Version 335/;s/versionCode 334/versionCode 335/' tools/recharge-v10055/check_routes.py
           python3 tools/recharge-v10055/check_routes.py
           python3 tools/recharge-v10056/check_source.py
           python3 -m json.tool firestore.indexes.json >/dev/null
