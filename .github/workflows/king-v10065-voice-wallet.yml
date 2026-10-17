@@ -31,7 +31,7 @@ jobs:
           import base64,gzip,hashlib
           from pathlib import Path
           raw=gzip.decompress(base64.b64decode(Path('tools/voice-wallet-v10065/changes.patch.gz.b64').read_text()))
-          assert hashlib.sha256(raw).hexdigest()=='e297e43cee3793640bc5e7172908839bdec60df3fbb1f15b296ffe80cb96d088'
+          assert hashlib.sha256(raw).hexdigest()=='d1f82e1898c517e3834b7405507cef654bbe7c28b2cfc2e2b2ac4cca3c2db4a7'
           Path('/tmp/king-v10065.patch').write_bytes(raw)
           PY
           cd /tmp/king-next
