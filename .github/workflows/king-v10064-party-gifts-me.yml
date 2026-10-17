@@ -1,0 +1,114 @@
+name: KING Plus v10.0.64 Party Gifts Me TEST
+on:
+  push:
+    branches: [work/king-v10064-party-gifts-me]
+    paths: ['tools/party-gifts-me-v10064/**', '.github/workflows/king-v10064-party-gifts-me.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with: {distribution: temurin, java-version: '17'}
+      - uses: gradle/actions/setup-gradle@v4
+        with: {gradle-version: '8.9'}
+      - uses: actions/setup-node@v4
+        with: {node-version: '22'}
+      - name: Restore exact full source and integrate supplied lifecycle plus Party Gifts Me patch
+        env: {GH_TOKEN: '${{ github.token }}'}
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/king-prev /tmp/king-next
+          gh run download 39016797671 -n KING-v10061-Four-Live-TEST-APK-and-Source -D /tmp/king-prev
+          unzip -q /tmp/king-prev/KING-Plus-v10.0.61-Four-Live-TEST-Source.zip -d /tmp/king-next
+          cp app/kingplus-ci-debug.keystore /tmp/king-next/app/
+          python3 - <<'PY'
+          import base64,gzip,hashlib
+          from pathlib import Path
+          raw=gzip.decompress(base64.b64decode(Path('tools/party-gifts-me-v10064/changes.patch.gz.b64').read_text()))
+          assert hashlib.sha256(raw).hexdigest()=='f44de43d1118e7313b3956f1c62a1f0236bc212bd84d73b214ace567af28ae06'
+          Path('/tmp/king-v10064.patch').write_bytes(raw)
+          PY
+          cd /tmp/king-next
+          patch --batch --fuzz=0 -p1 -i /tmp/king-v10064.patch
+      - name: Backend transaction regressions and XML integration
+        working-directory: /tmp/king-next
+        run: |
+          set -euo pipefail
+          python3 tools/party-gifts-me-v10064/check_source.py
+          node --check functions/v3.js
+          node --test functions/*.test.js
+          python3 tools/integrated-release/check_release.py --mode test
+      - name: Install emulator and backend dependencies
+        working-directory: /tmp/king-next
+        run: |
+          npm ci --prefix tests/firestore --no-audit --no-fund
+          npm install --prefix functions --no-audit --no-fund
+      - name: Real Firestore paid gift transactions, mic seats, host and join leave regressions
+        working-directory: /tmp/king-next
+        env: {CI: 'true'}
+        run: |
+          tests/firestore/node_modules/.bin/firebase emulators:exec --only firestore --project demo-king-10064 --config firebase-emulator.json "node tests/firestore/paid-room-gifts-v10064.test.mjs && node tests/firestore/room-game-gift.test.mjs && node tests/firestore/mic-consent-firestore.test.mjs && node tests/firestore/room_exit_firestore.test.mjs && node tests/firestore/visitor-pages-firestore.test.mjs"
+      - name: Compile full Android app
+        working-directory: /tmp/king-next
+        run: gradle :app:assembleDebug --no-daemon --max-workers=2
+      - name: Validate version and same signing certificate
+        run: |
+          set -euo pipefail
+          old=/tmp/king-prev/KING-Plus-v10.0.61-Four-Live-TEST.apk
+          new=/tmp/king-next/app/build/outputs/apk/debug/app-debug.apk
+          aapt="$(find "$ANDROID_HOME/build-tools" -name aapt -type f | sort -V | tail -1)"
+          signer="$(find "$ANDROID_HOME/build-tools" -name apksigner -type f | sort -V | tail -1)"
+          "$aapt" dump badging "$new" | grep '^package:' | grep "versionCode='343'" | grep "com.kingplus.social"
+          "$signer" verify --print-certs "$old" >/tmp/king-old-cert
+          "$signer" verify --print-certs "$new" >/tmp/king-new-cert
+          a="$(grep -Eo '[[:xdigit:]]{64}' /tmp/king-old-cert | head -1)"
+          b="$(grep -Eo '[[:xdigit:]]{64}' /tmp/king-new-cert | head -1)"
+          test -n "$a" && test "$a" = "$b"
+      - name: Package exact source and signed TEST APK
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/king-out
+          cp /tmp/king-next/app/build/outputs/apk/debug/app-debug.apk /tmp/king-out/KING-Plus-v10.0.64-Party-Gifts-Me-TEST.apk
+          rm -f /tmp/king-next/app/kingplus-ci-debug.keystore
+          cd /tmp/king-next
+          zip -qr /tmp/king-out/KING-Plus-v10.0.64-Party-Gifts-Me-TEST-Source.zip . -x '*node_modules/*' 'app/build/*' '*/build/*' '.gradle/*' '*/.gradle/*' '*.apk' '*.aab' '*.keystore' '*.jks' '*.zip' '*local.properties' '*.log'
+          sha256sum /tmp/king-out/*
+      - uses: actions/upload-artifact@v4
+        with:
+          name: KING-v10064-Party-Gifts-Me-TEST-APK-and-Source
+          path: /tmp/king-out/*
+          retention-days: 30
+  deploy-gifts:
+    needs: build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/download-artifact@v4
+        with: {name: KING-v10064-Party-Gifts-Me-TEST-APK-and-Source, path: /tmp/king-build}
+      - uses: actions/setup-node@v4
+        with: {node-version: '22'}
+      - name: Restore tested source
+        run: |
+          mkdir -p /tmp/king-deploy
+          unzip -q /tmp/king-build/KING-Plus-v10.0.64-Party-Gifts-Me-TEST-Source.zip -d /tmp/king-deploy
+          npm install --prefix /tmp/king-deploy/functions --no-audit --no-fund
+          npm install --global firebase-tools@14.12.0 --no-audit --no-fund
+      - name: Deploy only gift functions, receipt rules and history indexes
+        working-directory: /tmp/king-deploy
+        env:
+          FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_JSON }}
+        run: |
+          set -euo pipefail
+          test -n "$FIREBASE_SERVICE_ACCOUNT_JSON" || { echo 'Backend deployment blocked: Firebase service account secret unavailable'; exit 1; }
+          credential="$RUNNER_TEMP/king-gift-deploy.json"
+          trap 'rm -f "$credential"' EXIT
+          umask 077
+          printf '%s' "$FIREBASE_SERVICE_ACCOUNT_JSON" > "$credential"
+          export GOOGLE_APPLICATION_CREDENTIALS="$credential"
+          firebase deploy --project king-plus-2f365 --only functions:sendGift,functions:sendRoomGift,firestore:rules,firestore:indexes --non-interactive
