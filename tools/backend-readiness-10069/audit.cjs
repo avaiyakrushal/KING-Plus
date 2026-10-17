@@ -8,7 +8,7 @@ const {GoogleAuth}=require('google-auth-library');
 const PROJECT='king-plus-2f365';
 const output=process.env.KING_AUDIT_OUTPUT||'/tmp/king-backend-audit';
 const report={project:PROJECT,checkedAt:new Date().toISOString(),readOnly:true,checks:{}};
-function failure(e){return {status:'blocked',code:String(e.code||e.status||'unknown').slice(0,80),httpStatus:e.response?.status||null};}
+function failure(e){return {status:'blocked',code:String(e.code||e.status||'unknown').slice(0,80),httpStatus:e.response?.status||null,reason:String(e.response?.data?.error?.message||e.message||'').replace(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi,'[account]').slice(0,300)};}
 async function check(key,task){try{report.checks[key]={status:'read',...await task()};}catch(e){report.checks[key]=failure(e);}console.log(key,JSON.stringify(report.checks[key]));}
 (async()=>{
  fs.mkdirSync(output,{recursive:true});
@@ -29,9 +29,13 @@ async function check(key,task){try{report.checks[key]={status:'read',...await ta
   fs.writeFileSync(path.join(output,'production-storage-rules.json'),JSON.stringify({name:rules.name,source:rules.source},null,2));
   return {ruleset:rules.name,files:rules.source.map(f=>({name:f.name,sha256:crypto.createHash('sha256').update(f.content).digest('hex')}))};
  });
- await check('firestoreIndexes',async()=>{
-  const r=await get(`https://firestore.googleapis.com/v1/projects/${PROJECT}/databases/(default)/collectionGroups/-/indexes?pageSize=100`);
-  return {indexes:(r.indexes||[]).map(i=>({collectionGroup:i.name.split('/')[7],state:i.state,queryScope:i.queryScope,fields:i.fields})),hasMore:!!r.nextPageToken};
+ for(const group of ['wallet_ledger','cashfree_recharge_orders'])await check('indexes:'+group,async()=>{
+  const r=await get(`https://firestore.googleapis.com/v1/projects/${PROJECT}/databases/(default)/collectionGroups/${group}/indexes?pageSize=100`);
+  return {indexes:(r.indexes||[]).map(i=>({collectionGroup:group,state:i.state,queryScope:i.queryScope,fields:i.fields})),hasMore:!!r.nextPageToken};
+ });
+ await check('storageBucket',async()=>{
+  const r=await get('https://storage.googleapis.com/storage/v1/b/king-plus-2f365.firebasestorage.app?fields=name,location');
+  return {exists:!!r.name,location:r.location};
  });
  await check('functions',async()=>{
   const result=await get(`https://cloudfunctions.googleapis.com/v2/projects/${PROJECT}/locations/-/functions`);
