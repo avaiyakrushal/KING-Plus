@@ -36,3 +36,9 @@ activation, provider credentials/hosting, original animated assets and broad two
 acceptance remain outstanding. Cloudflare stays OFF; the user's dashboard required a
 payment method and no strict zero-cost spending cap is verified. No paid service or
 production deployment was enabled by this change.
+
+The emulator found that existing rules denied all profile edits for server-granted VIP
+accounts. Updated rules preserve vipLevel, vipPoints and nobleLevel exactly on update,
+while create still permits only zero entitlements. Neither escalation nor downgrade is
+allowed. Deploying these rules is required for this correction to affect production;
+only the emulator has been verified here.
