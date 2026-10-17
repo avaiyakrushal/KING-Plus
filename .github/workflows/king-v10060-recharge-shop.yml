@@ -35,7 +35,7 @@ jobs:
           import base64,gzip,hashlib
           from pathlib import Path
           raw=gzip.decompress(base64.b64decode(Path('tools/recharge-v10060/patch.gz.b64').read_text().strip()))
-          assert hashlib.sha256(raw).hexdigest()=='c00b569dc7166741031aa94a2ead9ff1b22054ca0ebfdd9539e0b2ecc06fb542'
+          assert hashlib.sha256(raw).hexdigest()=='42344b7edebfcf8011524b9042abab1fb1521c7a55ddc5ef13c5d5b06f594437'
           Path('/tmp/king-v10060.patch').write_bytes(raw)
           print("Verified v10.0.60 demo receipts patch:",len(raw),"bytes")
           PY
