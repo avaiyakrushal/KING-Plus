@@ -34,8 +34,8 @@ jobs:
           python3 - <<'PY'
           import base64,gzip,hashlib
           from pathlib import Path
-          raw=gzip.decompress(base64.b64decode(Path('tools/four-live-v10061/patch.gz.b64').read_text().strip()))
-          assert hashlib.sha256(raw).hexdigest()=='6d18747985c64368b7ce544d4862518fb9add8f431a1854bddc2041d0c253933'
+          raw=gzip.decompress(base64.b64decode(Path('tools/four-live-v10061/patch-fixed.gz.b64').read_text().strip()))
+          assert hashlib.sha256(raw).hexdigest()=='7e353b7832e50b50c5b070a2664ba8befc822cc7b98c9d9f5faef2a346c40645'
           Path('/tmp/king-v10061.patch').write_bytes(raw)
           print("Verified v10.0.61 four-live patch:",len(raw),"bytes")
           PY
@@ -130,7 +130,7 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p /tmp/king-out /tmp/king-next/tools/four-live-v10061
-          cp tools/four-live-v10061/patch.gz.b64 /tmp/king-next/tools/four-live-v10061/
+          cp tools/four-live-v10061/patch-fixed.gz.b64 /tmp/king-next/tools/four-live-v10061/
           cp .github/workflows/king-v10061-four-live.yml /tmp/king-next/.github/workflows/
           cp /tmp/king-next/app/build/outputs/apk/debug/app-debug.apk /tmp/king-out/KING-Plus-v10.0.61-Four-Live-TEST.apk
           rm -f /tmp/king-next/app/kingplus-ci-debug.keystore
