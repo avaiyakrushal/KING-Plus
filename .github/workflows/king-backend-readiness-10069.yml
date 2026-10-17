@@ -1,0 +1,29 @@
+name: KING production backend read-only readiness
+on:
+  pull_request:
+    paths: ['tools/backend-readiness-10069/**', '.github/workflows/king-backend-readiness-10069.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  audit:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: {node-version: '22'}
+      - name: Install read-only audit dependencies
+        run: npm install --prefix /tmp/king-audit-deps --no-audit --no-fund firebase-admin@13 google-auth-library@9
+      - name: Inspect deployed rules, functions and service status without mutations
+        env:
+          FIREBASE_SERVICE_ACCOUNT_JSON: '${{ secrets.FIREBASE_SERVICE_ACCOUNT_JSON }}'
+          NODE_PATH: /tmp/king-audit-deps/node_modules
+          KING_AUDIT_OUTPUT: /tmp/king-backend-audit
+        run: node tools/backend-readiness-10069/audit.cjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: KING-production-readiness-10069
+          path: /tmp/king-backend-audit/*
+          retention-days: 7
