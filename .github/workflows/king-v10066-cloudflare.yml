@@ -30,7 +30,7 @@ jobs:
           import base64,gzip,hashlib
           from pathlib import Path
           raw=gzip.decompress(base64.b64decode(Path('tools/cloudflare-v10066/changes.patch.gz.b64').read_text()))
-          assert hashlib.sha256(raw).hexdigest()=='e64e198a15d58f04871e9f5180698c00ef05b9e61caa9295214652fcd4748130'
+          assert hashlib.sha256(raw).hexdigest()=='751944150abdd58374c3db211a5d3847c033bd8a173d30de0ffb568f805bdaed'
           Path('/tmp/king-v10066.patch').write_bytes(raw)
           PY
           cd /tmp/king-next
