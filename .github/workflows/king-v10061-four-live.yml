@@ -6,7 +6,7 @@ on:
       - 'tools/four-live-v10061/**'
       - '.github/workflows/king-v10061-four-live.yml'
   pull_request:
-    branches: [work/king-v10061-demo-receipts-history]
+    branches: [work/king-v10060-demo-receipts-history]
     paths: ['tools/four-live-v10061/**', '.github/workflows/king-v10061-four-live.yml']
   workflow_dispatch:
 permissions:
