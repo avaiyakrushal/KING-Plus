@@ -24,6 +24,15 @@ async function check(key,task){try{report.checks[key]={status:'read',...await ta
   fs.writeFileSync(path.join(output,'production-firestore-rules.json'),JSON.stringify({name:rules.name,source:rules.source},null,2));
   return {ruleset:rules.name,files:rules.source.map(f=>({name:f.name,sha256:crypto.createHash('sha256').update(f.content).digest('hex')}))};
  });
+ await check('storageRules',async()=>{
+  const rules=await getSecurityRules().getStorageRuleset('king-plus-2f365.firebasestorage.app');
+  fs.writeFileSync(path.join(output,'production-storage-rules.json'),JSON.stringify({name:rules.name,source:rules.source},null,2));
+  return {ruleset:rules.name,files:rules.source.map(f=>({name:f.name,sha256:crypto.createHash('sha256').update(f.content).digest('hex')}))};
+ });
+ await check('firestoreIndexes',async()=>{
+  const r=await get(`https://firestore.googleapis.com/v1/projects/${PROJECT}/databases/(default)/collectionGroups/-/indexes?pageSize=100`);
+  return {indexes:(r.indexes||[]).map(i=>({collectionGroup:i.name.split('/')[7],state:i.state,queryScope:i.queryScope,fields:i.fields})),hasMore:!!r.nextPageToken};
+ });
  await check('functions',async()=>{
   const result=await get(`https://cloudfunctions.googleapis.com/v2/projects/${PROJECT}/locations/-/functions`);
   return {functions:(result.functions||[]).map(f=>({name:f.name.split('/').at(-1),region:f.name.split('/')[3],state:f.state,environment:f.environment})),unreachable:result.unreachable||[]};
