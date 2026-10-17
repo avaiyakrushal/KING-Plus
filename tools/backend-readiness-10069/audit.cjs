@@ -30,7 +30,7 @@ async function check(key,task){try{report.checks[key]={status:'read',...await ta
   return {ruleset:rules.name,files:rules.source.map(f=>({name:f.name,sha256:crypto.createHash('sha256').update(f.content).digest('hex')}))};
  });
  for(const group of ['wallet_ledger','cashfree_recharge_orders'])await check('indexes:'+group,async()=>{
-  const r=await get(`https://firestore.googleapis.com/v1/projects/${PROJECT}/databases/(default)/collectionGroups/${group}/indexes?pageSize=100`);
+  const r=await get(`https://firestore.googleapis.com/v1/projects/${PROJECT}/databases/(default)/collectionGroups/${group}/indexes`);
   return {indexes:(r.indexes||[]).map(i=>({collectionGroup:group,state:i.state,queryScope:i.queryScope,fields:i.fields})),hasMore:!!r.nextPageToken};
  });
  await check('storageBucket',async()=>{
