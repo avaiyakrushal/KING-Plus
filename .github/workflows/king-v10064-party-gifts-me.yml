@@ -31,7 +31,7 @@ jobs:
           import base64,gzip,hashlib
           from pathlib import Path
           raw=gzip.decompress(base64.b64decode(Path('tools/party-gifts-me-v10064/changes.patch.gz.b64').read_text()))
-          assert hashlib.sha256(raw).hexdigest()=='db67fc9d08835c1d14c3a8285d97115c62534aa0a67f29130184908c38bf78c0'
+          assert hashlib.sha256(raw).hexdigest()=='f44de43d1118e7313b3956f1c62a1f0236bc212bd84d73b214ace567af28ae06'
           Path('/tmp/king-v10064.patch').write_bytes(raw)
           PY
           cd /tmp/king-next
