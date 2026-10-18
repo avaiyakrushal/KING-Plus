@@ -589,6 +589,10 @@ public class MainActivity extends Activity {
         if(action!=null) card.setOnClickListener(v->action.run()); return a;
     }
     private void messages() {
+        if (com.google.firebase.auth.FirebaseAuth.getInstance().getCurrentUser() != null) {
+            startActivity(new Intent(this, InboxActivity.class));
+            return;
+        }
         screen="messages"; stopMic();
         LinearLayout root=new LinearLayout(this); root.setOrientation(LinearLayout.VERTICAL); root.setBackgroundColor(0xfff7f7fb);
         LinearLayout head=new LinearLayout(this);head.setGravity(Gravity.CENTER_VERTICAL);head.setPadding(dp(18),dp(12),dp(10),dp(4));TextView h=new TextView(this);h.setText("Messages");h.setTextSize(30);h.setTextColor(0xff171717);h.setTypeface(null,Typeface.BOLD);head.addView(h,new LinearLayout.LayoutParams(0,dp(60),1));TextView act=new TextView(this);act.setText("▣   ＋");act.setTextSize(24);act.setGravity(Gravity.CENTER);act.setTextColor(0xff222222);act.setOnClickListener(v->newMessageDialog());head.addView(act,new LinearLayout.LayoutParams(dp(100),dp(60)));root.addView(head);
@@ -660,6 +664,10 @@ public class MainActivity extends Activity {
     }
 
     private void peoplePage(String title){
+        if (com.google.firebase.auth.FirebaseAuth.getInstance().getCurrentUser() != null) {
+            startActivity(new Intent(this, SocialActivity.class));
+            return;
+        }
         screen="people"; base(title,"KING Plus community");
         ArrayList<String> list=new ArrayList<>();
         if(title.toLowerCase().contains("friend")){list.addAll(getPreferences(0).getStringSet("friends",new HashSet<>()));}
