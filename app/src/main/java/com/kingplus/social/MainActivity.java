@@ -78,6 +78,9 @@ public class MainActivity extends Activity {
     private boolean muteAllSeats = false;
     private String selectedHomeCategory = "Hot";
     private com.google.firebase.firestore.ListenerRegistration homeRoomsListener;
+    private com.google.firebase.firestore.ListenerRegistration notificationListener;
+    private com.google.firebase.firestore.ListenerRegistration familyListener;
+    private com.google.firebase.firestore.ListenerRegistration familyMembersListener;
 
     @Override public void onCreate(Bundle state) {
         super.onCreate(state);
@@ -122,6 +125,9 @@ public class MainActivity extends Activity {
     }
     private void base(String title, String subtitle) {
         stopMic();
+        if (notificationListener != null) { notificationListener.remove(); notificationListener = null; }
+        if (familyListener != null) { familyListener.remove(); familyListener = null; }
+        if (familyMembersListener != null) { familyMembersListener.remove(); familyMembersListener = null; }
         ScrollView scroll = new ScrollView(this); scroll.setFillViewport(true); scroll.setBackgroundColor(NAVY);
         page = new LinearLayout(this); page.setOrientation(LinearLayout.VERTICAL);
         page.setPadding(dp(22), dp(30), dp(22), dp(36)); scroll.addView(page); setContentView(scroll);
@@ -635,7 +641,10 @@ public class MainActivity extends Activity {
     }
     private void reportDialog(String who){
         String[] reasons={"Spam","Harassment","Inappropriate content","Fake account","Other"};
-        new AlertDialog.Builder(this).setTitle("Report "+who).setItems(reasons,(d,w)->{int count=getPreferences(0).getInt("reports",0)+1;getPreferences(0).edit().putInt("reports",count).apply();Toast.makeText(this,"Report saved for review",Toast.LENGTH_SHORT).show();}).setNegativeButton("Cancel",null).show();
+        new AlertDialog.Builder(this).setTitle("Report "+who).setItems(reasons,(d,w)->CloudSync.submitReport(this,who,reasons[w],(ok,message)->runOnUiThread(()->{
+            if(ok){int count=getPreferences(0).getInt("reports",0)+1;getPreferences(0).edit().putInt("reports",count).apply();}
+            Toast.makeText(this,message,Toast.LENGTH_LONG).show();
+        }))).setNegativeButton("Cancel",null).show();
     }
     private void notifications(){ notificationsCenter(); }
 
@@ -657,12 +666,25 @@ public class MainActivity extends Activity {
 
     private void walletPage(){
         screen="wallet"; base("My Wallet","KING Plus balance");
-        text("💎 "+coinBalance+" Coins",28,Color.WHITE,true); text("Available balance",14,MUTED,false);
-        text("🎁 Gifts sent: "+giftCount+"   •   Received: "+receivedGiftCount,16,Color.WHITE,false);
+        FirebaseUser signed=firebaseAuth==null?null:firebaseAuth.getCurrentUser();
+        if(signed==null){
+            text("TEST wallet • local preview only",19,Color.WHITE,true);
+            text("💎 "+coinBalance+" coins on this phone",15,MUTED,false);
+            text("This balance is not live, transferable, or server-verified.",13,MUTED,false);
+        }else{
+            final TextView state=text("Checking server wallet…",18,Color.WHITE,true);
+            com.google.firebase.firestore.FirebaseFirestore.getInstance().collection("wallets").document(signed.getUid()).get(com.google.firebase.firestore.Source.SERVER)
+                .addOnSuccessListener(doc->{if(!"wallet".equals(screen)||isFinishing()||isDestroyed())return;
+                    if(!doc.exists()){state.setText("Server wallet is not initialized. No balance is confirmed.");return;}
+                    Object coins=doc.get("coins");state.setText(coins instanceof Number?"💎 "+((Number)coins).longValue()+" server coins":"Server wallet balance is not available.");
+                    Object score=doc.get("giftScore");if(score instanceof Number)text("🎁 Received gift score: "+((Number)score).longValue(),15,Color.WHITE,false);
+                })
+                .addOnFailureListener(error->{if("wallet".equals(screen)&&!isFinishing())state.setText("Server wallet unavailable. Balance was not verified.");});
+        }
         button("Open Gift Catalog",PURPLE,this::giftCatalogPage);
         button("📜 Transaction History",CARD,this::transactionHistoryPage);
         button("📅 Daily Check-in",CARD,this::dailyCheckInPage);
-        text("Real-money recharge/payout is intentionally disabled until a verified payment backend is connected.",13,MUTED,false);
+        text("Paid recharge and payout stay disabled until verified Play Billing is configured.",13,MUTED,false);
         button("Back",CARD,this::profile);
     }
 
@@ -725,11 +747,11 @@ public class MainActivity extends Activity {
         LinearLayout hero=new LinearLayout(this); hero.setOrientation(LinearLayout.VERTICAL); hero.setGravity(Gravity.CENTER); hero.setPadding(dp(12),dp(10),dp(12),dp(10));
         String photo=getPreferences(0).getString("profile_photo",""); if(photo.isEmpty()){TextView av=new TextView(this);av.setText("👑");av.setTextSize(48);av.setGravity(Gravity.CENTER);av.setBackground(background(0xffeadfff,50));hero.addView(av,new LinearLayout.LayoutParams(dp(88),dp(88)));}else{ImageView av=new ImageView(this);av.setScaleType(ImageView.ScaleType.CENTER_CROP);try{av.setImageURI(Uri.parse(photo));}catch(Exception ignored){}hero.addView(av,new LinearLayout.LayoutParams(dp(88),dp(88)));}
         TextView nm=new TextView(this); nm.setText(displayName); nm.setTextSize(23); nm.setTextColor(0xff202020); nm.setTypeface(null,Typeface.BOLD); nm.setGravity(Gravity.CENTER); hero.addView(nm);
-        int xp=getPreferences(0).getInt("xp",120); FirebaseUser profileUser=firebaseAuth==null?null:firebaseAuth.getCurrentUser(); String profileId=profileUser==null?"TEST "+roomId(displayName):profileUser.getUid(); if(profileId.length()>12)profileId=profileId.substring(0,12); TextView id=new TextView(this); id.setText("ID: "+profileId+"   ♢ Lv."+(xp/500+1)); id.setTextSize(13); id.setTextColor(0xff777777); id.setGravity(Gravity.CENTER); hero.addView(id);
+        int xp=getPreferences(0).getInt("xp",0); FirebaseUser profileUser=firebaseAuth==null?null:firebaseAuth.getCurrentUser(); String profileId=profileUser==null?"TEST "+roomId(displayName):profileUser.getUid(); if(profileId.length()>12)profileId=profileId.substring(0,12); TextView id=new TextView(this); id.setText("ID: "+profileId+(profileUser==null?"   • TEST profile":"")); id.setTextSize(13); id.setTextColor(0xff777777); id.setGravity(Gravity.CENTER); hero.addView(id);
         TextView bio=new TextView(this); bio.setText(getPreferences(0).getString("bio","Love music, games and new friends ✨")); bio.setTextSize(13); bio.setTextColor(0xff666666); bio.setGravity(Gravity.CENTER); bio.setPadding(dp(20),dp(4),dp(20),0); hero.addView(bio); root.addView(hero,new LinearLayout.LayoutParams(-1,dp(185)));
         int following=new HashSet<>(getPreferences(0).getStringSet("following",new HashSet<>())).size(); int friends=new HashSet<>(getPreferences(0).getStringSet("friends",new HashSet<>())).size();
         LinearLayout stats=new LinearLayout(this); stats.setGravity(Gravity.CENTER);
-        String[] ss={"—\nFollowing","—\nFollowers","—\nFriends",(1200+xp)+"\nCharm"};
+        String[] ss={"Loading…\nFollowing","Loading…\nFollowers","Loading…\nFriends","—\nCharm"};
         TextView[] statViews=new TextView[4];
         for(int i=0;i<ss.length;i++){TextView x=new TextView(this);x.setText(ss[i]);x.setGravity(Gravity.CENTER);x.setTextSize(14);x.setTextColor(0xff333333);statViews[i]=x;stats.addView(x,new LinearLayout.LayoutParams(0,dp(64),1));}
         root.addView(stats);
@@ -738,23 +760,28 @@ public class MainActivity extends Activity {
             try {
                 com.google.firebase.firestore.FirebaseFirestore firestore=com.google.firebase.firestore.FirebaseFirestore.getInstance();
                 String uid=signedUser.getUid();
-                firestore.collection("follows").whereEqualTo("followerUid",uid).get().addOnSuccessListener(out->{
+                    firestore.collection("follows").whereEqualTo("followerUid",uid).get(com.google.firebase.firestore.Source.SERVER).addOnSuccessListener(out->{
                     if(!"profile".equals(screen)||isFinishing())return;
                     java.util.Set<String> outgoing=new java.util.HashSet<>();
                     for(com.google.firebase.firestore.DocumentSnapshot d:out.getDocuments()){String targetId=d.getString("targetUid");if(targetId!=null)outgoing.add(targetId);}
                     statViews[0].setText(outgoing.size()+"\nFollowing");
-                    firestore.collection("follows").whereEqualTo("targetUid",uid).get().addOnSuccessListener(in->{
+                    firestore.collection("follows").whereEqualTo("targetUid",uid).get(com.google.firebase.firestore.Source.SERVER).addOnSuccessListener(in->{
                         if(!"profile".equals(screen)||isFinishing())return;
                         int mutual=0;
                         for(com.google.firebase.firestore.DocumentSnapshot d:in.getDocuments()){String followerId=d.getString("followerUid");if(followerId!=null&&outgoing.contains(followerId))mutual++;}
                         statViews[1].setText(in.size()+"\nFollowers");
                         statViews[2].setText(mutual+"\nFriends");
-                    });
-                });
+                    }).addOnFailureListener(error->{if("profile".equals(screen)&&!isFinishing()){statViews[1].setText("—\nFollowers");statViews[2].setText("—\nFriends");}});
+                }).addOnFailureListener(error->{if("profile".equals(screen)&&!isFinishing())statViews[0].setText("—\nFollowing");});
+                firestore.collection("public_profiles").document(uid).get(com.google.firebase.firestore.Source.SERVER).addOnSuccessListener(doc->{
+                    if(!"profile".equals(screen)||isFinishing()||isDestroyed())return;
+                    Object charm=doc.get("charm");statViews[3].setText(charm instanceof Number?((Number)charm).longValue()+"\nCharm":"—\nCharm");
+                }).addOnFailureListener(error->{if("profile".equals(screen)&&!isFinishing())statViews[3].setText("—\nCharm");});
             }catch(Exception ignored){}
         }else{
             statViews[0].setText(following+"\nFollowing");
             statViews[2].setText(friends+"\nFriends");
+            statViews[3].setText("—\nCharm");
         }
         ScrollView sv=new ScrollView(this); LinearLayout list=new LinearLayout(this); list.setOrientation(LinearLayout.VERTICAL); list.setPadding(dp(14),dp(5),dp(14),dp(14)); sv.addView(list);
         String hometown=getPreferences(0).getString("hometown",""); if(!hometown.isEmpty()) cardLine(list,"📍 "+hometown,"Hometown",null);
@@ -763,42 +790,108 @@ public class MainActivity extends Activity {
     }
 
     private void rankingsPage(){
-        screen="rankings"; base("Rankings","Community leaderboard preview");
-        text("👑 Weekly Stars",20,Color.WHITE,true);
-        String[] stars={"🥇 Lily   •  28.4K charm","🥈 Alex   •  21.7K charm","🥉 Mia   •  18.9K charm","4   KING Host   •  12.6K charm","5   Music Fan   •  9.8K charm"};
-        for(String x:stars) button(x,CARD,()->Toast.makeText(this,"Profile preview opened",Toast.LENGTH_SHORT).show());
-        text("🎁 Top Gifters",20,Color.WHITE,true);
-        text("1. RoyalKing  15.2K coins     2. Moon  11.8K     3. DJ Max  9.4K",14,MUTED,false);
-        text("Rankings are demo/local until live server statistics are connected.",13,MUTED,false);
+        screen="rankings"; base("Rankings","Live leaderboard");
+        text("Live rankings are not published by the server yet. No sample users or scores are shown.",15,MUTED,false);
         button("Back to Profile",CARD,this::profile);
     }
     private void vipPage(){
-        screen="vip"; base("VIP Center","KING Plus membership preview");
-        text("💠 VIP 1",28,Color.WHITE,true);
-        text("Unlock profile badge, room entrance effect, special frame and VIP identity styling.",15,MUTED,false);
-        button("👑 VIP Badge Preview",CARD,()->Toast.makeText(this,"VIP badge preview",Toast.LENGTH_SHORT).show());
-        button("✨ Entrance Effect Preview",CARD,()->Toast.makeText(this,"Entrance effect preview",Toast.LENGTH_SHORT).show());
-        button("🖼 Profile Frame Preview",CARD,()->Toast.makeText(this,"VIP frame preview",Toast.LENGTH_SHORT).show());
-        text("No real purchase is enabled in this prototype.",13,MUTED,false);
+        screen="vip"; base("VIP Center","Verified membership status");
+        FirebaseUser signed=firebaseAuth==null?null:firebaseAuth.getCurrentUser();
+        if(signed==null) text("Sign in to check entitlements. Preview badges do not grant VIP.",15,MUTED,false);
+        else {
+            final TextView state=text("Checking verified membership…",17,Color.WHITE,true);
+            com.google.firebase.firestore.FirebaseFirestore.getInstance().collection("users").document(signed.getUid()).get(com.google.firebase.firestore.Source.SERVER)
+                .addOnSuccessListener(doc->{if(!"vip".equals(screen)||isFinishing()||isDestroyed())return;
+                    Object level=doc.get("vipLevel");Object until=doc.get("vipUntil");
+                    if(level instanceof Number&&((Number)level).intValue()>0&&until instanceof com.google.firebase.Timestamp&&((com.google.firebase.Timestamp)until).toDate().after(new java.util.Date())) state.setText("Verified VIP "+((Number)level).intValue()+" • active until "+new java.text.SimpleDateFormat("dd MMM yyyy",java.util.Locale.getDefault()).format(((com.google.firebase.Timestamp)until).toDate()));
+                    else state.setText("No active server-verified VIP entitlement.");
+                })
+                .addOnFailureListener(error->{if("vip".equals(screen)&&!isFinishing())state.setText("Membership status could not be verified online.");});
+        }
+        text("VIP purchase and benefits remain locked until verified Play Billing and server entitlements are configured.",14,MUTED,false);
         button("Back to Profile",CARD,this::profile);
     }
     private void familyAgencyPage(){
-        screen="family_agency"; base("Family & Agency","Community and host center");
-        String family=getPreferences(0).getString("family_name","Not joined"); String code=getPreferences(0).getString("family_code","");
-        text("🏠 KING Family",24,Color.WHITE,true); text("Current family: "+family,16,Color.WHITE,true); if(!code.isEmpty()) text("Family code: "+code,16,0xffffd768,true);
-        button("Create Family",PURPLE,()->{ final EditText name=new EditText(this); name.setHint("Family name"); new AlertDialog.Builder(this).setTitle("Create Family").setView(name).setNegativeButton("Cancel",null).setPositiveButton("Create",(d,w)->{String n=name.getText().toString().trim(); if(n.isEmpty()) n="KING Family"; String c=String.valueOf(100000+(int)(Math.random()*900000));getPreferences(0).edit().putString("family_name",n).putString("family_code",c).apply();Toast.makeText(this,"Family created",Toast.LENGTH_SHORT).show();familyAgencyPage();}).show();});
-        button("Join Family by Code",CARD,()->{final EditText codeInput=new EditText(this);codeInput.setHint("6-digit family code");new AlertDialog.Builder(this).setTitle("Join Family").setView(codeInput).setNegativeButton("Cancel",null).setPositiveButton("Join",(d,w)->{String c=codeInput.getText().toString().trim();if(!c.matches("[0-9]{6}")){Toast.makeText(this,"Enter a valid 6-digit code",Toast.LENGTH_SHORT).show();return;}getPreferences(0).edit().putString("family_name","Family "+c).putString("family_code",c).apply();Toast.makeText(this,"Family joined locally",Toast.LENGTH_SHORT).show();familyAgencyPage();}).show();});
-        if(!code.isEmpty()) button("Share Family Name + Code",CARD,()->shareText("Join my KING Plus family: "+family+"\nFamily code: "+code));
-        button("Family Members",CARD,()->new AlertDialog.Builder(this).setTitle("Family Members").setItems(new String[]{"👑 "+displayName+"  • Owner","🎤 Lily  • Host","💜 Alex  • Member","🎮 Mia  • Member"},null).setPositiveButton("Close",null).show());
-        text("🎙 Host Agency",20,Color.WHITE,true);
-        boolean applied=getPreferences(0).getBoolean("host_application",false); text(applied?"✅ Host application submitted":"No host application submitted",14,MUTED,false);
-        button(applied?"Application Submitted":"Host Application",CARD,()->{if(applied){Toast.makeText(this,"Application is already saved",Toast.LENGTH_SHORT).show();return;}getPreferences(0).edit().putBoolean("host_application",true).apply();Toast.makeText(this,"Application saved",Toast.LENGTH_SHORT).show();familyAgencyPage();});
-        button("Agency Dashboard",CARD,()->simplePage("Agency Dashboard","Hosts: 4\nActive rooms: 2\nLocal preview data; online agency verification requires backend connection."));
+        screen="family_agency"; base("Family & Agency","Live family membership");
+        FirebaseUser user=firebaseAuth==null?null:firebaseAuth.getCurrentUser();
+        if(user==null){text("Sign in to create or join a live family. Preview members are not shown.",15,MUTED,false);button("Sign in",PURPLE,this::login);button("Back",CARD,this::profile);return;}
+        final LinearLayout familyBox=new LinearLayout(this);familyBox.setOrientation(LinearLayout.VERTICAL);page.addView(familyBox);
+        addText(familyBox,"Checking live family membership…",15,MUTED,false);
+        com.google.firebase.firestore.FirebaseFirestore db=com.google.firebase.firestore.FirebaseFirestore.getInstance();
+        db.collection("users").document(user.getUid()).get(com.google.firebase.firestore.Source.SERVER).addOnSuccessListener(userDoc->{
+            if(!"family_agency".equals(screen)||isFinishing()||isDestroyed())return;
+            String code=userDoc.getString("familyCode");if(code==null||!code.matches("[0-9]{8}")){familyBox.removeAllViews();addText(familyBox,"No live family joined yet.",16,Color.WHITE,true);return;}
+            listenFamily(code,user.getUid(),familyBox);
+            button("Share Family Code",CARD,()->shareText("Join my KING Plus family • Code: "+code));
+            button("Leave Family",0xffb23a48,()->leaveLiveFamily(code,user.getUid()));
+        }).addOnFailureListener(error->{if("family_agency".equals(screen))addText(familyBox,"Family membership could not be checked online.",14,MUTED,false);});
+        button("Create Family",PURPLE,()->createLiveFamily(user.getUid()));
+        button("Join Family by Code",CARD,()->joinLiveFamily(user.getUid()));
+        text("Host/agency applications and rankings require server approval; no local preview is counted as submitted.",13,MUTED,false);
         button("Back to Profile",CARD,this::profile);
     }
 
+    private void listenFamily(String code,String uid,LinearLayout host){
+        com.google.firebase.firestore.FirebaseFirestore db=com.google.firebase.firestore.FirebaseFirestore.getInstance();
+        if(familyMembersListener!=null)familyMembersListener.remove();
+        db.collection("families").document(code).get(com.google.firebase.firestore.Source.SERVER).addOnSuccessListener(family->{
+            if(!"family_agency".equals(screen)||isFinishing()||isDestroyed())return;
+            if(!family.exists()){host.removeAllViews();addText(host,"Family is not available on the server.",14,MUTED,false);return;}
+            host.removeAllViews();String name=family.getString("name");addText(host,"🏠 "+(name==null?"KING Family":name),22,Color.WHITE,true);addText(host,"Family code: "+code,16,0xffffd768,true);
+            familyMembersListener=db.collection("families").document(code).collection("members").addSnapshotListener((members,memberError)->{
+                if(!"family_agency".equals(screen)||isFinishing()||isDestroyed())return;
+                if(memberError!=null||members==null){addText(host,"Family members could not be loaded.",13,MUTED,false);return;}
+                int old=host.getChildCount();if(old>2)host.removeViews(2,old-2);
+                addText(host,"Members • "+members.size(),17,Color.WHITE,true);
+                for(com.google.firebase.firestore.DocumentSnapshot member:members.getDocuments())addText(host,("owner".equals(member.getString("role"))?"👑 ":"👤 ")+member.getString("name"),14,Color.WHITE,false);
+            });
+        }).addOnFailureListener(error->{if("family_agency".equals(screen)){host.removeAllViews();addText(host,"Family could not be checked online.",14,MUTED,false);}});
+    }
+    private void leaveLiveFamily(String code,String uid){
+        new AlertDialog.Builder(this).setTitle("Leave family?").setMessage("Your live family membership will be removed.").setNegativeButton("Cancel",null).setPositiveButton("Leave",(d,w)->{
+            com.google.firebase.firestore.FirebaseFirestore db=com.google.firebase.firestore.FirebaseFirestore.getInstance();
+            com.google.firebase.firestore.DocumentReference family=db.collection("families").document(code);
+            family.get(com.google.firebase.firestore.Source.SERVER).addOnSuccessListener(doc->{if(uid.equals(doc.getString("ownerUid"))){Toast.makeText(this,"Family owner cannot leave until an owner-transfer option is added.",Toast.LENGTH_LONG).show();return;}
+            family.collection("members").document(uid).delete().continueWithTask(task->{if(!task.isSuccessful())throw task.getException();return db.collection("users").document(uid).update("familyCode",com.google.firebase.firestore.FieldValue.delete());})
+                .addOnSuccessListener(v->{Toast.makeText(this,"Left family",Toast.LENGTH_SHORT).show();familyAgencyPage();}).addOnFailureListener(e->Toast.makeText(this,"Could not leave family: "+e.getLocalizedMessage(),Toast.LENGTH_LONG).show());
+            }).addOnFailureListener(e->Toast.makeText(this,"Family owner could not be verified. Nothing was changed.",Toast.LENGTH_LONG).show());
+        }).show());
+    }
+
+    private void createLiveFamily(String uid){
+        final EditText input=new EditText(this);input.setHint("Family name");
+        new AlertDialog.Builder(this).setTitle("Create live family").setView(input).setNegativeButton("Cancel",null).setPositiveButton("Create",(d,w)->{
+            String name=input.getText().toString().trim();if(name.isEmpty())name="KING Family";if(name.length()>120){input.setError("Maximum 120 characters");return;}
+            String code=String.format(java.util.Locale.US,"%08d",java.util.concurrent.ThreadLocalRandom.current().nextInt(10000000,100000000));
+            final String familyName=name,familyCode=code;
+            com.google.firebase.firestore.FirebaseFirestore db=com.google.firebase.firestore.FirebaseFirestore.getInstance();com.google.firebase.firestore.DocumentReference ref=db.collection("families").document(code);
+            java.util.Map<String,Object> data=new java.util.HashMap<>();data.put("code",code);data.put("name",name);data.put("ownerUid",uid);data.put("createdAt",com.google.firebase.firestore.FieldValue.serverTimestamp());
+            db.runTransaction(tx->{com.google.firebase.firestore.DocumentSnapshot existing=tx.get(ref);if(existing.exists())throw new IllegalStateException("Code collision. Please try again.");tx.set(ref,data);return null;})
+                .continueWithTask(task->{if(!task.isSuccessful())throw task.getException();java.util.Map<String,Object> member=new java.util.HashMap<>();member.put("uid",uid);member.put("name",displayName);member.put("role","owner");member.put("joinedAt",com.google.firebase.firestore.FieldValue.serverTimestamp());return ref.collection("members").document(uid).set(member);})
+                .continueWithTask(task->{if(!task.isSuccessful())throw task.getException();return db.collection("users").document(uid).set(java.util.Collections.singletonMap("familyCode",familyCode),com.google.firebase.firestore.SetOptions.merge());})
+                .addOnSuccessListener(v->{getPreferences(0).edit().putString("family_name",familyName).putString("family_code",familyCode).apply();Toast.makeText(this,"Family created on the server",Toast.LENGTH_SHORT).show();familyAgencyPage();})
+                .addOnFailureListener(e->Toast.makeText(this,"Family could not be created: "+e.getLocalizedMessage(),Toast.LENGTH_LONG).show());
+        }).show();
+    }
+
+    private void joinLiveFamily(String uid){
+        final EditText input=new EditText(this);input.setHint("8-digit family code");input.setInputType(android.text.InputType.TYPE_CLASS_NUMBER);
+        new AlertDialog.Builder(this).setTitle("Join live family").setView(input).setNegativeButton("Cancel",null).setPositiveButton("Join",(d,w)->{
+            String code=input.getText().toString().trim();if(!code.matches("[0-9]{8}")){input.setError("Enter the 8-digit code");return;}
+            com.google.firebase.firestore.FirebaseFirestore db=com.google.firebase.firestore.FirebaseFirestore.getInstance();com.google.firebase.firestore.DocumentReference ref=db.collection("families").document(code);
+            ref.get(com.google.firebase.firestore.Source.SERVER).addOnSuccessListener(family->{if(!family.exists()){Toast.makeText(this,"Family code not found",Toast.LENGTH_SHORT).show();return;}java.util.Map<String,Object> member=new java.util.HashMap<>();member.put("uid",uid);member.put("name",displayName);member.put("role","member");member.put("joinedAt",com.google.firebase.firestore.FieldValue.serverTimestamp());
+                ref.collection("members").document(uid).set(member).continueWithTask(task->{if(!task.isSuccessful())throw task.getException();return db.collection("users").document(uid).set(java.util.Collections.singletonMap("familyCode",code),com.google.firebase.firestore.SetOptions.merge());})
+                    .addOnSuccessListener(v->{getPreferences(0).edit().putString("family_name",family.getString("name")).putString("family_code",code).apply();Toast.makeText(this,"Joined family on the server",Toast.LENGTH_SHORT).show();familyAgencyPage();})
+                    .addOnFailureListener(e->Toast.makeText(this,"Could not join family: "+e.getLocalizedMessage(),Toast.LENGTH_LONG).show());
+            }).addOnFailureListener(e->Toast.makeText(this,"Family could not be checked online",Toast.LENGTH_SHORT).show());
+        }).show();
+    }
+
     private void dailyCheckInPage(){
-        screen="checkin"; base("Daily Check-in","Build a streak and earn local rewards");
+        screen="checkin"; base("Daily Check-in","Daily reward status");
+        FirebaseUser signed=firebaseAuth==null?null:firebaseAuth.getCurrentUser();
+        if(signed!=null){text("Daily rewards are not connected to a trusted server claim yet. No coins were added.",15,MUTED,false);button("Back to Wallet",PURPLE,this::walletPage);return;}
+        text("TEST only • reward exists on this phone and is not transferable.",13,MUTED,false);
         SharedPreferences p=getPreferences(0); long today=System.currentTimeMillis()/86400000L; long last=p.getLong("checkin_day_long",-10); int streak=p.getInt("checkin_streak",0); boolean claimed=last==today;
         int shownStreak=claimed?streak:(last==today-1?streak+1:1); int reward=Math.min(100+Math.max(0,shownStreak-1)*20,300);
         text("🔥 Streak: "+(claimed?streak:Math.max(streak,0))+" days",20,Color.WHITE,true);
@@ -875,10 +968,41 @@ public class MainActivity extends Activity {
     private String todayKey(){return String.valueOf(System.currentTimeMillis()/86400000L);}
     private void incrementMission(String key,int amount){String k=key+"_"+todayKey();int v=getPreferences(0).getInt(k,0)+amount;getPreferences(0).edit().putInt(k,v).apply();}
     private int getMissionValue(String key){return getPreferences(0).getInt(key+"_"+todayKey(),0);}
-    private void missionButton(String key,String title,int progress,int target,int reward){boolean done=progress>=target;boolean claimed=getPreferences(0).getBoolean("claimed_"+key+"_"+todayKey(),false);String label=title+"   "+Math.min(progress,target)+"/"+target+(claimed?"   ✓ Claimed":done?"   • Claim "+reward:" ");button(label,claimed?CARD:(done?PURPLE:CARD),()->{if(!done){Toast.makeText(this,"Mission not complete yet",Toast.LENGTH_SHORT).show();return;}if(getPreferences(0).getBoolean("claimed_"+key+"_"+todayKey(),false)){Toast.makeText(this,"Already claimed",Toast.LENGTH_SHORT).show();return;}coinBalance=getPreferences(0).getInt("coins",2500)+reward;getPreferences(0).edit().putInt("coins",coinBalance).putBoolean("claimed_"+key+"_"+todayKey(),true).apply();appendTransaction("+"+reward+" coins • Mission reward");addXp(10);Toast.makeText(this,reward+" coins claimed",Toast.LENGTH_SHORT).show();missionsPage();});}
+    private void missionButton(String key,String title,int progress,int target,int reward){boolean done=progress>=target;boolean claimed=getPreferences(0).getBoolean("claimed_"+key+"_"+todayKey(),false);String label=title+"   "+Math.min(progress,target)+"/"+target+(claimed?"   ✓ Claimed":done?"   • Claim "+reward:" ");button(label,claimed?CARD:(done?PURPLE:CARD),()->{if(firebaseAuth!=null&&firebaseAuth.getCurrentUser()!=null){Toast.makeText(this,"Live mission rewards are not server-backed; no coins were added.",Toast.LENGTH_LONG).show();return;}if(!done){Toast.makeText(this,"Mission not complete yet",Toast.LENGTH_SHORT).show();return;}if(getPreferences(0).getBoolean("claimed_"+key+"_"+todayKey(),false)){Toast.makeText(this,"Already claimed",Toast.LENGTH_SHORT).show();return;}coinBalance=getPreferences(0).getInt("coins",2500)+reward;getPreferences(0).edit().putInt("coins",coinBalance).putBoolean("claimed_"+key+"_"+todayKey(),true).apply();appendTransaction("+"+reward+" coins • Mission reward");addXp(10);Toast.makeText(this,reward+" coins claimed",Toast.LENGTH_SHORT).show();missionsPage();});}
     private void addXp(int value){int xp=getPreferences(0).getInt("xp",120)+value;getPreferences(0).edit().putInt("xp",xp).apply();}
     private void appendTransaction(String line){String old=getPreferences(0).getString("transactions","");String stamp=new java.text.SimpleDateFormat("dd MMM HH:mm",java.util.Locale.getDefault()).format(new java.util.Date());String updated=stamp+" • "+line+(old.isEmpty()?"":"|||"+old);getPreferences(0).edit().putString("transactions",updated).apply();}
-    private void transactionHistoryPage(){screen="transactions";base("Transaction History","Local wallet activity");String raw=getPreferences(0).getString("transactions","");if(raw.isEmpty())text("No wallet activity yet",15,MUTED,false);else for(String x:raw.split("\\|\\|\\|"))text(x,15,Color.WHITE,false);button("Back to Wallet",PURPLE,this::walletPage);}
+    private void transactionHistoryPage(){
+        screen="transactions";base("Transaction History","Wallet activity");
+        FirebaseUser signed=firebaseAuth==null?null:firebaseAuth.getCurrentUser();
+        if(signed==null){String raw=getPreferences(0).getString("transactions","");text(raw.isEmpty()?"No TEST transactions on this phone.":"TEST history only • not a server wallet ledger.",15,MUTED,false);if(!raw.isEmpty())for(String x:raw.split("\\|\\|\\|"))text(x,14,Color.WHITE,false);}
+        else{
+            final LinearLayout rows=new LinearLayout(this);rows.setOrientation(LinearLayout.VERTICAL);page.addView(rows);
+            final TextView loading=text("Loading server ledger…",15,MUTED,false);
+            com.google.firebase.firestore.FirebaseFirestore db=com.google.firebase.firestore.FirebaseFirestore.getInstance();
+            java.util.Map<String,com.google.firebase.firestore.DocumentSnapshot> entries=new java.util.concurrent.ConcurrentHashMap<>();
+            final int[] pending={2};final boolean[] failed={false};
+            com.google.android.gms.tasks.OnSuccessListener<com.google.firebase.firestore.QuerySnapshot> success=snap->{for(com.google.firebase.firestore.DocumentSnapshot doc:snap.getDocuments())entries.put(doc.getId(),doc);if(--pending[0]==0){loading.setText("");renderLedgerRows(rows,entries,failed[0]);}};
+            com.google.android.gms.tasks.OnFailureListener failure=error->{failed[0]=true;if(--pending[0]==0){loading.setText(entries.isEmpty()?"Server history is unavailable.":"Some server history could not be loaded.");renderLedgerRows(rows,entries,true);}};
+            db.collection("wallet_ledger").whereEqualTo("senderUid",signed.getUid()).get(com.google.firebase.firestore.Source.SERVER).addOnSuccessListener(success).addOnFailureListener(failure);
+            db.collection("wallet_ledger").whereEqualTo("targetUid",signed.getUid()).get(com.google.firebase.firestore.Source.SERVER).addOnSuccessListener(success).addOnFailureListener(failure);
+        }
+        button("Back to Wallet",PURPLE,this::walletPage);
+    }
+    private void renderLedgerRows(LinearLayout host,java.util.Map<String,com.google.firebase.firestore.DocumentSnapshot> entries,boolean failed){
+        if(!"transactions".equals(screen)||isFinishing()||isDestroyed())return;host.removeAllViews();
+        if(failed)addText(host,"Some server ledger rows could not be loaded; the list may be incomplete.",13,MUTED,false);
+        if(entries.isEmpty()){addText(host,failed?"Server history is unavailable.":"No server wallet transactions yet.",15,MUTED,false);return;}
+        java.util.List<com.google.firebase.firestore.DocumentSnapshot> ordered=new java.util.ArrayList<>(entries.values());
+        java.util.Collections.sort(ordered,(a,b)->Long.compare(ledgerTime(b),ledgerTime(a)));
+        for(com.google.firebase.firestore.DocumentSnapshot doc:ordered){
+            FirebaseUser signed=firebaseAuth==null?null:firebaseAuth.getCurrentUser();String type=doc.getString("type"),gift=doc.getString("giftName"),sender=doc.getString("senderUid");Object cost=doc.get("cost");boolean sent=signed!=null&&sender!=null&&sender.equals(signed.getUid());
+            String label=(sent?"Sent":"Received")+" • "+(gift==null?(type==null?"Wallet activity":type):gift)+(cost instanceof Number?" • "+((Number)cost).longValue()+" coins":"");
+            com.google.firebase.Timestamp created=doc.getTimestamp("createdAt");if(created!=null)label+="\n"+new java.text.SimpleDateFormat("dd MMM yyyy, HH:mm",java.util.Locale.getDefault()).format(created.toDate());
+            addText(host,label,14,Color.WHITE,false);
+        }
+    }
+    private long ledgerTime(com.google.firebase.firestore.DocumentSnapshot doc){com.google.firebase.Timestamp t=doc.getTimestamp("createdAt");return t==null?0:t.toDate().getTime();}
+    private TextView addText(LinearLayout host,String value,int size,int color,boolean bold){TextView t=new TextView(this);t.setText(value);t.setTextSize(size);t.setTextColor(color);if(bold)t.setTypeface(null,Typeface.BOLD);t.setPadding(dp(3),dp(10),dp(3),dp(12));host.addView(t);return t;}
     private void toggleSetting(String key,String label,Runnable refresh){boolean def=!"privacy_friends_dm".equals(key);boolean v=!getPreferences(0).getBoolean(key,def);getPreferences(0).edit().putBoolean(key,v).apply();Toast.makeText(this,label+": "+(v?"ON":"OFF"),Toast.LENGTH_SHORT).show();refresh.run();}
     private void shareText(String value){Intent send=new Intent(Intent.ACTION_SEND);send.setType("text/plain");send.putExtra(Intent.EXTRA_TEXT,value);startActivity(Intent.createChooser(send,"Share with"));}
     private void appendNotification(String value){String old=getPreferences(0).getString("notifications_log","");getPreferences(0).edit().putString("notifications_log",value+(old.isEmpty()?"":"|||"+old)).putBoolean("notifications_read",false).apply();}
@@ -890,16 +1014,27 @@ public class MainActivity extends Activity {
     @Override public void onBackPressed() {
         if ("login".equals(screen) || "home".equals(screen)) super.onBackPressed(); else home();
     }
-    @Override protected void onResume() { super.onResume(); if ("home".equals(screen) && homeRoomsListener == null) renderHome(selectedHomeCategory); }
-    @Override protected void onPause() { super.onPause(); stopMic(); if(homeRoomsListener!=null){homeRoomsListener.remove();homeRoomsListener=null;} }
-    @Override protected void onDestroy() { stopMic(); if(homeRoomsListener!=null){homeRoomsListener.remove();homeRoomsListener=null;} super.onDestroy(); }
+    @Override protected void onResume() { super.onResume(); if ("home".equals(screen) && homeRoomsListener == null) renderHome(selectedHomeCategory); else if("notifications".equals(screen)&&notificationListener==null)notificationsCenter(); else if("family_agency".equals(screen)&&familyMembersListener==null)familyAgencyPage(); }
+    @Override protected void onPause() { super.onPause(); stopMic(); if(homeRoomsListener!=null){homeRoomsListener.remove();homeRoomsListener=null;} if(notificationListener!=null){notificationListener.remove();notificationListener=null;} if(familyListener!=null){familyListener.remove();familyListener=null;} if(familyMembersListener!=null){familyMembersListener.remove();familyMembersListener=null;} }
+    @Override protected void onDestroy() { stopMic(); if(homeRoomsListener!=null){homeRoomsListener.remove();homeRoomsListener=null;} if(notificationListener!=null){notificationListener.remove();notificationListener=null;} if(familyListener!=null){familyListener.remove();familyListener=null;} if(familyMembersListener!=null){familyMembersListener.remove();familyMembersListener=null;} super.onDestroy(); }
     private void notificationsCenter(){
-        screen="notifications"; base("Notifications","Activity from your KING Plus community");
-        String raw=getPreferences(0).getString("notifications_log","");
-        if(raw.isEmpty()) raw="No notifications yet";
-        for(String n:raw.split("\\|\\|\\|")) if(!n.trim().isEmpty()) button(n,CARD,()->Toast.makeText(this,"Opened",Toast.LENGTH_SHORT).show());
-        button("Mark all as read",PURPLE,()->{getPreferences(0).edit().putBoolean("notifications_read",true).apply();Toast.makeText(this,"All notifications marked as read",Toast.LENGTH_SHORT).show();});
-        button("Clear notifications",CARD,()->{getPreferences(0).edit().putString("notifications_log","").apply();notificationsCenter();});
+        screen="notifications"; base("Notifications","Live account activity");
+        FirebaseUser signed=firebaseAuth==null?null:firebaseAuth.getCurrentUser();
+        if(signed==null){text("Sign in to load live alerts. Notifications on this phone are TEST/local only.",14,MUTED,false);String raw=getPreferences(0).getString("notifications_log","");if(raw.isEmpty())text("No local TEST notifications.",15,MUTED,false);else for(String n:raw.split("\\|\\|\\|"))if(!n.trim().isEmpty())text(n,14,Color.WHITE,false);button("Back to Messages",CARD,this::messages);return;}
+        final LinearLayout rows=new LinearLayout(this);rows.setOrientation(LinearLayout.VERTICAL);page.addView(rows);
+        final TextView state=text("Connecting to live notifications…",14,MUTED,false);
+        notificationListener=com.google.firebase.firestore.FirebaseFirestore.getInstance().collection("notifications").document(signed.getUid()).collection("items").orderBy("createdAt",com.google.firebase.firestore.Query.Direction.DESCENDING).limit(100)
+            .addSnapshotListener((snap,error)->{
+                if(!"notifications".equals(screen)||isFinishing()||isDestroyed())return;rows.removeAllViews();
+                if(error!=null){state.setText("Live notifications unavailable. Check Firebase connection.");return;}
+                state.setText("");if(snap==null||snap.isEmpty()){state.setText("No live notifications yet.");return;}
+                for(com.google.firebase.firestore.DocumentSnapshot doc:snap.getDocuments()){
+                    boolean read=Boolean.TRUE.equals(doc.getBoolean("read"));String title=doc.getString("title"),body=doc.getString("body");
+                    String label=(read?"":"●  ")+(title==null?"KING Plus update":title)+(body==null||body.isEmpty()?"":"\n"+body);
+                    cardLine(rows,label,read?"Read":"Unread",()->doc.getReference().update("read",true).addOnFailureListener(e->Toast.makeText(this,"Could not update notification",Toast.LENGTH_SHORT).show()));
+                }
+            });
+        button("Mark all as read",PURPLE,()->com.google.firebase.firestore.FirebaseFirestore.getInstance().collection("notifications").document(signed.getUid()).collection("items").whereEqualTo("read",false).limit(100).get(com.google.firebase.firestore.Source.SERVER).addOnSuccessListener(snap->{com.google.firebase.firestore.WriteBatch batch=com.google.firebase.firestore.FirebaseFirestore.getInstance().batch();for(com.google.firebase.firestore.DocumentSnapshot doc:snap.getDocuments())batch.update(doc.getReference(),"read",true);batch.commit().addOnFailureListener(e->Toast.makeText(this,"Could not mark notifications as read",Toast.LENGTH_SHORT).show());}).addOnFailureListener(e->Toast.makeText(this,"Live notifications could not be updated",Toast.LENGTH_SHORT).show()));
         button("Back to Messages",CARD,this::messages);
     }
 

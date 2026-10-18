@@ -84,7 +84,7 @@ public final class CloudSync {
     public static void submitReport(Context context, String target, String reason, Callback callback) {
         FirebaseUser user = user();
         if (user == null) {
-            callback.onResult(false, "Report saved locally. Sign in with Firebase Google/phone to submit it to the cloud moderation queue.");
+            callback.onResult(false, "Sign in with Firebase to send this report to moderation. It was not submitted.");
             return;
         }
         Map<String,Object> report = new HashMap<>();
