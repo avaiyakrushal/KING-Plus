@@ -37,7 +37,7 @@ jobs:
               assert dependency in g, f'missing dependency: {dependency}'
           assert 'KingMessagingService' in manifest and 'POST_NOTIFICATIONS' in manifest
           assert 'collection("live_rooms")' in main and 'addSnapshotListener' in main
-assert '28+Math.abs(name.hashCode()%220)' not in main, 'legacy fake room count is not allowed'
+          assert '28+Math.abs(name.hashCode()%220)' not in main, 'legacy fake room count is not allowed'
           assert 'runTransaction(transaction' in party and 'sendQuickEmoji' in party
           assert 'collection("public_profiles")' in social and 'pendingFollowActions' in social
           assert '18,791 players' not in main and 'Lily ✨' not in social
