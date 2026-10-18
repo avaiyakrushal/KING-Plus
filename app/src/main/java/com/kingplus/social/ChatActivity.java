@@ -66,6 +66,7 @@ public class ChatActivity extends Activity {
     private EditText composer;
     private TextView status;
     private boolean cloudMode;
+    private String lastReadMessageId = "";
     private Timestamp peerReadAt;
     private MediaRecorder recorder;
     private File voiceFile;
@@ -139,7 +140,8 @@ public class ChatActivity extends Activity {
                 List<DocumentSnapshot> docs = new ArrayList<>(snap.getDocuments()); java.util.Collections.reverse(docs);
                 messages.removeAllViews();
                 for (DocumentSnapshot doc : docs) renderCloudMessage(doc);
-                markRead(); scrollDown();
+                if (!docs.isEmpty()) markRead(docs.get(docs.size()-1).getId());
+                scrollDown();
             });
     }
 
@@ -196,10 +198,12 @@ public class ChatActivity extends Activity {
             });
     }
 
-    private void markRead() {
-        if (!cloudMode) return;
+    private void markRead(String newestMessageId) {
+        if (!cloudMode || newestMessageId == null || newestMessageId.equals(lastReadMessageId)) return;
+        lastReadMessageId = newestMessageId;
         Map<String,Object> patch = new HashMap<>(); patch.put("readAt." + me.getUid(), FieldValue.serverTimestamp());
-        db.collection("direct_threads").document(chatId).update(patch);
+        db.collection("direct_threads").document(chatId).update(patch)
+            .addOnFailureListener(e -> lastReadMessageId = "");
     }
 
     private void pickPhoto() {
