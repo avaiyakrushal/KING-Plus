@@ -796,12 +796,12 @@ public class MainActivity extends Activity {
                 firestore.collection("follows").whereEqualTo("followerUid",uid).get().addOnSuccessListener(out->{
                     if(!"profile".equals(screen)||isFinishing())return;
                     java.util.Set<String> outgoing=new java.util.HashSet<>();
-                    for(com.google.firebase.firestore.DocumentSnapshot d:out.getDocuments()){String id=d.getString("targetUid");if(id!=null)outgoing.add(id);}
+                    for(com.google.firebase.firestore.DocumentSnapshot d:out.getDocuments()){String targetId=d.getString("targetUid");if(targetId!=null)outgoing.add(targetId);}
                     statViews[0].setText(outgoing.size()+"\nFollowing");
                     firestore.collection("follows").whereEqualTo("targetUid",uid).get().addOnSuccessListener(in->{
                         if(!"profile".equals(screen)||isFinishing())return;
                         int mutual=0;
-                        for(com.google.firebase.firestore.DocumentSnapshot d:in.getDocuments()){String id=d.getString("followerUid");if(id!=null&&outgoing.contains(id))mutual++;}
+                        for(com.google.firebase.firestore.DocumentSnapshot d:in.getDocuments()){String followerId=d.getString("followerUid");if(followerId!=null&&outgoing.contains(followerId))mutual++;}
                         statViews[1].setText(in.size()+"\nFollowers");
                         statViews[2].setText(mutual+"\nFriends");
                     });
