@@ -44,6 +44,7 @@ jobs:
           assert 'selectGiftRecipient' in party and 'cleanupPresence' in party
           assert 'NativeMeetBridge.launch' in party
           assert 'minSdk 26' in gradle and 'jitsi-meet-sdk:13.1.1' in gradle
+          assert "abiFilters 'arm64-v8a', 'armeabi-v7a'" in gradle
           assert 'Source.SERVER' in bridge and 'JitsiMeetActivity.launch' in bridge
           assert 'no wallet changes or rewards' in main
           assert 'collection("public_profiles")' in social and 'pendingFollowActions' in social

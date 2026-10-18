@@ -14,7 +14,15 @@ android {
         }
     }
 
-    defaultConfig { applicationId 'com.kingplus.social'; minSdk 26; targetSdk 35; versionCode 350; versionName '10.0.71' }
+    defaultConfig {
+        applicationId 'com.kingplus.social'
+        minSdk 26
+        targetSdk 35
+        versionCode 350
+        versionName '10.0.71'
+        // This deliverable targets Android phones; omit desktop x86 runtimes.
+        ndk { abiFilters 'arm64-v8a', 'armeabi-v7a' }
+    }
     buildTypes { debug { signingConfig signingConfigs.debug } }
     compileOptions { sourceCompatibility JavaVersion.VERSION_17; targetCompatibility JavaVersion.VERSION_17 }
 }
