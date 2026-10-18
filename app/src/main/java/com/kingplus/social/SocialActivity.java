@@ -104,7 +104,7 @@ public class SocialActivity extends Activity {
         setLoading("Searching…");
         db.collection("public_profiles").orderBy("searchName").startAt(q).endAt(q + "\uf8ff").limit(30).get()
             .addOnSuccessListener(s -> { if (generation == directoryRequestGeneration && !isFinishing()) renderProfiles(s.getDocuments(), "No users found"); })
-            .addOnFailureListener(e -> { setLoading("Search unavailable"); toast(safe(e.getLocalizedMessage())); });
+            .addOnFailureListener(e -> { if (generation != directoryRequestGeneration || isFinishing()) return; setLoading("Search unavailable"); toast(safe(e.getLocalizedMessage())); });
     }
 
     private void loadDiscover() {
@@ -113,7 +113,7 @@ public class SocialActivity extends Activity {
         setLoading("Loading people…");
         db.collection("public_profiles").limit(30).get()
             .addOnSuccessListener(s -> { if (generation == directoryRequestGeneration && !isFinishing()) renderProfiles(s.getDocuments(), "No public profiles yet"); })
-            .addOnFailureListener(e -> { setLoading("People directory unavailable"); toast(safe(e.getLocalizedMessage())); });
+            .addOnFailureListener(e -> { if (generation != directoryRequestGeneration || isFinishing()) return; setLoading("People directory unavailable"); toast(safe(e.getLocalizedMessage())); });
     }
 
     private void renderProfiles(List<DocumentSnapshot> docs, String empty) {
@@ -130,7 +130,7 @@ public class SocialActivity extends Activity {
             if (generation != directoryRequestGeneration || isFinishing()) return;
             list.removeAllViews(); if(s.isEmpty()){setLoading("You are not following anyone yet");return;}
             for(DocumentSnapshot d:s.getDocuments()) loadProfileCard(d.getString("targetUid"),generation);
-        }).addOnFailureListener(e->{setLoading("Could not load following");toast(safe(e.getLocalizedMessage()));});
+        }).addOnFailureListener(e->{if (generation != directoryRequestGeneration || isFinishing()) return; setLoading("Could not load following");toast(safe(e.getLocalizedMessage()));});
     }
 
     private void loadFollowers() {
@@ -140,7 +140,7 @@ public class SocialActivity extends Activity {
         db.collection("follows").whereEqualTo("targetUid",me.getUid()).get().addOnSuccessListener(s->{
             list.removeAllViews(); if(s.isEmpty()){setLoading("No followers yet");return;}
             for(DocumentSnapshot d:s.getDocuments()) loadProfileCard(d.getString("followerUid"),generation);
-        }).addOnFailureListener(e->{setLoading("Could not load followers");toast(safe(e.getLocalizedMessage()));});
+        }).addOnFailureListener(e->{if (generation != directoryRequestGeneration || isFinishing()) return; setLoading("Could not load followers");toast(safe(e.getLocalizedMessage()));});
     }
 
     private void loadFriends() {
@@ -154,8 +154,8 @@ public class SocialActivity extends Activity {
                 if (generation != directoryRequestGeneration || isFinishing()) return;
                 Set<String> friends=new HashSet<>(); for(DocumentSnapshot d:in.getDocuments()){String u=d.getString("followerUid");if(u!=null&&following.contains(u))friends.add(u);}
                 list.removeAllViews(); if(friends.isEmpty()){setLoading("Friends appear when you follow each other");return;} for(String uid:friends)loadProfileCard(uid,generation);
-            }).addOnFailureListener(e->{setLoading("Could not load friends");toast(safe(e.getLocalizedMessage()));});
-        }).addOnFailureListener(e->{setLoading("Could not load friends");toast(safe(e.getLocalizedMessage()));});
+            }).addOnFailureListener(e->{if (generation != directoryRequestGeneration || isFinishing()) return; setLoading("Could not load friends");toast(safe(e.getLocalizedMessage()));});
+        }).addOnFailureListener(e->{if (generation != directoryRequestGeneration || isFinishing()) return; setLoading("Could not load friends");toast(safe(e.getLocalizedMessage()));});
     }
 
     private void loadProfileCard(String uid, int generation) {
