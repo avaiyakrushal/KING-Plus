@@ -33,7 +33,7 @@ jobs:
           party=Path('app/src/main/java/com/kingplus/social/PartyActivity.java').read_text()
           social=Path('app/src/main/java/com/kingplus/social/SocialActivity.java').read_text()
           assert "versionCode 349" in g and "versionName '10.0.70'" in g
-          for dependency in ('firebase-firestore','firebase-functions','firebase-messaging','billing:7.1.1'):
+          for dependency in ('firebase-firestore','firebase-functions','firebase-messaging','billing:8.0.0'):
               assert dependency in g, f'missing dependency: {dependency}'
           assert 'KingMessagingService' in manifest and 'POST_NOTIFICATIONS' in manifest
           assert 'collection("live_rooms")' in main and 'addSnapshotListener' in main
