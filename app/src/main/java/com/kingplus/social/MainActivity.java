@@ -397,41 +397,12 @@ public class MainActivity extends Activity {
         })); dialog.show();
     }
     private void room(String name) {
-        boolean entering = !"room".equals(screen) || currentRoom == null || !currentRoom.equals(name);
-        screen="room"; currentRoom=name; stopMic();
-        String rk = safeKey(name);
-        roomLocked = getPreferences(0).getBoolean("room_locked_"+rk,false);
-        roomAnnouncement = getPreferences(0).getString("room_announcement_"+rk,"Welcome to KING Plus • Be friendly and have fun");
-        if (entering) { incrementMission("mission_room",1); addXp(10); }
-        LinearLayout root=new LinearLayout(this); root.setOrientation(LinearLayout.VERTICAL); root.setBackgroundColor(0xff24133f);
-        LinearLayout header=new LinearLayout(this); header.setGravity(Gravity.CENTER_VERTICAL); header.setPadding(dp(12),dp(12),dp(10),dp(4));
-        TextView back=new TextView(this); back.setText("‹"); back.setTextSize(38); back.setTextColor(Color.WHITE); back.setGravity(Gravity.CENTER); back.setOnClickListener(v->home()); header.addView(back,new LinearLayout.LayoutParams(dp(42),dp(58)));
-        LinearLayout info=new LinearLayout(this); info.setOrientation(LinearLayout.VERTICAL);
-        TextView title=new TextView(this); title.setText(name); title.setTextColor(Color.WHITE); title.setTextSize(17); title.setTypeface(null,Typeface.BOLD); info.addView(title);
-        TextView id=new TextView(this); id.setText("ID: "+roomId(name)+"   👥 "+(28+Math.abs(name.hashCode()%220))); id.setTextColor(0xffcfc4df); id.setTextSize(12); info.addView(id);
-        header.addView(info,new LinearLayout.LayoutParams(0,dp(58),1));
-        TextView menu=new TextView(this); menu.setText("⋯"); menu.setTextSize(30); menu.setTextColor(Color.WHITE); menu.setGravity(Gravity.CENTER); menu.setOnClickListener(v->roomMenu()); header.addView(menu,new LinearLayout.LayoutParams(dp(52),dp(52))); root.addView(header);
-        TextView notice=new TextView(this); notice.setText((roomLocked?"🔒  ":"📢  ")+roomAnnouncement); notice.setTextColor(0xffffd768); notice.setTextSize(12); notice.setPadding(dp(16),dp(7),dp(16),dp(10)); root.addView(notice);
-        LinearLayout seats=new LinearLayout(this); seats.setOrientation(LinearLayout.VERTICAL); seats.setPadding(dp(8),dp(2),dp(8),0);
-        for(int r=0;r<3;r++){
-            LinearLayout row=new LinearLayout(this); row.setGravity(Gravity.CENTER);
-            for(int c=0;c<4;c++){
-                int n=r*4+c+1; LinearLayout seat=new LinearLayout(this); seat.setOrientation(LinearLayout.VERTICAL); seat.setGravity(Gravity.CENTER);
-                TextView av=new TextView(this); av.setText(n==mySeat?"👑":seatAvatar(n)); av.setTextSize(n==mySeat?29:24); av.setGravity(Gravity.CENTER); av.setTextColor(Color.WHITE); av.setBackground(background(n==mySeat?0xff8b4ff4:0xff4a3768,50)); seat.addView(av,new LinearLayout.LayoutParams(dp(56),dp(56)));
-                TextView lab=new TextView(this); Set<String> muted=getPreferences(0).getStringSet("muted_seats_"+rk,new HashSet<>()); Set<String> admins=getPreferences(0).getStringSet("room_admins_"+rk,new HashSet<>()); String otherName=seatLabel(n); String seatName=(muted.contains(String.valueOf(n))?"🔇 ":"")+(admins.contains(otherName)?"🛡 ":"")+otherName; lab.setText(n==mySeat?displayName:seatName); lab.setTextColor(n==mySeat?Color.WHITE:0xffc7bbd8); lab.setTextSize(10); lab.setGravity(Gravity.CENTER); seat.addView(lab,new LinearLayout.LayoutParams(-1,dp(25)));
-                final int seatNo=n; seat.setOnClickListener(v->seatActions(seatNo)); row.addView(seat,new LinearLayout.LayoutParams(0,dp(86),1));
-            }
-            seats.addView(row,new LinearLayout.LayoutParams(-1,dp(86)));
-        }
-        root.addView(seats);
-        TextView divider=new TextView(this); divider.setText("  Room Chat"); divider.setTextColor(0xffd8cce8); divider.setTextSize(12); divider.setPadding(dp(10),dp(4),0,dp(4)); root.addView(divider);
-        ScrollView chatScroll=new ScrollView(this); LinearLayout chat=new LinearLayout(this); chat.setOrientation(LinearLayout.VERTICAL); chat.setPadding(dp(12),dp(4),dp(12),dp(4)); chatScroll.addView(chat);
-        addChat(chat,"System","Welcome to KING Plus 👋"); loadRoomChat(chat);
-        root.addView(chatScroll,new LinearLayout.LayoutParams(-1,0,1));
-        meter=new TextView(this); meter.setText(muteAllSeats?"All seats muted by host":"Mic off"); meter.setTextColor(0xffbfb1d1); meter.setTextSize(11); meter.setGravity(Gravity.CENTER); root.addView(meter,new LinearLayout.LayoutParams(-1,dp(22)));
-        LinearLayout controls=new LinearLayout(this); controls.setGravity(Gravity.CENTER); controls.setPadding(dp(7),dp(5),dp(7),dp(10)); String[] icons={"💬\nChat","🎤\nMic","🎁\nGift","🎮\nGame","🚪\nLeave"};
-        for(int i=0;i<icons.length;i++){ TextView x=new TextView(this); x.setText(icons[i]); x.setTextColor(Color.WHITE); x.setTextSize(11); x.setGravity(Gravity.CENTER); x.setBackground(background(i==2?0xff8a49ed:0xff3a2856,18)); final int k=i; x.setOnClickListener(v->{if(k==0)chatDialog(chat);else if(k==1){if(muteAllSeats){Toast.makeText(this,"Host has muted all seats",Toast.LENGTH_SHORT).show();return;}if(recording){stopMic();meter.setText("Mic off");}else requestMic();}else if(k==2)giftDialog(chat);else if(k==3)roomGames();else home();}); LinearLayout.LayoutParams xp=new LinearLayout.LayoutParams(0,dp(58),1); xp.setMargins(dp(3),0,dp(3),0); controls.addView(x,xp);}
-        root.addView(controls); setContentView(root);
+        // Route all room discovery through PartyActivity, which reads live_rooms
+        // from Firestore. The old inline screen displayed synthetic IDs, counts,
+        // occupants, and chat as if they were live.
+        Intent intent = new Intent(this, PartyActivity.class);
+        intent.putExtra("roomSearchName", name == null ? "" : name.trim());
+        startActivity(intent);
     }
 
     private void addChat(LinearLayout chat,String who,String message){ TextView t=new TextView(this); t.setText(who+":  "+message); t.setTextColor(Color.WHITE); t.setTextSize(14); t.setPadding(dp(10),dp(7),dp(10),dp(7)); chat.addView(t,new LinearLayout.LayoutParams(-1,-2)); }
