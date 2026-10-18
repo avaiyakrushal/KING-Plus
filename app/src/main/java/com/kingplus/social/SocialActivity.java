@@ -205,7 +205,7 @@ public class SocialActivity extends Activity {
             .addOnFailureListener(e->{pendingFollowActions.remove(id);toast(safe(e.getLocalizedMessage()));});
     }
 
-    private void openChat(String uid, String name) { Intent i=new Intent(this,ChatActivity.class); i.putExtra("peerUid",uid); i.putExtra("peerName",name); startActivity(i); }
+    private void openChat(String uid, String name) { if (uid == null || uid.isEmpty() || !cloudReady() || uid.equals(me.getUid())) { toast("User unavailable"); return; } Intent i=new Intent(this,ChatActivity.class); i.putExtra("peerUid",uid); i.putExtra("peerName",name); startActivity(i); }
     private void report(String uid, String name) { final EditText reason=new EditText(this); reason.setHint("Reason"); new AlertDialog.Builder(this).setTitle("Report "+name).setView(reason).setNegativeButton("Cancel",null).setPositiveButton("Submit",(d,w)->{String r=reason.getText().toString().trim();if(r.isEmpty())r="Profile safety report";CloudSync.submitReport(this,uid,r,(ok,m)->runOnUiThread(()->toast(m)));}).show(); }
 
     private void showLocalDemo() { list.removeAllViews(); addPerson("","Lily ✨","Music • Voice rooms"); addPerson("","Alex 🎮","Games • Friends"); addPerson("","Mia 💜","Community member"); }
