@@ -93,11 +93,13 @@ public class InboxActivity extends Activity {
         if (threadListener != null) { threadListener.remove(); threadListener = null; }
         final int generation = ++inboxGeneration;
         list.removeAllViews();
-        addThread("🔥", "KING Party Room", "Room chat and invitations", "");
-        addThread("👑", "KING Plus Official", "Welcome and account updates", "");
+        if (me == null || db == null) {
+            addThread("🔥", "KING Party Room", "Room chat and invitations", "");
+            addThread("👑", "KING Plus Official", "Welcome and account updates", "");
+        }
 
         Set<String> local = getSharedPreferences("chat_store", MODE_PRIVATE).getStringSet("recent_names", new HashSet<>());
-        for (String name : local) if (!"KING Party Room".equals(name) && !"KING Plus Official".equals(name)) addThread("●", name, "Tap to continue chatting", "");
+        if (me == null || db == null) for (String name : local) if (!"KING Party Room".equals(name) && !"KING Plus Official".equals(name)) addThread("●", name, "Tap to continue chatting", "");
 
         if (me == null || db == null) {
             addThread("🎵", "Lily", "See you in the music room ✨", "");
@@ -120,7 +122,9 @@ public class InboxActivity extends Activity {
         if (snap == null) return;
         list.removeAllViews();
         if (snap.isEmpty()) {
-            addThread("✉", "No live conversations yet", "Start a conversation with +", "");
+            TextView empty = label("No live conversations yet • tap + to start", 15, 0xff777186, false);
+            empty.setGravity(Gravity.CENTER);
+            list.addView(empty, new LinearLayout.LayoutParams(-1, dp(80)));
             return;
         }
         List<DocumentSnapshot> docs = new ArrayList<>(snap.getDocuments());
