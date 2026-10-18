@@ -123,41 +123,47 @@ public class SocialActivity extends Activity {
     }
 
     private void loadFollowing() {
-        ++directoryRequestGeneration;
+        final int generation = ++directoryRequestGeneration;
         if (!cloudReady()) { showLocalDemo(); return; }
         setLoading("Loading following…");
         db.collection("follows").whereEqualTo("followerUid",me.getUid()).get().addOnSuccessListener(s->{
+            if (generation != directoryRequestGeneration || isFinishing()) return;
             list.removeAllViews(); if(s.isEmpty()){setLoading("You are not following anyone yet");return;}
-            for(DocumentSnapshot d:s.getDocuments()) loadProfileCard(d.getString("targetUid"));
+            for(DocumentSnapshot d:s.getDocuments()) loadProfileCard(d.getString("targetUid"),generation);
         }).addOnFailureListener(e->{setLoading("Could not load following");toast(safe(e.getLocalizedMessage()));});
     }
 
     private void loadFollowers() {
-        ++directoryRequestGeneration;
+        final int generation = ++directoryRequestGeneration;
         if (!cloudReady()) { showLocalDemo(); return; }
         setLoading("Loading followers…");
         db.collection("follows").whereEqualTo("targetUid",me.getUid()).get().addOnSuccessListener(s->{
             list.removeAllViews(); if(s.isEmpty()){setLoading("No followers yet");return;}
-            for(DocumentSnapshot d:s.getDocuments()) loadProfileCard(d.getString("followerUid"));
+            for(DocumentSnapshot d:s.getDocuments()) loadProfileCard(d.getString("followerUid"),generation);
         }).addOnFailureListener(e->{setLoading("Could not load followers");toast(safe(e.getLocalizedMessage()));});
     }
 
     private void loadFriends() {
-        ++directoryRequestGeneration;
+        final int generation = ++directoryRequestGeneration;
         if (!cloudReady()) { showLocalDemo(); return; }
         setLoading("Loading friends…");
         db.collection("follows").whereEqualTo("followerUid",me.getUid()).get().addOnSuccessListener(out->{
+            if (generation != directoryRequestGeneration || isFinishing()) return;
             Set<String> following=new HashSet<>(); for(DocumentSnapshot d:out.getDocuments()){String u=d.getString("targetUid");if(u!=null)following.add(u);}
             db.collection("follows").whereEqualTo("targetUid",me.getUid()).get().addOnSuccessListener(in->{
+                if (generation != directoryRequestGeneration || isFinishing()) return;
                 Set<String> friends=new HashSet<>(); for(DocumentSnapshot d:in.getDocuments()){String u=d.getString("followerUid");if(u!=null&&following.contains(u))friends.add(u);}
-                list.removeAllViews(); if(friends.isEmpty()){setLoading("Friends appear when you follow each other");return;} for(String uid:friends)loadProfileCard(uid);
+                list.removeAllViews(); if(friends.isEmpty()){setLoading("Friends appear when you follow each other");return;} for(String uid:friends)loadProfileCard(uid,generation);
             }).addOnFailureListener(e->{setLoading("Could not load friends");toast(safe(e.getLocalizedMessage()));});
         }).addOnFailureListener(e->{setLoading("Could not load friends");toast(safe(e.getLocalizedMessage()));});
     }
 
-    private void loadProfileCard(String uid) {
+    private void loadProfileCard(String uid, int generation) {
         if(uid==null||uid.isEmpty())return;
-        db.collection("public_profiles").document(uid).get().addOnSuccessListener(d->{ if(d.exists())addPerson(uid,nameOf(d),clean(d.getString("bio"))); else addPerson(uid,"KING "+shortUid(uid),""); });
+        db.collection("public_profiles").document(uid).get().addOnSuccessListener(d->{
+            if (generation != directoryRequestGeneration || isFinishing()) return;
+            if(d.exists())addPerson(uid,nameOf(d),clean(d.getString("bio"))); else addPerson(uid,"KING "+shortUid(uid),"");
+        });
     }
 
     private void addPerson(String uid, String name, String bio) {
