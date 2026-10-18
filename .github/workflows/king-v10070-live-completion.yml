@@ -32,6 +32,8 @@ jobs:
           main=Path('app/src/main/java/com/kingplus/social/MainActivity.java').read_text()
           party=Path('app/src/main/java/com/kingplus/social/PartyActivity.java').read_text()
           social=Path('app/src/main/java/com/kingplus/social/SocialActivity.java').read_text()
+          gradle=Path('app/build.gradle').read_text()
+          bridge=Path('app/src/main/java/com/kingplus/social/NativeMeetBridge.java').read_text()
           assert "versionCode 350" in g and "versionName '10.0.71'" in g
           for dependency in ('firebase-firestore','firebase-functions','firebase-messaging','billing:8.0.0'):
               assert dependency in g, f'missing dependency: {dependency}'
@@ -40,6 +42,9 @@ jobs:
           assert '28+Math.abs(name.hashCode()%220)' not in main, 'legacy fake room count is not allowed'
           assert 'runTransaction(transaction' in party and 'sendQuickEmoji' in party
           assert 'selectGiftRecipient' in party and 'cleanupPresence' in party
+          assert 'NativeMeetBridge.launch' in party
+          assert 'minSdk 26' in gradle and 'jitsi-meet-sdk:13.1.1' in gradle
+          assert 'Source.SERVER' in bridge and 'JitsiMeetActivity.launch' in bridge
           assert 'no wallet changes or rewards' in main
           assert 'collection("public_profiles")' in social and 'pendingFollowActions' in social
           assert '18,791 players' not in main and 'Lily ✨' not in social
@@ -56,6 +61,10 @@ jobs:
           signer="$(find "$ANDROID_HOME/build-tools" -name apksigner -type f | sort -V | tail -1)"
           "$aapt" dump badging "$apk" | grep '^package:' | grep "name='com.kingplus.social'" | grep "versionCode='350'"
           "$signer" verify --print-certs "$apk"
+          test "$(stat -c%s "$apk")" -gt 60000000 || { echo 'APK is unexpectedly small; full Jitsi/React Native runtime is missing'; exit 1; }
+          unzip -Z1 "$apk" | grep -q '^lib/arm64-v8a/libjingle_peerconnection_so.so$' || { echo 'Jitsi WebRTC native library missing'; exit 1; }
+          unzip -Z1 "$apk" | grep -q '^lib/arm64-v8a/libreactnative.so$' || { echo 'React Native runtime missing'; exit 1; }
+          echo "Verified full RTC APK size: $(stat -c%s "$apk") bytes"
       - name: Package APK and source ZIP
         run: |
           set -euo pipefail

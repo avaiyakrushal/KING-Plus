@@ -394,7 +394,7 @@ public class PartyActivity extends Activity {
     }
     private void updateMicLabel(){if(micLabel==null)return;micLabel.setText(micOn?"🎤 Mic ON":"🎤 Mic OFF");micLabel.setBackground(bg(micOn?0xff26a269:0xff51366d,18));}
     private void toggleSound(){soundOn=!soundOn;toast(soundOn?"Room sound on":"Room sound muted");}
-    private void openVoice(){Intent i=new Intent(this,VoiceWebActivity.class);i.putExtra("roomId",roomId);i.putExtra("roomName",roomName);startActivity(i);}
+    private void openVoice(){if(!cloudRoom||user==null||roomId==null){toast("Sign in and join a live Party before opening voice");return;}NativeMeetBridge.launch(this,roomId,roomName,safeName(),false);}
 
     private void sendMessage(EditText box) {
         String text=box.getText().toString().trim();if(text.isEmpty())return;if(text.length()>500){box.setError("Maximum 500 characters");return;}
