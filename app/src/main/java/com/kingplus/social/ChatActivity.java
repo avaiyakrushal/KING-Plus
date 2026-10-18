@@ -152,8 +152,12 @@ public class ChatActivity extends Activity {
     private void sendText(String text) {
         if (isBlocked()) { Toast.makeText(this,"Unblock this user before messaging",Toast.LENGTH_SHORT).show(); return; }
         if (text.length() > 1000) { Toast.makeText(this,"Message is too long",Toast.LENGTH_SHORT).show(); return; }
-        if (cloudMode) sendCloudMessage(text, "text", ""); else saveLocal(text, "text", "", true);
-        composer.setText("");
+        if (cloudMode) {
+            sendCloudMessage(text, "text", "");
+        } else {
+            saveLocal(text, "text", "", true);
+            composer.setText("");
+        }
     }
 
     private void sendCloudMessage(String text, String type, String mediaUrl) {
@@ -181,7 +185,11 @@ public class ChatActivity extends Activity {
         batch.set(threadRef, thread, SetOptions.merge());
         batch.set(threadRef.collection("messages").document(messageId), msg);
         batch.commit()
-            .addOnSuccessListener(v -> CloudBackend.sendDirectMessageNotification(peerUid, myName, text, (ok,m)->{}))
+            .addOnSuccessListener(v -> {
+                if (type.equals("text") && composer != null && text.equals(composer.getText().toString().trim())) composer.setText("");
+                status.setText("Realtime chat");
+                CloudBackend.sendDirectMessageNotification(peerUid, myName, text, (ok,m)->{});
+            })
             .addOnFailureListener(e -> {
                 status.setText("Message not sent");
                 Toast.makeText(this, "Message failed: " + safe(e.getLocalizedMessage()), Toast.LENGTH_LONG).show();
