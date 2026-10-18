@@ -92,7 +92,7 @@ public class SocialActivity extends Activity {
         String tags = p.getString("tags", "Music, Games");
         Map<String,Object> data = new HashMap<>();
         data.put("uid", me.getUid()); data.put("displayName", clean(name)); data.put("searchName", clean(name).toLowerCase(Locale.US)); data.put("bio", clean(bio)); data.put("tags", clean(tags)); data.put("updatedAt", FieldValue.serverTimestamp());
-        db.collection("public_profiles").document(me.getUid()).set(data)
+        db.collection("public_profiles").document(me.getUid()).set(data, com.google.firebase.firestore.SetOptions.merge())
             .addOnFailureListener(e -> status.setText("Profile directory unavailable"));
     }
 
