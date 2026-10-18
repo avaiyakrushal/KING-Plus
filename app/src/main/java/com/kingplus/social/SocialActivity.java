@@ -223,7 +223,7 @@ public class SocialActivity extends Activity {
     private void openChat(String uid, String name) { if (uid == null || uid.isEmpty() || !cloudReady() || uid.equals(me.getUid())) { toast("User unavailable"); return; } Intent i=new Intent(this,ChatActivity.class); i.putExtra("peerUid",uid); i.putExtra("peerName",name); startActivity(i); }
     private void report(String uid, String name) { final EditText reason=new EditText(this); reason.setHint("Reason"); new AlertDialog.Builder(this).setTitle("Report "+name).setView(reason).setNegativeButton("Cancel",null).setPositiveButton("Submit",(d,w)->{String r=reason.getText().toString().trim();if(r.isEmpty())r="Profile safety report";CloudSync.submitReport(this,uid,r,(ok,m)->runOnUiThread(()->toast(m)));}).show(); }
 
-    private void showLocalDemo() { list.removeAllViews(); addPerson("","Lily ✨","Music • Voice rooms"); addPerson("","Alex 🎮","Games • Friends"); addPerson("","Mia 💜","Community member"); }
+    private void showLocalDemo() { list.removeAllViews(); TextView t=label("Sign in to Firebase to discover real people. Preview accounts are not shown as live users.",14,MUTED,false);t.setGravity(Gravity.CENTER);t.setPadding(dp(20),dp(12),dp(20),dp(12));list.addView(t,new LinearLayout.LayoutParams(-1,dp(88))); }
     private String followId(String a,String b){return a+"__"+b;}
     private String nameOf(DocumentSnapshot d){String n=d.getString("displayName");return n==null||n.trim().isEmpty()?"KING "+shortUid(d.getId()):n.trim();}
     private String shortUid(String uid){if(uid==null)return "User";return uid.length()>8?uid.substring(0,8):uid;}

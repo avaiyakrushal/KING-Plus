@@ -61,6 +61,7 @@ public class PartyActivity extends Activity {
 
     private LinearLayout page;
     private LinearLayout seatsBox;
+    private LinearLayout memberBox;
     private LinearLayout feedBox;
     private LinearLayout chatBox;
     private TextView viewerLabel;
@@ -87,7 +88,12 @@ public class PartyActivity extends Activity {
         displayName = getIntent().getStringExtra("displayName");
         if (displayName == null || displayName.trim().isEmpty()) displayName = safeName();
         localCoins = prefs.getInt("coins", 2500);
-        renderLobby("Hot");
+        String requestedRoom = getIntent().getStringExtra("roomId");
+        if (requestedRoom != null && !requestedRoom.trim().isEmpty() && user != null && db != null) {
+            openCloudRoom(requestedRoom, getIntent().getStringExtra("roomName"), getIntent().getStringExtra("ownerUid"), getIntent().getStringExtra("ownerName"));
+        } else {
+            renderLobby("Hot");
+        }
     }
 
     private int dp(int n) { return (int)(n * getResources().getDisplayMetrics().density + .5f); }
@@ -151,15 +157,19 @@ public class PartyActivity extends Activity {
             TextView mode = tv("FREE TEST MODE • local Party works without Firebase billing",12,0xff77717f,false); page.addView(mode);
         }
 
-        addRoomGridRow(page,
-            "💜 Sweet Girls","Priya • 358","Sweet Girls","Priya",
-            "🎵 Music & Friends","DJ Max • 212","Music & Friends","DJ Max");
-        addRoomGridRow(page,
-            "👑 KING Lounge","KING Host • 186","KING Lounge","KING Host",
-            "🎮 Game Talk","Alex • 96","Game Talk","Alex");
-        addRoomGridRow(page,
-            "💞 Make Friends","Riya • 154","Make Friends","Riya",
-            "🎤 Singing Club","Neha • 128","Singing Club","Neha");
+        if (user == null || db == null) {
+            TextView test = tv("TEST rooms • sign in to see live rooms",12,0xff77717f,false);
+            page.addView(test);
+            addRoomGridRow(page,
+                "💜 Sweet Girls","TEST room","Sweet Girls","Test Host",
+                "🎵 Music & Friends","TEST room","Music & Friends","Test Host");
+            addRoomGridRow(page,
+                "👑 KING Lounge","TEST room","KING Lounge","Test Host",
+                "🎮 Game Talk","TEST room","Game Talk","Test Host");
+            addRoomGridRow(page,
+                "💞 Make Friends","TEST room","Make Friends","Test Host",
+                "🎤 Singing Club","TEST room","Singing Club","Test Host");
+        }
         root.addView(scroll,new LinearLayout.LayoutParams(-1,0,1));
         addBottomNav(root,0); setContentView(root);
     }
@@ -186,7 +196,7 @@ public class PartyActivity extends Activity {
     private void addSmallRoomCard(LinearLayout row,String title,String sub,Runnable action) {
         LinearLayout card = new LinearLayout(this); card.setOrientation(LinearLayout.VERTICAL); card.setGravity(Gravity.BOTTOM); card.setPadding(dp(12),dp(12),dp(12),dp(10));
         card.setBackground(bg(0xffeee8f8,18));
-        TextView live = pill("● LIVE",PINK,null); live.setTextSize(10); card.addView(live,new LinearLayout.LayoutParams(dp(62),dp(28)));
+        TextView live = pill("TEST",0xff77717f,null); live.setTextSize(10); card.addView(live,new LinearLayout.LayoutParams(dp(62),dp(28)));
         TextView a = tv(title,15,0xff21172f,true); card.addView(a);
         TextView b = tv(sub,12,0xff756b7d,false); card.addView(b);
         card.setOnClickListener(v -> action.run());
@@ -208,7 +218,7 @@ public class PartyActivity extends Activity {
             .addOnFailureListener(e -> toast("Create failed: " + msg(e)));
     }
     private void openCloudRoom(String id,String name,String hostUid,String hostName) {
-        roomId=id; roomName=name; ownerUid=hostUid; ownerName=hostName; cloudRoom=true; mySeat=-1; micOn=false;
+        roomId=id; roomName=name==null||name.trim().isEmpty()?"Live Party":name; ownerUid=hostUid; ownerName=hostName==null||hostName.trim().isEmpty()?"KING Host":hostName; cloudRoom=true; mySeat=-1; micOn=false;
         registerMember(); renderParty();
     }
     private void openLocalRoom(String name,String hostName) {
@@ -247,6 +257,18 @@ public class PartyActivity extends Activity {
         addQuick(quick,"🎙\nVoice",this::openVoice); addQuick(quick,"🔊\nSound",this::toggleSound); addQuick(quick,"💬\nChat",() -> toast("Room chat is below")); addQuick(quick,"🎁\nGift",this::giftDialog); addQuick(quick,"⋯\nMore",this::roomMenu);
         page.addView(quick,new LinearLayout.LayoutParams(-1,dp(64)));
 
+        android.widget.HorizontalScrollView emojiScroll = new android.widget.HorizontalScrollView(this);
+        emojiScroll.setHorizontalScrollBarEnabled(false);
+        LinearLayout emojis = new LinearLayout(this); emojis.setGravity(Gravity.CENTER_VERTICAL);
+        emojis.setPadding(dp(4),dp(2),dp(4),dp(2));
+        for (String emoji : new String[]{"❤️","😂","🔥","👏","👑","🎉","💎","🌹"}) {
+            TextView reaction = tv(emoji,24,Color.WHITE,false); reaction.setGravity(Gravity.CENTER);
+            reaction.setContentDescription("Send live emoji " + emoji);
+            reaction.setOnClickListener(v -> sendQuickEmoji(emoji));
+            emojis.addView(reaction,new LinearLayout.LayoutParams(dp(44),dp(42)));
+        }
+        emojiScroll.addView(emojis); page.addView(emojiScroll,new LinearLayout.LayoutParams(-1,dp(44)));
+
         TextView feedTitle=tv("Room Activity",13,MUTED,true);page.addView(feedTitle); feedBox=new LinearLayout(this);feedBox.setOrientation(LinearLayout.VERTICAL);page.addView(feedBox); seedLocalFeed();
         TextView chatTitle=tv("Room Chat",13,MUTED,true);page.addView(chatTitle); chatBox=new LinearLayout(this);chatBox.setOrientation(LinearLayout.VERTICAL);page.addView(chatBox); seedLocalChat();
 
@@ -258,20 +280,35 @@ public class PartyActivity extends Activity {
         LinearLayout.LayoutParams ml=new LinearLayout.LayoutParams(-1,dp(48));ml.setMargins(0,dp(8),0,0);page.addView(micLabel,ml);
 
         if (cloudRoom) attachCloudRoom(); else {
-            viewerLabel.setText("👥 "+(120+Math.abs(roomName.hashCode()%260)));
+            viewerLabel.setText("👥 TEST");
             fillLocalSeats();
         }
     }
 
     private void addMemberStrip() {
-        LinearLayout strip = new LinearLayout(this); strip.setGravity(Gravity.CENTER_VERTICAL); strip.setPadding(0,dp(5),0,dp(5));
-        String[] names = {ownerName == null ? "Host" : ownerName,"Neha","Riya","Amit","Pooja"};
-        for (String n : names) {
-            TextView av = tv(n.substring(0,1).toUpperCase(),12,Color.WHITE,true); av.setGravity(Gravity.CENTER); av.setBackground(bg(0xff5b3a78,40));
-            LinearLayout.LayoutParams p = new LinearLayout.LayoutParams(dp(34),dp(34)); p.setMargins(0,0,dp(5),0); strip.addView(av,p);
+        memberBox = new LinearLayout(this); memberBox.setGravity(Gravity.CENTER_VERTICAL); memberBox.setPadding(0,dp(5),0,dp(5));
+        page.addView(memberBox,new LinearLayout.LayoutParams(-1,dp(46)));
+        if (!cloudRoom) renderMemberStrip(null);
+    }
+
+    private void renderMemberStrip(com.google.firebase.firestore.QuerySnapshot snapshot) {
+        if (memberBox == null) return;
+        memberBox.removeAllViews();
+        if (snapshot == null) {
+            TextView label = tv(cloudRoom ? "Loading live members…" : "TEST room • no live members",11,MUTED,false);
+            memberBox.addView(label,new LinearLayout.LayoutParams(-1,dp(34)));
+            return;
         }
-        TextView label = tv("Members",11,MUTED,false); strip.addView(label,new LinearLayout.LayoutParams(0,dp(34),1));
-        page.addView(strip,new LinearLayout.LayoutParams(-1,dp(46)));
+        int shown = 0;
+        for (DocumentSnapshot doc : snapshot.getDocuments()) {
+            String name = str(doc,"name","Member");
+            TextView av = tv(name.isEmpty()?"?":name.substring(0,1).toUpperCase(),12,Color.WHITE,true);
+            av.setGravity(Gravity.CENTER); av.setBackground(bg(0xff5b3a78,40));
+            LinearLayout.LayoutParams p = new LinearLayout.LayoutParams(dp(34),dp(34)); p.setMargins(0,0,dp(5),0); memberBox.addView(av,p);
+            shown++;
+        }
+        TextView label = tv(shown + " live member" + (shown == 1 ? "" : "s"),11,MUTED,false);
+        memberBox.addView(label,new LinearLayout.LayoutParams(0,dp(34),1));
     }
 
     private void addQuick(LinearLayout row,String text,Runnable action) {
@@ -307,20 +344,41 @@ public class PartyActivity extends Activity {
         }
     }
     private void cloudSeatAction(int no) {
-        if(user==null||db==null)return; DocumentReference ref=db.collection("live_rooms").document(roomId).collection("seats").document(String.valueOf(no));
-        String existing=seatUids.get(no);
-        if(existing!=null&&!existing.equals(user.getUid())){toast("Seat is occupied");return;}
-        if(existing!=null){ref.delete().addOnSuccessListener(v->{mySeat=-1;micOn=false;addEvent("leave",displayName+" left mic seat");});return;}
-        Map<String,Object>d=new HashMap<>();d.put("uid",user.getUid());d.put("name",safeName());d.put("micOn",false);d.put("joinedAt",FieldValue.serverTimestamp());
-        ref.set(d).addOnSuccessListener(v->{mySeat=no;addEvent("seat",safeName()+" took seat "+no);}).addOnFailureListener(e->toast("Seat unavailable: "+msg(e)));
+        if(user==null||db==null||no<1||no>12)return;
+        final String uid=user.getUid();
+        DocumentReference ref=db.collection("live_rooms").document(roomId).collection("seats").document(String.valueOf(no));
+        db.runTransaction(transaction -> {
+            DocumentSnapshot current=transaction.get(ref);
+            if(current.exists()) {
+                if(!uid.equals(current.getString("uid"))) throw new IllegalStateException("Seat is occupied");
+                transaction.delete(ref); return false;
+            }
+            Map<String,Object>d=new HashMap<>();d.put("uid",uid);d.put("name",safeName());d.put("micOn",false);d.put("joinedAt",FieldValue.serverTimestamp());
+            transaction.set(ref,d); return true;
+        }).addOnSuccessListener(joined->{
+            if(joined){mySeat=no;micOn=false;addEvent("seat",safeName()+" took seat "+no);}
+            else{mySeat=-1;micOn=false;addEvent("leave",safeName()+" left mic seat");}
+        }).addOnFailureListener(e->toast("Seat unavailable: "+msg(e)));
+    }
+
+    private void sendQuickEmoji(String emoji) {
+        if (!cloudRoom || user == null || db == null) {
+            toast("Live emojis need a signed-in live room"); return;
+        }
+        Map<String,Object> d=new HashMap<>(); d.put("senderUid",user.getUid()); d.put("senderName",safeName());
+        d.put("text",emoji); d.put("type","emoji"); d.put("createdAt",FieldValue.serverTimestamp());
+        db.collection("live_rooms").document(roomId).collection("messages").add(d)
+            .addOnFailureListener(e->toast("Emoji not sent: "+msg(e)));
     }
 
     private void toggleMic() {
-        if(mySeat<1){toast("Take a mic seat first");return;} if(muteAll&&!isOwner()){toast("Host muted all seats");return;} micOn=!micOn;
-        if(cloudRoom&&user!=null&&db!=null) db.collection("live_rooms").document(roomId).collection("seats").document(String.valueOf(mySeat)).update("micOn",micOn);
-        else { prefs.edit().putBoolean("mic_"+roomId,micOn).apply();seatMics.put(mySeat,micOn);rebuildSeats(); }
-        micLabel.setText(micOn?"🎤 Mic ON":"🎤 Mic OFF");micLabel.setBackground(bg(micOn?0xff26a269:0xff51366d,18));
+        if(mySeat<1){toast("Take a mic seat first");return;} if(muteAll&&!isOwner()){toast("Host muted all seats");return;} final boolean next=!micOn;
+        if(cloudRoom&&user!=null&&db!=null) db.collection("live_rooms").document(roomId).collection("seats").document(String.valueOf(mySeat)).update("micOn",next)
+            .addOnSuccessListener(v->{micOn=next;updateMicLabel();})
+            .addOnFailureListener(e->toast("Mic status not saved: "+msg(e)));
+        else { micOn=next;prefs.edit().putBoolean("mic_"+roomId,micOn).apply();seatMics.put(mySeat,micOn);rebuildSeats();updateMicLabel(); }
     }
+    private void updateMicLabel(){if(micLabel==null)return;micLabel.setText(micOn?"🎤 Mic ON":"🎤 Mic OFF");micLabel.setBackground(bg(micOn?0xff26a269:0xff51366d,18));}
     private void toggleSound(){soundOn=!soundOn;toast(soundOn?"Room sound on":"Room sound muted");}
     private void openVoice(){Intent i=new Intent(this,VoiceWebActivity.class);i.putExtra("roomId",roomId);i.putExtra("roomName",roomName);startActivity(i);}
 
@@ -339,10 +397,12 @@ public class PartyActivity extends Activity {
     private void giftDialog() {
         String[] gifts={"🌹 Rose • 10","❤️ Heart • 50","🍫 Chocolate • 100","🚗 Car • 500","👑 Crown • 1000","🏰 Castle • 5000","🎆 Firework • 10000"};
         int[] costs={10,50,100,500,1000,5000,10000};String[] names={"Rose","Heart","Chocolate","Car","Crown","Castle","Firework"};
-        new AlertDialog.Builder(this).setTitle("🎁 Gift Store • "+localCoins+" coins").setItems(gifts,(d,w)->sendGift(names[w],costs[w])).setNegativeButton("Close",null).show();
+        String title=cloudRoom&&user!=null?"🎁 Gifts • server verified":"🎁 TEST Gift Store • "+localCoins+" coins";
+        new AlertDialog.Builder(this).setTitle(title).setItems(gifts,(d,w)->sendGift(names[w],costs[w])).setNegativeButton("Close",null).show();
     }
     private void sendGift(String gift,int cost) {
-        if(cloudRoom&&user!=null&&ownerUid!=null&&!ownerUid.equals(user.getUid())){
+        if(cloudRoom&&user!=null){
+            if(ownerUid==null||ownerUid.equals(user.getUid())){toast("A verified recipient account is required");return;}
             CloudBackend.sendGift(ownerUid,gift,cost,(ok,message)->runOnUiThread(()->{toast(message);if(ok)addEvent("gift",safeName()+" sent "+gift+" 🎁 x1");}));return;
         }
         if(localCoins<cost){toast("Not enough TEST coins");return;}localCoins-=cost;prefs.edit().putInt("coins",localCoins).apply();addFeed(displayName+" sent "+gift+" 🎁 x1");toast("Gift sent • TEST balance "+localCoins);
@@ -365,17 +425,17 @@ public class PartyActivity extends Activity {
     private void setRoomValue(String key,Object value){if(db==null)return;db.collection("live_rooms").document(roomId).update(key,value,"updatedAt",FieldValue.serverTimestamp()).addOnFailureListener(e->toast(msg(e)));}
     private void closeRoom(){if(!isOwner()){toast("Host only");return;}if(cloudRoom)setRoomValue("closed",true);leaveRoom();}
 
-    private void toggleFollow(){if(user==null||ownerUid==null){toast("Firebase sign-in required to follow");return;}String id=user.getUid()+"_"+ownerUid;DocumentReference ref=db.collection("follows").document(id);ref.get().addOnSuccessListener(doc->{if(doc.exists()){ref.delete();followLabel.setText("＋ Follow");}else{Map<String,Object>d=new HashMap<>();d.put("followerUid",user.getUid());d.put("targetUid",ownerUid);d.put("followerName",safeName());d.put("createdAt",FieldValue.serverTimestamp());ref.set(d);followLabel.setText("✓ Following");}});}
+    private void toggleFollow(){if(user==null||db==null||ownerUid==null||ownerUid.equals(user.getUid())){toast("Firebase sign-in required to follow");return;}String id=user.getUid()+"__"+ownerUid;DocumentReference ref=db.collection("follows").document(id);ref.get().addOnSuccessListener(doc->{if(doc.exists()){ref.delete().addOnSuccessListener(v->{if(followLabel!=null)followLabel.setText("＋ Follow");}).addOnFailureListener(e->toast("Unfollow failed: "+msg(e)));}else{Map<String,Object>d=new HashMap<>();d.put("followerUid",user.getUid());d.put("targetUid",ownerUid);d.put("followerName",safeName());d.put("createdAt",FieldValue.serverTimestamp());ref.set(d).addOnSuccessListener(v->{if(followLabel!=null)followLabel.setText("✓ Following");CloudBackend.sendFollowNotification(ownerUid,safeName(),(ok,m)->{});}).addOnFailureListener(e->toast("Follow failed: "+msg(e)));}}).addOnFailureListener(e->toast("Follow status unavailable: "+msg(e)));}
 
     private void attachCloudRoom() {
         if(db==null||user==null)return;DocumentReference room=db.collection("live_rooms").document(roomId);
         roomListener=room.addSnapshotListener((doc,e)->{if(e!=null||doc==null||!doc.exists())return;announcement=str(doc,"announcement",announcement);roomLocked=Boolean.TRUE.equals(doc.getBoolean("locked"));muteAll=Boolean.TRUE.equals(doc.getBoolean("muteAll"));if(announcementLabel!=null)announcementLabel.setText((roomLocked?"🔒  ":"📢  ")+announcement);if(Boolean.TRUE.equals(doc.getBoolean("closed"))&&!isOwner()){toast("Room was closed by host");leaveRoom();}});
         seatsListener=room.collection("seats").addSnapshotListener((snap,e)->{if(e!=null||snap==null)return;seatNames.clear();seatUids.clear();seatMics.clear();mySeat=-1;for(DocumentSnapshot d:snap.getDocuments()){int no;try{no=Integer.parseInt(d.getId());}catch(Exception ex){continue;}seatNames.put(no,str(d,"name","Guest"));seatUids.put(no,d.getString("uid"));seatMics.put(no,!Boolean.FALSE.equals(d.getBoolean("micOn")));if(user.getUid().equals(d.getString("uid"))){mySeat=no;micOn=Boolean.TRUE.equals(d.getBoolean("micOn"));}}rebuildSeats();if(micLabel!=null){micLabel.setText(micOn?"🎤 Mic ON":"🎤 Mic OFF");micLabel.setBackground(bg(micOn?0xff26a269:0xff51366d,18));}});
-        membersListener=room.collection("members").addSnapshotListener((snap,e)->{if(viewerLabel!=null&&snap!=null)viewerLabel.setText("👥 "+snap.size());});
+        membersListener=room.collection("members").addSnapshotListener((snap,e)->{if(e!=null){toast("Members unavailable: "+msg(e));return;}if(viewerLabel!=null&&snap!=null)viewerLabel.setText("👥 "+snap.size());if(snap!=null)renderMemberStrip(snap);});
         messagesListener=room.collection("messages").orderBy("createdAt",Query.Direction.ASCENDING).limit(80).addSnapshotListener((snap,e)->{if(e!=null||snap==null||chatBox==null)return;chatBox.removeAllViews();for(DocumentSnapshot d:snap.getDocuments())addChatRow(str(d,"senderName","User"),str(d,"text",""));});
         eventsListener=room.collection("events").orderBy("createdAt",Query.Direction.ASCENDING).limit(50).addSnapshotListener((snap,e)->{if(e!=null||snap==null||feedBox==null)return;feedBox.removeAllViews();for(DocumentSnapshot d:snap.getDocuments())addFeed(str(d,"text","Room activity"));});
     }
-    private void registerMember(){if(user==null||db==null||roomId==null)return;Map<String,Object>d=new HashMap<>();d.put("uid",user.getUid());d.put("name",safeName());d.put("joinedAt",FieldValue.serverTimestamp());db.collection("live_rooms").document(roomId).collection("members").document(user.getUid()).set(d);addEvent("join",safeName()+" joined the room");}
+    private void registerMember(){if(user==null||db==null||roomId==null)return;Map<String,Object>d=new HashMap<>();d.put("uid",user.getUid());d.put("name",safeName());d.put("joinedAt",FieldValue.serverTimestamp());db.collection("live_rooms").document(roomId).collection("members").document(user.getUid()).set(d).addOnFailureListener(e->toast("Could not join room: "+msg(e)));addEvent("join",safeName()+" joined the room");}
     private void unregisterMember(){if(user!=null&&db!=null&&cloudRoom&&roomId!=null)db.collection("live_rooms").document(roomId).collection("members").document(user.getUid()).delete();}
     private void addEvent(String type,String text){if(cloudRoom&&user!=null&&db!=null&&roomId!=null){Map<String,Object>d=new HashMap<>();d.put("actorUid",user.getUid());d.put("actorName",safeName());d.put("type",type);d.put("text",text);d.put("createdAt",FieldValue.serverTimestamp());db.collection("live_rooms").document(roomId).collection("events").add(d);}else addFeed(text);}
 

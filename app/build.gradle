@@ -14,7 +14,7 @@ android {
         }
     }
 
-    defaultConfig { applicationId 'com.kingplus.social'; minSdk 24; targetSdk 35; versionCode 30; versionName '2.6' }
+    defaultConfig { applicationId 'com.kingplus.social'; minSdk 24; targetSdk 35; versionCode 349; versionName '10.0.70' }
     buildTypes { debug { signingConfig signingConfigs.debug } }
     compileOptions { sourceCompatibility JavaVersion.VERSION_17; targetCompatibility JavaVersion.VERSION_17 }
 }
@@ -23,8 +23,12 @@ dependencies {
     implementation 'androidx.core:core:1.15.0'
     implementation platform('com.google.firebase:firebase-bom:34.19.0')
     implementation 'com.google.firebase:firebase-auth'
+    implementation 'com.google.firebase:firebase-firestore'
+    implementation 'com.google.firebase:firebase-functions'
+    implementation 'com.google.firebase:firebase-messaging'
     implementation 'com.google.firebase:firebase-storage'
     implementation 'com.google.android.gms:play-services-auth:21.2.0'
+    implementation 'com.android.billingclient:billing:7.1.1'
 }
 
 if (file('google-services.json').exists()) {

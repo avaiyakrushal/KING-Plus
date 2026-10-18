@@ -77,6 +77,7 @@ public class MainActivity extends Activity {
     private boolean giftEffectsEnabled = true;
     private boolean muteAllSeats = false;
     private String selectedHomeCategory = "Hot";
+    private com.google.firebase.firestore.ListenerRegistration homeRoomsListener;
 
     @Override public void onCreate(Bundle state) {
         super.onCreate(state);
@@ -94,6 +95,7 @@ public class MainActivity extends Activity {
             FirebaseApp app = FirebaseApp.initializeApp(this);
             if (app != null) firebaseAuth = FirebaseAuth.getInstance();
         } catch (Exception ignored) { firebaseAuth = null; }
+        try { PushNotifications.initialize(this); if (firebaseAuth != null && firebaseAuth.getCurrentUser() != null) PushNotifications.requestPermission(this); } catch (Exception ignored) { }
         if (displayName.isEmpty()) login(); else home();
         String crash = getPreferences(0).getString("last_crash", "");
         if (!crash.isEmpty()) {
@@ -294,7 +296,9 @@ public class MainActivity extends Activity {
         });
     }
     private void saveLocalSession(String name, String provider) {
-        displayName=name; getPreferences(0).edit().putString("name",name).putString("login_provider",provider).apply(); home();
+        displayName=name; getPreferences(0).edit().putString("name",name).putString("login_provider",provider).apply();
+        if(firebaseAuth!=null&&firebaseAuth.getCurrentUser()!=null){PushNotifications.requestPermission(this);CloudSync.syncPublicProfile(name,getPreferences(0).getString("bio","Love music, games and new friends ✨"),getPreferences(0).getString("hometown",""),getPreferences(0).getString("birthday",""),getPreferences(0).getString("tags","Music, Games"),(ok,message)->{});}
+        home();
     }
     private void home() {
         renderHome("Hot");
@@ -595,17 +599,10 @@ public class MainActivity extends Activity {
         }
         screen="messages"; stopMic();
         LinearLayout root=new LinearLayout(this); root.setOrientation(LinearLayout.VERTICAL); root.setBackgroundColor(0xfff7f7fb);
-        LinearLayout head=new LinearLayout(this);head.setGravity(Gravity.CENTER_VERTICAL);head.setPadding(dp(18),dp(12),dp(10),dp(4));TextView h=new TextView(this);h.setText("Messages");h.setTextSize(30);h.setTextColor(0xff171717);h.setTypeface(null,Typeface.BOLD);head.addView(h,new LinearLayout.LayoutParams(0,dp(60),1));TextView act=new TextView(this);act.setText("▣   ＋");act.setTextSize(24);act.setGravity(Gravity.CENTER);act.setTextColor(0xff222222);act.setOnClickListener(v->newMessageDialog());head.addView(act,new LinearLayout.LayoutParams(dp(100),dp(60)));root.addView(head);
-        LinearLayout quick=new LinearLayout(this); quick.setGravity(Gravity.CENTER); String[] q={"👁\nVisited Me","👥\nGroups","🔔\nNotifications"};
-        for(int i=0;i<q.length;i++){TextView x=new TextView(this);x.setText(q[i]);x.setGravity(Gravity.CENTER);x.setTextSize(13);x.setTextColor(0xff333333);final int k=i;x.setOnClickListener(v->{if(k==0)peoplePage("People Who Visited Me");else if(k==1)peoplePage("Groups & Friends");else notificationsCenter();});quick.addView(x,new LinearLayout.LayoutParams(0,dp(78),1));}root.addView(quick);
+        LinearLayout head=new LinearLayout(this);head.setGravity(Gravity.CENTER_VERTICAL);head.setPadding(dp(18),dp(12),dp(10),dp(4));TextView h=new TextView(this);h.setText("Messages");h.setTextSize(30);h.setTextColor(0xff171717);h.setTypeface(null,Typeface.BOLD);head.addView(h,new LinearLayout.LayoutParams(0,dp(60),1));root.addView(head);
         ScrollView sv=new ScrollView(this);LinearLayout list=new LinearLayout(this);list.setOrientation(LinearLayout.VERTICAL);list.setPadding(dp(14),dp(8),dp(14),dp(16));sv.addView(list);
-        cardLine(list,"🔥  KING Party Room","[Chat]  Tap to open room conversation",()->conversation("KING Party Room"));
-        cardLine(list,"👁  People Who Visited Me","See recent profile visitors",()->peoplePage("People Who Visited Me"));
-        cardLine(list,"🎵  Lily","See you in the music room ✨",()->conversation("Lily"));
-        cardLine(list,"🎮  Alex","Let's play tonight",()->conversation("Alex"));
-        cardLine(list,"👑  KING Plus Official","Welcome and account updates",()->conversation("KING Plus Official"));
-        cardLine(list,"👥  Group Notifications","Family and room admin changes",this::notificationsCenter);
-        cardLine(list,"🔔  Interactive notifications","Likes, follows and post activity",this::notificationsCenter);
+        TextView note=new TextView(this);note.setText("Sign in with Firebase to see your live inbox. Preview conversations are hidden.");note.setTextSize(14);note.setTextColor(0xff77717f);note.setPadding(dp(8),dp(10),dp(8),dp(10));list.addView(note);
+        cardLine(list,"🔐  Live inbox","Sign in to view and send real messages",()->login());
         root.addView(sv,new LinearLayout.LayoutParams(-1,0,1));addBottomNav(root,3);setContentView(root);
     }
 
@@ -620,25 +617,24 @@ public class MainActivity extends Activity {
         TextView h=new TextView(this); h.setText("Game"); h.setTextSize(30); h.setTextColor(0xff171717); h.setTypeface(null,Typeface.BOLD); h.setPadding(dp(18),dp(18),0,dp(10)); root.addView(h,new LinearLayout.LayoutParams(-1,dp(70)));
         LinearLayout tabs=new LinearLayout(this); tabs.setPadding(dp(14),0,dp(14),dp(8)); TextView hot=new TextView(this); hot.setText("Hot"); hot.setGravity(Gravity.CENTER); hot.setTypeface(null,Typeface.BOLD); hot.setBackground(background(0xffffe500,12)); hot.setTextColor(0xff111111); tabs.addView(hot,new LinearLayout.LayoutParams(0,dp(48),1)); TextView ludo=new TextView(this); ludo.setText("LUDO"); ludo.setGravity(Gravity.CENTER); ludo.setTypeface(null,Typeface.BOLD); ludo.setTextColor(0xff333333); ludo.setBackground(background(0xffefeff5,12)); LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(0,dp(48),1);lp.setMargins(dp(8),0,0,0);tabs.addView(ludo,lp);root.addView(tabs);
         ScrollView sv=new ScrollView(this); LinearLayout list=new LinearLayout(this); list.setOrientation(LinearLayout.VERTICAL); list.setPadding(dp(14),dp(8),dp(14),dp(18)); sv.addView(list);
-        cardLine(list,"🎲  Ludo","18,791 players • 2–4 players",()->playMiniGame("🎲 Ludo Party"));
-        cardLine(list,"🐑  Sheep Fight","18,049 players • Quick battle",()->playMiniGame("🐍 Snake Battle"));
-        cardLine(list,"🗡  Knife Hit","18,161 players • Skill challenge",()->playMiniGame("🎯 Lucky Dart"));
-        cardLine(list,"⬡  Hexagon Fight","19,023 players • Arena",()->playMiniGame("🏁 Racing"));
-        cardLine(list,"🃏  Rummy","17,277 players • Cards",()->playMiniGame("🎁 Lucky Draw"));
-        cardLine(list,"♠  Spider Challenge","19,060 players • Solitaire",()->playMiniGame("🎯 Lucky Dart"));
+        TextView mode=new TextView(this);mode.setText("Practice games • live player counts and multiplayer are not connected in this build");mode.setTextSize(13);mode.setTextColor(0xff77717f);mode.setPadding(dp(4),dp(4),dp(4),dp(10));list.addView(mode);
+        cardLine(list,"🎲  Ludo","Practice table",()->playMiniGame("🎲 Ludo Party"));
+        cardLine(list,"🐑  Sheep Fight","Practice round",()->playMiniGame("🐍 Snake Battle"));
+        cardLine(list,"🗡  Knife Hit","Skill practice",()->playMiniGame("🎯 Lucky Dart"));
+        cardLine(list,"⬡  Hexagon Fight","Practice arena",()->playMiniGame("🏁 Racing"));
+        cardLine(list,"🃏  Rummy","Practice cards",()->playMiniGame("🎁 Lucky Draw"));
+        cardLine(list,"♠  Spider Challenge","Solitaire practice",()->playMiniGame("🎯 Lucky Dart"));
         root.addView(sv,new LinearLayout.LayoutParams(-1,0,1)); addBottomNav(root,1); setContentView(root);
     }
 
     private void discover(){
+        if(firebaseAuth!=null&&firebaseAuth.getCurrentUser()!=null){startActivity(new Intent(this,SocialActivity.class));return;}
         screen="discover"; stopMic(); LinearLayout root=new LinearLayout(this); root.setOrientation(LinearLayout.VERTICAL); root.setBackgroundColor(0xfff7f7fb);
         TextView h=new TextView(this); h.setText("Discover"); h.setTextSize(25); h.setTextColor(0xff171717); h.setTypeface(null,Typeface.BOLD); h.setPadding(dp(18),dp(18),0,dp(10)); root.addView(h,new LinearLayout.LayoutParams(-1,dp(66)));
         ScrollView sv=new ScrollView(this); LinearLayout list=new LinearLayout(this); list.setOrientation(LinearLayout.VERTICAL); list.setPadding(dp(14),dp(8),dp(14),dp(18)); sv.addView(list);
-        cardLine(list,"📝  Moments","Share posts with the KING Plus community",this::momentsPage);
-        cardLine(list,"🔥  Trending Rooms","Popular voice parties right now",()->room("Trending Party"));
-        cardLine(list,"🎉  Events","Music nights, games and community events",()->simplePage("Events","🎉 Upcoming KING Plus events will appear here"));
-        cardLine(list,"👥  Find Friends","Discover new people in the community",()->peoplePage("Discover People"));
-        cardLine(list,"🎵  Music","Live music and singing rooms",()->room("Music Live"));
-        cardLine(list,"💜  New & Nearby","Fresh rooms and new creators",()->room("New Friends"));
+        TextView note=new TextView(this);note.setText("Sign in to Firebase for live people, rooms and messages. Local preview activity is hidden here.");note.setTextSize(14);note.setTextColor(0xff77717f);note.setPadding(dp(8),dp(10),dp(8),dp(10));list.addView(note);
+        cardLine(list,"👥  Discover people","Sign in to search real KING Plus accounts",()->startActivity(new Intent(this,SocialActivity.class)));
+        cardLine(list,"🎤  Live Party rooms","Sign in to view rooms created by members",()->startActivity(new Intent(this,PartyActivity.class)));
         root.addView(sv,new LinearLayout.LayoutParams(-1,0,1)); addBottomNav(root,2); setContentView(root);
     }
     private void conversation(String who){
@@ -669,11 +665,8 @@ public class MainActivity extends Activity {
             return;
         }
         screen="people"; base(title,"KING Plus community");
-        ArrayList<String> list=new ArrayList<>();
-        if(title.toLowerCase().contains("friend")){list.addAll(getPreferences(0).getStringSet("friends",new HashSet<>()));}
-        else if(title.toLowerCase().contains("following")){list.addAll(getPreferences(0).getStringSet("following",new HashSet<>()));}
-        if(list.isEmpty()){list.add("Lily ✨");list.add("Alex 🎮");list.add("Mia 💜");list.add("DJ Max 🎵");list.add("Queen 👑");}
-        for(String n:list){String clean=n.replace(" ✨","").replace(" 🎮","").replace(" 💜","").replace(" 🎵","").replace(" 👑","");button("👤  "+n,CARD,()->userProfile(clean));}
+        text("Sign in with Firebase to load real people. Preview accounts are hidden.",14,MUTED,false);
+        button("Open live people directory",PURPLE,()->startActivity(new Intent(this,SocialActivity.class)));
         button("Back",PURPLE,this::messages);
     }
 
@@ -712,7 +705,7 @@ public class MainActivity extends Activity {
         EditText hometown=input("Hometown",getPreferences(0).getString("hometown",""));
         EditText birthday=input("Birthday (YYYY-MM-DD)",getPreferences(0).getString("birthday","2000-01-01"));
         EditText tags=input("Tags (music, games, friends)",getPreferences(0).getString("tags","Music, Games"));
-        button("Save changes",PURPLE,()->{String n=name.getText().toString().trim(); if(n.isEmpty()){name.setError("Name required");return;} displayName=n; getPreferences(0).edit().putString("name",n).putString("bio",bio.getText().toString().trim()).putString("hometown",hometown.getText().toString().trim()).putString("birthday",birthday.getText().toString().trim()).putString("tags",tags.getText().toString().trim()).apply(); Toast.makeText(this,"Profile updated",Toast.LENGTH_SHORT).show(); profile();});
+        button("Save changes",PURPLE,()->{String n=name.getText().toString().trim(); if(n.isEmpty()){name.setError("Name required");return;} String b=bio.getText().toString().trim(), h=hometown.getText().toString().trim(), bd=birthday.getText().toString().trim(), tg=tags.getText().toString().trim(); displayName=n; getPreferences(0).edit().putString("name",n).putString("bio",b).putString("hometown",h).putString("birthday",bd).putString("tags",tg).apply(); profile(); if(firebaseAuth!=null&&firebaseAuth.getCurrentUser()!=null)CloudSync.syncPublicProfile(n,b,h,bd,tg,(ok,message)->runOnUiThread(()->Toast.makeText(this,message,Toast.LENGTH_LONG).show())); else Toast.makeText(this,"Profile saved on this phone",Toast.LENGTH_SHORT).show();});
         button("Back",CARD,this::profile);
     }
 
@@ -787,7 +780,7 @@ public class MainActivity extends Activity {
         LinearLayout hero=new LinearLayout(this); hero.setOrientation(LinearLayout.VERTICAL); hero.setGravity(Gravity.CENTER); hero.setPadding(dp(12),dp(10),dp(12),dp(10));
         String photo=getPreferences(0).getString("profile_photo",""); if(photo.isEmpty()){TextView av=new TextView(this);av.setText("👑");av.setTextSize(48);av.setGravity(Gravity.CENTER);av.setBackground(background(0xffeadfff,50));hero.addView(av,new LinearLayout.LayoutParams(dp(88),dp(88)));}else{ImageView av=new ImageView(this);av.setScaleType(ImageView.ScaleType.CENTER_CROP);try{av.setImageURI(Uri.parse(photo));}catch(Exception ignored){}hero.addView(av,new LinearLayout.LayoutParams(dp(88),dp(88)));}
         TextView nm=new TextView(this); nm.setText(displayName); nm.setTextSize(23); nm.setTextColor(0xff202020); nm.setTypeface(null,Typeface.BOLD); nm.setGravity(Gravity.CENTER); hero.addView(nm);
-        int xp=getPreferences(0).getInt("xp",120); TextView id=new TextView(this); id.setText("ID: "+roomId(displayName)+"   ♢ Lv."+(xp/500+1)); id.setTextSize(13); id.setTextColor(0xff777777); id.setGravity(Gravity.CENTER); hero.addView(id);
+        int xp=getPreferences(0).getInt("xp",120); FirebaseUser profileUser=firebaseAuth==null?null:firebaseAuth.getCurrentUser(); String profileId=profileUser==null?"TEST "+roomId(displayName):profileUser.getUid(); if(profileId.length()>12)profileId=profileId.substring(0,12); TextView id=new TextView(this); id.setText("ID: "+profileId+"   ♢ Lv."+(xp/500+1)); id.setTextSize(13); id.setTextColor(0xff777777); id.setGravity(Gravity.CENTER); hero.addView(id);
         TextView bio=new TextView(this); bio.setText(getPreferences(0).getString("bio","Love music, games and new friends ✨")); bio.setTextSize(13); bio.setTextColor(0xff666666); bio.setGravity(Gravity.CENTER); bio.setPadding(dp(20),dp(4),dp(20),0); hero.addView(bio); root.addView(hero,new LinearLayout.LayoutParams(-1,dp(185)));
         int following=new HashSet<>(getPreferences(0).getStringSet("following",new HashSet<>())).size(); int friends=new HashSet<>(getPreferences(0).getStringSet("friends",new HashSet<>())).size();
         LinearLayout stats=new LinearLayout(this); stats.setGravity(Gravity.CENTER);
@@ -885,14 +878,44 @@ public class MainActivity extends Activity {
         LinearLayout root=new LinearLayout(this); root.setOrientation(LinearLayout.VERTICAL); root.setBackgroundColor(0xfffaf9fc);
         LinearLayout top=new LinearLayout(this); top.setGravity(Gravity.CENTER_VERTICAL); top.setPadding(dp(16),dp(10),dp(12),dp(4));
         TextView brand=new TextView(this);brand.setText("KING Plus");brand.setTextSize(26);brand.setTextColor(0xff17131f);brand.setTypeface(null,Typeface.BOLD);top.addView(brand,new LinearLayout.LayoutParams(0,dp(52),1));
-        TextView actions=new TextView(this);actions.setText("⌕    ⊕");actions.setTextSize(27);actions.setTextColor(0xff2b2730);actions.setGravity(Gravity.CENTER);actions.setOnClickListener(v->new AlertDialog.Builder(this).setItems(new String[]{"Search","Create Party","Notifications"},(d,w)->{if(w==0)startActivity(new Intent(this,SocialActivity.class));else if(w==1)createRoomDialog();else notificationsCenter();}).show());top.addView(actions,new LinearLayout.LayoutParams(dp(105),dp(52)));root.addView(top);
+        TextView actions=new TextView(this);actions.setText("⌕    ⊕");actions.setTextSize(27);actions.setTextColor(0xff2b2730);actions.setGravity(Gravity.CENTER);actions.setOnClickListener(v->new AlertDialog.Builder(this).setItems(new String[]{"Search people","Create Party","Notifications"},(d,w)->{if(w==0)startActivity(new Intent(this,SocialActivity.class));else if(w==1)createRoomDialog();else notificationsCenter();}).show());top.addView(actions,new LinearLayout.LayoutParams(dp(105),dp(52)));root.addView(top);
         LinearLayout tabs=new LinearLayout(this);tabs.setPadding(dp(8),0,dp(8),dp(6));String[] cats={"Hot","Event","Date","Music","Game"};for(String c:cats){TextView t=new TextView(this);t.setText(c);t.setGravity(Gravity.CENTER);t.setTextSize(16);boolean active=c.equals(category);t.setTypeface(null,active?Typeface.BOLD:Typeface.NORMAL);t.setTextColor(active?0xff111111:0xff55525c);t.setBackground(active?background(0xffffe600,10):background(0xfff0eff4,10));LinearLayout.LayoutParams tlp=new LinearLayout.LayoutParams(0,dp(42),1);tlp.setMargins(dp(3),0,dp(3),0);tabs.addView(t,tlp);t.setOnClickListener(v->renderHome(c));}root.addView(tabs);
         ScrollView sv=new ScrollView(this);LinearLayout content=new LinearLayout(this);content.setOrientation(LinearLayout.VERTICAL);content.setPadding(dp(12),dp(8),dp(12),dp(14));sv.addView(content);
-        String[][] data=roomData(category);
-        if("Hot".equals(category) && rooms.size()>3){TextView yours=new TextView(this);yours.setText("Your rooms");yours.setTextSize(17);yours.setTypeface(null,Typeface.BOLD);yours.setTextColor(0xff222222);yours.setPadding(dp(2),dp(2),0,dp(6));content.addView(yours);for(String r:rooms){if(r.equals("Music & Friends")||r.equals("KING Lounge")||r.equals("Game Talk"))continue;TextView rr=new TextView(this);rr.setText("👑  "+r+"   • tap to open");rr.setTextSize(14);rr.setTextColor(0xff222222);rr.setGravity(Gravity.CENTER_VERTICAL);rr.setPadding(dp(14),0,dp(10),0);rr.setBackground(background(Color.WHITE,14));rr.setOnClickListener(v->room(r));LinearLayout.LayoutParams rp=new LinearLayout.LayoutParams(-1,dp(54));rp.setMargins(0,0,0,dp(6));content.addView(rr,rp);}}
-        if("Hot".equals(category)){TextView banner=new TextView(this);banner.setText("👑  KING PLUS PARTY\n      Voice • Friends • Games");banner.setTextSize(20);banner.setTextColor(Color.WHITE);banner.setTypeface(null,Typeface.BOLD);banner.setGravity(Gravity.CENTER_VERTICAL);banner.setPadding(dp(18),0,dp(10),0);banner.setBackground(background(0xff7648e8,20));LinearLayout.LayoutParams bp=new LinearLayout.LayoutParams(-1,dp(105));bp.setMargins(0,0,0,dp(12));content.addView(banner,bp);}
-        for(int idx=0;idx<data.length;idx+=2){LinearLayout row=new LinearLayout(this);row.setOrientation(LinearLayout.HORIZONTAL);for(int c=0;c<2;c++){int k=idx+c;if(k>=data.length){View spacer=new View(this);row.addView(spacer,new LinearLayout.LayoutParams(0,dp(148),1));continue;}String[] d=data[k];LinearLayout card=new LinearLayout(this);card.setOrientation(LinearLayout.VERTICAL);card.setPadding(dp(10),dp(9),dp(10),dp(9));card.setBackground(background(Color.WHITE,16));TextView cover=new TextView(this);cover.setText(d[0]);cover.setTextSize(38);cover.setGravity(Gravity.CENTER);cover.setBackground(background(k%2==0?0xffffe7f1:0xffeee7ff,14));card.addView(cover,new LinearLayout.LayoutParams(-1,dp(75)));TextView title=new TextView(this);title.setText(d[1]);title.setTextSize(14);title.setTextColor(0xff211d26);title.setTypeface(null,Typeface.BOLD);title.setPadding(0,dp(7),0,0);card.addView(title);TextView meta=new TextView(this);meta.setText("💬 Chat   •   "+d[2]+" online");meta.setTextSize(11);meta.setTextColor(0xff8b8790);card.addView(meta);card.setOnClickListener(v->room(d[1]));LinearLayout.LayoutParams cp=new LinearLayout.LayoutParams(0,dp(148),1);cp.setMargins(c==0?0:dp(5),dp(5),c==0?dp(5):0,dp(5));row.addView(card,cp);}content.addView(row);}
+        if("Hot".equals(category)){TextView banner=new TextView(this);banner.setText("👑  KING PLUS PARTY\n      Voice • Friends • Games");banner.setTextSize(20);banner.setTextColor(Color.WHITE);banner.setTypeface(null,Typeface.BOLD);banner.setGravity(Gravity.CENTER_VERTICAL);banner.setPadding(dp(18),0,dp(10),0);banner.setBackground(background(0xff7648e8,20));LinearLayout.LayoutParams bp=new LinearLayout.LayoutParams(-1,dp(92));bp.setMargins(0,0,0,dp(12));content.addView(banner,bp);banner.setOnClickListener(v->startActivity(new Intent(this,PartyActivity.class)));}
+        loadLiveHomeRooms(content);
         root.addView(sv,new LinearLayout.LayoutParams(-1,0,1));addBottomNav(root,0);setContentView(root);
+    }
+
+    private void loadLiveHomeRooms(LinearLayout content) {
+        if (homeRoomsListener != null) { homeRoomsListener.remove(); homeRoomsListener = null; }
+        FirebaseUser signed = firebaseAuth == null ? null : firebaseAuth.getCurrentUser();
+        if (signed == null) {
+            TextView state = new TextView(this); state.setText("Sign in to discover live rooms. Local room previews are not shown as live."); state.setTextSize(14); state.setTextColor(0xff77717f); state.setPadding(dp(8),dp(12),dp(8),dp(12)); content.addView(state);
+            return;
+        }
+        TextView heading = new TextView(this); heading.setText("Live rooms"); heading.setTextSize(18); heading.setTypeface(null,Typeface.BOLD); heading.setTextColor(0xff211d26); content.addView(heading);
+        LinearLayout rows = new LinearLayout(this); rows.setOrientation(LinearLayout.VERTICAL); content.addView(rows);
+        TextView state = new TextView(this); state.setText("Loading live rooms…"); state.setTextSize(13); state.setTextColor(0xff77717f); rows.addView(state);
+        homeRoomsListener = com.google.firebase.firestore.FirebaseFirestore.getInstance().collection("live_rooms")
+            .orderBy("createdAt",com.google.firebase.firestore.Query.Direction.DESCENDING).limit(30)
+            .addSnapshotListener((snap,error)->{
+                if (!"home".equals(screen) || isFinishing() || isDestroyed()) return;
+                rows.removeAllViews();
+                if (error != null) { TextView e=new TextView(this);e.setText("Live rooms unavailable: "+(error.getLocalizedMessage()==null?"please retry":error.getLocalizedMessage()));e.setTextColor(0xff9b3434);e.setPadding(dp(8),dp(8),dp(8),dp(8));rows.addView(e);return; }
+                int count=0;
+                if (snap != null) for (com.google.firebase.firestore.DocumentSnapshot doc : snap.getDocuments()) {
+                    if (Boolean.TRUE.equals(doc.getBoolean("closed"))) continue;
+                    String rawName=doc.getString("name"); final String name=rawName==null||rawName.trim().isEmpty()?"Live Party":rawName.trim();
+                    String rawHost=doc.getString("ownerName"); final String host=rawHost==null||rawHost.trim().isEmpty()?"KING Host":rawHost.trim();
+                    String id=doc.getId(), ownerUid=doc.getString("ownerUid");
+                    LinearLayout card=new LinearLayout(this);card.setOrientation(LinearLayout.VERTICAL);card.setPadding(dp(14),dp(10),dp(14),dp(10));card.setBackground(background(Color.WHITE,16));
+                    TextView title=new TextView(this);title.setText("🎤  "+name);title.setTextSize(16);title.setTextColor(0xff211d26);title.setTypeface(null,Typeface.BOLD);card.addView(title);
+                    TextView meta=new TextView(this);meta.setText("LIVE • Host: "+host);meta.setTextSize(12);meta.setTextColor(0xff77717f);card.addView(meta);
+                    card.setOnClickListener(v->{Intent i=new Intent(this,PartyActivity.class);i.putExtra("roomId",id);i.putExtra("roomName",name);i.putExtra("ownerUid",ownerUid);i.putExtra("ownerName",host);startActivity(i);});
+                    LinearLayout.LayoutParams p=new LinearLayout.LayoutParams(-1,dp(68));p.setMargins(0,dp(5),0,dp(5));rows.addView(card,p);count++;
+                }
+                if(count==0){TextView e=new TextView(this);e.setText("No live rooms yet. Create one from Party.");e.setTextColor(0xff77717f);e.setPadding(dp(8),dp(10),dp(8),dp(10));rows.addView(e);}
+            });
     }
     private String[][] roomData(String category){
         if("Music".equals(category))return new String[][]{{"🎤","Music & Friends","11"},{"🎵","Night Music","8"},{"🎧","DJ Party","12"},{"🎸","Acoustic House","6"},{"🎹","Hindi Songs","9"},{"🎶","Music Lovers","10"}};
@@ -929,12 +952,13 @@ public class MainActivity extends Activity {
     @Override public void onBackPressed() {
         if ("login".equals(screen) || "home".equals(screen)) super.onBackPressed(); else home();
     }
-    @Override protected void onPause() { super.onPause(); stopMic(); }
-    @Override protected void onDestroy() { stopMic(); super.onDestroy(); }
+    @Override protected void onResume() { super.onResume(); if ("home".equals(screen) && homeRoomsListener == null) renderHome(selectedHomeCategory); }
+    @Override protected void onPause() { super.onPause(); stopMic(); if(homeRoomsListener!=null){homeRoomsListener.remove();homeRoomsListener=null;} }
+    @Override protected void onDestroy() { stopMic(); if(homeRoomsListener!=null){homeRoomsListener.remove();homeRoomsListener=null;} super.onDestroy(); }
     private void notificationsCenter(){
         screen="notifications"; base("Notifications","Activity from your KING Plus community");
         String raw=getPreferences(0).getString("notifications_log","");
-        if(raw.isEmpty()) raw="👑 Welcome to KING Plus|||💜 Lily followed you|||🎁 Alex sent a Rose in KING Lounge|||🎮 Game Talk invited you to play|||🎤 Music & Friends is live now";
+        if(raw.isEmpty()) raw="No notifications yet";
         for(String n:raw.split("\\|\\|\\|")) if(!n.trim().isEmpty()) button(n,CARD,()->Toast.makeText(this,"Opened",Toast.LENGTH_SHORT).show());
         button("Mark all as read",PURPLE,()->{getPreferences(0).edit().putBoolean("notifications_read",true).apply();Toast.makeText(this,"All notifications marked as read",Toast.LENGTH_SHORT).show();});
         button("Clear notifications",CARD,()->{getPreferences(0).edit().putString("notifications_log","").apply();notificationsCenter();});
@@ -948,8 +972,8 @@ public class MainActivity extends Activity {
     }
 
     private void createRoomDialog(){
-        final EditText name=new EditText(this); name.setHint("Room name"); name.setSingleLine(true);
-        new AlertDialog.Builder(this).setTitle("Create Party Room").setMessage("Create a local room preview. Online room sync will be connected with the backend.").setView(name).setNegativeButton("Cancel",null).setPositiveButton("Create",(d,w)->{String x=name.getText().toString().trim();if(x.isEmpty())x=displayName+"'s Room";if(!rooms.contains(x)) rooms.add(0,x); Set<String> savedRooms=new HashSet<>(rooms); savedRooms.remove("Music & Friends"); savedRooms.remove("KING Lounge"); savedRooms.remove("Game Talk"); getPreferences(0).edit().putStringSet("rooms",savedRooms).apply(); room(x);}).show();
+        if(firebaseAuth!=null&&firebaseAuth.getCurrentUser()!=null){startActivity(new Intent(this,PartyActivity.class));return;}
+        new AlertDialog.Builder(this).setTitle("Sign in for live Party rooms").setMessage("Live room creation needs a Firebase account. Local previews are not saved as live rooms.").setNegativeButton("Close",null).setPositiveButton("Sign in",(d,w)->login()).show();
     }
 
 }

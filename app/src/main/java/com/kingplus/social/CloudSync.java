@@ -6,6 +6,7 @@ import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
 import com.google.firebase.firestore.FieldValue;
 import com.google.firebase.firestore.FirebaseFirestore;
+import com.google.firebase.firestore.SetOptions;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -20,6 +21,27 @@ public final class CloudSync {
     }
 
     public static boolean isSignedIn() { return user() != null; }
+
+    public static void syncPublicProfile(String displayName, String bio, String hometown, String birthday, String tags, Callback callback) {
+        FirebaseUser user = user();
+        if (user == null) { callback.onResult(false, "Sign in with Firebase to sync your profile."); return; }
+        Map<String,Object> profile = new HashMap<>();
+        profile.put("uid", user.getUid());
+        profile.put("displayName", displayName == null ? "" : displayName.trim());
+        profile.put("searchName", displayName == null ? "" : displayName.trim().toLowerCase(java.util.Locale.US));
+        profile.put("bio", bio == null ? "" : bio.trim());
+        profile.put("hometown", hometown == null ? "" : hometown.trim());
+        profile.put("birthday", birthday == null ? "" : birthday.trim());
+        profile.put("tags", tags == null ? "" : tags.trim());
+        profile.put("updatedAt", FieldValue.serverTimestamp());
+        FirebaseFirestore db = FirebaseFirestore.getInstance();
+        com.google.firebase.firestore.WriteBatch batch = db.batch();
+        batch.set(db.collection("users").document(user.getUid()), profile, SetOptions.merge());
+        batch.set(db.collection("public_profiles").document(user.getUid()), profile, SetOptions.merge());
+        batch.commit()
+            .addOnSuccessListener(unused -> callback.onResult(true, "Profile synced."))
+            .addOnFailureListener(error -> callback.onResult(false, "Profile sync failed: " + safe(error.getLocalizedMessage())));
+    }
 
     public static void syncProfileAndTestWallet(
             Context context,
