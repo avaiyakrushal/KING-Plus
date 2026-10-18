@@ -170,6 +170,7 @@ public class ChatActivity extends Activity {
 
     private void sendText(String text) {
         if (isBlocked()) { Toast.makeText(this,"Unblock this user before messaging",Toast.LENGTH_SHORT).show(); return; }
+        if (text == null || text.trim().isEmpty()) return;
         if (text.length() > 1000) { Toast.makeText(this,"Message is too long",Toast.LENGTH_SHORT).show(); return; }
         if (cloudMode) {
             sendCloudMessage(text, "text", "");
