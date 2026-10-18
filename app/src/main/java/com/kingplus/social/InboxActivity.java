@@ -67,7 +67,7 @@ public class InboxActivity extends Activity {
         head.addView(back, new LinearLayout.LayoutParams(dp(48), dp(54)));
         LinearLayout titleWrap = new LinearLayout(this); titleWrap.setOrientation(LinearLayout.VERTICAL);
         TextView title = label("Messages", 28, DARK, true); titleWrap.addView(title);
-        TextView status = label(me == null ? "Local / test mode" : "Realtime chat connected", 12, 0xff777186, false); titleWrap.addView(status);
+        TextView status = label(me == null ? "Sign in for live messages" : "Realtime chat connected", 12, 0xff777186, false); titleWrap.addView(status);
         head.addView(titleWrap, new LinearLayout.LayoutParams(0, dp(60), 1));
         TextView plus = label("＋", 30, PURPLE, true); plus.setGravity(Gravity.CENTER); plus.setOnClickListener(v -> newChatDialog());
         head.addView(plus, new LinearLayout.LayoutParams(dp(56), dp(56)));
@@ -76,7 +76,7 @@ public class InboxActivity extends Activity {
         LinearLayout quick = new LinearLayout(this); quick.setPadding(dp(14), dp(4), dp(14), dp(8)); quick.setGravity(Gravity.CENTER);
         addQuick(quick, "💬\nChats", () -> Toast.makeText(this,"All conversations",Toast.LENGTH_SHORT).show());
         addQuick(quick, "👥\nFriends", () -> startActivity(new Intent(this, SocialActivity.class)));
-        addQuick(quick, "🔔\nAlerts", () -> { if (me == null) openLocal("KING Plus Official"); else Toast.makeText(this, "Alerts are in Notifications", Toast.LENGTH_SHORT).show(); });
+        addQuick(quick, "🔔\nAlerts", () -> Toast.makeText(this, "Notifications are available from the Me page", Toast.LENGTH_SHORT).show());
         root.addView(quick, new LinearLayout.LayoutParams(-1, dp(78)));
 
         ScrollView sv = new ScrollView(this); list = new LinearLayout(this); list.setOrientation(LinearLayout.VERTICAL); list.setPadding(dp(12), dp(4), dp(12), dp(24)); sv.addView(list);
@@ -93,41 +93,47 @@ public class InboxActivity extends Activity {
         if (threadListener != null) { threadListener.remove(); threadListener = null; }
         final int generation = ++inboxGeneration;
         list.removeAllViews();
-        if (me == null || db == null) {
-            addThread("🔥", "KING Party Room", "Room chat and invitations", "");
-            addThread("👑", "KING Plus Official", "Welcome and account updates", "");
-        }
-
-        Set<String> local = getSharedPreferences("chat_store", MODE_PRIVATE).getStringSet("recent_names", new HashSet<>());
-        if (me == null || db == null) for (String name : local) if (!"KING Party Room".equals(name) && !"KING Plus Official".equals(name)) addThread("●", name, "Tap to continue chatting", "");
-
-        if (me == null || db == null) {
-            addThread("🎵", "Lily", "See you in the music room ✨", "");
-            addThread("🎮", "Alex", "Let's play tonight", "");
+        if (me == null) {
+            emptyState("Go back and sign in with Google or phone to use live messages.", null, null);
             return;
         }
-
+        if (db == null) {
+            emptyState("Messages could not connect to Firebase. Check your connection and try again.", "Retry", this::loadInbox);
+            return;
+        }
         threadListener = db.collection("direct_threads").whereArrayContains("members", me.getUid())
             .addSnapshotListener((snap, error) -> {
                 if (generation != inboxGeneration || isFinishing() || isDestroyed()) return;
                 if (error != null) {
-                    list.removeAllViews();
-                    TextView failure = label("Could not load live conversations. Check your connection.", 14, 0xff777186, false);
-                    failure.setGravity(Gravity.CENTER);
-                    list.addView(failure, new LinearLayout.LayoutParams(-1, dp(80)));
+                    emptyState("Could not load live conversations. Check your connection.", "Retry", this::loadInbox);
                     return;
                 }
                 renderCloudThreads(snap);
             });
     }
 
+    private void emptyState(String message, String action, Runnable runnable) {
+        list.removeAllViews();
+        TextView note = label(message, 15, 0xff777186, false);
+        note.setGravity(Gravity.CENTER);
+        note.setPadding(dp(24), dp(12), dp(24), dp(12));
+        list.addView(note, new LinearLayout.LayoutParams(-1, dp(96)));
+        if (action != null && runnable != null) {
+            TextView button = label(action, 15, PURPLE, true);
+            button.setGravity(Gravity.CENTER);
+            button.setOnClickListener(v -> runnable.run());
+            list.addView(button, new LinearLayout.LayoutParams(-1, dp(52)));
+        }
+    }
+
     private void renderCloudThreads(QuerySnapshot snap) {
-        if (snap == null) return;
+        if (snap == null) {
+            emptyState("Inbox returned no data. Check your connection and try again.", "Retry", this::loadInbox);
+            return;
+        }
         list.removeAllViews();
         if (snap.isEmpty()) {
-            TextView empty = label("No live conversations yet • tap + to start", 15, 0xff777186, false);
-            empty.setGravity(Gravity.CENTER);
-            list.addView(empty, new LinearLayout.LayoutParams(-1, dp(80)));
+            emptyState("No live conversations yet. Find a person in Discover to start chatting.", "Find people", () -> startActivity(new Intent(this, SocialActivity.class)));
             return;
         }
         List<DocumentSnapshot> docs = new ArrayList<>(snap.getDocuments());
@@ -174,19 +180,38 @@ public class InboxActivity extends Activity {
     }
 
     private void newChatDialog() {
+        if (me == null || db == null) {
+            Toast.makeText(this, "Sign in to start a live conversation", Toast.LENGTH_SHORT).show();
+            return;
+        }
         final EditText name = new EditText(this); name.setHint("Friend name");
-        final EditText uid = new EditText(this); uid.setHint("Firebase UID (optional for realtime)");
+        final EditText uid = new EditText(this); uid.setHint("Friend Firebase UID");
         LinearLayout box = new LinearLayout(this); box.setOrientation(LinearLayout.VERTICAL); box.setPadding(dp(18),0,dp(18),0); box.addView(name); box.addView(uid);
-        new AlertDialog.Builder(this).setTitle("New message").setMessage("Name is enough for local/test chat. Add the Firebase UID for cross-device realtime chat.")
+        new AlertDialog.Builder(this).setTitle("New live message").setMessage("Find people in Discover, or enter the account UID.")
             .setView(box).setNegativeButton("Cancel", null).setPositiveButton("Open", (d,w) -> {
-                String n = name.getText().toString().trim(); if (n.isEmpty()) n = "New Friend";
-                openChat(n, uid.getText().toString().trim());
+                String n = name.getText().toString().trim();
+                String peer = uid.getText().toString().trim();
+                if (n.isEmpty() || peer.isEmpty()) {
+                    Toast.makeText(this, "Friend name and Firebase UID are required", Toast.LENGTH_LONG).show();
+                    return;
+                }
+                if (peer.equals(me.getUid())) {
+                    Toast.makeText(this, "You cannot message your own account", Toast.LENGTH_SHORT).show();
+                    return;
+                }
+                openChat(n, peer);
             }).show();
     }
 
-    private void openLocal(String name) { openChat(name, ""); }
     private void openChat(String name, String peerUid) {
-        Intent i = new Intent(this, ChatActivity.class); i.putExtra("peerName", name); i.putExtra("peerUid", peerUid); startActivity(i);
+        if (me == null || peerUid == null || peerUid.trim().isEmpty() || peerUid.equals(me.getUid())) {
+            Toast.makeText(this, "Choose a real account from Discover", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        Intent i = new Intent(this, ChatActivity.class);
+        i.putExtra("peerName", name);
+        i.putExtra("peerUid", peerUid);
+        startActivity(i);
     }
 
     @Override protected void onDestroy() {

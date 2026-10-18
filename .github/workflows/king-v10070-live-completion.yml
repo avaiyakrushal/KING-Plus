@@ -1,4 +1,4 @@
-name: KING Plus v10.0.70 Live Completion TEST
+name: KING Plus v10.0.71 Live Completion TEST
 
 on:
   push:
@@ -32,16 +32,18 @@ jobs:
           main=Path('app/src/main/java/com/kingplus/social/MainActivity.java').read_text()
           party=Path('app/src/main/java/com/kingplus/social/PartyActivity.java').read_text()
           social=Path('app/src/main/java/com/kingplus/social/SocialActivity.java').read_text()
-          assert "versionCode 349" in g and "versionName '10.0.70'" in g
+          assert "versionCode 350" in g and "versionName '10.0.71'" in g
           for dependency in ('firebase-firestore','firebase-functions','firebase-messaging','billing:8.0.0'):
               assert dependency in g, f'missing dependency: {dependency}'
           assert 'KingMessagingService' in manifest and 'POST_NOTIFICATIONS' in manifest
           assert 'collection("live_rooms")' in main and 'addSnapshotListener' in main
           assert '28+Math.abs(name.hashCode()%220)' not in main, 'legacy fake room count is not allowed'
           assert 'runTransaction(transaction' in party and 'sendQuickEmoji' in party
+          assert 'selectGiftRecipient' in party and 'cleanupPresence' in party
+          assert 'no wallet changes or rewards' in main
           assert 'collection("public_profiles")' in social and 'pendingFollowActions' in social
           assert '18,791 players' not in main and 'Lily ✨' not in social
-          print('PASS: live Home/Discover/Messages/Party wiring, real room state, push service and TEST release identity')
+          print('PASS: live Home/Discover/Messages/Party wiring, verified gift recipients, room cleanup, honest practice games, push service and TEST release identity')
           PY
       - name: Build signed Android TEST APK
         run: gradle :app:assembleDebug --no-daemon --max-workers=2
@@ -52,20 +54,20 @@ jobs:
           test -s "$apk"
           aapt="$(find "$ANDROID_HOME/build-tools" -name aapt -type f | sort -V | tail -1)"
           signer="$(find "$ANDROID_HOME/build-tools" -name apksigner -type f | sort -V | tail -1)"
-          "$aapt" dump badging "$apk" | grep '^package:' | grep "name='com.kingplus.social'" | grep "versionCode='349'"
+          "$aapt" dump badging "$apk" | grep '^package:' | grep "name='com.kingplus.social'" | grep "versionCode='350'"
           "$signer" verify --print-certs "$apk"
       - name: Package APK and source ZIP
         run: |
           set -euo pipefail
-          mkdir -p /tmp/king-v10070-out
-          cp app/build/outputs/apk/debug/app-debug.apk /tmp/king-v10070-out/KING-Plus-v10.0.70-Live-Completion-TEST.apk
-          zip -qr /tmp/king-v10070-out/KING-Plus-v10.0.70-Live-Completion-TEST-Source.zip . \
+          mkdir -p /tmp/king-v10071-out
+          cp app/build/outputs/apk/debug/app-debug.apk /tmp/king-v10071-out/KING-Plus-v10.0.71-Live-Completion-TEST.apk
+          zip -qr /tmp/king-v10071-out/KING-Plus-v10.0.71-Live-Completion-TEST-Source.zip . \
             -x '.git/*' '*/.git/*' '*/build/*' '.gradle/*' '*/.gradle/*' '*/node_modules/*' \
             '*.apk' '*.aab' '*.keystore' '*.jks' '*.zip' '*local.properties' '*.log'
-          sha256sum /tmp/king-v10070-out/*
+          sha256sum /tmp/king-v10071-out/*
       - uses: actions/upload-artifact@v4
         with:
-          name: KING-Plus-v10.0.70-Live-Completion-TEST-APK-and-Source
-          path: /tmp/king-v10070-out/*
+          name: KING-Plus-v10.0.71-Live-Completion-TEST-APK-and-Source
+          path: /tmp/king-v10071-out/*
           retention-days: 30
           if-no-files-found: error

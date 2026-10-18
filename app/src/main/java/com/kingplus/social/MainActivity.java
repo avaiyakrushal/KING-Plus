@@ -429,14 +429,14 @@ public class MainActivity extends Activity {
         new AlertDialog.Builder(this).setTitle("🎮 Room Games").setItems(gameNames,(d,w)->playMiniGame(gameNames[w])).setNegativeButton("Close",null).show();
     }
     private void playMiniGame(String game){
-        String result; int reward=0;
-        if(game.contains("Dart")){int score=60+(int)(Math.random()*41);result="Score: "+score+" / 100";reward=score>=90?20:5;}
-        else if(game.contains("Draw")){reward=10+(int)(Math.random()*91);result="Reward: "+reward+" coins";}
-        else if(game.contains("Racing")){int pos=1+(int)(Math.random()*4);result="Finished #"+pos;reward=pos==1?30:5;}
-        else if(game.contains("Snake")){int score=100+(int)(Math.random()*901);result="Battle score: "+score;reward=score>700?25:5;}
-        else {result="Ludo table created • Waiting for players";reward=5;}
-        if(reward>0){coinBalance=getPreferences(0).getInt("coins",2500)+reward;getPreferences(0).edit().putInt("coins",coinBalance).apply();appendTransaction("+"+reward+" coins • Game reward");addXp(3);}
-        final int won=reward; new AlertDialog.Builder(this).setTitle(game).setMessage(result+(won>0?"\n+"+won+" coins added":"")).setPositiveButton("Play again",(d,w)->playMiniGame(game)).setNegativeButton("Back",null).show();
+        String result;
+        if(game.contains("Ludo")) result="Local practice table opened. Online players are not connected in this version.";
+        else if(game.contains("Dart")) result="Practice mode opened. Score is for this device only.";
+        else if(game.contains("Draw")) result="Practice preview only. No coins or prizes are awarded.";
+        else if(game.contains("Racing")) result="Local racing practice preview. No live players are connected.";
+        else if(game.contains("Snake")) result="Local practice round. This is not an online battle.";
+        else result="Local practice preview. Multiplayer is not connected in this version.";
+        new AlertDialog.Builder(this).setTitle(game).setMessage(result+"\n\nTEST mode • no wallet changes or rewards").setPositiveButton("Play again",(d,w)->playMiniGame(game)).setNegativeButton("Back",null).show();
     }
 
     private void giftEffect(String gift){ final Toast t=Toast.makeText(this,"✨  "+gift+"  ✨",Toast.LENGTH_LONG); t.setGravity(Gravity.CENTER,0,0); t.show(); }
@@ -564,19 +564,9 @@ public class MainActivity extends Activity {
         if(action!=null) card.setOnClickListener(v->action.run()); return a;
     }
     private void messages() {
-        if (com.google.firebase.auth.FirebaseAuth.getInstance().getCurrentUser() != null) {
-            startActivity(new Intent(this, InboxActivity.class));
-            return;
-        }
-        screen="messages"; stopMic();
-        LinearLayout root=new LinearLayout(this); root.setOrientation(LinearLayout.VERTICAL); root.setBackgroundColor(0xfff7f7fb);
-        LinearLayout head=new LinearLayout(this);head.setGravity(Gravity.CENTER_VERTICAL);head.setPadding(dp(18),dp(12),dp(10),dp(4));TextView h=new TextView(this);h.setText("Messages");h.setTextSize(30);h.setTextColor(0xff171717);h.setTypeface(null,Typeface.BOLD);head.addView(h,new LinearLayout.LayoutParams(0,dp(60),1));root.addView(head);
-        ScrollView sv=new ScrollView(this);LinearLayout list=new LinearLayout(this);list.setOrientation(LinearLayout.VERTICAL);list.setPadding(dp(14),dp(8),dp(14),dp(16));sv.addView(list);
-        TextView note=new TextView(this);note.setText("Sign in with Firebase to see your live inbox. Preview conversations are hidden.");note.setTextSize(14);note.setTextColor(0xff77717f);note.setPadding(dp(8),dp(10),dp(8),dp(10));list.addView(note);
-        cardLine(list,"🔐  Live inbox","Sign in to view and send real messages",()->login());
-        root.addView(sv,new LinearLayout.LayoutParams(-1,0,1));addBottomNav(root,3);setContentView(root);
+        stopMic();
+        startActivity(new Intent(this, InboxActivity.class));
     }
-
     private void addBottomNav(LinearLayout root,int selected){
         LinearLayout nav=new LinearLayout(this); nav.setGravity(Gravity.CENTER); nav.setBackgroundColor(Color.WHITE); String[] ni={"⌂\nParty","♟\nGame","◇\nDiscover","✉\nMessages","●\nMe"};
         for(int i=0;i<ni.length;i++){TextView n=new TextView(this);n.setText(ni[i]);n.setTextSize(12);n.setGravity(Gravity.CENTER);n.setTextColor(i==selected?0xff8a43ff:0xff777777);final int k=i;n.setOnClickListener(v->{if(k==0)home();else if(k==1)games();else if(k==2)discover();else if(k==3)messages();else profile();});nav.addView(n,new LinearLayout.LayoutParams(0,dp(62),1));} root.addView(nav);
@@ -609,14 +599,9 @@ public class MainActivity extends Activity {
         root.addView(sv,new LinearLayout.LayoutParams(-1,0,1)); addBottomNav(root,2); setContentView(root);
     }
     private void conversation(String who){
-        screen="conversation"; base(who,getPreferences(0).getBoolean("privacy_online",true)?"Online":"KING Plus member"); text("Today",13,MUTED,false);
-        text(who+":  Hello 👋",16,Color.WHITE,false);
-        String key="chat_"+safeKey(who); String saved=getPreferences(0).getString(key,"");
-        if(!saved.isEmpty()) for(String m:saved.split("\n")) if(!m.trim().isEmpty()) text(displayName+":  "+m,16,0xffd9caff,false);
-        EditText e=input("Write a message…","");
-        button("Send",PURPLE,()->{if(getPreferences(0).getBoolean("privacy_friends_dm",false)){Set<String> f=getPreferences(0).getStringSet("friends",new HashSet<>());if(!f.contains(who)&&!who.contains("Official")&&!who.contains("Party")){Toast.makeText(this,"Friends-only messages is enabled",Toast.LENGTH_SHORT).show();return;}}String m=e.getText().toString().trim();if(!m.isEmpty()){String prev=getPreferences(0).getString(key,"");getPreferences(0).edit().putString(key,prev+m+"\n").apply();addXp(1);Toast.makeText(this,"Message saved",Toast.LENGTH_SHORT).show();conversation(who);}});
-        button("Share current room",CARD,()->{String r=currentRoom==null?"KING Lounge":currentRoom;shareText("Join me in KING Plus room: "+r+" • ID "+roomId(r));});
-        button("Back to Messages",CARD,this::messages);
+        Intent intent = new Intent(this, SocialActivity.class);
+        intent.putExtra("searchQuery", who == null ? "" : who.trim());
+        startActivity(intent);
     }
 
     private void momentsPage(){
@@ -642,19 +627,8 @@ public class MainActivity extends Activity {
     }
 
     private void userProfile(String who){
-        incrementMission("mission_profile",1);
-        screen="user_profile"; base(who,"KING Plus member");
-        text("●",54,0xffd9caff,true); text("ID: "+Math.abs(who.hashCode()%900000+100000),14,MUTED,false);
-        text("Music • Games • Voice rooms",15,Color.WHITE,false);
-        Set<String> following=new HashSet<>(getPreferences(0).getStringSet("following",new HashSet<>())); boolean isFollowing=following.contains(who);
-        Set<String> friends=new HashSet<>(getPreferences(0).getStringSet("friends",new HashSet<>())); boolean isFriend=friends.contains(who);
-        button(isFollowing?"✓ Following":"＋ Follow",PURPLE,()->{Set<String> f=new HashSet<>(getPreferences(0).getStringSet("following",new HashSet<>())); if(f.contains(who))f.remove(who);else f.add(who);getPreferences(0).edit().putStringSet("following",f).apply();userProfile(who);});
-        button(isFriend?"✓ Friend":"＋ Add Friend",CARD,()->{Set<String> f=new HashSet<>(getPreferences(0).getStringSet("friends",new HashSet<>())); if(f.contains(who))f.remove(who);else f.add(who);getPreferences(0).edit().putStringSet("friends",f).apply();Toast.makeText(this,f.contains(who)?"Friend added":"Friend removed",Toast.LENGTH_SHORT).show();userProfile(who);});
-        button("✉ Message",CARD,()->conversation(who));
-        button("🎤 Invite to Room",CARD,()->{String r=currentRoom==null?"KING Lounge":currentRoom;appendNotification("🎤 Room invitation prepared for "+who+" • "+r);Toast.makeText(this,"Room invite prepared",Toast.LENGTH_SHORT).show();});
-        button("⋮ Safety options",CARD,()->safetyOptions(who)); button("Back",CARD,()->peoplePage("Discover People"));
+        conversation(who);
     }
-
     private void safetyOptions(String who){
         String[] a={"🚫 Block / Unblock","⚑ Report user"};
         new AlertDialog.Builder(this).setTitle(who).setItems(a,(d,w)->{if(w==0){Set<String>b=new HashSet<>(getPreferences(0).getStringSet("blocked",new HashSet<>()));boolean blocked;if(b.contains(who)){b.remove(who);blocked=false;}else{b.add(who);blocked=true;}getPreferences(0).edit().putStringSet("blocked",b).apply();Toast.makeText(this,blocked?"User blocked":"User unblocked",Toast.LENGTH_SHORT).show();}else reportDialog(who);}).show();
@@ -888,13 +862,6 @@ public class MainActivity extends Activity {
                 if(count==0){TextView e=new TextView(this);e.setText("No live rooms yet. Create one from Party.");e.setTextColor(0xff77717f);e.setPadding(dp(8),dp(10),dp(8),dp(10));rows.addView(e);}
             });
     }
-    private String[][] roomData(String category){
-        if("Music".equals(category))return new String[][]{{"🎤","Music & Friends","11"},{"🎵","Night Music","8"},{"🎧","DJ Party","12"},{"🎸","Acoustic House","6"},{"🎹","Hindi Songs","9"},{"🎶","Music Lovers","10"}};
-        if("Game".equals(category))return new String[][]{{"🎮","Game Talk","8"},{"🎲","Ludo Friends","6"},{"🎯","Challenge Room","9"},{"🏁","Racing Fans","5"},{"🃏","Card Club","7"},{"🏆","Winner Zone","11"}};
-        if("Event".equals(category))return new String[][]{{"🎉","Weekend Party","12"},{"🎁","Gift Festival","10"},{"👑","KING Night","11"},{"✨","New Star Event","8"},{"🎤","Singer Contest","9"},{"🏅","Room Championship","6"}};
-        if("Date".equals(category))return new String[][]{{"💜","Friends Forever","6"},{"🌹","Coffee & Talk","8"},{"🌙","Late Night Talk","9"},{"✨","New Friends","5"},{"💬","Open Chat","7"},{"🌸","Good Vibes","10"}};
-        return new String[][]{{"🎤","Music & Friends","11"},{"👑","KING Lounge","12"},{"🎮","Game Talk","8"},{"💜","Friends Forever","6"},{"🎵","Night Music","9"},{"✨","New Friends","7"},{"🌙","Late Night Talk","5"},{"🎧","DJ Party","10"}};
-    }
     private String safeKey(String v){return v==null?"none":v.replaceAll("[^A-Za-z0-9]","_");}
     private String roomId(String v){return String.valueOf(100000+Math.abs((v==null?0:v.hashCode())%900000));}
     private String seatAvatar(int n){String[] a={"🎵","🎮","💜","✨","🌸","🎧","🌙","👑","🎤","⭐","🌹","🎲"};return a[(n-1)%a.length];}
@@ -937,9 +904,23 @@ public class MainActivity extends Activity {
     }
 
     private void searchCommunity(){
-        screen="search"; base("Search","Find rooms and people"); EditText q=input("Search KING Plus…","");
-        button("Search",PURPLE,()->{String x=q.getText().toString().trim();if(x.isEmpty()){q.setError("Type a name or room");return;}ArrayList<String> results=new ArrayList<>();String low=x.toLowerCase();for(String cat:new String[]{"Hot","Music","Game","Date","Event"})for(String[] d:roomData(cat))if(d[1].toLowerCase().contains(low)&&!results.contains("🎤 "+d[1]))results.add("🎤 "+d[1]);for(String n:new String[]{"Lily","Alex","Mia","DJ Max","Queen","Sam","Gaur"})if(n.toLowerCase().contains(low))results.add("👤 "+n);if(results.isEmpty())results.add("✨ No exact match • Explore similar rooms");String[] arr=results.toArray(new String[0]);new AlertDialog.Builder(this).setTitle("Results for “"+x+"”").setItems(arr,(d,w)->{String item=arr[w];if(item.startsWith("🎤 "))room(item.substring(3));else if(item.startsWith("👤 "))userProfile(item.substring(3));}).setNegativeButton("Close",null).show();});
-        text("Try: Music, Friends, Game, KING",13,MUTED,false);button("Back",CARD,this::home);
+        final EditText query = input("Search people or live rooms…", "");
+        new AlertDialog.Builder(this).setTitle("Search KING Plus").setView(query)
+            .setNegativeButton("Cancel", null)
+            .setPositiveButton("People", (d,w) -> {
+                String value = query.getText().toString().trim();
+                if (value.isEmpty()) { Toast.makeText(this,"Enter a name to search",Toast.LENGTH_SHORT).show(); return; }
+                Intent intent = new Intent(this, SocialActivity.class);
+                intent.putExtra("searchQuery", value);
+                startActivity(intent);
+            })
+            .setNeutralButton("Live rooms", (d,w) -> {
+                String value = query.getText().toString().trim();
+                if (value.isEmpty()) { Toast.makeText(this,"Enter a room name to search",Toast.LENGTH_SHORT).show(); return; }
+                Intent intent = new Intent(this, PartyActivity.class);
+                intent.putExtra("roomSearchName", value);
+                startActivity(intent);
+            }).show();
     }
 
     private void createRoomDialog(){

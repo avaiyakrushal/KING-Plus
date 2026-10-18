@@ -50,12 +50,14 @@ public class PartyActivity extends Activity {
     private String roomName;
     private String ownerUid;
     private String ownerName;
+    private String roomFilter = "";
     private boolean cloudRoom;
     private int mySeat = -1;
     private boolean micOn;
     private boolean soundOn = true;
     private boolean roomLocked;
     private boolean muteAll;
+    private boolean presenceCleanupStarted;
     private String announcement = "Welcome to KING Plus • Be friendly and have fun";
     private int localCoins = 2500;
 
@@ -87,6 +89,9 @@ public class PartyActivity extends Activity {
         prefs = getSharedPreferences("king_party", MODE_PRIVATE);
         displayName = getIntent().getStringExtra("displayName");
         if (displayName == null || displayName.trim().isEmpty()) displayName = safeName();
+        roomFilter = getIntent().getStringExtra("roomSearchName");
+        if (roomFilter == null) roomFilter = "";
+        roomFilter = roomFilter.trim().toLowerCase(java.util.Locale.US);
         localCoins = prefs.getInt("coins", 2500);
         String requestedRoom = getIntent().getStringExtra("roomId");
         if (requestedRoom != null && !requestedRoom.trim().isEmpty() && user != null && db != null) {
@@ -116,7 +121,7 @@ public class PartyActivity extends Activity {
     }
 
     private void renderLobby(String selected) {
-        clearListeners(); unregisterMember(); roomId = null; cloudRoom = false;
+        cleanupPresence(); clearListeners(); roomId = null; cloudRoom = false;
         LinearLayout root = new LinearLayout(this); root.setOrientation(LinearLayout.VERTICAL); root.setBackgroundColor(0xfff7f7fb);
 
         LinearLayout head = new LinearLayout(this); head.setGravity(Gravity.CENTER_VERTICAL); head.setPadding(dp(16),dp(12),dp(12),dp(4));
@@ -141,16 +146,19 @@ public class PartyActivity extends Activity {
                 .addSnapshotListener((snap,error) -> {
                     if (error != null) { toast("Cloud rooms unavailable: " + msg(error)); return; }
                     cloudList.removeAllViews();
-                    if (snap == null || snap.isEmpty()) {
-                        TextView e = tv("No cloud rooms yet. Create the first one.",14,0xff88828f,false); cloudList.addView(e);
-                    } else {
-                        for (DocumentSnapshot doc : snap.getDocuments()) {
-                            if (Boolean.TRUE.equals(doc.getBoolean("closed"))) continue;
-                            String name = str(doc,"name","Live Party");
-                            String host = str(doc,"ownerName","KING Host");
-                            String id = doc.getId();
-                            addRoomCard(cloudList,"🔥 " + name,"Host: " + host + "   •   LIVE",() -> openCloudRoom(id,name,doc.getString("ownerUid"),host));
-                        }
+                    int shown = 0;
+                    if (snap != null) for (DocumentSnapshot doc : snap.getDocuments()) {
+                        if (Boolean.TRUE.equals(doc.getBoolean("closed"))) continue;
+                        String name = str(doc,"name","Live Party");
+                        if (!roomFilter.isEmpty() && !name.toLowerCase(java.util.Locale.US).contains(roomFilter)) continue;
+                        String host = str(doc,"ownerName","KING Host");
+                        String id = doc.getId();
+                        addRoomCard(cloudList,"🔥 " + name,"Host: " + host + "   •   LIVE",() -> openCloudRoom(id,name,doc.getString("ownerUid"),host));
+                        shown++;
+                    }
+                    if (shown == 0) {
+                        String message = roomFilter.isEmpty() ? "No live rooms yet. Create the first one." : "No live rooms match “" + roomFilter + "”.";
+                        TextView e = tv(message,14,0xff88828f,false); cloudList.addView(e);
                     }
                 });
         } else {
@@ -158,17 +166,22 @@ public class PartyActivity extends Activity {
         }
 
         if (user == null || db == null) {
-            TextView test = tv("TEST rooms • sign in to see live rooms",12,0xff77717f,false);
-            page.addView(test);
-            addRoomGridRow(page,
-                "💜 Sweet Girls","TEST room","Sweet Girls","Test Host",
-                "🎵 Music & Friends","TEST room","Music & Friends","Test Host");
-            addRoomGridRow(page,
-                "👑 KING Lounge","TEST room","KING Lounge","Test Host",
-                "🎮 Game Talk","TEST room","Game Talk","Test Host");
-            addRoomGridRow(page,
-                "💞 Make Friends","TEST room","Make Friends","Test Host",
-                "🎤 Singing Club","TEST room","Singing Club","Test Host");
+            if (!roomFilter.isEmpty()) {
+                TextView signIn = tv("Sign in to search live rooms. No preview rooms are shown as search results.",13,0xff77717f,false);
+                page.addView(signIn);
+            } else {
+                TextView test = tv("TEST rooms • sign in to see live rooms",12,0xff77717f,false);
+                page.addView(test);
+                addRoomGridRow(page,
+                    "💜 Sweet Girls","TEST room","Sweet Girls","Test Host",
+                    "🎵 Music & Friends","TEST room","Music & Friends","Test Host");
+                addRoomGridRow(page,
+                    "👑 KING Lounge","TEST room","KING Lounge","Test Host",
+                    "🎮 Game Talk","TEST room","Game Talk","Test Host");
+                addRoomGridRow(page,
+                    "💞 Make Friends","TEST room","Make Friends","Test Host",
+                    "🎤 Singing Club","TEST room","Singing Club","Test Host");
+            }
         }
         root.addView(scroll,new LinearLayout.LayoutParams(-1,0,1));
         addBottomNav(root,0); setContentView(root);
@@ -218,7 +231,7 @@ public class PartyActivity extends Activity {
             .addOnFailureListener(e -> toast("Create failed: " + msg(e)));
     }
     private void openCloudRoom(String id,String name,String hostUid,String hostName) {
-        roomId=id; roomName=name==null||name.trim().isEmpty()?"Live Party":name; ownerUid=hostUid; ownerName=hostName==null||hostName.trim().isEmpty()?"KING Host":hostName; cloudRoom=true; mySeat=-1; micOn=false;
+        presenceCleanupStarted=false; roomId=id; roomName=name==null||name.trim().isEmpty()?"Live Party":name; ownerUid=hostUid; ownerName=hostName==null||hostName.trim().isEmpty()?"KING Host":hostName; cloudRoom=true; mySeat=-1; micOn=false;
         registerMember(); renderParty();
     }
     private void openLocalRoom(String name,String hostName) {
@@ -390,7 +403,8 @@ public class PartyActivity extends Activity {
     }
     private void seedLocalChat(){if(cloudRoom)return;addChatRow("Amit","Hi everyone 👋");addChatRow("Riya","Welcome to the party 💜");String saved=prefs.getString("chat_"+roomId,"");if(!saved.isEmpty())for(String row:saved.split("\\n")){String[]p=row.split("\\|",2);if(p.length==2)addChatRow(p[0],p[1]);}}
     private void appendLocalChat(String who,String text){String old=prefs.getString("chat_"+roomId,"");prefs.edit().putString("chat_"+roomId,old+who.replace("|","")+"|"+text.replace("\n"," ")+"\n").apply();}
-    private void addChatRow(String who,String text){if(chatBox==null)return;TextView t=tv(who+":  "+text,14,Color.WHITE,false);t.setBackground(bg(0xff2e1c45,10));LinearLayout.LayoutParams p=new LinearLayout.LayoutParams(-1,-2);p.setMargins(0,dp(2),0,dp(2));chatBox.addView(t,p);}
+    private void addChatRow(String who,String text){addChatRow(who,text,"text");}
+    private void addChatRow(String who,String text,String type){if(chatBox==null)return;boolean visual="emoji".equals(type)||"gift".equals(type);TextView t=tv(visual?text:who+":  "+text,visual?22:14,Color.WHITE,!"text".equals(type));if(visual)t.setGravity(Gravity.CENTER_VERTICAL);else t.setBackground(bg(0xff2e1c45,10));LinearLayout.LayoutParams p=new LinearLayout.LayoutParams(-1,-2);p.setMargins(0,dp(2),0,dp(2));chatBox.addView(t,p);}
     private void seedLocalFeed(){if(cloudRoom)return;addFeed("Amit joined the room");addFeed("Rohit sent Rose 🌹 x1");addFeed("Sanjay sent Crown 👑 x1");}
     private void addFeed(String text){if(feedBox==null)return;TextView t=tv("• "+text,12,0xffe7dcf2,false);feedBox.addView(t,new LinearLayout.LayoutParams(-1,-2));}
 
@@ -398,14 +412,42 @@ public class PartyActivity extends Activity {
         String[] gifts={"🌹 Rose • 10","❤️ Heart • 50","🍫 Chocolate • 100","🚗 Car • 500","👑 Crown • 1000","🏰 Castle • 5000","🎆 Firework • 10000"};
         int[] costs={10,50,100,500,1000,5000,10000};String[] names={"Rose","Heart","Chocolate","Car","Crown","Castle","Firework"};
         String title=cloudRoom&&user!=null?"🎁 Gifts • server verified":"🎁 TEST Gift Store • "+localCoins+" coins";
-        new AlertDialog.Builder(this).setTitle(title).setItems(gifts,(d,w)->sendGift(names[w],costs[w])).setNegativeButton("Close",null).show();
+        new AlertDialog.Builder(this).setTitle(title).setItems(gifts,(d,w)->{
+            if(cloudRoom&&user!=null){selectGiftRecipient(names[w],costs[w]);return;}
+            sendGift(null,"TEST room",names[w],costs[w]);
+        }).setNegativeButton("Close",null).show();
     }
-    private void sendGift(String gift,int cost) {
+    private void selectGiftRecipient(String gift,int cost) {
+        if(db==null||user==null||roomId==null)return;
+        db.collection("live_rooms").document(roomId).collection("members").get()
+            .addOnSuccessListener(snapshot->{
+                List<DocumentSnapshot> recipients=new ArrayList<>();List<String> labels=new ArrayList<>();
+                for(DocumentSnapshot member:snapshot.getDocuments()){
+                    String uid=member.getString("uid");if(uid==null)uid=member.getId();
+                    if(uid.equals(user.getUid()))continue;
+                    recipients.add(member);labels.add(str(member,"name","KING User"));
+                }
+                if(recipients.isEmpty()){toast("No other live room members to receive a gift");return;}
+                new AlertDialog.Builder(this).setTitle("Send "+gift+" to").setItems(labels.toArray(new String[0]),(dialog,index)->{
+                    DocumentSnapshot recipient=recipients.get(index);String uid=recipient.getString("uid");if(uid==null)uid=recipient.getId();
+                    sendGift(uid,str(recipient,"name","KING User"),gift,cost);
+                }).setNegativeButton("Cancel",null).show();
+            }).addOnFailureListener(e->toast("Could not load live recipients: "+msg(e)));
+    }
+    private void sendGift(String recipientUid,String recipientName,String gift,int cost) {
         if(cloudRoom&&user!=null){
-            if(ownerUid==null||ownerUid.equals(user.getUid())){toast("A verified recipient account is required");return;}
-            CloudBackend.sendGift(ownerUid,gift,cost,(ok,message)->runOnUiThread(()->{toast(message);if(ok)addEvent("gift",safeName()+" sent "+gift+" 🎁 x1");}));return;
+            if(recipientUid==null||recipientUid.equals(user.getUid())){toast("Choose another signed-in room member");return;}
+            final String toUid=recipientUid;final String toName=recipientName;final String giftRoomId=roomId;
+            CloudBackend.sendGift(toUid,gift,cost,(ok,message)->runOnUiThread(()->{
+                toast(message);if(!ok)return;
+                String activity=safeName()+" sent "+gift+" to "+toName+" 🎁 x1";
+                Map<String,Object> event=new HashMap<>();event.put("actorUid",user.getUid());event.put("actorName",safeName());event.put("type","gift");event.put("text",activity);event.put("createdAt",FieldValue.serverTimestamp());
+                db.collection("live_rooms").document(giftRoomId).collection("events").add(event);
+                Map<String,Object> d=new HashMap<>();d.put("senderUid",user.getUid());d.put("senderName",safeName());d.put("recipientUid",toUid);d.put("recipientName",toName);d.put("text","🎁 "+gift+" sent to "+toName);d.put("type","gift");d.put("createdAt",FieldValue.serverTimestamp());
+                db.collection("live_rooms").document(giftRoomId).collection("messages").add(d).addOnFailureListener(e->toast("Gift was sent, but room message did not sync: "+msg(e)));
+            }));return;
         }
-        if(localCoins<cost){toast("Not enough TEST coins");return;}localCoins-=cost;prefs.edit().putInt("coins",localCoins).apply();addFeed(displayName+" sent "+gift+" 🎁 x1");toast("Gift sent • TEST balance "+localCoins);
+        if(localCoins<cost){toast("Not enough TEST coins");return;}localCoins-=cost;prefs.edit().putInt("coins",localCoins).apply();addFeed(displayName+" sent "+gift+" to "+recipientName+" 🎁 x1");toast("Gift sent • TEST balance "+localCoins);
     }
 
     private void shareRoom(){Intent s=new Intent(Intent.ACTION_SEND);s.setType("text/plain");s.putExtra(Intent.EXTRA_TEXT,"Join my KING Plus Party: "+roomName+" • Room ID "+shortId());startActivity(Intent.createChooser(s,"Share Party"));}
@@ -432,11 +474,22 @@ public class PartyActivity extends Activity {
         roomListener=room.addSnapshotListener((doc,e)->{if(e!=null||doc==null||!doc.exists())return;announcement=str(doc,"announcement",announcement);roomLocked=Boolean.TRUE.equals(doc.getBoolean("locked"));muteAll=Boolean.TRUE.equals(doc.getBoolean("muteAll"));if(announcementLabel!=null)announcementLabel.setText((roomLocked?"🔒  ":"📢  ")+announcement);if(Boolean.TRUE.equals(doc.getBoolean("closed"))&&!isOwner()){toast("Room was closed by host");leaveRoom();}});
         seatsListener=room.collection("seats").addSnapshotListener((snap,e)->{if(e!=null||snap==null)return;seatNames.clear();seatUids.clear();seatMics.clear();mySeat=-1;for(DocumentSnapshot d:snap.getDocuments()){int no;try{no=Integer.parseInt(d.getId());}catch(Exception ex){continue;}seatNames.put(no,str(d,"name","Guest"));seatUids.put(no,d.getString("uid"));seatMics.put(no,!Boolean.FALSE.equals(d.getBoolean("micOn")));if(user.getUid().equals(d.getString("uid"))){mySeat=no;micOn=Boolean.TRUE.equals(d.getBoolean("micOn"));}}rebuildSeats();if(micLabel!=null){micLabel.setText(micOn?"🎤 Mic ON":"🎤 Mic OFF");micLabel.setBackground(bg(micOn?0xff26a269:0xff51366d,18));}});
         membersListener=room.collection("members").addSnapshotListener((snap,e)->{if(e!=null){toast("Members unavailable: "+msg(e));return;}if(viewerLabel!=null&&snap!=null)viewerLabel.setText("👥 "+snap.size());if(snap!=null)renderMemberStrip(snap);});
-        messagesListener=room.collection("messages").orderBy("createdAt",Query.Direction.ASCENDING).limit(80).addSnapshotListener((snap,e)->{if(e!=null||snap==null||chatBox==null)return;chatBox.removeAllViews();for(DocumentSnapshot d:snap.getDocuments())addChatRow(str(d,"senderName","User"),str(d,"text",""));});
+        messagesListener=room.collection("messages").orderBy("createdAt",Query.Direction.ASCENDING).limit(80).addSnapshotListener((snap,e)->{if(e!=null||snap==null||chatBox==null)return;chatBox.removeAllViews();for(DocumentSnapshot d:snap.getDocuments())addChatRow(str(d,"senderName","User"),str(d,"text",""),str(d,"type","text"));});
         eventsListener=room.collection("events").orderBy("createdAt",Query.Direction.ASCENDING).limit(50).addSnapshotListener((snap,e)->{if(e!=null||snap==null||feedBox==null)return;feedBox.removeAllViews();for(DocumentSnapshot d:snap.getDocuments())addFeed(str(d,"text","Room activity"));});
     }
-    private void registerMember(){if(user==null||db==null||roomId==null)return;Map<String,Object>d=new HashMap<>();d.put("uid",user.getUid());d.put("name",safeName());d.put("joinedAt",FieldValue.serverTimestamp());db.collection("live_rooms").document(roomId).collection("members").document(user.getUid()).set(d).addOnFailureListener(e->toast("Could not join room: "+msg(e)));addEvent("join",safeName()+" joined the room");}
-    private void unregisterMember(){if(user!=null&&db!=null&&cloudRoom&&roomId!=null)db.collection("live_rooms").document(roomId).collection("members").document(user.getUid()).delete();}
+    private void registerMember(){if(user==null||db==null||roomId==null)return;Map<String,Object>d=new HashMap<>();d.put("uid",user.getUid());d.put("name",safeName());d.put("joinedAt",FieldValue.serverTimestamp());db.collection("live_rooms").document(roomId).collection("members").document(user.getUid()).set(d).addOnSuccessListener(v->addEvent("join",safeName()+" joined the room")).addOnFailureListener(e->toast("Could not join room: "+msg(e)));}
+    private void cleanupPresence(){
+        if(presenceCleanupStarted||user==null||db==null||!cloudRoom||roomId==null)return;
+        presenceCleanupStarted=true;String leavingRoom=roomId;String uid=user.getUid();
+        DocumentReference member=db.collection("live_rooms").document(leavingRoom).collection("members").document(uid);
+        DocumentReference seats=db.collection("live_rooms").document(leavingRoom).collection("seats");
+        db.runTransaction(transaction->{
+            DocumentSnapshot memberDoc=transaction.get(member);
+            if(mySeat>0){DocumentReference seat=seats.document(String.valueOf(mySeat));DocumentSnapshot seatDoc=transaction.get(seat);if(seatDoc.exists()&&uid.equals(seatDoc.getString("uid")))transaction.delete(seat);}
+            if(memberDoc.exists())transaction.delete(member);
+            return null;
+        }).addOnFailureListener(e->toast("Room presence could not fully sync while leaving: "+msg(e)));
+    }
     private void addEvent(String type,String text){if(cloudRoom&&user!=null&&db!=null&&roomId!=null){Map<String,Object>d=new HashMap<>();d.put("actorUid",user.getUid());d.put("actorName",safeName());d.put("type",type);d.put("text",text);d.put("createdAt",FieldValue.serverTimestamp());db.collection("live_rooms").document(roomId).collection("events").add(d);}else addFeed(text);}
 
     private boolean isOwner(){return cloudRoom?user!=null&&ownerUid!=null&&ownerUid.equals(user.getUid()):displayName.equals(ownerName);}
@@ -446,9 +499,9 @@ public class PartyActivity extends Activity {
     private String msg(Exception e){return e==null||e.getLocalizedMessage()==null?"unknown error":e.getLocalizedMessage();}
     private void toast(String s){Toast.makeText(this,s,Toast.LENGTH_LONG).show();}
 
-    private void leaveRoom(){unregisterMember();clearListeners();renderLobby("Hot");}
+    private void leaveRoom(){cleanupPresence();clearListeners();renderLobby("Hot");}
     private void addBottomNav(LinearLayout root,int selected){LinearLayout nav=new LinearLayout(this);nav.setGravity(Gravity.CENTER);nav.setBackgroundColor(Color.WHITE);String[] ni={"⌂\nParty","♟\nGame","◇\nDiscover","✉\nMessages","●\nMe"};for(int i=0;i<ni.length;i++){TextView n=tv(ni[i],12,i==selected?PURPLE:0xff777777,true);n.setGravity(Gravity.CENTER);final int k=i;n.setOnClickListener(v->{if(k==0)renderLobby("Hot");else{Intent back=new Intent(this,MainActivity.class);back.putExtra("openTab",k);startActivity(back);finish();}});nav.addView(n,new LinearLayout.LayoutParams(0,dp(62),1));}root.addView(nav);}
 
     @Override public void onBackPressed(){if(roomId!=null)leaveRoom();else super.onBackPressed();}
-    @Override protected void onDestroy(){unregisterMember();clearListeners();super.onDestroy();}
+    @Override protected void onDestroy(){cleanupPresence();clearListeners();super.onDestroy();}
 }

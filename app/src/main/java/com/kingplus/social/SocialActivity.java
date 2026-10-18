@@ -49,11 +49,17 @@ public class SocialActivity extends Activity {
         try { me = FirebaseAuth.getInstance().getCurrentUser(); } catch (Exception ignored) { me = null; }
         try { db = FirebaseFirestore.getInstance(); } catch (Exception ignored) { db = null; }
         render();
+        String initialQuery = clean(getIntent().getStringExtra("searchQuery"));
         if (cloudReady()) {
             publishOwnProfile();
-            loadDiscover();
+            if (!initialQuery.isEmpty()) {
+                search.setText(initialQuery);
+                runSearch();
+            } else {
+                loadDiscover();
+            }
         } else {
-            status.setText("Local/test mode • sign in with Firebase for live people search");
+            status.setText("Sign in with Firebase for live people search");
             showLocalDemo();
         }
     }

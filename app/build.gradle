@@ -14,7 +14,7 @@ android {
         }
     }
 
-    defaultConfig { applicationId 'com.kingplus.social'; minSdk 24; targetSdk 35; versionCode 349; versionName '10.0.70' }
+    defaultConfig { applicationId 'com.kingplus.social'; minSdk 24; targetSdk 35; versionCode 350; versionName '10.0.71' }
     buildTypes { debug { signingConfig signingConfigs.debug } }
     compileOptions { sourceCompatibility JavaVersion.VERSION_17; targetCompatibility JavaVersion.VERSION_17 }
 }
