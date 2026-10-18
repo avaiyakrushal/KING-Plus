@@ -8,7 +8,7 @@ on:
       - '.github/workflows/king-v10070-live-completion.yml'
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   build-and-package:
@@ -85,3 +85,15 @@ jobs:
           path: /tmp/king-v10073-out/*
           retention-days: 30
           if-no-files-found: error
+      - name: Publish direct APK and source downloads
+        if: success() && github.event_name == 'push'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create v10.0.73-discover-moments-test \
+            /tmp/king-v10073-out/KING-Plus-v10.0.73-Discover-Moments-TEST.apk \
+            /tmp/king-v10073-out/KING-Plus-v10.0.73-Discover-Moments-TEST-Source.zip \
+            --target "$GITHUB_SHA" \
+            --title "KING Plus v10.0.73 Discover Moments TEST" \
+            --notes "Direct installable APK and source ZIP. Includes server-backed Me wallet/history, live notifications and family membership, report submission, and Discover Moments feed/likes. TEST build only. Bolo Hi parity is not complete: Games tiles remain practice-only; Party voice, gifts and emojis require real two-device acceptance. Firebase Firestore provisioning and production RTC are not verified." \
+            --prerelease
