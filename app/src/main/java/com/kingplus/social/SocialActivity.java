@@ -139,6 +139,7 @@ public class SocialActivity extends Activity {
         if (!cloudReady()) { showLocalDemo(); return; }
         setLoading("Loading followers…");
         db.collection("follows").whereEqualTo("targetUid",me.getUid()).get().addOnSuccessListener(s->{
+            if (generation != directoryRequestGeneration || isFinishing()) return;
             list.removeAllViews(); if(s.isEmpty()){setLoading("No followers yet");return;}
             for(DocumentSnapshot d:s.getDocuments()) loadProfileCard(d.getString("followerUid"),generation);
         }).addOnFailureListener(e->{if (generation != directoryRequestGeneration || isFinishing()) return; setLoading("Could not load followers");toast(safe(e.getLocalizedMessage()));});
@@ -164,7 +165,7 @@ public class SocialActivity extends Activity {
         db.collection("public_profiles").document(uid).get().addOnSuccessListener(d->{
             if (generation != directoryRequestGeneration || isFinishing()) return;
             if(d.exists())addPerson(uid,nameOf(d),clean(d.getString("bio"))); else addPerson(uid,"KING "+shortUid(uid),"");
-        });
+        }).addOnFailureListener(e->{ if (generation == directoryRequestGeneration && !isFinishing()) addPerson(uid,"KING "+shortUid(uid),"Profile temporarily unavailable"); });
     }
 
     private void addPerson(String uid, String name, String bio) {
