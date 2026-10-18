@@ -790,7 +790,34 @@ public class MainActivity extends Activity {
         int xp=getPreferences(0).getInt("xp",120); TextView id=new TextView(this); id.setText("ID: "+roomId(displayName)+"   ♢ Lv."+(xp/500+1)); id.setTextSize(13); id.setTextColor(0xff777777); id.setGravity(Gravity.CENTER); hero.addView(id);
         TextView bio=new TextView(this); bio.setText(getPreferences(0).getString("bio","Love music, games and new friends ✨")); bio.setTextSize(13); bio.setTextColor(0xff666666); bio.setGravity(Gravity.CENTER); bio.setPadding(dp(20),dp(4),dp(20),0); hero.addView(bio); root.addView(hero,new LinearLayout.LayoutParams(-1,dp(185)));
         int following=new HashSet<>(getPreferences(0).getStringSet("following",new HashSet<>())).size(); int friends=new HashSet<>(getPreferences(0).getStringSet("friends",new HashSet<>())).size();
-        LinearLayout stats=new LinearLayout(this); stats.setGravity(Gravity.CENTER); String[] ss={following+"\nFollowing","—\nFollowers",friends+"\nFriends",(1200+xp)+"\nCharm"}; for(String z:ss){TextView x=new TextView(this);x.setText(z);x.setGravity(Gravity.CENTER);x.setTextSize(14);x.setTextColor(0xff333333);stats.addView(x,new LinearLayout.LayoutParams(0,dp(64),1));} root.addView(stats);
+        LinearLayout stats=new LinearLayout(this); stats.setGravity(Gravity.CENTER);
+        String[] ss={"—\nFollowing","—\nFollowers","—\nFriends",(1200+xp)+"\nCharm"};
+        TextView[] statViews=new TextView[4];
+        for(int i=0;i<ss.length;i++){TextView x=new TextView(this);x.setText(ss[i]);x.setGravity(Gravity.CENTER);x.setTextSize(14);x.setTextColor(0xff333333);statViews[i]=x;stats.addView(x,new LinearLayout.LayoutParams(0,dp(64),1));}
+        root.addView(stats);
+        FirebaseUser signedUser=firebaseAuth==null?null:firebaseAuth.getCurrentUser();
+        if(signedUser!=null){
+            try {
+                com.google.firebase.firestore.FirebaseFirestore firestore=com.google.firebase.firestore.FirebaseFirestore.getInstance();
+                String uid=signedUser.getUid();
+                firestore.collection("follows").whereEqualTo("followerUid",uid).get().addOnSuccessListener(out->{
+                    if(!"profile".equals(screen)||isFinishing())return;
+                    java.util.Set<String> outgoing=new java.util.HashSet<>();
+                    for(com.google.firebase.firestore.DocumentSnapshot d:out.getDocuments()){String id=d.getString("targetUid");if(id!=null)outgoing.add(id);}
+                    statViews[0].setText(outgoing.size()+"\nFollowing");
+                    firestore.collection("follows").whereEqualTo("targetUid",uid).get().addOnSuccessListener(in->{
+                        if(!"profile".equals(screen)||isFinishing())return;
+                        int mutual=0;
+                        for(com.google.firebase.firestore.DocumentSnapshot d:in.getDocuments()){String id=d.getString("followerUid");if(id!=null&&outgoing.contains(id))mutual++;}
+                        statViews[1].setText(in.size()+"\nFollowers");
+                        statViews[2].setText(mutual+"\nFriends");
+                    });
+                });
+            }catch(Exception ignored){}
+        }else{
+            statViews[0].setText(following+"\nFollowing");
+            statViews[2].setText(friends+"\nFriends");
+        }
         ScrollView sv=new ScrollView(this); LinearLayout list=new LinearLayout(this); list.setOrientation(LinearLayout.VERTICAL); list.setPadding(dp(14),dp(5),dp(14),dp(14)); sv.addView(list);
         String hometown=getPreferences(0).getString("hometown",""); if(!hometown.isEmpty()) cardLine(list,"📍 "+hometown,"Hometown",null);
         cardLine(list,"👥 Live Followers & Following","Open Firebase people directory",()->startActivity(new Intent(this,SocialActivity.class))); cardLine(list,"💎 My Wallet","Coins, gifts and transaction history",this::walletPage); cardLine(list,"🎒 Backpack","Gifts, frames and room items",this::backpackPage); cardLine(list,"🏆 Level & Achievements","Level "+(xp/500+1)+" • "+xp+" XP",this::levelPage); cardLine(list,"👑 Rankings","Weekly stars and top gifters",this::rankingsPage); cardLine(list,"💠 VIP Center","Badges, frames and entrance effects",this::vipPage); cardLine(list,"🏠 Family & Agency","Family members, code sharing and host tools",this::familyAgencyPage); cardLine(list,"📅 Daily Check-in","Claim a daily reward and build streak",this::dailyCheckInPage); cardLine(list,"🏅 Missions","Daily activity missions and rewards",this::missionsPage); cardLine(list,"⚙ Settings","Account, privacy and notifications",this::settingsPage);
