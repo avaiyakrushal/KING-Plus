@@ -42,6 +42,7 @@ public class SocialActivity extends Activity {
     private EditText search;
     private TextView status;
     private int directoryRequestGeneration = 0;
+    private final Set<String> pendingFollowActions = new HashSet<>();
 
     @Override public void onCreate(Bundle state) {
         super.onCreate(state);
@@ -188,9 +189,19 @@ public class SocialActivity extends Activity {
     private void toggleFollow(String uid, String name, boolean following) {
         if (!cloudReady() || uid == null || uid.isEmpty() || uid.equals(me.getUid())) { toast("Cannot follow this account"); return; }
         String id=followId(me.getUid(),uid);
-        if(following){ db.collection("follows").document(id).delete().addOnSuccessListener(v->{toast("Unfollowed "+name);loadFollowing();}).addOnFailureListener(e->toast(safe(e.getLocalizedMessage()))); return; }
-        Map<String,Object> data=new HashMap<>(); data.put("followerUid",me.getUid()); data.put("targetUid",uid); data.put("createdAt",FieldValue.serverTimestamp());
-        db.collection("follows").document(id).set(data).addOnSuccessListener(v->{toast("Following "+name);loadFollowing();}).addOnFailureListener(e->toast(safe(e.getLocalizedMessage())));
+        if (!pendingFollowActions.add(id)) { toast("Follow change is already saving"); return; }
+        if(following){
+            db.collection("follows").document(id).delete()
+                .addOnSuccessListener(v->{pendingFollowActions.remove(id);toast("Unfollowed "+name);loadFollowing();})
+                .addOnFailureListener(e->{pendingFollowActions.remove(id);toast(safe(e.getLocalizedMessage()));});
+            return;
+        }
+        Map<String,Object> data=new HashMap<>();
+        data.put("followerUid",me.getUid()); data.put("targetUid",uid);
+        data.put("createdAt",FieldValue.serverTimestamp());
+        db.collection("follows").document(id).set(data)
+            .addOnSuccessListener(v->{pendingFollowActions.remove(id);toast("Following "+name);loadFollowing();})
+            .addOnFailureListener(e->{pendingFollowActions.remove(id);toast(safe(e.getLocalizedMessage()));});
     }
 
     private void openChat(String uid, String name) { Intent i=new Intent(this,ChatActivity.class); i.putExtra("peerUid",uid); i.putExtra("peerName",name); startActivity(i); }
