@@ -176,15 +176,30 @@ public class SocialActivity extends Activity {
     }
 
     private void openProfile(String uid, String name, String bio) {
-        if (!cloudReady() || uid.equals(me.getUid())) return;
+        if (!cloudReady() || uid == null || uid.isEmpty() || uid.equals(me.getUid())) return;
         String ownId=followId(me.getUid(),uid), reverseId=followId(uid,me.getUid());
-        db.collection("follows").document(ownId).get().addOnSuccessListener(own->db.collection("follows").document(reverseId).get().addOnSuccessListener(reverse->{
-            boolean following=own.exists(), follower=reverse.exists(), friend=following&&follower;
-            ArrayList<String> actions=new ArrayList<>(); actions.add(following?"✓ Unfollow":"＋ Follow"); actions.add("✉ Message"); actions.add("⚑ Report");
-            String relation=friend?"💜 Friends":(following?"Following":(follower?"Follows you":"Not connected"));
-            new AlertDialog.Builder(this).setTitle(name).setMessage((bio.isEmpty()?"KING Plus member":bio)+"\n\n"+relation+"\nUID: "+shortUid(uid))
-                .setItems(actions.toArray(new String[0]),(d,w)->{ if(w==0)toggleFollow(uid,name,following); else if(w==1)openChat(uid,name); else report(uid,name); }).setNegativeButton("Close",null).show();
-        }));
+        db.collection("follows").document(ownId).get()
+            .addOnSuccessListener(own -> {
+                if (isFinishing() || isDestroyed()) return;
+                db.collection("follows").document(reverseId).get()
+                    .addOnSuccessListener(reverse -> {
+                        if (isFinishing() || isDestroyed()) return;
+                        boolean following=own.exists(), follower=reverse.exists(), friend=following&&follower;
+                        ArrayList<String> actions=new ArrayList<>();
+                        actions.add(following?"✓ Unfollow":"＋ Follow");
+                        actions.add("✉ Message"); actions.add("⚑ Report");
+                        String relation=friend?"💜 Friends":(following?"Following":(follower?"Follows you":"Not connected"));
+                        new AlertDialog.Builder(this).setTitle(name)
+                            .setMessage((bio.isEmpty()?"KING Plus member":bio)+"\\n\\n"+relation+"\\nUID: "+shortUid(uid))
+                            .setItems(actions.toArray(new String[0]),(d,w)->{
+                                if(w==0)toggleFollow(uid,name,following);
+                                else if(w==1)openChat(uid,name);
+                                else report(uid,name);
+                            }).setNegativeButton("Close",null).show();
+                    })
+                    .addOnFailureListener(e->{if (!isFinishing() && !isDestroyed()) toast("Could not load follower relationship");});
+            })
+            .addOnFailureListener(e->{if (!isFinishing() && !isDestroyed()) toast("Could not load profile relationship");});
     }
 
     private void toggleFollow(String uid, String name, boolean following) {
