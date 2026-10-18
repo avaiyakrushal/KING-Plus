@@ -1,4 +1,4 @@
-name: KING Plus v10.0.73 Discover Moments TEST
+name: KING Plus v10.0.74 Games Recovery TEST
 
 on:
   push:
@@ -34,7 +34,7 @@ jobs:
           social=Path('app/src/main/java/com/kingplus/social/SocialActivity.java').read_text()
           gradle=Path('app/build.gradle').read_text()
           bridge=Path('app/src/main/java/com/kingplus/social/NativeMeetBridge.java').read_text()
-          assert "versionCode 352" in g and "versionName '10.0.73'" in g
+          assert "versionCode 353" in g and "versionName '10.0.74'" in g
           for dependency in ('firebase-firestore','firebase-functions','firebase-messaging','billing:8.0.0'):
               assert dependency in g, f'missing dependency: {dependency}'
           assert 'KingMessagingService' in manifest and 'POST_NOTIFICATIONS' in manifest
@@ -46,14 +46,21 @@ jobs:
           assert 'minSdk 26' in gradle and 'jitsi-meet-sdk:13.1.1' in gradle
           assert "abiFilters 'arm64-v8a', 'armeabi-v7a'" in gradle
           assert 'Source.SERVER' in bridge and 'JitsiMeetActivity.launch' in bridge
-          assert 'no wallet changes or rewards' in main
+          game=(Path('app/src/main/java/com/kingplus/social/GamePlayActivity.java').read_text())
+          assert 'Practice games • live player counts' not in main
+          assert 'private void openGame(String game)' in main and 'new Intent(this,GamePlayActivity.class)' in main
+          assert 'private void openLudoModes()' in main
+          assert all(x in game for x in ('showTicTacToe','showMemory','showDice','showReactionTap','showBingo','showDrawGuess','showDomino'))
+          assert 'KingOfflineLudoActivity' in main and 'OnlineLudoActivity' in main
+          for activity in ('GamePlayActivity','OnlineLudoActivity','KingOfflineLudoActivity'):
+              assert f'android:name=".{activity}"' in manifest
           assert 'Source.SERVER' in main and 'wallet_ledger' in main and 'notificationListener' in main
           assert 'Weekly Stars' not in main and '15.2K coins' not in main
           assert 'CloudSync.submitReport' in main
           assert 'Live community feed' in main and 'toggleMomentLike' in main and 'momentListener' in main
           assert 'collection("public_profiles")' in social and 'pendingFollowActions' in social
           assert '18,791 players' not in main and 'Lily ✨' not in social
-          print('PASS: live Home/Discover/Messages/Party wiring, server wallet/history/notifications, cloud reports, verified gift recipients, room cleanup, honest previews and TEST release identity')
+          print('PASS: live Home/Discover/Messages/Party wiring, restored playable games, online/offline Ludo routes, server wallet/history/notifications and TEST release identity')
           PY
       - name: Build signed Android TEST APK
         run: gradle :app:assembleDebug --no-daemon --max-workers=2
@@ -64,7 +71,7 @@ jobs:
           test -s "$apk"
           aapt="$(find "$ANDROID_HOME/build-tools" -name aapt -type f | sort -V | tail -1)"
           signer="$(find "$ANDROID_HOME/build-tools" -name apksigner -type f | sort -V | tail -1)"
-          "$aapt" dump badging "$apk" | grep '^package:' | grep "name='com.kingplus.social'" | grep "versionCode='352'"
+          "$aapt" dump badging "$apk" | grep '^package:' | grep "name='com.kingplus.social'" | grep "versionCode='353'"
           "$signer" verify --print-certs "$apk"
           test "$(stat -c%s "$apk")" -gt 60000000 || { echo 'APK is unexpectedly small; full Jitsi/React Native runtime is missing'; exit 1; }
           unzip -Z1 "$apk" | grep -q '^lib/arm64-v8a/libjingle_peerconnection_so.so$' || { echo 'Jitsi WebRTC native library missing'; exit 1; }
@@ -73,27 +80,28 @@ jobs:
       - name: Package APK and source ZIP
         run: |
           set -euo pipefail
-          mkdir -p /tmp/king-v10073-out
-          cp app/build/outputs/apk/debug/app-debug.apk /tmp/king-v10073-out/KING-Plus-v10.0.73-Discover-Moments-TEST.apk
-          zip -qr /tmp/king-v10073-out/KING-Plus-v10.0.73-Discover-Moments-TEST-Source.zip . \
+          mkdir -p /tmp/king-v10074-out
+          cp app/build/outputs/apk/debug/app-debug.apk /tmp/king-v10074-out/KING-Plus-v10.0.74-Games-Recovery-TEST.apk
+          zip -qr /tmp/king-v10074-out/KING-Plus-v10.0.74-Games-Recovery-TEST-Source.zip . \
             -x '.git/*' '*/.git/*' '*/build/*' '.gradle/*' '*/.gradle/*' '*/node_modules/*' \
             '*.apk' '*.aab' '*.keystore' '*.jks' '*.zip' '*local.properties' '*.log'
-          sha256sum /tmp/king-v10073-out/*
+          sha256sum /tmp/king-v10074-out/*
       - uses: actions/upload-artifact@v4
         with:
-          name: KING-Plus-v10.0.73-Discover-Moments-TEST-APK-and-Source
-          path: /tmp/king-v10073-out/*
+          name: KING-Plus-v10.0.74-Games-Recovery-TEST-APK-and-Source
+          path: /tmp/king-v10074-out/*
           retention-days: 30
           if-no-files-found: error
       - name: Publish direct APK and source downloads
         if: success() && github.event_name == 'push'
         env:
           GH_TOKEN: ${{ github.token }}
+        continue-on-error: true
         run: |
-          gh release create v10.0.73-discover-moments-test \
-            /tmp/king-v10073-out/KING-Plus-v10.0.73-Discover-Moments-TEST.apk \
-            /tmp/king-v10073-out/KING-Plus-v10.0.73-Discover-Moments-TEST-Source.zip \
+          gh release create v10.0.74-games-recovery-test \
+            /tmp/king-v10074-out/KING-Plus-v10.0.74-Games-Recovery-TEST.apk \
+            /tmp/king-v10074-out/KING-Plus-v10.0.74-Games-Recovery-TEST-Source.zip \
             --target "$GITHUB_SHA" \
-            --title "KING Plus v10.0.73 Discover Moments TEST" \
-            --notes "Direct installable APK and source ZIP. Includes server-backed Me wallet/history, live notifications and family membership, report submission, and Discover Moments feed/likes. TEST build only. Bolo Hi parity is not complete: Games tiles remain practice-only; Party voice, gifts and emojis require real two-device acceptance. Firebase Firestore provisioning and production RTC are not verified." \
+            --title "KING Plus v10.0.74 Games Recovery TEST" \
+            --notes "Direct installable APK and source ZIP. Restores playable mini-games, Online Ludo entry and Offline Ludo mode. TEST build only. Online Ludo, Party voice, gifts and emojis still require deployed Firebase services and real two-device acceptance." \
             --prerelease

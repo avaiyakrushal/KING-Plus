@@ -455,10 +455,18 @@ public class PartyActivity extends Activity {
     private void pkBattle(){String msg="⚔ PK Battle started: "+ownerName+" vs Guest Team\n\nGifts and room activity decide the winner in this test preview.";new AlertDialog.Builder(this).setTitle("PK Battle").setMessage(msg).setPositiveButton("Start",(d,w)->addEvent("pk",displayName+" started a PK battle ⚔")).setNegativeButton("Close",null).show();}
 
     private void roomMenu() {
-        List<String> items=new ArrayList<>();items.add("🎙 Open voice room");items.add("⚔ PK battle");items.add("🔗 Share room");items.add("🔔 Invite by Firebase UID");items.add("⚑ Report host");items.add("🚫 Block host");if(isOwner()){items.add(roomLocked?"🔓 Unlock seats":"🔒 Lock seats");items.add(muteAll?"🎤 Unmute all seats":"🔇 Mute all seats");items.add("📢 Edit announcement");items.add("⛔ Close room");}
+        List<String> items=new ArrayList<>();items.add("🎙 Open voice room");items.add("🎮 Room multiplayer games");items.add("⚔ PK battle");items.add("🔗 Share room");items.add("🔔 Invite by Firebase UID");items.add("⚑ Report host");items.add("🚫 Block host");if(isOwner()){items.add(roomLocked?"🔓 Unlock seats":"🔒 Lock seats");items.add(muteAll?"🎤 Unmute all seats":"🔇 Mute all seats");items.add("📢 Edit announcement");items.add("⛔ Close room");}
         String[] a=items.toArray(new String[0]);new AlertDialog.Builder(this).setTitle(roomName).setItems(a,(d,w)->{
-            String x=a[w];if(x.contains("Open voice"))openVoice();else if(x.contains("PK battle"))pkBattle();else if(x.contains("Share"))shareRoom();else if(x.contains("Invite"))inviteDialog();else if(x.contains("Report"))reportHost();else if(x.contains("Block"))blockHost();else if(x.contains("Lock")||x.contains("Unlock"))setRoomFlag("locked",!roomLocked);else if(x.contains("Mute all")||x.contains("Unmute"))setRoomFlag("muteAll",!muteAll);else if(x.contains("announcement"))editAnnouncement();else if(x.contains("Close room"))closeRoom();
+            String x=a[w];if(x.contains("Open voice"))openVoice();else if(x.contains("Room multiplayer"))openRoomGames();else if(x.contains("PK battle"))pkBattle();else if(x.contains("Share"))shareRoom();else if(x.contains("Invite"))inviteDialog();else if(x.contains("Report"))reportHost();else if(x.contains("Block"))blockHost();else if(x.contains("Lock")||x.contains("Unlock"))setRoomFlag("locked",!roomLocked);else if(x.contains("Mute all")||x.contains("Unmute"))setRoomFlag("muteAll",!muteAll);else if(x.contains("announcement"))editAnnouncement();else if(x.contains("Close room"))closeRoom();
         }).show();
+    }
+    private void openRoomGames(){
+        if(cloudRoom&&user!=null&&roomId!=null){
+            Intent i=new Intent(this,RoomGameActivity.class);i.putExtra("roomId",roomId);i.putExtra("roomName",roomName);i.putExtra("displayName",safeName());startActivity(i);return;
+        }
+        final String[] labels={"✊ Rock Paper Scissors","🎲 Dice Duel","⭕ Tic Tac Toe","🧠 Memory Match"};
+        final String[] games={"rps","dice","tic_tac_toe","memory"};
+        new AlertDialog.Builder(this).setTitle("🎮 On-device games").setItems(labels,(d,w)->{Intent i=new Intent(this,GamePlayActivity.class);i.putExtra("game",games[w]);startActivity(i);}).setNegativeButton("Close",null).show();
     }
     private void inviteDialog(){if(!cloudRoom||user==null){shareRoom();return;}final EditText e=new EditText(this);e.setHint("Friend Firebase UID");new AlertDialog.Builder(this).setTitle("Invite to Party").setView(e).setNegativeButton("Cancel",null).setPositiveButton("Invite",(d,w)->{String uid=e.getText().toString().trim();if(uid.isEmpty())return;CloudBackend.sendRoomInvite(uid,roomId,roomName,(ok,m)->runOnUiThread(()->toast(m)));}).show();}
     private void reportHost(){String target=ownerUid==null?ownerName:ownerUid;CloudSync.submitReport(this,target,"Live party report",(ok,m)->runOnUiThread(()->toast(m)));}

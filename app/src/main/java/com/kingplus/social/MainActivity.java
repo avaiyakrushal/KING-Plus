@@ -433,18 +433,16 @@ public class MainActivity extends Activity {
     }
 
     private void roomGames(){
-        final String[] gameNames={"🎲 Ludo Party","🎯 Lucky Dart","🐍 Snake Battle","🏁 Racing","🎁 Lucky Draw"};
-        new AlertDialog.Builder(this).setTitle("🎮 Room Games").setItems(gameNames,(d,w)->playMiniGame(gameNames[w])).setNegativeButton("Close",null).show();
+        final String[] labels={"🎲 Online Ludo","⭕ Tic Tac Toe","🧠 Memory Match","✊ Rock Paper Scissors","🎲 Dice Duel","⚡ Reaction Tap"};
+        final String[] games={"ludo","tic_tac_toe","memory","rps","dice","reaction"};
+        new AlertDialog.Builder(this).setTitle("🎮 Playable Games").setItems(labels,(d,w)->{if(w==0)openLudoModes();else openGame(games[w]);}).setNegativeButton("Close",null).show();
     }
-    private void playMiniGame(String game){
-        String result;
-        if(game.contains("Ludo")) result="Local practice table opened. Online players are not connected in this version.";
-        else if(game.contains("Dart")) result="Practice mode opened. Score is for this device only.";
-        else if(game.contains("Draw")) result="Practice preview only. No coins or prizes are awarded.";
-        else if(game.contains("Racing")) result="Local racing practice preview. No live players are connected.";
-        else if(game.contains("Snake")) result="Local practice round. This is not an online battle.";
-        else result="Local practice preview. Multiplayer is not connected in this version.";
-        new AlertDialog.Builder(this).setTitle(game).setMessage(result+"\n\nTEST mode • no wallet changes or rewards").setPositiveButton("Play again",(d,w)->playMiniGame(game)).setNegativeButton("Back",null).show();
+    private void openGame(String game){
+        Intent i=new Intent(this,GamePlayActivity.class);i.putExtra("game",game);startActivity(i);
+    }
+    private void openLudoModes(){
+        final String[] modes={"🌐 Online Ludo • create or join a room","📱 Offline Ludo • two players on this phone"};
+        new AlertDialog.Builder(this).setTitle("🎲 KING Ludo").setItems(modes,(d,w)->startActivity(new Intent(this,w==0?OnlineLudoActivity.class:KingOfflineLudoActivity.class))).setNegativeButton("Back",null).show();
     }
 
     private void giftEffect(String gift){ final Toast t=Toast.makeText(this,"✨  "+gift+"  ✨",Toast.LENGTH_LONG); t.setGravity(Gravity.CENTER,0,0); t.show(); }
@@ -586,13 +584,21 @@ public class MainActivity extends Activity {
         TextView h=new TextView(this); h.setText("Game"); h.setTextSize(30); h.setTextColor(0xff171717); h.setTypeface(null,Typeface.BOLD); h.setPadding(dp(18),dp(18),0,dp(10)); root.addView(h,new LinearLayout.LayoutParams(-1,dp(70)));
         LinearLayout tabs=new LinearLayout(this); tabs.setPadding(dp(14),0,dp(14),dp(8)); TextView hot=new TextView(this); hot.setText("Hot"); hot.setGravity(Gravity.CENTER); hot.setTypeface(null,Typeface.BOLD); hot.setBackground(background(0xffffe500,12)); hot.setTextColor(0xff111111); tabs.addView(hot,new LinearLayout.LayoutParams(0,dp(48),1)); TextView ludo=new TextView(this); ludo.setText("LUDO"); ludo.setGravity(Gravity.CENTER); ludo.setTypeface(null,Typeface.BOLD); ludo.setTextColor(0xff333333); ludo.setBackground(background(0xffefeff5,12)); LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(0,dp(48),1);lp.setMargins(dp(8),0,0,0);tabs.addView(ludo,lp);root.addView(tabs);
         ScrollView sv=new ScrollView(this); LinearLayout list=new LinearLayout(this); list.setOrientation(LinearLayout.VERTICAL); list.setPadding(dp(14),dp(8),dp(14),dp(18)); sv.addView(list);
-        TextView mode=new TextView(this);mode.setText("Practice games • live player counts and multiplayer are not connected in this build");mode.setTextSize(13);mode.setTextColor(0xff77717f);mode.setPadding(dp(4),dp(4),dp(4),dp(10));list.addView(mode);
-        cardLine(list,"🎲  Ludo","Practice table",()->playMiniGame("🎲 Ludo Party"));
-        cardLine(list,"🐑  Sheep Fight","Practice round",()->playMiniGame("🐍 Snake Battle"));
-        cardLine(list,"🗡  Knife Hit","Skill practice",()->playMiniGame("🎯 Lucky Dart"));
-        cardLine(list,"⬡  Hexagon Fight","Practice arena",()->playMiniGame("🏁 Racing"));
-        cardLine(list,"🃏  Rummy","Practice cards",()->playMiniGame("🎁 Lucky Draw"));
-        cardLine(list,"♠  Spider Challenge","Solitaire practice",()->playMiniGame("🎯 Lucky Dart"));
+        TextView mode=new TextView(this);mode.setText("Playable on this phone • Online Ludo uses signed-in Firebase rooms");mode.setTextSize(13);mode.setTextColor(0xff77717f);mode.setPadding(dp(4),dp(4),dp(4),dp(10));list.addView(mode);
+        cardLine(list,"🎲  Ludo","Online room or two-player offline match",this::openLudoModes);
+        cardLine(list,"⭕  Tic Tac Toe","Play against KING Bot",()->openGame("tic_tac_toe"));
+        cardLine(list,"🧠  Memory Match","Find all four pairs",()->openGame("memory"));
+        cardLine(list,"✊  Rock Paper Scissors","Play a quick round",()->openGame("rps"));
+        cardLine(list,"🎲  Dice Duel","Roll against KING Bot",()->openGame("dice"));
+        cardLine(list,"🔢  Guess the Number","1 to 20 puzzle",()->openGame("guess"));
+        cardLine(list,"⚡  Reaction Tap","Test your reaction speed",()->openGame("reaction"));
+        cardLine(list,"🎯  High / Low","Guess the next card",()->openGame("highlow"));
+        cardLine(list,"🎡  Lucky Wheel","Free game • no money",()->openGame("wheel"));
+        cardLine(list,"🐑  Sheep Fight","Train then battle KING Bot",()->openGame("sheep"));
+        cardLine(list,"🕵  Spy Game","Single-player deduction round",()->openGame("spy"));
+        cardLine(list,"🎱  Bingo","Playable number game",()->openGame("bingo"));
+        cardLine(list,"✏️  Draw & Guess","Pass this phone to a friend",()->openGame("draw"));
+        cardLine(list,"🀄  Domino Match","Match tiles against a target",()->openGame("domino"));
         root.addView(sv,new LinearLayout.LayoutParams(-1,0,1)); addBottomNav(root,1); setContentView(root);
     }
 

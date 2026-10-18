@@ -8,6 +8,10 @@
         <activity android:name=".SocialActivity" android:exported="false" />
         <activity android:name=".InboxActivity" android:exported="false" />
         <activity android:name=".ChatActivity" android:exported="false" />
+        <activity android:name=".GamePlayActivity" android:exported="false" />
+        <activity android:name=".OnlineLudoActivity" android:exported="false" />
+        <activity android:name=".KingOfflineLudoActivity" android:exported="false" />
+        <activity android:name=".RoomGameActivity" android:exported="false" />
         <service android:name=".KingMessagingService" android:exported="false">
             <intent-filter><action android:name="com.google.firebase.MESSAGING_EVENT" /></intent-filter>
         </service>
