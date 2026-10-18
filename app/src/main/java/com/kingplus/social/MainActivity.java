@@ -81,6 +81,7 @@ public class MainActivity extends Activity {
     private com.google.firebase.firestore.ListenerRegistration notificationListener;
     private com.google.firebase.firestore.ListenerRegistration familyListener;
     private com.google.firebase.firestore.ListenerRegistration familyMembersListener;
+    private com.google.firebase.firestore.ListenerRegistration momentListener;
 
     @Override public void onCreate(Bundle state) {
         super.onCreate(state);
@@ -128,6 +129,7 @@ public class MainActivity extends Activity {
         if (notificationListener != null) { notificationListener.remove(); notificationListener = null; }
         if (familyListener != null) { familyListener.remove(); familyListener = null; }
         if (familyMembersListener != null) { familyMembersListener.remove(); familyMembersListener = null; }
+        if (momentListener != null) { momentListener.remove(); momentListener = null; }
         ScrollView scroll = new ScrollView(this); scroll.setFillViewport(true); scroll.setBackgroundColor(NAVY);
         page = new LinearLayout(this); page.setOrientation(LinearLayout.VERTICAL);
         page.setPadding(dp(22), dp(30), dp(22), dp(36)); scroll.addView(page); setContentView(scroll);
@@ -612,13 +614,54 @@ public class MainActivity extends Activity {
 
     private void momentsPage(){
         screen="moments"; base("Moments","Share updates with the KING Plus community");
-        button("＋ Create photo/text post",PURPLE,this::composePost);
-        text("Your recent posts",18,Color.WHITE,true); showPosts();
-        EditText post=input("Quick text Moment…","");
-        button("Post quick Moment",CARD,()->{String m=post.getText().toString().trim(); if(m.isEmpty()){post.setError("Write something first");return;} String old=getPreferences(0).getString("moments",""); getPreferences(0).edit().putString("moments",m+"|||"+old).apply(); addXp(5); momentsPage();});
-        String saved=getPreferences(0).getString("moments","");
-        if(!saved.isEmpty()){text("Quick Moments",18,Color.WHITE,true);String[] posts=saved.split("\\|\\|\\|"); for(String m:posts) if(!m.trim().isEmpty()){text("●  "+displayName,15,Color.WHITE,true); text(m,16,Color.WHITE,false); button("♡ Like   💬 Comment",CARD,()->Toast.makeText(this,"Interaction saved locally",Toast.LENGTH_SHORT).show());}}
+        FirebaseUser signed=firebaseAuth==null?null:firebaseAuth.getCurrentUser();
+        button(signed==null?"＋ Create TEST/local post":"＋ Create live text post",PURPLE,()->{if(signed==null)composePost();else composeLiveMoment(signed);});
+        text(signed==null?"TEST/local posts on this phone":"Live community feed",18,Color.WHITE,true);
+        if(signed==null){showPosts();return;}
+        final LinearLayout rows=new LinearLayout(this);rows.setOrientation(LinearLayout.VERTICAL);page.addView(rows);
+        final TextView state=text("Loading live Moments…",14,MUTED,false);
+        momentListener=com.google.firebase.firestore.FirebaseFirestore.getInstance().collection("moments")
+            .orderBy("createdAt",com.google.firebase.firestore.Query.Direction.DESCENDING).limit(50)
+            .addSnapshotListener((snap,error)->{
+                if(!"moments".equals(screen)||isFinishing()||isDestroyed())return;
+                rows.removeAllViews();
+                if(error!=null){state.setText("Live Moments could not be loaded. Check your connection.");return;}
+                if(snap==null||snap.isEmpty()){state.setText("No community posts yet. Share the first one.");return;}
+                state.setText("");
+                for(com.google.firebase.firestore.DocumentSnapshot doc:snap.getDocuments()){
+                    String author=doc.getString("name"),body=doc.getString("text");
+                    LinearLayout card=new LinearLayout(this);card.setOrientation(LinearLayout.VERTICAL);card.setPadding(dp(12),dp(8),dp(12),dp(8));card.setBackground(background(0xff251b32,14));
+                    LinearLayout.LayoutParams cp=new LinearLayout.LayoutParams(-1,-2);cp.setMargins(0,dp(4),0,dp(7));rows.addView(card,cp);
+                    addText(card,"👤 "+(author==null?"KING Member":author),16,Color.WHITE,true);
+                    if(body!=null&&!body.isEmpty())addText(card,body,15,Color.WHITE,false);
+                    com.google.firebase.Timestamp created=doc.getTimestamp("createdAt");if(created!=null)addText(card,new java.text.SimpleDateFormat("dd MMM, HH:mm",java.util.Locale.getDefault()).format(created.toDate()),12,MUTED,false);
+                    buttonIn(card,"♡ Like",CARD,()->toggleMomentLike(doc.getId(),signed.getUid()));
+                }
+            });
         button("Back to Discover",CARD,this::discover);
+    }
+
+    private void composeLiveMoment(FirebaseUser signed){
+        final EditText body=new EditText(this);body.setHint("Write a Moment (max 1000 characters)…");body.setSingleLine(false);body.setMinLines(3);
+        new AlertDialog.Builder(this).setTitle("Share a live Moment").setView(body).setNegativeButton("Cancel",null).setPositiveButton("Post",(d,w)->{
+            String value=body.getText().toString().trim();if(value.isEmpty()||value.length()>1000){body.setError("Write 1–1000 characters");return;}
+            java.util.Map<String,Object> post=new java.util.HashMap<>();post.put("uid",signed.getUid());post.put("name",displayName);post.put("text",value);post.put("createdAt",com.google.firebase.firestore.FieldValue.serverTimestamp());
+            com.google.firebase.firestore.FirebaseFirestore.getInstance().collection("moments").add(post)
+                .addOnSuccessListener(ref->{addXp(5);Toast.makeText(this,"Moment posted to the community",Toast.LENGTH_SHORT).show();momentsPage();})
+                .addOnFailureListener(e->Toast.makeText(this,"Moment not posted: "+e.getLocalizedMessage(),Toast.LENGTH_LONG).show());
+        }).show();
+    }
+
+    private void toggleMomentLike(String momentId,String uid){
+        com.google.firebase.firestore.DocumentReference like=com.google.firebase.firestore.FirebaseFirestore.getInstance().collection("moments").document(momentId).collection("likes").document(uid);
+        like.get(com.google.firebase.firestore.Source.SERVER).addOnSuccessListener(doc->{
+            if(doc.exists())like.delete().addOnFailureListener(e->Toast.makeText(this,"Like could not be removed",Toast.LENGTH_SHORT).show());
+            else{java.util.Map<String,Object> value=new java.util.HashMap<>();value.put("uid",uid);value.put("createdAt",com.google.firebase.firestore.FieldValue.serverTimestamp());like.set(value).addOnFailureListener(e->Toast.makeText(this,"Like could not be saved",Toast.LENGTH_SHORT).show());}
+        }).addOnFailureListener(e->Toast.makeText(this,"Live like unavailable",Toast.LENGTH_SHORT).show());
+    }
+
+    private void buttonIn(LinearLayout host,String label,int color,Runnable action){
+        TextView b=new TextView(this);b.setText(label);b.setTextColor(Color.WHITE);b.setTextSize(14);b.setGravity(Gravity.CENTER);b.setPadding(dp(10),dp(8),dp(10),dp(8));b.setBackground(background(color,10));b.setOnClickListener(v->action.run());host.addView(b,new LinearLayout.LayoutParams(-1,dp(40)));
     }
 
     private void peoplePage(String title){
@@ -1014,9 +1057,9 @@ public class MainActivity extends Activity {
     @Override public void onBackPressed() {
         if ("login".equals(screen) || "home".equals(screen)) super.onBackPressed(); else home();
     }
-    @Override protected void onResume() { super.onResume(); if ("home".equals(screen) && homeRoomsListener == null) renderHome(selectedHomeCategory); else if("notifications".equals(screen)&&notificationListener==null)notificationsCenter(); else if("family_agency".equals(screen)&&familyMembersListener==null)familyAgencyPage(); }
-    @Override protected void onPause() { super.onPause(); stopMic(); if(homeRoomsListener!=null){homeRoomsListener.remove();homeRoomsListener=null;} if(notificationListener!=null){notificationListener.remove();notificationListener=null;} if(familyListener!=null){familyListener.remove();familyListener=null;} if(familyMembersListener!=null){familyMembersListener.remove();familyMembersListener=null;} }
-    @Override protected void onDestroy() { stopMic(); if(homeRoomsListener!=null){homeRoomsListener.remove();homeRoomsListener=null;} if(notificationListener!=null){notificationListener.remove();notificationListener=null;} if(familyListener!=null){familyListener.remove();familyListener=null;} if(familyMembersListener!=null){familyMembersListener.remove();familyMembersListener=null;} super.onDestroy(); }
+    @Override protected void onResume() { super.onResume(); if ("home".equals(screen) && homeRoomsListener == null) renderHome(selectedHomeCategory); else if("notifications".equals(screen)&&notificationListener==null)notificationsCenter(); else if("family_agency".equals(screen)&&familyMembersListener==null)familyAgencyPage(); else if("moments".equals(screen)&&firebaseAuth!=null&&firebaseAuth.getCurrentUser()!=null&&momentListener==null)momentsPage(); }
+    @Override protected void onPause() { super.onPause(); stopMic(); if(homeRoomsListener!=null){homeRoomsListener.remove();homeRoomsListener=null;} if(notificationListener!=null){notificationListener.remove();notificationListener=null;} if(familyListener!=null){familyListener.remove();familyListener=null;} if(familyMembersListener!=null){familyMembersListener.remove();familyMembersListener=null;} if(momentListener!=null){momentListener.remove();momentListener=null;} }
+    @Override protected void onDestroy() { stopMic(); if(homeRoomsListener!=null){homeRoomsListener.remove();homeRoomsListener=null;} if(notificationListener!=null){notificationListener.remove();notificationListener=null;} if(familyListener!=null){familyListener.remove();familyListener=null;} if(familyMembersListener!=null){familyMembersListener.remove();familyMembersListener=null;} if(momentListener!=null){momentListener.remove();momentListener=null;} super.onDestroy(); }
     private void notificationsCenter(){
         screen="notifications"; base("Notifications","Live account activity");
         FirebaseUser signed=firebaseAuth==null?null:firebaseAuth.getCurrentUser();
