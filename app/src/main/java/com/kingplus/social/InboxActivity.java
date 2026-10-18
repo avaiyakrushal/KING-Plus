@@ -36,6 +36,7 @@ public class InboxActivity extends Activity {
 
     private LinearLayout list;
     private ListenerRegistration threadListener;
+    private int inboxGeneration = 0;
     private FirebaseUser me;
     private FirebaseFirestore db;
 
@@ -89,6 +90,8 @@ public class InboxActivity extends Activity {
     }
 
     private void loadInbox() {
+        if (threadListener != null) { threadListener.remove(); threadListener = null; }
+        final int generation = ++inboxGeneration;
         list.removeAllViews();
         addThread("🔥", "KING Party Room", "Room chat and invitations", "");
         addThread("👑", "KING Plus Official", "Welcome and account updates", "");
@@ -108,12 +111,18 @@ public class InboxActivity extends Activity {
                     Toast.makeText(this, "Cloud inbox unavailable • local chat still works", Toast.LENGTH_SHORT).show();
                     return;
                 }
+                if (generation != inboxGeneration || isFinishing() || isDestroyed()) return;
                 renderCloudThreads(snap);
             });
     }
 
     private void renderCloudThreads(QuerySnapshot snap) {
         if (snap == null) return;
+        list.removeAllViews();
+        if (snap.isEmpty()) {
+            addThread("✉", "No live conversations yet", "Start a conversation with +", "");
+            return;
+        }
         List<DocumentSnapshot> docs = new ArrayList<>(snap.getDocuments());
         Collections.sort(docs, (a,b) -> {
             Timestamp ta = a.getTimestamp("updatedAt"), tb = b.getTimestamp("updatedAt");
@@ -174,6 +183,7 @@ public class InboxActivity extends Activity {
     }
 
     @Override protected void onDestroy() {
+        inboxGeneration++;
         if (threadListener != null) threadListener.remove();
         super.onDestroy();
     }
