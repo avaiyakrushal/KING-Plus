@@ -157,16 +157,35 @@ public class ChatActivity extends Activity {
     }
 
     private void sendCloudMessage(String text, String type, String mediaUrl) {
-        Map<String,Object> thread = new HashMap<>(); List<String> members = new ArrayList<>(); members.add(me.getUid()); members.add(peerUid); thread.put("members", members);
-        Map<String,Object> names = new HashMap<>(); names.put(me.getUid(), myName); names.put(peerUid, peerName); thread.put("memberNames", names);
-        thread.put("lastMessage", type.equals("text") ? text : type.equals("photo") ? "📷 Photo" : "🎤 Voice note"); thread.put("lastSenderUid", me.getUid()); thread.put("updatedAt", FieldValue.serverTimestamp());
-        db.collection("direct_threads").document(chatId).set(thread, SetOptions.merge())
-            .addOnSuccessListener(v -> {
-                Map<String,Object> msg = new HashMap<>(); msg.put("senderUid", me.getUid()); msg.put("recipientUid", peerUid); msg.put("senderName", myName); msg.put("text", text); msg.put("type", type); if (!mediaUrl.isEmpty()) msg.put("mediaUrl", mediaUrl); msg.put("createdAt", FieldValue.serverTimestamp());
-                db.collection("direct_threads").document(chatId).collection("messages").add(msg)
-                    .addOnSuccessListener(r -> CloudBackend.sendDirectMessageNotification(peerUid, myName, text, (ok,m)->{}))
-                    .addOnFailureListener(e -> Toast.makeText(this,"Message failed: "+safe(e.getLocalizedMessage()),Toast.LENGTH_SHORT).show());
-            }).addOnFailureListener(e -> Toast.makeText(this,"Chat could not start: "+safe(e.getLocalizedMessage()),Toast.LENGTH_SHORT).show());
+        if (!cloudMode || me == null || db == null) {
+            Toast.makeText(this, "Sign in to send live messages", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        final String senderUid = me.getUid();
+        final String messageId = java.util.UUID.randomUUID().toString();
+        Map<String,Object> thread = new HashMap<>();
+        List<String> members = new ArrayList<>(); members.add(senderUid); members.add(peerUid);
+        thread.put("members", members);
+        Map<String,Object> names = new HashMap<>(); names.put(senderUid, myName); names.put(peerUid, peerName);
+        thread.put("memberNames", names);
+        thread.put("lastMessage", type.equals("text") ? text : type.equals("photo") ? "📷 Photo" : "🎤 Voice note");
+        thread.put("lastSenderUid", senderUid);
+        thread.put("updatedAt", FieldValue.serverTimestamp());
+        Map<String,Object> msg = new HashMap<>();
+        msg.put("senderUid", senderUid); msg.put("recipientUid", peerUid);
+        msg.put("senderName", myName); msg.put("text", text); msg.put("type", type);
+        if (!mediaUrl.isEmpty()) msg.put("mediaUrl", mediaUrl);
+        msg.put("createdAt", FieldValue.serverTimestamp());
+        com.google.firebase.firestore.WriteBatch batch = db.batch();
+        com.google.firebase.firestore.DocumentReference threadRef = db.collection("direct_threads").document(chatId);
+        batch.set(threadRef, thread, SetOptions.merge());
+        batch.set(threadRef.collection("messages").document(messageId), msg);
+        batch.commit()
+            .addOnSuccessListener(v -> CloudBackend.sendDirectMessageNotification(peerUid, myName, text, (ok,m)->{}))
+            .addOnFailureListener(e -> {
+                status.setText("Message not sent");
+                Toast.makeText(this, "Message failed: " + safe(e.getLocalizedMessage()), Toast.LENGTH_LONG).show();
+            });
     }
 
     private void markRead() {
