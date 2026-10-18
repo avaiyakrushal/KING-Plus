@@ -75,8 +75,8 @@ public class InboxActivity extends Activity {
 
         LinearLayout quick = new LinearLayout(this); quick.setPadding(dp(14), dp(4), dp(14), dp(8)); quick.setGravity(Gravity.CENTER);
         addQuick(quick, "💬\nChats", () -> Toast.makeText(this,"All conversations",Toast.LENGTH_SHORT).show());
-        addQuick(quick, "👥\nFriends", () -> openLocal("Friends"));
-        addQuick(quick, "🔔\nAlerts", () -> openLocal("KING Plus Official"));
+        addQuick(quick, "👥\nFriends", () -> startActivity(new Intent(this, SocialActivity.class)));
+        addQuick(quick, "🔔\nAlerts", () -> { if (me == null) openLocal("KING Plus Official"); else Toast.makeText(this, "Alerts are in Notifications", Toast.LENGTH_SHORT).show(); });
         root.addView(quick, new LinearLayout.LayoutParams(-1, dp(78)));
 
         ScrollView sv = new ScrollView(this); list = new LinearLayout(this); list.setOrientation(LinearLayout.VERTICAL); list.setPadding(dp(12), dp(4), dp(12), dp(24)); sv.addView(list);
@@ -109,11 +109,14 @@ public class InboxActivity extends Activity {
 
         threadListener = db.collection("direct_threads").whereArrayContains("members", me.getUid())
             .addSnapshotListener((snap, error) -> {
+                if (generation != inboxGeneration || isFinishing() || isDestroyed()) return;
                 if (error != null) {
-                    Toast.makeText(this, "Cloud inbox unavailable • local chat still works", Toast.LENGTH_SHORT).show();
+                    list.removeAllViews();
+                    TextView failure = label("Could not load live conversations. Check your connection.", 14, 0xff777186, false);
+                    failure.setGravity(Gravity.CENTER);
+                    list.addView(failure, new LinearLayout.LayoutParams(-1, dp(80)));
                     return;
                 }
-                if (generation != inboxGeneration || isFinishing() || isDestroyed()) return;
                 renderCloudThreads(snap);
             });
     }
