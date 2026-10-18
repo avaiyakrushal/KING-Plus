@@ -898,7 +898,7 @@ public class MainActivity extends Activity {
             family.collection("members").document(uid).delete().continueWithTask(task->{if(!task.isSuccessful())throw task.getException();return db.collection("users").document(uid).update("familyCode",com.google.firebase.firestore.FieldValue.delete());})
                 .addOnSuccessListener(v->{Toast.makeText(this,"Left family",Toast.LENGTH_SHORT).show();familyAgencyPage();}).addOnFailureListener(e->Toast.makeText(this,"Could not leave family: "+e.getLocalizedMessage(),Toast.LENGTH_LONG).show());
             }).addOnFailureListener(e->Toast.makeText(this,"Family owner could not be verified. Nothing was changed.",Toast.LENGTH_LONG).show());
-        }).show());
+        }).show();
     }
 
     private void createLiveFamily(String uid){
