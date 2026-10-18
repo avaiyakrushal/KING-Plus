@@ -555,9 +555,9 @@ service cloud.firestore {
 
       match /messages/{messageId} {
         allow read: if signedIn()
-          && request.auth.uid in get(/databases/$(database)/documents/direct_threads/$(threadId)).data.members;
+          && request.auth.uid in getAfter(/databases/$(database)/documents/direct_threads/$(threadId)).data.members;
         allow create: if activeUser()
-          && request.auth.uid in get(/databases/$(database)/documents/direct_threads/$(threadId)).data.members
+          && request.auth.uid in getAfter(/databases/$(database)/documents/direct_threads/$(threadId)).data.members
           && request.resource.data.senderUid == request.auth.uid
           && request.resource.data.recipientUid is string
           && request.resource.data.text is string
