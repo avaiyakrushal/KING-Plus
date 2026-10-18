@@ -105,9 +105,26 @@ public class ChatActivity extends Activity {
         scroll = new ScrollView(this); scroll.setFillViewport(true); messages = new LinearLayout(this); messages.setOrientation(LinearLayout.VERTICAL); messages.setPadding(dp(12), dp(12), dp(12), dp(18)); scroll.addView(messages);
         root.addView(scroll, new LinearLayout.LayoutParams(-1, 0, 1));
 
-        LinearLayout emoji = new LinearLayout(this); emoji.setPadding(dp(10), dp(4), dp(10), dp(4)); String[] es = {"❤️","😂","👍","🎁","🔥","👑"};
-        for (String e : es) { TextView x = label(e, 22, DARK, false); x.setGravity(Gravity.CENTER); x.setOnClickListener(v -> sendText(((TextView)v).getText().toString())); emoji.addView(x, new LinearLayout.LayoutParams(0, dp(42), 1)); }
-        root.addView(emoji);
+        // Scrollable reaction palette: quick send is backed by the existing live message path.
+        final String[] reactions = {
+            "😀","😃","😄","😁","😆","😅","😂","🤣","😊","😍","🥰","😘",
+            "😎","🥳","🤩","😜","😢","😭","😡","😱","😴","🤔","🥺","😇",
+            "❤️","🩷","💜","💔","💕","💖","👍","👎","👏","🙌","🙏","🤝",
+            "🔥","🎉","🎊","🎁","🌹","💐","👑","💎","⭐","✨","💯","🫶"
+        };
+        android.widget.HorizontalScrollView emojiScroll = new android.widget.HorizontalScrollView(this);
+        emojiScroll.setHorizontalScrollBarEnabled(false);
+        LinearLayout emoji = new LinearLayout(this);
+        emoji.setPadding(dp(10), dp(4), dp(10), dp(4));
+        for (String reaction : reactions) {
+            TextView x = label(reaction, 25, DARK, false);
+            x.setGravity(Gravity.CENTER);
+            x.setContentDescription("Send " + reaction);
+            x.setOnClickListener(v -> sendText(reaction));
+            emoji.addView(x, new LinearLayout.LayoutParams(dp(48), dp(46)));
+        }
+        emojiScroll.addView(emoji);
+        root.addView(emojiScroll, new LinearLayout.LayoutParams(-1, dp(54)));
 
         LinearLayout tools = new LinearLayout(this); tools.setPadding(dp(10), dp(2), dp(10), dp(5));
         addTool(tools, "📷 Photo", this::pickPhoto); addTool(tools, "🎤 Voice", this::toggleVoice); addTool(tools, "🔗 Room", this::shareRoom);
