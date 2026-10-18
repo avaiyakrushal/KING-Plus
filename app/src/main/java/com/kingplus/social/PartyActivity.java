@@ -20,6 +20,7 @@ import android.widget.Toast;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
 import com.google.firebase.firestore.DocumentReference;
+import com.google.firebase.firestore.CollectionReference;
 import com.google.firebase.firestore.DocumentSnapshot;
 import com.google.firebase.firestore.FieldValue;
 import com.google.firebase.firestore.FirebaseFirestore;
@@ -482,7 +483,7 @@ public class PartyActivity extends Activity {
         if(presenceCleanupStarted||user==null||db==null||!cloudRoom||roomId==null)return;
         presenceCleanupStarted=true;String leavingRoom=roomId;String uid=user.getUid();
         DocumentReference member=db.collection("live_rooms").document(leavingRoom).collection("members").document(uid);
-        DocumentReference seats=db.collection("live_rooms").document(leavingRoom).collection("seats");
+        CollectionReference seats=db.collection("live_rooms").document(leavingRoom).collection("seats");
         db.runTransaction(transaction->{
             DocumentSnapshot memberDoc=transaction.get(member);
             if(mySeat>0){DocumentReference seat=seats.document(String.valueOf(mySeat));DocumentSnapshot seatDoc=transaction.get(seat);if(seatDoc.exists()&&uid.equals(seatDoc.getString("uid")))transaction.delete(seat);}
