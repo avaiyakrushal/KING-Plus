@@ -41,6 +41,7 @@ public class SocialActivity extends Activity {
     private LinearLayout list;
     private EditText search;
     private TextView status;
+    private int directoryRequestGeneration = 0;
 
     @Override public void onCreate(Bundle state) {
         super.onCreate(state);
@@ -96,20 +97,22 @@ public class SocialActivity extends Activity {
     }
 
     private void runSearch() {
+        final int generation = ++directoryRequestGeneration;
         if (!cloudReady()) { showLocalDemo(); return; }
         String q = search.getText().toString().trim().toLowerCase(Locale.US);
         if (q.isEmpty()) { loadDiscover(); return; }
         setLoading("Searching…");
         db.collection("public_profiles").orderBy("searchName").startAt(q).endAt(q + "\uf8ff").limit(30).get()
-            .addOnSuccessListener(s -> renderProfiles(s.getDocuments(), "No users found"))
+            .addOnSuccessListener(s -> { if (generation == directoryRequestGeneration && !isFinishing()) renderProfiles(s.getDocuments(), "No users found"); })
             .addOnFailureListener(e -> { setLoading("Search unavailable"); toast(safe(e.getLocalizedMessage())); });
     }
 
     private void loadDiscover() {
+        final int generation = ++directoryRequestGeneration;
         if (!cloudReady()) { showLocalDemo(); return; }
         setLoading("Loading people…");
         db.collection("public_profiles").limit(30).get()
-            .addOnSuccessListener(s -> renderProfiles(s.getDocuments(), "No public profiles yet"))
+            .addOnSuccessListener(s -> { if (generation == directoryRequestGeneration && !isFinishing()) renderProfiles(s.getDocuments(), "No public profiles yet"); })
             .addOnFailureListener(e -> { setLoading("People directory unavailable"); toast(safe(e.getLocalizedMessage())); });
     }
 
@@ -120,6 +123,7 @@ public class SocialActivity extends Activity {
     }
 
     private void loadFollowing() {
+        ++directoryRequestGeneration;
         if (!cloudReady()) { showLocalDemo(); return; }
         setLoading("Loading following…");
         db.collection("follows").whereEqualTo("followerUid",me.getUid()).get().addOnSuccessListener(s->{
@@ -129,6 +133,7 @@ public class SocialActivity extends Activity {
     }
 
     private void loadFollowers() {
+        ++directoryRequestGeneration;
         if (!cloudReady()) { showLocalDemo(); return; }
         setLoading("Loading followers…");
         db.collection("follows").whereEqualTo("targetUid",me.getUid()).get().addOnSuccessListener(s->{
@@ -138,6 +143,7 @@ public class SocialActivity extends Activity {
     }
 
     private void loadFriends() {
+        ++directoryRequestGeneration;
         if (!cloudReady()) { showLocalDemo(); return; }
         setLoading("Loading friends…");
         db.collection("follows").whereEqualTo("followerUid",me.getUid()).get().addOnSuccessListener(out->{
