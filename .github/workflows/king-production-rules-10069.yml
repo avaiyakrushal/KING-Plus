@@ -35,7 +35,7 @@ jobs:
           from pathlib import Path
           import base64,gzip,hashlib
           patch=gzip.decompress(base64.b64decode(Path('tools/ludo-production-v10069/changes.patch.gz.b64').read_text()))
-          assert hashlib.sha256(patch).hexdigest()=='0a756de1a6ae9fdedc2ec8bc68354e137c4c1c0f01f37751ff6d26d976a5a971'
+          assert hashlib.sha256(patch).hexdigest()=='83e1d91be0f59dab51e7aa590f045ab2a4a52aa414d02e4065f10bc2934a25a6'
           Path('/tmp/king-v10069.patch').write_bytes(patch)
           PY2
           cd /tmp/king-live-source
