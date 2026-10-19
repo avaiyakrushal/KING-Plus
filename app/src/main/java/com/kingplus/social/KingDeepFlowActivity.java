@@ -663,25 +663,63 @@ public class KingDeepFlowActivity extends Activity {
     private void profileCenter(){row("✏","Edit Profile","Name, bio, birthday and tags","detail_edit_profile");row("🖼","My Gallery","Photos and Moments",()->openCommunity("Moments"));row("⭐","Level & Achievements","Normal Level 1–99","level_center");row("💎","VIP","VIP 0–50","vip");row("🏅","Medals & Influence","Achievements and contribution","medal_center");row("👀","Visitors","Recent profile visitors",()->openCommunity("Visitors"));row("🎁","Profile Gift Wall","Gift collection","gift_wall");row("🛡","Safety Center","Block, report and privacy tools","detail_profile_safety");}
     private void reportHistory9981(){
         String owner=me==null?"":me.getUid();
-        hero("⚑ My Report History",owner.isEmpty()?"Sign in to view reports recorded for your account":"Reports saved on this device for your signed-in KING account");
+        hero("⚑ My Report History",owner.isEmpty()?"Sign in to view report receipts":"Your own submitted-report receipts sync to this KING account across devices");
         if(owner.isEmpty()){chip("No signed-in account",()->{});return;}
-        String history=mainPrefs.getString("report_history_"+owner,"");
-        if(history.trim().isEmpty())chip("No locally recorded reports for this account yet.",()->{});
-        else{
-            section("Recent reports on this device");int shown=0;
-            for(String line:history.split("\\n")){
-                if(line.trim().isEmpty())continue;
-                String display=line;
-                int split=line.indexOf(" | ");
-                if(split>0)try{
-                    long at=Long.parseLong(line.substring(0,split));
-                    String when=new java.text.SimpleDateFormat("dd MMM yyyy • HH:mm",java.util.Locale.US).format(new java.util.Date(at));
-                    display=when+line.substring(split);
-                }catch(Exception ignored){}
-                chip("⚑ "+display,()->{});if(++shown>=30)break;
-            }
+        section("Account-synced submissions");
+        LinearLayout cloudHost=new LinearLayout(this);cloudHost.setOrientation(LinearLayout.VERTICAL);
+        TextView cloudState=tv("Loading report receipts from KING Plus…",13,sub(),false);
+        cloudHost.addView(cloudState,new LinearLayout.LayoutParams(-1,dp(48)));
+        body.addView(cloudHost,new LinearLayout.LayoutParams(-1,-2));
+
+        String local=mainPrefs.getString("report_history_"+owner,"");
+        LinearLayout localHost=new LinearLayout(this);localHost.setOrientation(LinearLayout.VERTICAL);
+        TextView localHeading=tv("On this device",12,sub(),true);localHost.addView(localHeading);
+        int localCount=0;
+        for(String line:local.split("\\n")){
+            if(line.trim().isEmpty()||localCount>=30)continue;
+            TextView item=tv("⚑ "+line,13,fg(),false);item.setBackground(bg(card(),12));
+            localHost.addView(item,new LinearLayout.LayoutParams(-1,dp(54)));localCount++;
         }
-        chip("This list is local only. Submitted moderation reports are not readable to normal app accounts from the server.",()->{});
+        final int savedLocalCount=localCount;
+        localHost.setVisibility(View.GONE);body.addView(localHost,new LinearLayout.LayoutParams(-1,-2));
+        if(db==null){
+            cloudState.setText("Report history is unavailable from the server.");
+            if(savedLocalCount>0)localHost.setVisibility(View.VISIBLE);
+        }else{
+            final String expectedOwner=owner;
+            db.collection("user_report_history").document(owner).collection("items")
+                .orderBy("submittedAt",com.google.firebase.firestore.Query.Direction.DESCENDING)
+                .limit(30).get(com.google.firebase.firestore.Source.SERVER)
+                .addOnSuccessListener(result->{
+                    FirebaseUser current=null;try{current=FirebaseAuth.getInstance().getCurrentUser();}catch(Exception ignored){}
+                    if(isFinishing()||isDestroyed()||!"report_history".equals(route)||current==null||!expectedOwner.equals(current.getUid()))return;
+                    cloudHost.removeAllViews();
+                    if(result.isEmpty()){
+                        cloudState.setText("No account-synced reports found yet.");
+                        cloudHost.addView(cloudState,new LinearLayout.LayoutParams(-1,dp(48)));
+                        if(savedLocalCount>0)localHost.setVisibility(View.VISIBLE);
+                    }else{
+                        int shown=0;
+                        for(DocumentSnapshot doc:result.getDocuments()){
+                            if(shown++>=30)break;
+                            String target=safe(doc.getString("target"),"KING user");
+                            String reason=safe(doc.getString("reason"),"Other");
+                            String when="Time unavailable";
+                            com.google.firebase.Timestamp stamp=doc.getTimestamp("submittedAt");
+                            if(stamp!=null)when=new java.text.SimpleDateFormat("dd MMM yyyy • HH:mm",java.util.Locale.US).format(stamp.toDate());
+                            TextView item=tv("⚑ "+target+"\n"+reason+" • "+when,13,fg(),false);item.setBackground(bg(card(),12));
+                            cloudHost.addView(item,new LinearLayout.LayoutParams(-1,dp(62)));
+                        }
+                    }
+                }).addOnFailureListener(error->{
+                    FirebaseUser current=null;try{current=FirebaseAuth.getInstance().getCurrentUser();}catch(Exception ignored){}
+                    if(isFinishing()||isDestroyed()||!"report_history".equals(route)||current==null||!expectedOwner.equals(current.getUid()))return;
+                    cloudHost.removeAllViews();cloudState.setText("Could not load account-synced report history. Check your connection.");
+                    cloudHost.addView(cloudState,new LinearLayout.LayoutParams(-1,dp(58)));
+                    if(savedLocalCount>0)localHost.setVisibility(View.VISIBLE);
+                });
+        }
+        chip("This page shows your own submission receipts only. Moderation decisions and other users’ reports are private.",()->{});
     }
     private void safetyHelp9981(){
         hero("🛡 Safety & Moderation","Review account privacy, your block list, and reports submitted from this device.");

@@ -5,8 +5,8 @@ main = (root / "app/src/main/java/com/kingplus/social/MainActivity.java").read_t
 deep = (root / "app/src/main/java/com/kingplus/social/KingDeepFlowActivity.java").read_text()
 gradle = (root / "app/build.gradle").read_text()
 
-assert "versionCode 359" in gradle
-assert "10.0.80-safe-checkin" in gradle
+assert "versionCode 360" in gradle
+assert "10.0.81-profile-report-history" in gradle
 
 drawer = main[main.index("private void sideMenu()") : main.index("private void openDeepFlow810(")]
 for item in (

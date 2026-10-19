@@ -1745,6 +1745,33 @@ service cloud.firestore {
       allow delete: if false;
     }
 
+    // A submitter may read only their own immutable receipt copies. These
+    // receipts contain no moderation decision or other users' report data.
+    match /user_report_history/{uid}/items/{reportId} {
+      allow read: if owner(uid);
+      allow create: if owner(uid)
+        && request.resource.data.keys().hasOnly([
+          'reporterUid','reportId','target','reason','submittedAt'
+        ])
+        && request.resource.data.keys().hasAll([
+          'reporterUid','reportId','target','reason','submittedAt'
+        ])
+        && request.resource.data.reporterUid == uid
+        && request.resource.data.reportId == reportId
+        && request.resource.data.target is string
+        && request.resource.data.target.size() > 0
+        && request.resource.data.target.size() <= 160
+        && request.resource.data.reason is string
+        && request.resource.data.reason.size() > 0
+        && request.resource.data.reason.size() <= 240
+        && request.resource.data.submittedAt == request.time
+        && existsAfter(/databases/$(database)/documents/reports/$(reportId))
+        && getAfter(/databases/$(database)/documents/reports/$(reportId)).data.reporterUid == uid
+        && getAfter(/databases/$(database)/documents/reports/$(reportId)).data.target == request.resource.data.target
+        && getAfter(/databases/$(database)/documents/reports/$(reportId)).data.reason == request.resource.data.reason;
+      allow update, delete: if false;
+    }
+
     match /bans/{uid} {
       allow read: if owner(uid) || admin();
       allow write: if false;
