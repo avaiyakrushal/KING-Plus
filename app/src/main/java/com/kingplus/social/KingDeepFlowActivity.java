@@ -69,7 +69,9 @@ public class KingDeepFlowActivity extends Activity {
         ScrollView sc=new ScrollView(this);body=new LinearLayout(this);body.setOrientation(LinearLayout.VERTICAL);body.setPadding(dp(12),dp(8),dp(12),dp(30));sc.addView(body);root.addView(sc,new LinearLayout.LayoutParams(-1,0,1));setContentView(root);
         switch(route){
             case "agency": startActivity(new Intent(this,KingAgency9982Activity.class));finish();break;
-            case "profile_menu": profileMenu();break; case "privilege_pack": privilegePack();break; case "privilege_shop": startActivity(new Intent(this,KingWardrobeActivity.class));break;
+            case "profile_menu": profileMenu();break; case "data_center": dataCenter();break;
+            case "coin_mall": case "web_diamond": startActivity(new Intent(this,KingRecharge974Activity.class));finish();break;
+            case "privilege_pack": privilegePack();break; case "privilege_shop": startActivity(new Intent(this,KingWardrobeActivity.class));break;
             case "vip": startActivity(new Intent(this,KingVipVisualActivity.class));finish();break; case "vip_rules": vipRules();break;
             case "noble": startActivity(new Intent(this,KingMeVerifiedPrestige9988Activity.class));finish();break;
             case "wallet": wallet();break; case "wallet_history": walletHistory();break; case "settings": settings();break; case "settings_account":settingsAccount();break;case "settings_privacy":openMeCloud9984("privacy");break;case "settings_notifications":openMeCloud9984("notifications");break;case "settings_network":settingsNetwork();break;
@@ -77,7 +79,7 @@ public class KingDeepFlowActivity extends Activity {
             case "ui_design_library": designLibrary9934();break;case "drawable_library": drawableLibrary9935();break;
             case "gift_center":giftCenter();break;case "gift_wall":giftWall();break;case "gift_history":giftHistory();break;case "gift_wish":giftWish();break;case "gift_lucky":giftLucky();break;
             case "game_center":gameCenter();break;case "game_hot":gameHot();break;case "game_party":gameParty();break;case "game_team":gameTeam();break;
-            case "music_center":musicCenter();break;case "video_center":videoCenter();break;case "task_center":taskCenter();break;case "event_center":eventCenter();break;case "profile_center":profileCenter();break;case "level_center":levelCenter();break;case "medal_center":medalCenter();break;case "social_center":socialCenter();break;case "discover_center":discoverCenter();break;
+            case "music_center":musicCenter();break;case "video_center":videoCenter();break;case "task_center":taskCenter();break;case "event_center":eventCenter();break;case "profile_center":profileCenter();break;case "level_center":levelCenter();break;case "medal_center":medalCenter();break;case "social_center":socialCenter();break;case "discover_center":discoverCenter();break;case "report_history":reportHistory9981();break;
             case "detail_frames": case "detail_entrance": case "detail_chat_bubble": case "detail_name_badge": startActivity(new Intent(this,KingWardrobeActivity.class));break;
             case "detail_music_library": openPartyPanel940("music");break;
             case "detail_song_request": openPartyPanel940("song");break;
@@ -99,11 +101,16 @@ public class KingDeepFlowActivity extends Activity {
             case "detail_friend_broadcast": openPartyPanel940("broadcast");break;
             case "detail_edit_profile":openMeAction9981("edit_profile");break;
             case "detail_delete_account":openMeAction9981("account_delete");break;
-            case "detail_profile_safety":case "detail_help_safety":case "detail_blocked":
-            case "detail_reports":openMeCloud9984("blocked");break;
+            case "detail_profile_safety":openMeCloud9984("privacy");break;
+            case "detail_help_safety":safetyHelp9981();break;
+            case "detail_blocked":openMeCloud9984("blocked");break;
+            case "detail_reports":go("report_history");break;
             case "detail_language":language9981();break;
             case "detail_storage":storage9981();break;
             case "detail_about":about9981();break;
+            case "detail_rules_community":go("rules");break;
+            case "detail_rules_privacy":policyPage9981("privacy");break;
+            case "detail_rules_terms":policyPage9981("terms");break;
             case "detail_help_login":help9981("login");break;
             case "detail_help_party":help9981("party");break;
             case "detail_help_gift":help9981("gift");break;
@@ -113,7 +120,7 @@ public class KingDeepFlowActivity extends Activity {
         }
     }
     private String titleFor(String r){
-        if(r.equals("profile_menu"))return "KING Plus";if(r.startsWith("vip"))return "VIP Center";if(r.startsWith("noble"))return "Noble Center";if(r.startsWith("gift"))return "Gift Center";if(r.startsWith("game"))return "Game";if(r.startsWith("party"))return roomName; if(r.startsWith("music"))return "Music / KTV";if(r.startsWith("video"))return "Voice & Video";if(r.startsWith("settings"))return "Settings";if(r.startsWith("wallet"))return "Wallet";if(r.startsWith("profile"))return "Profile";if(r.startsWith("level"))return "Level & Achievements";if(r.startsWith("medal"))return "Medals & Influence";if(r.startsWith("task"))return "Tasks";if(r.startsWith("event"))return "Events";return "KING Plus";}
+        if(r.equals("profile_menu"))return "KING Plus";if(r.equals("data_center"))return "Data Center";if(r.equals("coin_mall"))return "Coin Mall";if(r.equals("web_diamond"))return "Web Diamond";if(r.startsWith("vip"))return "VIP Center";if(r.startsWith("noble"))return "Noble Center";if(r.startsWith("gift"))return "Gift Center";if(r.startsWith("game"))return "Game";if(r.startsWith("party"))return roomName; if(r.startsWith("music"))return "Music / KTV";if(r.startsWith("video"))return "Voice & Video";if(r.startsWith("settings"))return "Settings";if(r.startsWith("wallet"))return "Wallet";if(r.startsWith("profile"))return "Profile";if(r.startsWith("level"))return "Level & Achievements";if(r.startsWith("medal"))return "Medals & Influence";if(r.startsWith("task"))return "Tasks";if(r.startsWith("event"))return "Events";return "KING Plus";}
     private void go(String r){if(!route.equals(r))stack.push(route);route=r;render();}
     private void back(){if(!stack.isEmpty()){route=stack.pop();render();}else finish();}
     @Override public void onBackPressed(){back();}
@@ -168,7 +175,58 @@ public class KingDeepFlowActivity extends Activity {
         body.addView(h,new LinearLayout.LayoutParams(-1,dp(92)));
     }
     private void profileMenu(){LevelSystem.Snapshot s=LevelSystem.read(this);hero("👤  "+safe(mainPrefs.getString("name","KING User"),"KING User"),
-    "Activity Lv."+s.level+" (TEST) • Verified VIP in Wallet");section("Account");row("🏢","Agency & Agent Recharge","Super Admin, Agency owner, Agent requests","agency");row("▣","Square","Moments, posts and activity","social_center");row("🎁","Privilege Pack","Frames, entrances, bubbles and badges","privilege_pack");row("🛍","Privilege Shop","Equip KING Plus cosmetics","privilege_shop");row("💎","VIP Level","VIP 0–50 progression and privileges","vip");row("♛","Noble Center","Noble identity and room privileges","noble");row("🏠","Family","Family square, members, tasks and party",()->openCommunity("Family"));row("💞","Relationship / CP","CP, gifts, greetings and relationship",()->openCommunity("Relationship"));row("⭐","User level center","Normal level, XP, achievements","level_center");row("💳","Wallet","Diamonds, history and test wallet","wallet");section("Social & app");row("👥","Invite Friends","Share your KING ID",this::shareInvite);row("📣","Friend Broadcast","Party / game / KTV broadcast tools","detail_friend_broadcast");row("🏆","Rankings","Contribution, charisma, games and events","discover_center");row("🎭","Dress & Effects","Frames, entrance, bubbles and room cosmetics","privilege_shop");row("📍","Room Match","Find people and active rooms",()->openCommunity("Search"));row("✅","Tasks","Daily level and activity tasks","task_center");row("🎪","Events","Party, PK, gift and relationship events","event_center");row("⚙","Settings","Account, privacy, notifications and network","settings");row("❓","Help Center","Login, room, gift and game help","help");row("📜","Rules and Policies","Safety, privacy and community rules","rules");}
+    "Activity Lv."+s.level+" • VIP entitlement is verified in Wallet");
+        section("Account & status");
+        row("📊","Data Center","Profile activity, social counts, gifts and rooms","data_center");
+        row("🏢","Agency & Agent Recharge","Super Admin, Agency owner, Agent requests","agency");
+        row("⭐","User Level Center","Normal level, XP and achievements","level_center");
+        row("💎","VIP Level","VIP 0–50 progression and privileges","vip");
+        row("♛","Noble Center","Noble identity and room privileges","noble");
+        row("💳","Wallet","Verified Diamonds, recharge and transaction history","wallet");
+        row("🪙","Coin Mall","Secure recharge packages","coin_mall");
+        row("💎","Web Diamond","Open secure KING Plus recharge","web_diamond");
+        section("Social & profile");
+        row("▣","Square / Moments","Posts and activity","social_center");
+        row("👥","Social Media","People search, friends, followers and messages","social_center");
+        row("👤","Profile Center","Edit profile, Gallery, Level, Visitors, Gift Wall and Safety","profile_center");
+        row("🖼","My Gallery","Open Moments and profile media",()->openCommunity("Moments"));
+        row("👥","Followers & Friends","Open live people lists",()->startActivity(new Intent(this,SocialActivity.class)));
+        row("👜","Backpack / Collection","Open saved gifts and profile collection",()->openCommunity("Collection"));
+        row("🔔","Notifications","Open account notifications",this::openNotifications9981);
+        row("👀","Visitors","Recent profile visitors","profile_center");
+        row("🏠","Family","Family square, members, tasks and party",()->openCommunity("Family"));
+        row("💞","Relationship / CP","CP, gifts, greetings and relationship",()->openCommunity("Relationship"));
+        row("📍","Room Match","Find people and active rooms",()->openCommunity("Search"));
+        row("👥","Invite Friends","Share your issued KING ID",this::shareInvite);
+        row("📣","Friend Broadcast","Party / game / KTV broadcast tools","detail_friend_broadcast");
+        section("Gifts & rewards");
+        row("🎁","Share Gift / Gift Center","Send gifts, view Gift Wall, wishes and history","gift_center");
+        row("🧱","My Gift Wall","Received gift collection","gift_wall");
+        row("🎭","Privilege Pack","Frames, entrances, bubbles and badges","privilege_pack");
+        row("🛍","Privilege Shop","Equip KING Plus cosmetics","privilege_shop");
+        row("🎭","Dress & Effects","Frames, entrance, bubbles and room cosmetics","privilege_shop");
+        row("🏆","Rankings","Contribution, charisma, games and events","discover_center");
+        row("✅","Tasks / Check-in","Daily level and activity tasks","task_center");
+        row("🎪","Events","Party, PK, gift and relationship events","event_center");
+        section("Help & settings");
+        row("⚙","Settings","Account, privacy, notifications and network","settings");
+        row("❓","Help & Customer Support","Login, room, gift and game help","help");
+        row("📜","Rules and Policies","Safety, privacy and community rules","rules");
+    }
+
+    private void dataCenter(){
+        hero("📊 Data Center","Open live KING Plus pages for account activity. Counts and records come from your signed-in account.");
+        section("Profile & social data");
+        row("👤","Profile Center","Edit profile, Gallery, Level, VIP, medals, visitors, Gift Wall and Safety","profile_center");
+        row("👥","Followers & Friends","Open live people and follower lists",()->startActivity(new Intent(this,SocialActivity.class)));
+        row("▣","Moments & Gallery","Open your posts and profile media",()->openCommunity("Moments"));
+        section("Wallet & activity");
+        row("🎁","Gift Records","Gift Wall, wish, lucky gift and gift history","gift_center");
+        row("💳","Wallet & Recharge","Verified wallet and transaction history","wallet");
+        row("🏠","Party Rooms","Open room activity and saved room records",()->KingNav.openRoot(this,0));
+        row("✅","Level & Achievements","Activity level, XP and medals","level_center");
+        row("🏆","Rankings","Contribution, charisma and activity rankings","discover_center");
+    }
 
     private void privilegePack(){
         LevelSystem.Snapshot s=LevelSystem.read(this);hero("🎁 Privilege Pack","Activity Lv."+s.level+" • Paid VIP cosmetics require verified server entitlement");
@@ -599,10 +657,39 @@ public class KingDeepFlowActivity extends Activity {
     private void musicCenter(){row("🎵","Music Library","Browse room music and songs","detail_music_library");row("🎤","Song Request","KTV request queue","detail_song_request");row("📋","KTV Queue","Requested / playing / completed","detail_ktv_queue");row("📻","Radio Mic Queue","Loop mic and radio queue","detail_radio_queue");row("🎚","Audio Settings","Mic, music and room audio","detail_audio_settings");}
     private void videoCenter(){hero("🎙 Voice & Video","Native Jitsi/WebRTC engine with fallback");row("🎙","Voice Room","Open native voice session",()->openMeet(false));row("📹","Multi Video","Open native video session",()->openMeet(true));row("🎚","Voice Filter","Original KING Plus filter presets","detail_voice_filter");row("✨","Beauty / Camera","Video camera and beauty controls","detail_beauty");row("🎛","Audio Focus & Reconnect","Fallback reconnect and permission recovery","detail_media_recovery");}
     private void openMeet(boolean video){String rid=roomId.isEmpty()?"king-public":roomId;NativeMeetBridge.launch(this,rid,roomName,safe(mainPrefs.getString("name","KING User"),"KING User"),video);}
-    private void taskCenter(){hero("✅ Tasks","Progress actions that reward XP/collection status in KING Plus.");dailyTask("Join a Party room","task_party",5);dailyTask("Send a room message","task_chat",5);dailyTask("Play a game","task_game",10);dailyTask("Send a gift","task_gift",20);dailyTask("Visit Community","task_social",5);}
-    private void dailyTask(String name,String key,int xp){boolean done=prefs.getBoolean(key,false);row(done?"✅":"○",name,done?"Previously claimed (legacy)":"Go to activity • +"+xp+" XP not yet verified",()->{toast("Opening activity • XP needs verified participation, not a button tap");if("task_party".equals(key)||"task_game".equals(key)){KingNav.openRoot(this,0);}else if("task_chat".equals(key)){KingNav.openRoot(this,3);}else if("task_gift".equals(key)){openGiftCenter();}else if("task_social".equals(key)){openCommunity("Moments");}});}
+    private void taskCenter(){hero("✅ Tasks & Check-in","Activity shortcuts are available. This TEST build does not grant unverified XP or check-in rewards.");section("Open an activity");dailyTask("Join a Party room","task_party",0);dailyTask("Send a room message","task_chat",0);dailyTask("Play a game","task_game",0);dailyTask("Visit Gift Center","task_gift",0);dailyTask("Visit Community","task_social",0);section("Reward status");chip("No daily reward is claimable until a verified KING Plus server task/reward service is enabled.",()->{});}
+    private void dailyTask(String name,String key,int ignoredReward){row("›",name,"Open the real activity • completion is not tracked in this TEST build",()->{if("task_party".equals(key)||"task_game".equals(key)){KingNav.openRoot(this,0);}else if("task_chat".equals(key)){KingNav.openRoot(this,3);}else if("task_gift".equals(key)){openGiftCenter();}else if("task_social".equals(key)){openCommunity("Moments");}});}
     private void eventCenter(){row("🎪","Room Activity","Templates and live room events","party_events");row("⚔","Audio PK","Party PK / score flow",()->KingNav.openRoot(this,0));row("🏆","Ranking Events","Discover rankings","discover_center");row("🎁","Gift Events","Lucky Gift, Wish and Wall","gift_center");row("💞","Relationship Events","CP and Family activities",()->openCommunity("Relationship"));}
     private void profileCenter(){row("✏","Edit Profile","Name, bio, birthday and tags","detail_edit_profile");row("🖼","My Gallery","Photos and Moments",()->openCommunity("Moments"));row("⭐","Level & Achievements","Normal Level 1–99","level_center");row("💎","VIP","VIP 0–50","vip");row("🏅","Medals & Influence","Achievements and contribution","medal_center");row("👀","Visitors","Recent profile visitors",()->openCommunity("Visitors"));row("🎁","Profile Gift Wall","Gift collection","gift_wall");row("🛡","Safety Center","Block, report and privacy tools","detail_profile_safety");}
+    private void reportHistory9981(){
+        String owner=me==null?"":me.getUid();
+        hero("⚑ My Report History",owner.isEmpty()?"Sign in to view reports recorded for your account":"Reports saved on this device for your signed-in KING account");
+        if(owner.isEmpty()){chip("No signed-in account",()->{});return;}
+        String history=mainPrefs.getString("report_history_"+owner,"");
+        if(history.trim().isEmpty())chip("No locally recorded reports for this account yet.",()->{});
+        else{
+            section("Recent reports on this device");int shown=0;
+            for(String line:history.split("\\n")){
+                if(line.trim().isEmpty())continue;
+                String display=line;
+                int split=line.indexOf(" | ");
+                if(split>0)try{
+                    long at=Long.parseLong(line.substring(0,split));
+                    String when=new java.text.SimpleDateFormat("dd MMM yyyy • HH:mm",java.util.Locale.US).format(new java.util.Date(at));
+                    display=when+line.substring(split);
+                }catch(Exception ignored){}
+                chip("⚑ "+display,()->{});if(++shown>=30)break;
+            }
+        }
+        chip("This list is local only. Submitted moderation reports are not readable to normal app accounts from the server.",()->{});
+    }
+    private void safetyHelp9981(){
+        hero("🛡 Safety & Moderation","Review account privacy, your block list, and reports submitted from this device.");
+        row("🚫","Blocked users","Review and unblock cloud-blocked KING accounts","detail_blocked");
+        row("⚑","My report history","Account-scoped local report history","detail_reports");
+        row("🔐","Privacy controls","Discoverability, room invites and private messages","settings_privacy");
+        row("📜","Community rules","Safety and fair-play rules","rules");
+    }
     private void levelCenter(){LevelSystem.Snapshot s=LevelSystem.read(this);hero("🏆 Level "+s.level+" / "+LevelSystem.MAX_LEVEL,LevelSystem.levelTier(s.level)+" • XP "+s.xp+" / "+s.nextLevelXp());row("🏅","Achievements","Voice, games, gifts and social milestones","medal_center");row("🎮","Game Master","Play games to build activity","game_center");row("🎤","Voice Explorer","Join Party / voice room",()->KingNav.openRoot(this,0));row("👥","Friends","Community and followers","social_center");}
     private void medalCenter(){LevelSystem.Snapshot s=LevelSystem.read(this);hero("🏅 Medals & Influence","Activity milestones are TEST; paid VIP medals require verified entitlement");String[] n={"Rising Star","Elite Voice","Game Master","VIP Supporter","Royal Patron","KING Supreme"};int[] need={10,30,20,3,20,50};for(int i=0;i<n.length;i++){boolean vip=i>=3;int cur=vip?0:s.level;row(cur>=need[i]?"🏅":"🔒",n[i],(vip?"VIP ":"Level ")+need[i],()->{});}}
     private void socialCenter(){row("▣","Square / Moments","Posts and activity",()->openCommunity("Moments"));row("👤","People Search","KING ID and profiles",()->openCommunity("Search"));row("👥","Friends / Followers","Follow and private chat",()->{Intent i=new Intent(this,SocialActivity.class);startActivity(i);});row("🏠","Family","Family square and members",()->openCommunity("Family"));row("💞","Relationship / CP","Pairing and gifts",()->openCommunity("Relationship"));row("💬","Messages","Chats and notifications",()->KingNav.openRoot(this,3));}
@@ -614,6 +701,7 @@ public class KingDeepFlowActivity extends Activity {
     }
     private void openGiftCenter(){Intent i=new Intent(this,KingGiftCenterActivity.class);startActivity(i);}
     private void openCommunity(String tab){Intent i=new Intent(this,CommunityHubActivity.class);i.putExtra("tab",tab);startActivity(i);}
+    private void openNotifications9981(){Intent i=new Intent(this,InboxActivity.class);i.putExtra("openNotifications10010",true);startActivity(i);}
     private void shareInvite(){Intent i=new Intent(Intent.ACTION_SEND);i.setType("text/plain");i.putExtra(Intent.EXTRA_TEXT,"Join me on KING Plus • "+safe(mainPrefs.getString("name","KING User"),"KING User"));startActivity(Intent.createChooser(i,"Invite Friends"));}
 
     private void detail(String r){
@@ -664,6 +752,23 @@ public class KingDeepFlowActivity extends Activity {
         chip("Party/Games/Gifts TEST version; paid recharge/VIP production not enabled.",()->{});
         row("🛡","Community safety","Current in-app rules","rules");
         row("❓","Help Center","Real support and diagnostics","help");
+    }
+    private void policyPage9981(String kind){
+        if("privacy".equals(kind)){
+            hero("🔐 Privacy Policy","Control the privacy options that are available in this TEST build.");
+            section("Available controls");
+            row("🛡","Open live privacy controls","Find-me, online status, room invites and private messages","settings_privacy");
+            row("🚫","Blocked accounts","Review or unblock cloud-saved accounts","detail_blocked");
+            chip("Official privacy-policy web URL is not configured in this app build.",()->{});
+            chip("Some cloud reports are write-only for normal accounts; this page does not claim server report access.",()->{});
+        }else{
+            hero("📄 Terms of Service","Read the current in-app service summary for this TEST build.");
+            section("Service summary");
+            chip("Use KING Plus lawfully and respectfully. Do not harass, spam, impersonate, or abuse rooms, messages, gifts, or games.",()->{});
+            chip("Wallet, VIP, Noble and task rewards are not granted from local TEST actions.",()->{});
+            chip("Official Terms of Service URL is not configured in this app build.",()->{});
+            row("📜","Community rules","Open detailed community and fair-play rules","rules");
+        }
     }
     private void help9981(String topic){
         switch(topic){

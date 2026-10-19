@@ -2,8 +2,8 @@ from pathlib import Path
 root=Path(__file__).resolve().parents[2]
 s=(root/"app/src/main/java/com/kingplus/social/PartyActivity.java").read_text()
 g=(root/"app/build.gradle").read_text()
-assert "versionCode 356" in g
-assert "10.0.77-party-rejoin-choice" in g
+assert "versionCode 359" in g
+assert "10.0.80-safe-checkin" in g
 start=s.index('selfMemberListener=room.collection("members").document(expectedUid982)')
 end=s.index('roomBanListener=room.collection("room_bans")',start)
 listener=s[start:end]

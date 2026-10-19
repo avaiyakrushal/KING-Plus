@@ -2,8 +2,8 @@ from pathlib import Path
 root=Path(__file__).resolve().parents[2]
 social=(root/"app/src/main/java/com/kingplus/social/SocialActivity.java").read_text()
 gradle=(root/"app/build.gradle").read_text()
-assert "versionCode 356" in gradle
-assert "10.0.77-party-rejoin-choice" in gradle
+assert "versionCode 359" in gradle
+assert "10.0.80-safe-checkin" in gradle
 start=social.index("private void toggleFollow(String uid, String name, boolean following)")
 end=social.index("private void shareKingId(",start)
 toggle=social[start:end]

@@ -943,7 +943,6 @@ public class MainActivity extends Activity {
                 if(photoUrl!=null&&!photoUrl.isEmpty())moment.put("photoUrl",photoUrl);
                 firestore.collection("moments").add(moment).addOnSuccessListener(doc->{
                     if(isFinishing()||isDestroyed())return;
-                    addXp(5);incrementMission("mission_post",1);
                     Toast.makeText(this,"પોસ્ટ સફળતાપૂર્વક શેર થઈ",Toast.LENGTH_SHORT).show();
                     momentsPage();
                 }).addOnFailureListener(e->{
@@ -1121,7 +1120,7 @@ public class MainActivity extends Activity {
         final EditText e=new EditText(this); e.setHint("Say something...");
         new AlertDialog.Builder(this).setTitle("Room chat").setView(e).setNegativeButton("Cancel",null).setPositiveButton("Send",(d,w)->{
             String m=e.getText().toString().trim();
-            if(!m.isEmpty()){ addChat(chat,displayName,m); appendRoomChat(displayName,m); incrementMission("mission_chat",1); addXp(2); }
+            if(!m.isEmpty()){ addChat(chat,displayName,m); appendRoomChat(displayName,m); }
         }).show();
     }
 
@@ -1457,22 +1456,46 @@ public class MainActivity extends Activity {
         String[] reasons={"Spam","Harassment","Inappropriate content","Fake account","Other"};
         new AlertDialog.Builder(this).setTitle("Report "+who).setItems(reasons,(d,w)->{
             String reason=reasons[w];
-            int count=getPreferences(0).getInt("reports",0)+1;
+            FirebaseUser reporter= firebaseAuth==null?null:firebaseAuth.getCurrentUser();
+            String ownerKey=reporter==null?"signed_out":reporter.getUid();
+            String countKey="reports_"+ownerKey,historyKey="report_history_"+ownerKey;
+            int count=getPreferences(0).getInt(countKey,0)+1;
             String entry=System.currentTimeMillis()+" | "+who+" | "+reason;
-            String old=getPreferences(0).getString("report_history","");
-            getPreferences(0).edit().putInt("reports",count).putString("report_history",entry+"\n"+old).apply();
+            String old=getPreferences(0).getString(historyKey,"");
+            getPreferences(0).edit().putInt(countKey,count).putString(historyKey,entry+"\n"+old).apply();
             CloudSync.submitReport(this,who,reason,(ok,message)->runOnUiThread(()->Toast.makeText(this,message,Toast.LENGTH_LONG).show()));
         }).setNegativeButton("Cancel",null).show();
     }
     private void notifications(){ notificationsCenter(); }
 
     private void sideMenu(){
-        String[] items={"Square","Privilege Pack","Privilege Shop","Vip Level","Noble Center","Family","User level center","Wallet","Invite Friends","Settings","Help Center","Rules and Policies","All Me Options"};
-        String[] icons={"square","privilege_pack","privilege_shop","vip_level","data_center","family","user_level_center","wallet","invite_friends","settings","help_centre","rules_policies","square"};
-        Runnable[] actions={()->openCommunityHub700("Moments"),()->openDeepFlow810("privilege_pack"),()->openDeepFlow810("privilege_shop"),()->startActivity(new Intent(this,KingVipVisualActivity.class)),()->openDeepFlow810("noble"),()->openCommunityHub700("Family"),()->openDeepFlow810("level_center"),()->openDeepFlow810("wallet"),()->shareMyIssuedKingId9998(),()->openDeepFlow810("settings"),()->openDeepFlow810("help"),()->openDeepFlow810("rules"),()->openDeepFlow810("profile_menu")};
+        // Keep Bolo Hi's common Me drawer shortcuts directly reachable while
+        // routing each one to an existing KING Plus screen.
+        String[] items={"Square / Moments","Coin Mall","Data Center","Privilege Pack","Privilege Shop","VIP Level","Noble Center","Family","User Level Center","Wallet","Web Diamond Recharge","Gift Wall / Share Gift","Social Media","Invite Friends","Settings","Help & Customer Support","Rules and Policies","All Me Options"};
+        String[] icons={"▣","🪙","📊","🎁","🛍","💎","♛","🏠","⭐","💳","💎","🎁","👥","📨","⚙","❓","📜","☰"};
+        Runnable[] actions={
+            ()->openCommunityHub700("Moments"),
+            ()->openDeepFlow810("coin_mall"),
+            ()->openDeepFlow810("data_center"),
+            ()->openDeepFlow810("privilege_pack"),
+            ()->openDeepFlow810("privilege_shop"),
+            ()->startActivity(new Intent(this,KingVipVisualActivity.class)),
+            ()->openDeepFlow810("noble"),
+            ()->openCommunityHub700("Family"),
+            ()->openDeepFlow810("level_center"),
+            ()->openDeepFlow810("wallet"),
+            ()->openDeepFlow810("web_diamond"),
+            ()->startActivity(new Intent(this,KingGiftCenterActivity.class)),
+            ()->openDeepFlow810("social_center"),
+            ()->shareMyIssuedKingId9998(),
+            ()->openDeepFlow810("settings"),
+            ()->openDeepFlow810("help"),
+            ()->openDeepFlow810("rules"),
+            ()->openDeepFlow810("profile_menu")
+        };
         ScrollView scroll=new ScrollView(this);LinearLayout drawer=new LinearLayout(this);drawer.setOrientation(LinearLayout.VERTICAL);drawer.setPadding(dp(14),dp(20),dp(10),dp(20));drawer.setBackgroundColor(Color.WHITE);scroll.addView(drawer);
         AlertDialog dialog=new AlertDialog.Builder(this).setView(scroll).create();
-        for(int i=0;i<items.length;i++){final int k=i;TextView row=new TextView(this);row.setText(items[i]);int icon=getResources().getIdentifier("ref_me_drawer_icon_"+icons[i],"drawable",getPackageName());if(icon!=0){android.graphics.drawable.Drawable art=getDrawable(icon);art.setBounds(0,0,dp(25),dp(25));row.setCompoundDrawables(art,null,null,null);row.setCompoundDrawablePadding(dp(16));}row.setTextSize(15);row.setTextColor(0xff222222);row.setGravity(Gravity.CENTER_VERTICAL);row.setPadding(dp(8),0,0,0);row.setOnClickListener(v->{dialog.dismiss();KingSafe.run(this,"drawer:"+items[k],actions[k]);});drawer.addView(row,new LinearLayout.LayoutParams(-1,dp(52)));}
+        for(int i=0;i<items.length;i++){final int k=i;TextView row=new TextView(this);row.setText(icons[i]+"   "+items[i]);row.setTextSize(15);row.setTextColor(0xff222222);row.setGravity(Gravity.CENTER_VERTICAL);row.setPadding(dp(8),0,0,0);row.setOnClickListener(v->{dialog.dismiss();KingSafe.run(this,"drawer:"+items[k],actions[k]);});drawer.addView(row,new LinearLayout.LayoutParams(-1,dp(52)));}
         dialog.setOnShowListener(v->{android.view.Window w=dialog.getWindow();if(w!=null){w.setBackgroundDrawableResource(android.R.color.transparent);w.setGravity(Gravity.LEFT|Gravity.TOP);w.setLayout((int)(getResources().getDisplayMetrics().widthPixels*.82f),-1);}});dialog.show();
     }
 
@@ -1615,11 +1638,13 @@ public class MainActivity extends Activity {
 
     private void moderationCenterPage(){
         screen="moderation"; base("Moderation & Safety","Block, report and review foundation");
+        FirebaseUser reporter=firebaseAuth==null?null:firebaseAuth.getCurrentUser();
+        String ownerKey=reporter==null?"signed_out":reporter.getUid();
         Set<String> blocked=new HashSet<>(getPreferences(0).getStringSet("blocked",new HashSet<>()));
-        int reports=getPreferences(0).getInt("reports",0);
+        int reports=getPreferences(0).getInt("reports_"+ownerKey,0);
         text("🚫 Blocked users: "+blocked.size(),18,Color.WHITE,true);
         text("⚑ Reports submitted locally: "+reports,18,Color.WHITE,true);
-        String history=getPreferences(0).getString("report_history","");
+        String history=getPreferences(0).getString("report_history_"+ownerKey,"");
         if(history.isEmpty()) text("No local report history yet.",14,MUTED,false);
         else {
             text("Recent local report audit",16,Color.WHITE,true);
@@ -2839,23 +2864,19 @@ public class MainActivity extends Activity {
     }
 
     private void dailyCheckInPage(){
-        screen="checkin"; base("Daily Check-in","Build a streak and earn local rewards");
-        SharedPreferences p=getPreferences(0); long today=System.currentTimeMillis()/86400000L; long last=p.getLong("checkin_day_long",-10); int streak=p.getInt("checkin_streak",0); boolean claimed=last==today;
-        int shownStreak=claimed?streak:(last==today-1?streak+1:1); int reward=Math.min(100+Math.max(0,shownStreak-1)*20,300);
-        text("🔥 Streak: "+(claimed?streak:Math.max(streak,0))+" days",20,Color.WHITE,true);
-        text(claimed?"✅ Today's reward already claimed":"🎁 Today's reward: "+reward+" coins",18,Color.WHITE,true);
-        button(claimed?"Claimed":"Claim "+reward+" coins",claimed?CARD:PURPLE,()->{if(p.getLong("checkin_day_long",-10)==today){Toast.makeText(this,"Already claimed today",Toast.LENGTH_SHORT).show();return;}long prev=p.getLong("checkin_day_long",-10);int newStreak=prev==today-1?p.getInt("checkin_streak",0)+1:1;int gain=Math.min(100+Math.max(0,newStreak-1)*20,300);coinBalance=p.getInt("coins",2500)+gain;p.edit().putInt("coins",coinBalance).putLong("checkin_day_long",today).putInt("checkin_streak",newStreak).apply();appendTransaction("+"+gain+" coins • Daily check-in");addXp(10);Toast.makeText(this,gain+" coins added",Toast.LENGTH_SHORT).show();dailyCheckInPage();});
-        text("Rewards increase with your streak up to 300 coins/day.",14,MUTED,false); button("Back to Profile",CARD,this::profile);
+        screen="checkin"; base("Daily Check-in","Server-verified rewards only");
+        text("Daily check-in is not active in this TEST build.",18,Color.WHITE,true);
+        text("There is no deployed KING Plus service verifying check-in streaks or granting rewards, so this page cannot mark a check-in or add coins/XP.",14,MUTED,false);
+        button("Open Tasks & Check-in",PURPLE,()->openDeepFlow810("task_center"));
+        button("Back to Profile",CARD,this::profile);
     }
 
     private void missionsPage(){
-        screen="missions"; base("Missions","Daily activity progress and rewards");
-        missionButton("mission_room","🎤 Join a voice room",getMissionValue("mission_room"),1,40);
-        missionButton("mission_chat","💬 Send room messages",getMissionValue("mission_chat"),3,30);
-        missionButton("mission_gift","🎁 Send a gift",getMissionValue("mission_gift"),1,50);
-        missionButton("mission_profile","👤 Visit profiles",getMissionValue("mission_profile"),2,25);
-        missionButton("mission_game","🎮 Open Game Center",getMissionValue("mission_game"),1,35);
-        text("Missions reset by date on this device. Rewards are local coins until the online account backend is connected.",13,MUTED,false); button("Back to Profile",CARD,this::profile);
+        screen="missions"; base("Missions","Progress and rewards require a verified service");
+        text("Daily mission tracking is not active in this TEST build.",18,Color.WHITE,true);
+        text("Device-only activity is not proof of a completed mission. No mission can claim coins or XP here.",14,MUTED,false);
+        button("Open Tasks & Check-in",PURPLE,()->openDeepFlow810("task_center"));
+        button("Back to Profile",CARD,this::profile);
     }
 
 
@@ -2885,11 +2906,7 @@ public class MainActivity extends Activity {
             .setNegativeButton("Close",null).show();
     }
     private void manageAdmins(){Set<String> admins=new HashSet<>(getPreferences(0).getStringSet("room_admins_"+safeKey(currentRoom),new HashSet<>()));String[] names={"Lily","Alex","Mia","DJ Max"};boolean[] checked=new boolean[names.length];for(int i=0;i<names.length;i++)checked[i]=admins.contains(names[i]);new AlertDialog.Builder(this).setTitle("Manage admins").setMultiChoiceItems(names,checked,(d,w,isChecked)->{if(isChecked)admins.add(names[w]);else admins.remove(names[w]);}).setPositiveButton("Save",(d,w)->{getPreferences(0).edit().putStringSet("room_admins_"+safeKey(currentRoom),admins).apply();Toast.makeText(this,"Admins updated",Toast.LENGTH_SHORT).show();}).setNegativeButton("Cancel",null).show();}
-    private String todayKey(){return String.valueOf(System.currentTimeMillis()/86400000L);}
-    private void incrementMission(String key,int amount){String k=key+"_"+todayKey();int v=getPreferences(0).getInt(k,0)+amount;getPreferences(0).edit().putInt(k,v).apply();}
-    private int getMissionValue(String key){return getPreferences(0).getInt(key+"_"+todayKey(),0);}
-    private void missionButton(String key,String title,int progress,int target,int reward){boolean done=progress>=target;boolean claimed=getPreferences(0).getBoolean("claimed_"+key+"_"+todayKey(),false);String label=title+"   "+Math.min(progress,target)+"/"+target+(claimed?"   ✓ Claimed":done?"   • Claim "+reward:" ");button(label,claimed?CARD:(done?PURPLE:CARD),()->{if(!done){Toast.makeText(this,"Mission not complete yet",Toast.LENGTH_SHORT).show();return;}if(getPreferences(0).getBoolean("claimed_"+key+"_"+todayKey(),false)){Toast.makeText(this,"Already claimed",Toast.LENGTH_SHORT).show();return;}coinBalance=getPreferences(0).getInt("coins",2500)+reward;getPreferences(0).edit().putInt("coins",coinBalance).putBoolean("claimed_"+key+"_"+todayKey(),true).apply();appendTransaction("+"+reward+" coins • Mission reward");addXp(10);Toast.makeText(this,reward+" coins claimed",Toast.LENGTH_SHORT).show();missionsPage();});}
-    private void addXp(int value){int xp=getPreferences(0).getInt("xp",120)+value;getPreferences(0).edit().putInt("xp",xp).apply();}
+    private int getMissionValue(String key){return 0;}
     private void appendTransaction(String line){String old=getPreferences(0).getString("transactions","");String stamp=new java.text.SimpleDateFormat("dd MMM HH:mm",java.util.Locale.getDefault()).format(new java.util.Date());String updated=stamp+" • "+line+(old.isEmpty()?"":"|||"+old);getPreferences(0).edit().putString("transactions",updated).apply();}
     private long rankMetric952(com.google.firebase.firestore.DocumentSnapshot d,String mode){Long level=d.getLong("level"),xp=d.getLong("xp"),vip=d.getLong("vipLevel"),vp=d.getLong("vipPoints");long l=level==null?1:level,x=xp==null?0:xp,v=vip==null?0:vip,p=vp==null?0:vp;return "vip".equals(mode)?v*1000000000L+p:l*1000000000L+x;}
     private void showGlobalRank952(String mode){
