@@ -13,8 +13,8 @@ const waitForCount=(q,count)=>new Promise((resolve,reject)=>{
 });
 try{
  await env.clearFirestore();
- const first=doc(phoneA,'moments/post-a/likes/alice');
- const second=doc(phoneA,'moments/post-b/likes/alice');
+ const first=doc(phoneA,'moments/post-a/likes/liked-count-alice-v10088');
+ const second=doc(phoneA,'moments/post-b/likes/liked-count-alice-v10088');
  const liveQuery=query(collectionGroup(phoneB,'likes'),where('uid','==','liked-count-alice-v10088'),limit(501));
  let seen=waitForCount(liveQuery,1);
  await assertSucceeds(setDoc(doc(author,'moments/post-a'),{uid:'liked-count-bob-v10088',name:'Bob',text:'Post A',createdAt:serverTimestamp()}));
