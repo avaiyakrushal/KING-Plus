@@ -651,7 +651,11 @@ public class DiscoverActivity extends Activity {
                 transaction.delete(ref);return false;
             }
             Map<String,Object> fields=new HashMap<>();fields.put("followerUid",owner);
-            fields.put("targetUid",uid);fields.put("createdAt",FieldValue.serverTimestamp());
+            String followerName=displayName==null||displayName.trim().isEmpty()
+                ?"KING User":displayName.trim();
+            if(followerName.length()>60)followerName=followerName.substring(0,60);
+            fields.put("targetUid",uid);fields.put("followerName",followerName);
+            fields.put("createdAt",FieldValue.serverTimestamp());
             transaction.set(ref,fields);return true;
         }).addOnSuccessListener(isFollowing->{
             if(!followAccountCurrent10028(owner))return;

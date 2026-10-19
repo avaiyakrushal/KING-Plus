@@ -1,4 +1,4 @@
-name: KING Plus v10.0.73 Party Cleanup Race Fix TEST APK
+name: KING Plus v10.0.74 Discover Follow Name TEST APK
 on:
   push:
     branches: [work/king-v10070-nongame-audit]
@@ -7,9 +7,9 @@ on:
       - 'tools/**'
       - 'README.md'
       - 'BUILD-NOTES-READ-ME.txt'
-      - 'RELEASE-NOTES-v10.0.73.md'
-      - 'BOLO-HI-FULL-AUDIT-v10.0.73.md'
-      - '.github/workflows/king-v10073-party-cleanup-race-fix.yml'
+      - 'RELEASE-NOTES-v10.0.74.md'
+      - 'BOLO-HI-FULL-AUDIT-v10.0.74.md'
+      - '.github/workflows/king-v10074-discover-follow-name.yml'
   workflow_dispatch:
 permissions:
   contents: read
@@ -27,7 +27,7 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '8.9'
-      - name: Verify Bolo Hi audit, source and room-search regression checks
+      - name: Verify Bolo Hi audit, Discover and Party regression checks
         run: |
           set -euo pipefail
           python3 tools/four-pages-v10048/check_source.py
@@ -36,8 +36,9 @@ jobs:
           python3 tools/android16-media-uri-v10070/check_source.py
           python3 tools/party-presence-v10072/check_source.py
           python3 tools/party-presence-v10073/check_source.py
-          grep -q "versionCode 352" app/build.gradle
-          grep -q "versionName '10.0.73-party-cleanup-race-fix'" app/build.gradle
+          python3 tools/discover-follow-name-v10074/check_source.py
+          grep -q "versionCode 353" app/build.gradle
+          grep -q "versionName '10.0.74-discover-follow-name'" app/build.gradle
           test -s app/kingplus-ci-debug.keystore
       - name: Compile full Android app
         run: gradle :app:assembleDebug --no-daemon --max-workers=2
@@ -48,7 +49,7 @@ jobs:
           test -s "$apk"
           aapt="$(find "$ANDROID_HOME/build-tools" -name aapt -type f | sort -V | tail -1)"
           signer="$(find "$ANDROID_HOME/build-tools" -name apksigner -type f | sort -V | tail -1)"
-          "$aapt" dump badging "$apk" | grep '^package:' | grep "name='com.kingplus.social'" | grep "versionCode='352'"
+          "$aapt" dump badging "$apk" | grep '^package:' | grep "name='com.kingplus.social'" | grep "versionCode='353'"
           "$signer" verify --print-certs "$apk"
           test "$(stat -c%s "$apk")" -gt 60000000
           unzip -Z1 "$apk" | grep -q '^lib/arm64-v8a/libjingle_peerconnection_so.so$'
@@ -56,14 +57,14 @@ jobs:
       - name: Package TEST APK and source
         run: |
           set -euo pipefail
-          mkdir -p /tmp/king-v10073-out
-          cp app/build/outputs/apk/debug/app-debug.apk /tmp/king-v10073-out/KING-Plus-v10.0.73-Party-Cleanup-Race-Fix-TEST.apk
-          zip -qr /tmp/king-v10073-out/KING-Plus-v10.0.73-Party-Cleanup-Race-Fix-TEST-Source.zip . \
+          mkdir -p /tmp/king-v10074-out
+          cp app/build/outputs/apk/debug/app-debug.apk /tmp/king-v10074-out/KING-Plus-v10.0.74-Discover-Follow-Name-TEST.apk
+          zip -qr /tmp/king-v10074-out/KING-Plus-v10.0.74-Discover-Follow-Name-TEST-Source.zip . \
             -x '.git/*' '*/.git/*' '*/build/*' '.gradle/*' '*/.gradle/*' '*/node_modules/*' \
             '*.apk' '*.aab' '*.keystore' '*.jks' '*.zip' '*local.properties' '*.log'
       - uses: actions/upload-artifact@v4
         with:
-          name: KING-Plus-v10.0.73-Party-Cleanup-Race-Fix-TEST-APK-and-Source
-          path: /tmp/king-v10073-out/*
+          name: KING-Plus-v10.0.74-Discover-Follow-Name-TEST-APK-and-Source
+          path: /tmp/king-v10074-out/*
           retention-days: 30
           if-no-files-found: error

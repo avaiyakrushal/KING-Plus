@@ -25,6 +25,8 @@ lobby=party[party.index('private void renderLobby('):party.index('    private ',
 assert 'renderLobby(\"Hot\")' in leave
 assert 'clearListeners();' in lobby and 'unregisterMember();' in lobby
 assert 'pendingFollow10061.add(uid)' in discover
+assert 'fields.put("followerName",followerName)' in discover
+assert 'followerName.length()>60' in discover
 assert 'db.runTransaction(transaction->' in discover
 assert 'followAccountCurrent10028(owner)' in discover
 assert 'readReceiptTarget10048' in chat and 'readReceiptPending10048' in chat
