@@ -3,6 +3,7 @@ from pathlib import Path
 root = Path(__file__).resolve().parents[2]
 gradle = (root / 'app/build.gradle').read_text()
 flow = (root / 'app/src/main/java/com/kingplus/social/KingDeepFlowActivity.java').read_text()
+main = (root / 'app/src/main/java/com/kingplus/social/MainActivity.java').read_text()
 workflow = (root / '.github/workflows/king-v10077-party-rejoin-choice.yml').read_text()
 
 assert 'versionCode 365' in gradle
@@ -13,6 +14,8 @@ assert 'row("✅","Daily Check-in & Missions"' in flow and '"task_center"' in fl
 assert 'row("⚙","Settings & Privacy"' in flow and '"settings"' in flow
 assert 'row("🔐","Account & Sign-in"' in flow and '"settings_account"' in flow
 assert 'fetchAccountLedger9983(true,true)' in flow
+assert 'profileWalletCoins=coins;' in main and 'coins.setOnClickListener(v->openDeepFlow810("gift_wall"));' in main
+assert 'liveMeGift10064.setOnClickListener(v->openDeepFlow810("gift_wall"));' in main
 assert 'case "settings_account":settingsAccount();break;' in flow
 assert 'case "task_center":taskCenter();break;' in flow
 assert 'python3 tools/me-profile-parity-v10086/check_source.py' in workflow

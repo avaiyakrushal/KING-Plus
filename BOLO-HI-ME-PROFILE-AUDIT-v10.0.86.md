@@ -8,4 +8,4 @@
 | Settings & Privacy | Opens existing account, privacy, notification, and network settings. |
 | Account & Sign-in | Opens the existing account settings page. |
 
-The previous Gift Wall shortcut opened Gift Center and did not lead to the account's received-gift wall. That route is corrected here. Other open work remains: cloud-backed video uploads, verified reward progression, additional Bolo Hi Profile options, and signed-in cross-device QA.
+The previous Me-page received-gift shortcuts opened Gift Center and did not lead to the account's received-gift wall. Both are corrected here. Other open work remains: cloud-backed video uploads, verified reward progression, additional Bolo Hi Profile options, and signed-in cross-device QA.
