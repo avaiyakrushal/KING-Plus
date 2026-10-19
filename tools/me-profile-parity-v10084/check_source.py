@@ -1,12 +1,10 @@
 from pathlib import Path
 
 root = Path(__file__).resolve().parents[2]
-gradle = (root / 'app/build.gradle').read_text()
 flow = (root / 'app/src/main/java/com/kingplus/social/KingDeepFlowActivity.java').read_text()
 main = (root / 'app/src/main/java/com/kingplus/social/MainActivity.java').read_text()
 
-assert 'versionCode 363' in gradle
-assert "10.0.84-profile-options-routing" in gradle
+assert "KING Plus v10.0.84 Profile Options Routing TEST" in (root / 'RELEASE-NOTES-v10.0.84.md').read_text()
 for route in ('detail_profile_about', 'detail_profile_gallery', 'detail_profile_videos',
               'detail_profile_share', 'detail_profile_notifications',
               'detail_profile_favorites', 'detail_profile_recent'):

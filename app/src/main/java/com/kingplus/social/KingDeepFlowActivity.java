@@ -103,6 +103,7 @@ public class KingDeepFlowActivity extends Activity {
             case "detail_profile_about":openMeAction9981("profile_about");break;
             case "detail_profile_gallery":openMeAction9981("profile_gallery");break;
             case "detail_profile_videos":openMeAction9981("profile_videos");break;
+            case "detail_profile_liked":openCommunity("Liked");break;
             case "detail_profile_share":openMeAction9981("share_profile");break;
             case "detail_profile_notifications":openMeAction9981("notifications");break;
             case "detail_profile_favorites":openMeAction9981("favorites");break;
@@ -675,6 +676,7 @@ public class KingDeepFlowActivity extends Activity {
         row("🖼","My Gallery","Open your account's published Moments and local archive","detail_profile_gallery");
         row("🎬","My Videos","Manage videos saved on this device","detail_profile_videos");
         row("↗","Share Profile","Share your verified KING ID invitation","detail_profile_share");
+        row("♡","Liked Moments","Review posts you liked from your account","detail_profile_liked");
         section("Social & account");
         row("👥","Followers","Open your live account follower list",()->openSocialTab10083("followers"));
         row("➕","Following","Open accounts you follow",()->openSocialTab10083("following"));

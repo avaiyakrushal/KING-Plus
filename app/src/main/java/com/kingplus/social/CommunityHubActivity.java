@@ -108,7 +108,50 @@ public class CommunityHubActivity extends Activity {
     private String safe(String s,String f){return s==null||s.trim().isEmpty()?f:s.trim();}
     private String publicId(String uid){if(uid==null)return"000000";return String.valueOf(Integer.toUnsignedLong(uid.hashCode())%900000L+100000L);}
 
-    private void render(String tab){++searchGeneration9994;stopMoments9990();stopFamilyMessages956();selected=tab;LinearLayout root=new LinearLayout(this);root.setOrientation(LinearLayout.VERTICAL);root.setBackgroundColor(BG);LinearLayout head=new LinearLayout(this);head.setGravity(Gravity.CENTER_VERTICAL);head.setPadding(dp(8),dp(8),dp(8),dp(5));TextView back=tv("‹",38,DARK,false);back.setGravity(Gravity.CENTER);back.setOnClickListener(v->finish());head.addView(back,new LinearLayout.LayoutParams(dp(48),dp(54)));TextView title=tv("KING Community",23,DARK,true);head.addView(title,new LinearLayout.LayoutParams(0,dp(54),1));root.addView(head);HorizontalScrollView hs=new HorizontalScrollView(this);hs.setHorizontalScrollBarEnabled(false);LinearLayout tabs=new LinearLayout(this);String[] ts={"Search","Moments","Topics","Family","Relationship","Collection","Visitors"};for(String x:ts){TextView t=tv(x,13,x.equals(tab)?Color.WHITE:DARK,true);t.setGravity(Gravity.CENTER);t.setBackground(bg(x.equals(tab)?PURPLE:0xffece9f2,14));t.setOnClickListener(v->render(x));LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(dp(104),dp(42));lp.setMargins(dp(4),0,dp(4),0);tabs.addView(t,lp);}hs.addView(tabs);root.addView(hs,new LinearLayout.LayoutParams(-1,dp(50)));ScrollView sv=new ScrollView(this);body=new LinearLayout(this);body.setOrientation(LinearLayout.VERTICAL);body.setPadding(dp(14),dp(12),dp(14),dp(30));sv.addView(body);root.addView(sv,new LinearLayout.LayoutParams(-1,0,1));setContentView(root);if("Moments".equals(tab))moments();else if("Topics".equals(tab))topics940();else if("Family".equals(tab))family();else if("Relationship".equals(tab))relationships();else if("Collection".equals(tab))collection();else if("Visitors".equals(tab))visitors750();else search();}
+    private void render(String tab){++searchGeneration9994;stopMoments9990();stopFamilyMessages956();selected=tab;LinearLayout root=new LinearLayout(this);root.setOrientation(LinearLayout.VERTICAL);root.setBackgroundColor(BG);LinearLayout head=new LinearLayout(this);head.setGravity(Gravity.CENTER_VERTICAL);head.setPadding(dp(8),dp(8),dp(8),dp(5));TextView back=tv("‹",38,DARK,false);back.setGravity(Gravity.CENTER);back.setOnClickListener(v->finish());head.addView(back,new LinearLayout.LayoutParams(dp(48),dp(54)));TextView title=tv("KING Community",23,DARK,true);head.addView(title,new LinearLayout.LayoutParams(0,dp(54),1));root.addView(head);HorizontalScrollView hs=new HorizontalScrollView(this);hs.setHorizontalScrollBarEnabled(false);LinearLayout tabs=new LinearLayout(this);String[] ts={"Search","Moments","Liked","Topics","Family","Relationship","Collection","Visitors"};for(String x:ts){TextView t=tv(x,13,x.equals(tab)?Color.WHITE:DARK,true);t.setGravity(Gravity.CENTER);t.setBackground(bg(x.equals(tab)?PURPLE:0xffece9f2,14));t.setOnClickListener(v->render(x));LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(dp(104),dp(42));lp.setMargins(dp(4),0,dp(4),0);tabs.addView(t,lp);}hs.addView(tabs);root.addView(hs,new LinearLayout.LayoutParams(-1,dp(50)));ScrollView sv=new ScrollView(this);body=new LinearLayout(this);body.setOrientation(LinearLayout.VERTICAL);body.setPadding(dp(14),dp(12),dp(14),dp(30));sv.addView(body);root.addView(sv,new LinearLayout.LayoutParams(-1,0,1));setContentView(root);if("Moments".equals(tab))moments();else if("Liked".equals(tab))likedMoments10084();else if("Topics".equals(tab))topics940();else if("Family".equals(tab))family();else if("Relationship".equals(tab))relationships();else if("Collection".equals(tab))collection();else if("Visitors".equals(tab))visitors750();else search();}
+
+    /** Account-scoped list of live Moments that this signed-in user has liked. */
+    private void likedMoments10084(){
+        body.addView(tv("♡ Liked Moments",21,DARK,true));
+        if(!cloud()||me==null||!KingSavedRoomsCloud9990.account(me.getUid())){
+            body.addView(tv("Sign in to view your liked Moments.",14,MUTED,false));return;
+        }
+        final String owner=me.getUid();final int generation=searchGeneration9994;
+        TextView state=tv("Loading your liked Moments…",14,MUTED,false);body.addView(state);
+        TextView refresh=button("↻ Refresh liked Moments",()->render("Liked"));body.addView(refresh,new LinearLayout.LayoutParams(-1,dp(42)));
+        db.collectionGroup("likes").whereEqualTo("uid",owner).limit(50)
+            .get(com.google.firebase.firestore.Source.SERVER).addOnSuccessListener(likes->{
+                if(!likedMomentViewCurrent10084(owner,generation,state))return;
+                List<com.google.android.gms.tasks.Task<DocumentSnapshot>> loads=new ArrayList<>();
+                for(DocumentSnapshot like:likes.getDocuments()){
+                    DocumentReference post=like.getReference().getParent()==null?null:like.getReference().getParent().getParent();
+                    if(post!=null)loads.add(post.get(com.google.firebase.firestore.Source.SERVER));
+                }
+                if(loads.isEmpty()){
+                    state.setText("No liked Moments yet. Like a post in Moments and it will appear here.");return;
+                }
+                com.google.android.gms.tasks.Tasks.whenAllSuccess(loads).addOnSuccessListener(values->{
+                    if(!likedMomentViewCurrent10084(owner,generation,state))return;
+                    List<DocumentSnapshot> posts=new ArrayList<>();
+                    for(Object value:values)if(value instanceof DocumentSnapshot){DocumentSnapshot post=(DocumentSnapshot)value;if(post.exists())posts.add(post);}
+                    Collections.sort(posts,(a,b)->{
+                        com.google.firebase.Timestamp ta=a.getTimestamp("createdAt"),tb=b.getTimestamp("createdAt");
+                        return ta==null?(tb==null?0:1):tb==null?-1:tb.compareTo(ta);
+                    });
+                    state.setText(posts.isEmpty()?"Those Moments were removed or are no longer available.":"Your latest "+posts.size()+" liked Moments • live from this account");
+                    autoMomentPhotos10001=2;
+                    for(DocumentSnapshot post:posts)addMoment(post,body);
+                }).addOnFailureListener(error->{if(likedMomentViewCurrent10084(owner,generation,state))state.setText("Could not load liked posts. Tap Refresh to retry.");});
+            }).addOnFailureListener(error->{if(likedMomentViewCurrent10084(owner,generation,state))state.setText("Liked Moments unavailable. Check connection and tap Refresh.");});
+    }
+    private boolean likedMomentViewCurrent10084(String owner,int generation,View state){
+        return generation==searchGeneration9994&&"Liked".equals(selected)&&!isFinishing()&&!isDestroyed()
+            &&state.getParent()!=null&&me!=null&&owner.equals(me.getUid())&&KingSavedRoomsCloud9990.account(owner);
+    }
+    private boolean momentCardViewCurrent10084(String owner){
+        return ("Moments".equals(selected)||"Liked".equals(selected))&&!isFinishing()&&!isDestroyed()
+            &&me!=null&&owner.equals(me.getUid())&&KingSavedRoomsCloud9990.account(owner);
+    }
 
     private void search(){body.addView(tv("Find people & live rooms",21,DARK,true));EditText q=new EditText(this);q.setHint("Name, 6-digit KING ID or room");q.setSingleLine(true);
         q.setText(searchDraft10007);
@@ -499,14 +542,14 @@ public class CommunityHubActivity extends Activity {
         if("room_broadcast".equals(type)&&!roomId.isEmpty()){
             final String momentRoom10020=roomId, momentAccount10020=me.getUid();
             TextView join=button("🎤 Join "+roomName,()->{
-                if(db==null||isFinishing()||isDestroyed()||!"Moments".equals(selected)
+                if(db==null||!momentCardViewCurrent10084(momentAccount10020)
                     ||me==null||!momentAccount10020.equals(me.getUid())
                     ||!KingSavedRoomsCloud9990.account(momentAccount10020)){
-                    toast("Open Moments again to join this Party");return;
+                    toast("Reopen the live Moment to join this Party");return;
                 }
                 db.collection("live_rooms").document(momentRoom10020)
                     .get(com.google.firebase.firestore.Source.SERVER).addOnSuccessListener(live10020->{
-                        if(isFinishing()||isDestroyed()||!"Moments".equals(selected)
+                        if(!momentCardViewCurrent10084(momentAccount10020)
                             ||me==null||!momentAccount10020.equals(me.getUid())
                             ||!KingSavedRoomsCloud9990.account(momentAccount10020))return;
                         if(!live10020.exists()||Boolean.TRUE.equals(live10020.getBoolean("closed"))){
@@ -530,10 +573,14 @@ public class CommunityHubActivity extends Activity {
         final int momentTicket10000=momentsGeneration9990;
         momentLikes10000.add(d.getReference().collection("likes").document(account)
           .addSnapshotListener((liked,error)->{
-            if(momentTicket10000!=momentsGeneration9990 ||isFinishing()||isDestroyed()
-                ||!"Moments".equals(selected)||!KingSavedRoomsCloud9990.account(account)
+            if(momentTicket10000!=momentsGeneration9990 ||!momentCardViewCurrent10084(account)
                 ||like.getParent()==null)return;
             if(error!=null||liked==null){like.setText("Like unavailable");like.setEnabled(false);return;}
+            if("Liked".equals(selected)&&!liked.exists()){
+                if(card.getParent() instanceof android.view.ViewGroup)
+                    ((android.view.ViewGroup)card.getParent()).removeView(card);
+                return;
+            }
             if(!Boolean.TRUE.equals(like.getTag())){
                 like.setText(liked.exists()?"♥ Liked":"♡ Like");like.setEnabled(true);
             }
@@ -548,7 +595,7 @@ public class CommunityHubActivity extends Activity {
         LinearLayout.LayoutParams op=new LinearLayout.LayoutParams(0,dp(42),1);op.setMargins(dp(6),0,0,0);
         actions.addView(other,op);
         TextView share10025=button("↗ Share",()->{
-            if(isFinishing()||isDestroyed()||!"Moments".equals(selected)
+            if(!momentCardViewCurrent10084(account)
                 ||!KingSavedRoomsCloud9990.account(account))return;
             Intent shareIntent10025=new Intent(Intent.ACTION_SEND);
             shareIntent10025.setType("text/plain");
@@ -566,7 +613,7 @@ public class CommunityHubActivity extends Activity {
     // A dialog left open while switching accounts must never delete the old post.
     private void deleteOwnedMoment10019(DocumentReference ref10019,String owner10019){
         if(ref10019==null||me==null||!owner10019.equals(me.getUid())
-            ||!KingSavedRoomsCloud9990.account(owner10019)||!"Moments".equals(selected)){
+            ||!momentCardViewCurrent10084(owner10019)){
             toast("Account changed. Reopen your Moment.");return;
         }
         db.runTransaction(tx10019->{
@@ -575,7 +622,7 @@ public class CommunityHubActivity extends Activity {
                 throw new IllegalStateException("Moment changed or was already deleted");
             tx10019.delete(ref10019);return true;
         }).addOnSuccessListener(v->{
-            if(me!=null&&owner10019.equals(me.getUid())&&"Moments".equals(selected)
+            if(me!=null&&owner10019.equals(me.getUid())&&momentCardViewCurrent10084(owner10019)
                 &&!isFinishing()&&!isDestroyed())toast("Moment deleted");
         }).addOnFailureListener(e->{
             if(me!=null&&owner10019.equals(me.getUid())&&!isFinishing()&&!isDestroyed())
@@ -592,12 +639,12 @@ public class CommunityHubActivity extends Activity {
             if(existing.exists()){tx.delete(like);return false;}
             Map<String,Object> data=new HashMap<>();data.put("uid",uid);data.put("createdAt",FieldValue.serverTimestamp());tx.set(like,data);return true;
         }).addOnSuccessListener(liked->{
-            if(me!=null&&uid.equals(me.getUid())&&"Moments".equals(selected)
+            if(me!=null&&uid.equals(me.getUid())&&momentCardViewCurrent10084(uid)
                 &&!isFinishing()&&!isDestroyed()&&button.getParent()!=null){
                 button.setTag(null);button.setEnabled(true);button.setText(liked?"♥ Liked":"♡ Like");
             }
         }).addOnFailureListener(e->{
-            if(me!=null&&uid.equals(me.getUid())&&"Moments".equals(selected)
+            if(me!=null&&uid.equals(me.getUid())&&momentCardViewCurrent10084(uid)
                 &&!isFinishing()&&!isDestroyed()&&button.getParent()!=null){
                 button.setTag(null);button.setEnabled(true);toast("Could not update Like. Please retry.");
             }
