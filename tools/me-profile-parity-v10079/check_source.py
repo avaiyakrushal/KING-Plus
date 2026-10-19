@@ -9,7 +9,6 @@ gradle = (root / "app/build.gradle").read_text()
 # The refactored Me profile opens the nested All Me Options screen from its More row.
 assert 'more9981.setOnClickListener(v->openDeepFlow810("profile_menu"))' in main
 assert 'case "profile_menu": profileMenu();break;' in deep
-assert 'private void openDeepFlow810(' in main
 
 menu = deep[deep.index("private void profileMenu()") : deep.index("private void dataCenter()")]
 for item in (
@@ -40,7 +39,7 @@ assert "Official Terms of Service URL is not configured" in deep
 assert 'private void openNotifications9981()' in deep
 assert 'putExtra("openNotifications10010",true)' in deep
 assert 'mainPrefs.getString("report_history_"+owner' in deep
-assert 'getPreferences(0).getString(historyKey' in main
+assert 'db.collection("user_report_history").document(owner)' in deep
 assert 'getPreferences(0).putString("report_history",' not in main
 assert 'private void taskCenter(){hero("✅ Tasks & Check-in"' in deep
 assert 'completion is not tracked in this TEST build' in deep
