@@ -17,5 +17,7 @@ assert 'if(!expectedScreen.equals(screen)||active==null||!account.equals(active.
 assert 'Upload, sync and manage your profile videos' in deep
 assert 'python3 tools/me-profile-parity-v10088/check_source.py' in workflow
 assert 'node tests/firestore/me-profile-likes-v10088.test.mjs' in workflow
+likes_test = (root / 'tests/firestore/me-profile-likes-v10088.test.mjs').read_text()
+assert 'liked-count-alice-v10088' in likes_test
 assert "versionCode='367'" in workflow
 print('PASS: Me shows a live, signed-in account count for liked Moments and opens the existing Liked feed')

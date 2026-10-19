@@ -3,9 +3,9 @@ import {initializeTestEnvironment,assertSucceeds} from '@firebase/rules-unit-tes
 import {collectionGroup,doc,onSnapshot,query,serverTimestamp,setDoc,deleteDoc,where,limit} from 'firebase/firestore';
 
 const env=await initializeTestEnvironment({projectId:'demo-king-me-liked-count-10088',firestore:{host:'127.0.0.1',port:8080,rules:readFileSync('firestore.rules','utf8')}});
-const phoneA=env.authenticatedContext('alice').firestore();
-const phoneB=env.authenticatedContext('alice').firestore();
-const author=env.authenticatedContext('bob').firestore();
+const phoneA=env.authenticatedContext('liked-count-alice-v10088').firestore();
+const phoneB=env.authenticatedContext('liked-count-alice-v10088').firestore();
+const author=env.authenticatedContext('liked-count-bob-v10088').firestore();
 let stop=()=>{};
 const waitForCount=(q,count)=>new Promise((resolve,reject)=>{
  const timer=setTimeout(()=>{stop();reject(Error('Live liked-Moment count did not reach '+count));},10000);
@@ -15,15 +15,15 @@ try{
  await env.clearFirestore();
  const first=doc(phoneA,'moments/post-a/likes/alice');
  const second=doc(phoneA,'moments/post-b/likes/alice');
- const liveQuery=query(collectionGroup(phoneB,'likes'),where('uid','==','alice'),limit(501));
+ const liveQuery=query(collectionGroup(phoneB,'likes'),where('uid','==','liked-count-alice-v10088'),limit(501));
  let seen=waitForCount(liveQuery,1);
- await assertSucceeds(setDoc(doc(author,'moments/post-a'),{uid:'bob',name:'Bob',text:'Post A',createdAt:serverTimestamp()}));
- await assertSucceeds(setDoc(first,{uid:'alice',createdAt:serverTimestamp()}));
+ await assertSucceeds(setDoc(doc(author,'moments/post-a'),{uid:'liked-count-bob-v10088',name:'Bob',text:'Post A',createdAt:serverTimestamp()}));
+ await assertSucceeds(setDoc(first,{uid:'liked-count-alice-v10088',createdAt:serverTimestamp()}));
  if(await seen!==1)throw Error('First liked Moment count was not shown');
  stop();
  seen=waitForCount(liveQuery,2);
- await assertSucceeds(setDoc(doc(author,'moments/post-b'),{uid:'bob',name:'Bob',text:'Post B',createdAt:serverTimestamp()}));
- await assertSucceeds(setDoc(second,{uid:'alice',createdAt:serverTimestamp()}));
+ await assertSucceeds(setDoc(doc(author,'moments/post-b'),{uid:'liked-count-bob-v10088',name:'Bob',text:'Post B',createdAt:serverTimestamp()}));
+ await assertSucceeds(setDoc(second,{uid:'liked-count-alice-v10088',createdAt:serverTimestamp()}));
  if(await seen!==2)throw Error('Second liked Moment count was not live');
  stop();
  seen=waitForCount(liveQuery,1);
