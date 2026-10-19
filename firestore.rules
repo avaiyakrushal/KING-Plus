@@ -1293,6 +1293,13 @@ service cloud.firestore {
           && resource.data.players.removeAll(['',request.auth.uid]).size() == 0));
     }
 
+    // Collection-group reads power Me → Liked Moments. Restrict the broad
+    // collection-group query to like receipts owned by the signed-in user.
+    // The nested Moments rule below continues to serve public post like state.
+    match /{path=**}/likes/{likeId} {
+      allow read: if signedIn() && resource.data.uid == request.auth.uid;
+    }
+
     match /moments/{momentId} {
       allow read: if signedIn();
       allow create: if activeUser()

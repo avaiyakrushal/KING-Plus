@@ -10,6 +10,7 @@ on:
       - 'RELEASE-NOTES-v10.0.85.md'
       - 'BOLO-HI-ME-PROFILE-AUDIT-v10.0.85.md'
       - 'tests/firestore/privacy-block-dm-firestore.test.mjs'
+      - 'tests/firestore/liked-moments-v10085.test.mjs'
       - 'firestore.rules'
       - 'tests/firestore/**'
       - 'firebase-emulator.json'
@@ -58,7 +59,7 @@ jobs:
         run: |
           set -euo pipefail
           npm ci --prefix tests/firestore
-          tests/firestore/node_modules/.bin/firebase emulators:exec --only firestore --project demo-king-me-privacy-9984 --config firebase-emulator.json "node tests/firestore/privacy-block-dm-firestore.test.mjs && node tests/firestore/user-report-history-v10081.test.mjs"
+          tests/firestore/node_modules/.bin/firebase emulators:exec --only firestore --project demo-king-me-privacy-9984 --config firebase-emulator.json "node tests/firestore/privacy-block-dm-firestore.test.mjs && node tests/firestore/user-report-history-v10081.test.mjs && node tests/firestore/liked-moments-v10085.test.mjs"
       - name: Compile full Android app
         run: gradle :app:assembleDebug --no-daemon --max-workers=2
       - name: Verify TEST APK package, version, signature and RTC libraries
