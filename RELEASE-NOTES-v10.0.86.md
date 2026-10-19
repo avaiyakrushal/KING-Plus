@@ -4,6 +4,7 @@
 
 - Fixed both received-gift shortcuts on the Me page and Profile Center so they open the signed-in account’s received-gift Wallet Ledger rather than the gift sending catalog.
 - Added a direct Gift History option for server-recorded sent and received gifts.
+- Replaced the misleading Favorites shortcut with a direct My Videos tab that opens the existing device-saved video manager.
 - Added direct Daily Check-in & Missions, Settings & Privacy, and Account & Sign-in options.
 - These shortcuts open existing screens. Check-in and mission rewards remain disabled until a trusted server verifies completion.
 

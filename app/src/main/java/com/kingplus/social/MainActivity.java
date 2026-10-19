@@ -1,4 +1,4 @@
-Warning: truncated output (original token count: 56822)
+Warning: truncated output (original token count: 56821)
 Total output lines: 3053
 
 package com.kingplus.social;
@@ -1413,7 +1413,7 @@ public class MainActivity extends Activity {
         screen="discover";
         int gameScore=Math.max(0,getPreferences(0).getInt("king_game_points",0)+getPreferences(0).getInt("king_game_wins",0)*50+getPreferences(0).getInt("king_game_matches",0)*20);
         int chatScore=Math.max(0,getMissionValue("mission_chat")*20+getPreferences(0).getInt("friends_count",0)*10);
-        int eventScore=Math.max(0,getMissionValue("mission_room")*25+getMissionValue("mission_pr…6822 tokens truncated…alog";
+        int eventScore=Math.max(0,getMissionValue("mission_room")*25+getMissionValue("mission_pr…6821 tokens truncated…catalog";
         base("KING Gift Center","Live Party gifts and gift history");
         text("🌹 💝 👑 🎉 💎 🎁",32,Color.WHITE,true);
         text("Diamond gifts use your verified balance. Select a live Party member to send a gift. Your received gift credit and history update online.",15,MUTED,false);
@@ -2434,7 +2434,7 @@ public class MainActivity extends Activity {
 
     private void addProfileVideoTabs940(LinearLayout list){
         LinearLayout tabs=new LinearLayout(this);tabs.setGravity(Gravity.CENTER);tabs.setPadding(0,dp(3),0,dp(8));
-        TextView fav=new TextView(this);fav.setText("Favorites");fav.setTextSize(14);fav.setTypeface(null,Typeface.BOLD);fav.setTextColor(0xff222222);fav.setGravity(Gravity.CENTER);fav.setBackground(background(0xffffe500,10));fav.setOnClickListener(v->backpackPage());
+        TextView fav=new TextView(this);fav.setText("My Videos");fav.setTextSize(14);fav.setTypeface(null,Typeface.BOLD);fav.setTextColor(0xff222222);fav.setGravity(Gravity.CENTER);fav.setBackground(background(0xffffe500,10));fav.setOnClickListener(v->videoPage());
         TextView status=new TextView(this);status.setText("Status");status.setTextSize(14);status.setTypeface(null,Typeface.BOLD);status.setTextColor(0xff6f6877);status.setGravity(Gravity.CENTER);status.setBackground(background(0xfff0eef4,10));status.setOnClickListener(v->momentsPage());
         LinearLayout.LayoutParams p=new LinearLayout.LayoutParams(0,dp(42),1);p.setMargins(dp(3),0,dp(3),0);tabs.addView(fav,p);tabs.addView(status,new LinearLayout.LayoutParams(p));list.addView(tabs,new LinearLayout.LayoutParams(-1,dp(52)));
     }

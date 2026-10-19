@@ -16,6 +16,7 @@ assert 'row("🔐","Account & Sign-in"' in flow and '"settings_account"' in flow
 assert 'fetchAccountLedger9983(true,true)' in flow
 assert 'profileWalletCoins=coins;' in main and 'coins.setOnClickListener(v->openDeepFlow810("gift_wall"));' in main
 assert 'liveMeGift10064.setOnClickListener(v->openDeepFlow810("gift_wall"));' in main
+assert 'fav.setText("My Videos")' in main and 'fav.setOnClickListener(v->videoPage())' in main
 assert 'case "settings_account":settingsAccount();break;' in flow
 assert 'case "task_center":taskCenter();break;' in flow
 assert 'python3 tools/me-profile-parity-v10086/check_source.py' in workflow
