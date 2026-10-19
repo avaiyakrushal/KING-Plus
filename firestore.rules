@@ -1086,6 +1086,28 @@ service cloud.firestore {
         allow delete: if signedIn()
           && (request.auth.uid == uid || request.auth.uid == visitorUid);
       }
+
+      // Cloud videos are visible to signed-in viewers and writable only by their owner.
+      match /videos/{videoId} {
+        allow read: if signedIn();
+        allow create: if activeUser() && owner(uid)
+          && request.resource.data.keys().hasOnly(['uid','url','storagePath','fileName','contentType','sizeBytes','createdAt'])
+          && request.resource.data.keys().hasAll(['uid','url','storagePath','fileName','contentType','sizeBytes','createdAt'])
+          && request.resource.data.uid == uid
+          && request.resource.data.url is string
+          && request.resource.data.url.size() <= 2048
+          && request.resource.data.storagePath == 'chat_media/' + uid + '/profile_videos/' + videoId
+          && request.resource.data.fileName is string
+          && request.resource.data.fileName.size() <= 120
+          && request.resource.data.contentType is string
+          && request.resource.data.contentType.matches('video/[A-Za-z0-9.+-]+')
+          && request.resource.data.sizeBytes is int
+          && request.resource.data.sizeBytes > 0
+          && request.resource.data.sizeBytes <= 10485760
+          && request.resource.data.createdAt == request.time;
+        allow update: if false;
+        allow delete: if owner(uid) && resource.data.uid == uid;
+      }
     }
 
     match /discover_stats/{uid} {

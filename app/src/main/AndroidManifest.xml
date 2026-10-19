@@ -10,6 +10,7 @@
     <application android:name=".KingApplication" tools:replace="android:label" android:theme="@android:style/Theme.Material.Light.NoActionBar" android:label="KING Plus" android:icon="@drawable/king_logo_royal10021" android:usesCleartextTraffic="false">
         <activity android:name=".PartyActivity" android:exported="false" android:windowSoftInputMode="adjustResize" />
         <activity android:name=".KingMultiVideoActivity" android:exported="false" />
+        <activity android:name=".KingProfileVideos10087Activity" android:exported="false" />
         <activity android:name=".KingParityHubActivity" android:exported="false" />
         <activity android:name=".KingEcosystemProActivity" android:exported="false" />
         <activity android:name=".KingProductionTestActivity" android:exported="false" />

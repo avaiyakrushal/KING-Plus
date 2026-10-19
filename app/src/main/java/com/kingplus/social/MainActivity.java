@@ -2627,7 +2627,8 @@ public class MainActivity extends Activity {
         return u10035==null?null:"profile_videos_"+u10035.getUid();
     }
     private void videoPage(){
-        screen="profile_videos";base("My Videos","On-device saved videos • not uploaded or shared");
+        screen="profile_videos";base("My Videos","Saved videos and account uploads");
+        button("☁ Cloud Profile Videos",PURPLE,()->startActivity(new Intent(this,KingProfileVideos10087Activity.class)));
         final String key10035=videoPreferenceKey10035();
         if(key10035==null){text("Sign in to manage saved videos",15,MUTED,false);button("Back to Me",CARD,this::profile);return;}
         final String videoValue10035=getPreferences(0).getString(key10035,"");
