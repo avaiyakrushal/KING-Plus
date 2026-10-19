@@ -174,8 +174,8 @@ public class KingDeepFlowActivity extends Activity {
         b.setText(desc);b.setTextSize(12);b.setTextColor(usingArt?0xffeeeeee:sub());
         body.addView(h,new LinearLayout.LayoutParams(-1,dp(92)));
     }
-    private void profileMenu(){LevelSystem.Snapshot s=LevelSystem.read(this);hero("👤  "+safe(mainPrefs.getString("name","KING User"),"KING User"),
-    "Activity Lv."+s.level+" • VIP entitlement is verified in Wallet");
+    private void profileMenu(){hero("👤  "+safe(mainPrefs.getString("name","KING User"),"KING User"),
+    "Activity level is a device-only TEST preview • VIP is read from verified Wallet");
         section("Account & status");
         row("📊","Data Center","Profile activity, social counts, gifts and rooms","data_center");
         row("🏢","Agency & Agent Recharge","Super Admin, Agency owner, Agent requests","agency");
@@ -215,7 +215,7 @@ public class KingDeepFlowActivity extends Activity {
     }
 
     private void dataCenter(){
-        hero("📊 Data Center","Open live KING Plus pages for account activity. Counts and records come from your signed-in account.");
+        hero("📊 Data Center","Open KING Plus account pages. Each page identifies whether its data is account-synced or a device-only TEST preview.");
         section("Profile & social data");
         row("👤","Profile Center","Edit profile, Gallery, Level, VIP, medals, visitors, Gift Wall and Safety","profile_center");
         row("👥","Followers & Friends","Open live people and follower lists",()->startActivity(new Intent(this,SocialActivity.class)));
@@ -722,14 +722,14 @@ public class KingDeepFlowActivity extends Activity {
         chip("This page shows your own submission receipts only. Moderation decisions and other users’ reports are private.",()->{});
     }
     private void safetyHelp9981(){
-        hero("🛡 Safety & Moderation","Review account privacy, your block list, and reports submitted from this device.");
+        hero("🛡 Safety & Moderation","Review account privacy, your cloud block list, and account-scoped report receipts.");
         row("🚫","Blocked users","Review and unblock cloud-blocked KING accounts","detail_blocked");
-        row("⚑","My report history","Account-scoped local report history","detail_reports");
+        row("⚑","My report history","Account-scoped report receipts from the server","detail_reports");
         row("🔐","Privacy controls","Discoverability, room invites and private messages","settings_privacy");
         row("📜","Community rules","Safety and fair-play rules","rules");
     }
-    private void levelCenter(){LevelSystem.Snapshot s=LevelSystem.read(this);hero("🏆 Level "+s.level+" / "+LevelSystem.MAX_LEVEL,LevelSystem.levelTier(s.level)+" • XP "+s.xp+" / "+s.nextLevelXp());row("🏅","Achievements","Voice, games, gifts and social milestones","medal_center");row("🎮","Game Master","Play games to build activity","game_center");row("🎤","Voice Explorer","Join Party / voice room",()->KingNav.openRoot(this,0));row("👥","Friends","Community and followers","social_center");}
-    private void medalCenter(){LevelSystem.Snapshot s=LevelSystem.read(this);hero("🏅 Medals & Influence","Activity milestones are TEST; paid VIP medals require verified entitlement");String[] n={"Rising Star","Elite Voice","Game Master","VIP Supporter","Royal Patron","KING Supreme"};int[] need={10,30,20,3,20,50};for(int i=0;i<n.length;i++){boolean vip=i>=3;int cur=vip?0:s.level;row(cur>=need[i]?"🏅":"🔒",n[i],(vip?"VIP ":"Level ")+need[i],()->{});}}
+    private void levelCenter(){LevelSystem.Snapshot s=LevelSystem.read(this);hero("🏆 TEST Activity Level "+s.level+" / "+LevelSystem.MAX_LEVEL,"Device-only preview • not account-synced or server-verified • XP has no reward value");row("🔒","Achievements","Locked until verified activity tracking is available","medal_center");row("🎮","Game Master","Game activity is not credited to a verified level","game_center");row("🎤","Voice Explorer","Party / voice participation is not credited to a verified level",()->KingNav.openRoot(this,0));row("👥","Friends","Community and followers","social_center");}
+    private void medalCenter(){hero("🏅 Medals & Influence","TEST catalog • no medal is granted from device-only XP or unverified VIP");String[] n={"Rising Star","Elite Voice","Game Master","VIP Supporter","Royal Patron","KING Supreme"};String[] req={"Verified activity tracking pending","Verified activity tracking pending","Verified game results pending","Verified Wallet entitlement pending","Verified Wallet entitlement pending","Verified Wallet entitlement pending"};for(int i=0;i<n.length;i++)row("🔒",n[i],req[i],()->{});}
     private void socialCenter(){row("▣","Square / Moments","Posts and activity",()->openCommunity("Moments"));row("👤","People Search","KING ID and profiles",()->openCommunity("Search"));row("👥","Friends / Followers","Follow and private chat",()->{Intent i=new Intent(this,SocialActivity.class);startActivity(i);});row("🏠","Family","Family square and members",()->openCommunity("Family"));row("💞","Relationship / CP","Pairing and gifts",()->openCommunity("Relationship"));row("💬","Messages","Chats and notifications",()->KingNav.openRoot(this,3));}
     private void discoverCenter(){row("🏆","Contribution Ranking","Discover room/user rankings",()->startActivity(new Intent(this,DiscoverActivity.class)));row("✨","Charisma Ranking","Profiles and contribution",()->startActivity(new Intent(this,DiscoverActivity.class)));row("🎪","Activity Recommendation","Rooms and events",()->startActivity(new Intent(this,DiscoverActivity.class)));row("🎮","Game Master","Game discovery","game_center");row("📍","Nearby / Recommended","People and rooms",()->openCommunity("Search"));}
 

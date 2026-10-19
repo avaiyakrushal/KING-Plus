@@ -4282,8 +4282,7 @@ public class PartyActivity extends androidx.fragment.app.FragmentActivity implem
               }).addOnFailureListener(e->retryFailureDisplayedGiftReceipt9955(job,e));
           }).addOnFailureListener(e->retryFailureDisplayedGiftReceipt9955(job,e));
     }
-    private void awardGiftProgress700(long value){LevelSystem.Snapshot before=LevelSystem.read(this),after=LevelSystem.gift(this,value);if(after.level>before.level)toast("⭐ Level up • Lv."+after.level);/* FREE gift TEST XP does not award verified VIP or paid Noble */syncMyProgress700(after);}
-    private void syncMyProgress700(LevelSystem.Snapshot p){if(user==null||db==null)return;Map<String,Object>m=new HashMap<>();m.put("uid",user.getUid());m.put("displayName",safeName());m.put("searchName",safeName().toLowerCase(java.util.Locale.US));/* Keep the Firebase-issued KING ID; XP cannot overwrite it. */m.put("level",p.level);m.put("xp",p.xp);m.put("levelTier",LevelSystem.levelTier(p.level));m.put("updatedAt",FieldValue.serverTimestamp());db.collection("public_profiles").document(user.getUid()).set(m,SetOptions.merge());}
+    private void awardGiftProgress700(long value){LevelSystem.Snapshot before=LevelSystem.read(this),after=LevelSystem.gift(this,value);if(after.level>before.level)toast("⭐ TEST activity level • Lv."+after.level);/* Local TEST preview only; no cloud profile, XP, VIP, Noble, or reward credit. */}
 
     private void shareRoom(){
         if(!cloudRoom || roomId==null || roomId.trim().isEmpty()){

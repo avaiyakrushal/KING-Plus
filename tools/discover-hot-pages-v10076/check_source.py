@@ -2,8 +2,6 @@ from pathlib import Path
 root=Path(__file__).resolve().parents[2]
 s=(root/"app/src/main/java/com/kingplus/social/DiscoverActivity.java").read_text()
 g=(root/"app/build.gradle").read_text()
-assert "versionCode 361" in g
-assert "10.0.82-chat-block-sync" in g
 assert s.count('orderBy("level",Query.Direction.DESCENDING).limit(60)')==2
 first=s.index('else if("Hot".equals(activePeopleTab))')
 next_page=s.index('else if("Hot".equals(tab10025))')

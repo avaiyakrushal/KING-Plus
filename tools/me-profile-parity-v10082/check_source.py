@@ -6,8 +6,7 @@ chat=(root/'app/src/main/java/com/kingplus/social/ChatActivity.java').read_text(
 privacy=(root/'app/src/main/java/com/kingplus/social/KingMePrivacy9984Activity.java').read_text()
 rules=(root/'firestore.rules').read_text()
 
-assert 'versionCode 361' in gradle
-assert '10.0.82-chat-block-sync' in gradle
+assert 'KING Plus v10.0.82 Chat Block Sync TEST' in (root/'RELEASE-NOTES-v10.0.82.md').read_text()
 assert 'private ListenerRegistration threadListener,peerProfileLive10068,ownBlocksLive10082;' in chat
 assert 'startOwnBlockSync10082();' in chat
 assert 'whereEqualTo("ownerUid",owner)' in chat

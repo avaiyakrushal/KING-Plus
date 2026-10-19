@@ -23,22 +23,23 @@ public final class LevelSystem {
     public static Snapshot read(Context c){
         SharedPreferences p=c.getSharedPreferences(PREF,Context.MODE_PRIVATE);
         long xp=Math.max(0,p.getLong("xp",0));
-        long vp=Math.max(0,p.getLong("vip_points",0));
-        return new Snapshot(levelFor(xp),xp,vipFor(vp),vp);
+        // VIP is a paid entitlement and must come only from the verified wallet.
+        // Ignore old device-local VIP counters left by earlier TEST builds.
+        return new Snapshot(levelFor(xp),xp,0,0);
     }
 
     public static Snapshot add(Context c,long xpDelta,long vipDelta){
         SharedPreferences p=c.getSharedPreferences(PREF,Context.MODE_PRIVATE);
         long xp=Math.max(0,p.getLong("xp",0)+Math.max(0,xpDelta));
-        long vp=Math.max(0,p.getLong("vip_points",0)+Math.max(0,vipDelta));
-        p.edit().putLong("xp",xp).putLong("vip_points",vp).apply();
-        return new Snapshot(levelFor(xp),xp,vipFor(vp),vp);
+        // Device activity is a local TEST preview; never mint VIP points here.
+        p.edit().putLong("xp",xp).apply();
+        return new Snapshot(levelFor(xp),xp,0,0);
     }
 
     public static Snapshot gift(Context c,long giftValue){
         if(giftValue<=0)return add(c,2,0);
         long xp=Math.max(5,Math.min(5000,giftValue/5+5));
-        return add(c,xp,giftValue);
+        return add(c,xp,0);
     }
 
     public static long levelThreshold(int level){

@@ -17,7 +17,7 @@ android {
     buildFeatures { buildConfig true }
     defaultConfig {
         applicationId 'com.kingplus.social'; minSdk 26; targetSdk 35
-        versionCode 361; versionName '10.0.82-chat-block-sync'
+        versionCode 362; versionName '10.0.83-profile-progress-integrity'
         // Account, backend deployment and a guaranteed zero-cost policy are still pending.
         buildConfigField 'boolean', 'CLOUDFLARE_VOICE_ENABLED', 'false'
     }
