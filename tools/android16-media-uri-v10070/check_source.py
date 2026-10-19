@@ -4,8 +4,8 @@ source = root / 'app/src/main/java/com/kingplus/social'
 helper = (source / 'KingSafeImageUri10070.java').read_text()
 app_sources = '\n'.join(p.read_text(errors='replace') for p in source.glob('*.java'))
 gradle = (root / 'app/build.gradle').read_text()
-assert 'versionCode 360' in gradle
-assert "10.0.81-profile-report-history" in gradle
+assert 'versionCode 361' in gradle
+assert "10.0.82-chat-block-sync" in gradle
 assert 'ContentResolver resolver' in helper
 assert 'openInputStream(uri)' in helper
 assert 'catch (Exception | OutOfMemoryError ignored)' in helper

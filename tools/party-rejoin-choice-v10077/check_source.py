@@ -2,8 +2,8 @@ from pathlib import Path
 root=Path(__file__).resolve().parents[2]
 s=(root/"app/src/main/java/com/kingplus/social/PartyActivity.java").read_text()
 g=(root/"app/build.gradle").read_text()
-assert "versionCode 360" in g
-assert "10.0.81-profile-report-history" in g
+assert "versionCode 361" in g
+assert "10.0.82-chat-block-sync" in g
 start=s.index('selfMemberListener=room.collection("members").document(expectedUid982)')
 end=s.index('roomBanListener=room.collection("room_bans")',start)
 listener=s[start:end]

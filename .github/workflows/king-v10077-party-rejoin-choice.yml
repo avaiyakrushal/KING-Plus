@@ -1,4 +1,4 @@
-name: KING Plus v10.0.81 Me Profile Routes TEST APK
+name: KING Plus v10.0.82 Me Profile Routes TEST APK
 on:
   push:
     branches: [work/king-v10070-nongame-audit]
@@ -7,8 +7,9 @@ on:
       - 'tools/**'
       - 'README.md'
       - 'BUILD-NOTES-READ-ME.txt'
-      - 'RELEASE-NOTES-v10.0.81.md'
-      - 'BOLO-HI-ME-PROFILE-AUDIT-v10.0.81.md'
+      - 'RELEASE-NOTES-v10.0.82.md'
+      - 'BOLO-HI-ME-PROFILE-AUDIT-v10.0.82.md'
+      - 'tests/firestore/privacy-block-dm-firestore.test.mjs'
       - 'firestore.rules'
       - 'tests/firestore/**'
       - 'firebase-emulator.json'
@@ -46,14 +47,15 @@ jobs:
           python3 tools/me-profile-parity-v10079/check_source.py
           python3 tools/me-profile-parity-v10080/check_source.py
           python3 tools/me-profile-parity-v10081/check_source.py
-          grep -q "versionCode 360" app/build.gradle
-          grep -q "versionName '10.0.81-profile-report-history'" app/build.gradle
+          python3 tools/me-profile-parity-v10082/check_source.py
+          grep -q "versionCode 361" app/build.gradle
+          grep -q "versionName '10.0.82-chat-block-sync'" app/build.gradle
           test -s app/kingplus-ci-debug.keystore
-      - name: Verify account-private report receipt Firestore rules
+      - name: Verify cloud Block List and report receipt Firestore rules
         run: |
           set -euo pipefail
           npm ci --prefix tests/firestore
-          tests/firestore/node_modules/.bin/firebase emulators:exec --only firestore --project demo-king-user-report-history-v10081 --config firebase-emulator.json "node tests/firestore/user-report-history-v10081.test.mjs"
+          tests/firestore/node_modules/.bin/firebase emulators:exec --only firestore --project demo-king-me-privacy-9984 --config firebase-emulator.json "node tests/firestore/privacy-block-dm-firestore.test.mjs && node tests/firestore/user-report-history-v10081.test.mjs"
       - name: Compile full Android app
         run: gradle :app:assembleDebug --no-daemon --max-workers=2
       - name: Verify TEST APK package, version, signature and RTC libraries
@@ -63,7 +65,7 @@ jobs:
           test -s "$apk"
           aapt="$(find "$ANDROID_HOME/build-tools" -name aapt -type f | sort -V | tail -1)"
           signer="$(find "$ANDROID_HOME/build-tools" -name apksigner -type f | sort -V | tail -1)"
-          "$aapt" dump badging "$apk" | grep '^package:' | grep "name='com.kingplus.social'" | grep "versionCode='360'"
+          "$aapt" dump badging "$apk" | grep '^package:' | grep "name='com.kingplus.social'" | grep "versionCode='361'"
           "$signer" verify --print-certs "$apk"
           test "$(stat -c%s "$apk")" -gt 60000000
           unzip -Z1 "$apk" | grep -q '^lib/arm64-v8a/libjingle_peerconnection_so.so$'
@@ -71,14 +73,14 @@ jobs:
       - name: Package TEST APK and source
         run: |
           set -euo pipefail
-          mkdir -p /tmp/king-v10081-out
-          cp app/build/outputs/apk/debug/app-debug.apk /tmp/king-v10081-out/KING-Plus-v10.0.81-Me-Profile-Routes-TEST.apk
-          zip -qr /tmp/king-v10081-out/KING-Plus-v10.0.81-Me-Profile-Routes-TEST-Source.zip . \
+          mkdir -p /tmp/king-v10082-out
+          cp app/build/outputs/apk/debug/app-debug.apk /tmp/king-v10082-out/KING-Plus-v10.0.82-Me-Profile-Routes-TEST.apk
+          zip -qr /tmp/king-v10082-out/KING-Plus-v10.0.82-Me-Profile-Routes-TEST-Source.zip . \
             -x '.git/*' '*/.git/*' '*/build/*' '.gradle/*' '*/.gradle/*' '*/node_modules/*' \
             '*.apk' '*.aab' '*.keystore' '*.jks' '*.zip' '*local.properties' '*.log'
       - uses: actions/upload-artifact@v4
         with:
-          name: KING-Plus-v10.0.81-Me-Profile-Routes-TEST-APK-and-Source
-          path: /tmp/king-v10081-out/*
+          name: KING-Plus-v10.0.82-Me-Profile-Routes-TEST-APK-and-Source
+          path: /tmp/king-v10082-out/*
           retention-days: 30
           if-no-files-found: error

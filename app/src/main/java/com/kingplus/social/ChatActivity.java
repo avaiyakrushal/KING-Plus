@@ -30,6 +30,7 @@ import com.google.firebase.firestore.FirebaseFirestore;
 import com.google.firebase.firestore.ListenerRegistration;
 import com.google.firebase.firestore.Query;
 import com.google.firebase.firestore.SetOptions;
+import com.google.firebase.firestore.Source;
 import com.google.firebase.storage.FirebaseStorage;
 import com.google.firebase.storage.StorageReference;
 
@@ -60,7 +61,9 @@ public class ChatActivity extends Activity {
     private FirebaseUser me;
     private FirebaseFirestore db;
     private ListenerRegistration messagesListener;
-    private ListenerRegistration threadListener,peerProfileLive10068;
+    private ListenerRegistration threadListener,peerProfileLive10068,ownBlocksLive10082;
+    private final Set<String> cloudBlockedUids10082=new HashSet<>();
+    private boolean cloudBlocksLoaded10082;
     private boolean chatVisible10068,historyLoading10068,cloudListenFailed10068,latestConfirmed10068;
     private int liveEpoch10068,historyEpoch10068,historyPage10068;
     private final List<DocumentSnapshot> latest10068=new ArrayList<>(),visible10068=new ArrayList<>();
@@ -287,7 +290,7 @@ public class ChatActivity extends Activity {
         if(!cloudMode && peerUid!=null && !peerUid.isEmpty()){
             Toast.makeText(this,"Sign in again to send a real message",Toast.LENGTH_LONG).show();return;
         }
-        if (isBlocked()) { Toast.makeText(this,"Unblock this user before messaging",Toast.LENGTH_SHORT).show(); return; }
+        if (isBlocked()) { Toast.makeText(this,"Unblock this account before messaging",Toast.LENGTH_SHORT).show(); return; }
         if (text.length() > 1000) { Toast.makeText(this,"Message is too long",Toast.LENGTH_SHORT).show(); return; }
         if (!replyPreview.isEmpty()) text="↪ "+replyName+": "+shortReply620(replyPreview)+"\n"+text;
         if (cloudMode){cloudTextSending10042=true;sendCloudMessage(text, "text", "");} else saveLocal(text, "text", "", true);
@@ -296,6 +299,11 @@ public class ChatActivity extends Activity {
     }
 
     private void sendCloudMessage(String text, String type, String mediaUrl) {
+        if(isBlocked()){
+            cloudTextSending10042=false;
+            Toast.makeText(this,"Unblock this account before messaging",Toast.LENGTH_SHORT).show();
+            return;
+        }
         Map<String,Object> thread = new HashMap<>(); List<String> members = new ArrayList<>(); members.add(me.getUid()); members.add(peerUid); thread.put("members", members);
         Map<String,Object> names = new HashMap<>(); names.put(me.getUid(), myName); names.put(peerUid, peerName); thread.put("memberNames", names);
         thread.put("lastMessage", type.equals("text") ? text : type.equals("photo") ? "📷 Photo" : "🎤 Voice note"); thread.put("lastSenderUid", me.getUid()); thread.put("updatedAt", FieldValue.serverTimestamp());
@@ -480,10 +488,11 @@ public class ChatActivity extends Activity {
     }
     @Override protected void onStart(){
         super.onStart();chatVisible10068=true;
+        startOwnBlockSync10082();
         if(cloudMode&&chatSessionCurrent10040())restartCloud10068();
     }
     @Override protected void onStop(){
-        chatVisible10068=false;stopCloud10068();stopVoice(false);super.onStop();
+        chatVisible10068=false;stopCloud10068();stopOwnBlockSync10082();stopVoice(false);super.onStop();
     }
     @Override protected void onResume(){
         super.onResume();
@@ -706,19 +715,92 @@ public class ChatActivity extends Activity {
     private String shortReply620(String s){if(s==null)return "";String x=s.replace('\n',' ').trim();return x.length()>42?x.substring(0,42)+"…":x;}
 
     private void safetyMenu() {
-        boolean blocked = isBlocked(); String[] opts = {"🎁 Send gift","🎁 Gift history","😊 Emoji & stickers", blocked ? "✅ Unblock user" : "🚫 Block user", "⚑ Report user", "🗑 Clear local chat" };
-        new AlertDialog.Builder(this).setTitle(peerName).setItems(opts,(d,which)->{ if(which==0) directGiftPanel620(); else if(which==1) directGiftHistory620(); else if(which==2) directEmojiPanel620(); else if(which==3) toggleBlock(); else if(which==4) report(); else clearLocal(); }).show();
+        if(!cloudMode||db==null||me==null){
+            showSafetyMenu(isLocalBlocked10082());
+            return;
+        }
+        final String owner=me.getUid(),target=peerUid;
+        db.collection("blocks").whereEqualTo("ownerUid",owner).get(Source.SERVER)
+            .addOnSuccessListener(result->{
+                if(!chatSessionCurrent10040()||!owner.equals(me.getUid()))return;
+                boolean blocked=false;
+                for(DocumentSnapshot item:result.getDocuments())
+                    if(target.equals(item.getString("targetUid"))){blocked=true;break;}
+                showSafetyMenu(blocked);
+            }).addOnFailureListener(error->{
+                if(chatSessionCurrent10040())Toast.makeText(this,"Could not verify your cloud Block List. Retry online.",Toast.LENGTH_LONG).show();
+            });
+    }
+
+    private void showSafetyMenu(boolean blocked){
+        String[] opts={"🎁 Send gift","🎁 Gift history","😊 Emoji & stickers",blocked?"✅ Unblock user":"🚫 Block user","⚑ Report user","🗑 Clear local chat"};
+        new AlertDialog.Builder(this).setTitle(peerName).setItems(opts,(d,which)->{
+            if(which==0)directGiftPanel620();
+            else if(which==1)directGiftHistory620();
+            else if(which==2)directEmojiPanel620();
+            else if(which==3){if(cloudMode)setCloudBlock10082(!blocked);else toggleLocalBlock10082();}
+            else if(which==4)report();else clearLocal();
+        }).show();
     }
 
     private boolean isBlocked() {
-        Set<String> b = mainPrefs().getStringSet("blocked", new HashSet<>()); if (b.contains(peerName)) return true;
-        Set<String> ids = mainPrefs().getStringSet("blocked_uids", new HashSet<>()); return !peerUid.isEmpty() && ids.contains(peerUid);
+        return cloudMode?!peerUid.isEmpty()&&cloudBlockedUids10082.contains(peerUid):isLocalBlocked10082();
     }
 
-    private void toggleBlock() {
+    private boolean isLocalBlocked10082(){
+        Set<String>b=mainPrefs().getStringSet("blocked",new HashSet<>());
+        Set<String>ids=mainPrefs().getStringSet("blocked_uids",new HashSet<>());
+        return b.contains(peerName)||(!peerUid.isEmpty()&&ids.contains(peerUid));
+    }
+
+    private void toggleLocalBlock10082() {
         Set<String> b = new HashSet<>(mainPrefs().getStringSet("blocked",new HashSet<>())); Set<String> ids = new HashSet<>(mainPrefs().getStringSet("blocked_uids",new HashSet<>()));
-        boolean block = !isBlocked(); if (block) { b.add(peerName); if(!peerUid.isEmpty()) ids.add(peerUid); } else { b.remove(peerName); ids.remove(peerUid); }
+        boolean block = !isLocalBlocked10082(); if (block) { b.add(peerName); if(!peerUid.isEmpty()) ids.add(peerUid); } else { b.remove(peerName); ids.remove(peerUid); }
         mainPrefs().edit().putStringSet("blocked",b).putStringSet("blocked_uids",ids).apply(); Toast.makeText(this,block?"User blocked":"User unblocked",Toast.LENGTH_SHORT).show();
+    }
+
+    private void setCloudBlock10082(boolean block){
+        if(!chatSessionCurrent10040()||db==null||me==null||peerUid.isEmpty())return;
+        final String owner=me.getUid(),target=peerUid;
+        com.google.firebase.firestore.DocumentReference ref=db.collection("blocks").document(owner+"_"+target);
+        if(block){
+            Map<String,Object> data=new HashMap<>();data.put("ownerUid",owner);data.put("targetUid",target);data.put("createdAt",FieldValue.serverTimestamp());
+            new AlertDialog.Builder(this).setTitle("Block this KING account?")
+                .setMessage("The Block List syncs with your account. New private messages in either direction will be denied by server rules.")
+                .setNegativeButton("Cancel",null).setPositiveButton("Block",(d,w)->ref.set(data)
+                    .addOnSuccessListener(v->{if(chatSessionCurrent10040())Toast.makeText(this,"Account blocked and synced",Toast.LENGTH_SHORT).show();})
+                    .addOnFailureListener(e->{if(chatSessionCurrent10040())Toast.makeText(this,"Block was not saved. Retry online.",Toast.LENGTH_LONG).show();})).show();
+        }else{
+            new AlertDialog.Builder(this).setTitle("Unblock this KING account?")
+                .setMessage("Future private messages may be allowed again if neither account blocks the other.")
+                .setNegativeButton("Cancel",null).setPositiveButton("Unblock",(d,w)->ref.delete()
+                    .addOnSuccessListener(v->{if(chatSessionCurrent10040())Toast.makeText(this,"Account unblocked and synced",Toast.LENGTH_SHORT).show();})
+                    .addOnFailureListener(e->{if(chatSessionCurrent10040())Toast.makeText(this,"Unblock was not saved. Retry online.",Toast.LENGTH_LONG).show();})).show();
+        }
+    }
+
+    private void startOwnBlockSync10082(){
+        if(!cloudMode||db==null||me==null||!chatSessionCurrent10040())return;
+        stopOwnBlockSync10082();cloudBlocksLoaded10082=false;cloudBlockedUids10082.clear();
+        final String owner=me.getUid();
+        ownBlocksLive10082=db.collection("blocks").whereEqualTo("ownerUid",owner)
+            .addSnapshotListener((result,error)->{
+                if(!chatSessionCurrent10040()||!owner.equals(me.getUid()))return;
+                if(error!=null){cloudBlocksLoaded10082=false;return;}
+                cloudBlockedUids10082.clear();
+                for(DocumentSnapshot item:result.getDocuments()){
+                    String target=item.getString("targetUid");
+                    if(KingMePrivacyPolicy9984.validUid(target))cloudBlockedUids10082.add(target);
+                }
+                cloudBlocksLoaded10082=true;
+                if(peerUid!=null&&cloudBlockedUids10082.contains(peerUid))
+                    Toast.makeText(this,"This account is in your synced Block List",Toast.LENGTH_SHORT).show();
+            });
+    }
+
+    private void stopOwnBlockSync10082(){
+        if(ownBlocksLive10082!=null){ownBlocksLive10082.remove();ownBlocksLive10082=null;}
+        cloudBlocksLoaded10082=false;cloudBlockedUids10082.clear();
     }
 
     private void report() {

@@ -3,8 +3,8 @@ root=Path(__file__).resolve().parents[2]
 discover=(root/"app/src/main/java/com/kingplus/social/DiscoverActivity.java").read_text()
 functions=(root/"functions/v3.js").read_text()
 gradle=(root/"app/build.gradle").read_text()
-assert "versionCode 360" in gradle
-assert "10.0.81-profile-report-history" in gradle
+assert "versionCode 361" in gradle
+assert "10.0.82-chat-block-sync" in gradle
 start=discover.index("private void toggleFollow10061(")
 end=discover.index("private void openProfile(",start)
 toggle=discover[start:end]

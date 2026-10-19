@@ -5,8 +5,8 @@ main = (root / "app/src/main/java/com/kingplus/social/MainActivity.java").read_t
 deep = (root / "app/src/main/java/com/kingplus/social/KingDeepFlowActivity.java").read_text()
 gradle = (root / "app/build.gradle").read_text()
 
-assert "versionCode 360" in gradle
-assert "10.0.81-profile-report-history" in gradle
+assert "versionCode 361" in gradle
+assert "10.0.82-chat-block-sync" in gradle
 
 checkin = main[main.index("private void dailyCheckInPage()") : main.index("private void missionsPage()")]
 missions = main[main.index("private void missionsPage()") : main.index("private void renderHome(")]

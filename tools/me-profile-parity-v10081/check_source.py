@@ -6,8 +6,8 @@ cloud = (root / "app/src/main/java/com/kingplus/social/CloudSync.java").read_tex
 deep = (root / "app/src/main/java/com/kingplus/social/KingDeepFlowActivity.java").read_text()
 rules = (root / "firestore.rules").read_text()
 
-assert "versionCode 360" in gradle
-assert "10.0.81-profile-report-history" in gradle
+assert "versionCode 361" in gradle
+assert "10.0.82-chat-block-sync" in gradle
 assert "private void reportHistory9981()" in deep
 assert 'db.collection("user_report_history").document(owner).collection("items")' in deep
 assert ".get(com.google.firebase.firestore.Source.SERVER)" in deep
