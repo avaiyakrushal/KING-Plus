@@ -676,6 +676,13 @@ public class SocialActivity extends Activity {
         if(!currentAccount970()||!KingSocialRealtime970.showUid(uid,me.getUid()))return;
         if(!pendingFollows970.add(uid)){toast("Follow update in progress");return;}
         final String myUid970=me.getUid();
+        SharedPreferences ownPrefs970=getSharedPreferences("MainActivity",MODE_PRIVATE);
+        String followerName970=ownPrefs970.getString("name","");
+        if(followerName970==null||followerName970.trim().isEmpty())followerName970=me.getDisplayName();
+        if(followerName970==null||followerName970.trim().isEmpty())followerName970="KING "+shortUid(myUid970);
+        followerName970=clean(followerName970);
+        if(followerName970.length()>60)followerName970=followerName970.substring(0,60);
+        final String boundedFollowerName970=followerName970;
         final com.google.firebase.firestore.DocumentReference edge970=
             db.collection("follows").document(followId(myUid970,uid));
         db.runTransaction(tx970->{
@@ -689,6 +696,7 @@ public class SocialActivity extends Activity {
             }
             Map<String,Object> values970=new HashMap<>();
             values970.put("followerUid",myUid970);
+            values970.put("followerName",boundedFollowerName970);
             values970.put("targetUid",uid);
             values970.put("createdAt",FieldValue.serverTimestamp());
             tx970.set(edge970,values970);

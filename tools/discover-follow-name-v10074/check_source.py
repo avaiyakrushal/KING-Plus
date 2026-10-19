@@ -3,8 +3,8 @@ root=Path(__file__).resolve().parents[2]
 discover=(root/"app/src/main/java/com/kingplus/social/DiscoverActivity.java").read_text()
 functions=(root/"functions/v3.js").read_text()
 gradle=(root/"app/build.gradle").read_text()
-assert "versionCode 353" in gradle
-assert "10.0.74-discover-follow-name" in gradle
+assert "versionCode 354" in gradle
+assert "10.0.75-social-follow-name" in gradle
 start=discover.index("private void toggleFollow10061(")
 end=discover.index("private void openProfile(",start)
 toggle=discover[start:end]

@@ -4,8 +4,8 @@ source = root / 'app/src/main/java/com/kingplus/social'
 helper = (source / 'KingSafeImageUri10070.java').read_text()
 app_sources = '\n'.join(p.read_text(errors='replace') for p in source.glob('*.java'))
 gradle = (root / 'app/build.gradle').read_text()
-assert 'versionCode 353' in gradle
-assert "10.0.74-discover-follow-name" in gradle
+assert 'versionCode 354' in gradle
+assert "10.0.75-social-follow-name" in gradle
 assert 'ContentResolver resolver' in helper
 assert 'openInputStream(uri)' in helper
 assert 'catch (Exception | OutOfMemoryError ignored)' in helper
