@@ -6,11 +6,10 @@ on:
     paths:
       - 'app/**'
       - '.github/workflows/king-v10070-live-completion.yml'
-      - '.rollback-v10069/READY3'
+      - '.rollback-v10069/READY4'
 
 permissions:
   contents: write
-  workflows: write
 
 jobs:
   restore-source:
@@ -29,7 +28,7 @@ jobs:
           cat .rollback-v10069/chunk-* | base64 -d | tar -xzf - -C /tmp/king-v10069
           grep -q "versionCode 348" /tmp/king-v10069/app/build.gradle
           grep -q "versionName '10.0.69-server-game-rules'" /tmp/king-v10069/app/build.gradle
-          rsync -a --delete --exclude='.git' /tmp/king-v10069/ "$GITHUB_WORKSPACE/"
+          rsync -a --delete --exclude='.git' --exclude='.github' /tmp/king-v10069/ "$GITHUB_WORKSPACE/"
           test ! -e .rollback-v10069
           git add -A
           git -c user.name='github-actions[bot]' -c user.email='41898282+github-actions[bot]@users.noreply.github.com' commit -m "Restore exact KING Plus v10.0.69 source snapshot"
