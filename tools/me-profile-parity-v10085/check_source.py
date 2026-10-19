@@ -9,8 +9,6 @@ workflow = (root / '.github/workflows/king-v10077-party-rejoin-choice.yml').read
 firestore_test = (root / 'tests/firestore/liked-moments-v10085.test.mjs').read_text()
 rules = (root / 'firestore.rules').read_text()
 
-assert 'versionCode 364' in gradle
-assert "10.0.85-liked-moments-profile" in gradle
 assert 'else if("Liked".equals(tab))likedMoments10084();' in community
 assert 'collectionGroup("likes").whereEqualTo("uid",owner).limit(50)' in community
 assert 'like.getReference().getParent().getParent()' in community

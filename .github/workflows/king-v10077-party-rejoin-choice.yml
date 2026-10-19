@@ -1,4 +1,4 @@
-name: KING Plus v10.0.85 Liked Moments Profile TEST APK
+name: KING Plus v10.0.86 Me Profile Options TEST APK
 on:
   push:
     branches: [work/king-v10070-nongame-audit]
@@ -7,8 +7,8 @@ on:
       - 'tools/**'
       - 'README.md'
       - 'BUILD-NOTES-READ-ME.txt'
-      - 'RELEASE-NOTES-v10.0.85.md'
-      - 'BOLO-HI-ME-PROFILE-AUDIT-v10.0.85.md'
+      - 'RELEASE-NOTES-v10.0.86.md'
+      - 'BOLO-HI-ME-PROFILE-AUDIT-v10.0.86.md'
       - 'tests/firestore/privacy-block-dm-firestore.test.mjs'
       - 'tests/firestore/liked-moments-v10085.test.mjs'
       - 'firestore.rules'
@@ -52,8 +52,9 @@ jobs:
           python3 tools/me-profile-parity-v10083/check_source.py
           python3 tools/me-profile-parity-v10084/check_source.py
           python3 tools/me-profile-parity-v10085/check_source.py
-          grep -q "versionCode 364" app/build.gradle
-          grep -q "versionName '10.0.85-liked-moments-profile'" app/build.gradle
+          python3 tools/me-profile-parity-v10086/check_source.py
+          grep -q "versionCode 365" app/build.gradle
+          grep -q "versionName '10.0.86-me-profile-options'" app/build.gradle
           test -s app/kingplus-ci-debug.keystore
       - name: Verify cloud Block List and report receipt Firestore rules
         run: |
@@ -69,7 +70,7 @@ jobs:
           test -s "$apk"
           aapt="$(find "$ANDROID_HOME/build-tools" -name aapt -type f | sort -V | tail -1)"
           signer="$(find "$ANDROID_HOME/build-tools" -name apksigner -type f | sort -V | tail -1)"
-          "$aapt" dump badging "$apk" | grep '^package:' | grep "name='com.kingplus.social'" | grep "versionCode='364'"
+          "$aapt" dump badging "$apk" | grep '^package:' | grep "name='com.kingplus.social'" | grep "versionCode='365'"
           "$signer" verify --print-certs "$apk"
           test "$(stat -c%s "$apk")" -gt 60000000
           unzip -Z1 "$apk" | grep -q '^lib/arm64-v8a/libjingle_peerconnection_so.so$'
@@ -77,14 +78,14 @@ jobs:
       - name: Package TEST APK and source
         run: |
           set -euo pipefail
-          mkdir -p /tmp/king-v10085-out
-          cp app/build/outputs/apk/debug/app-debug.apk /tmp/king-v10085-out/KING-Plus-v10.0.85-Liked-Moments-Profile-TEST.apk
-          zip -qr /tmp/king-v10085-out/KING-Plus-v10.0.85-Liked-Moments-Profile-TEST-Source.zip . \
+          mkdir -p /tmp/king-v10086-out
+          cp app/build/outputs/apk/debug/app-debug.apk /tmp/king-v10086-out/KING-Plus-v10.0.86-Me-Profile-Options-TEST.apk
+          zip -qr /tmp/king-v10086-out/KING-Plus-v10.0.86-Me-Profile-Options-TEST-Source.zip . \
             -x '.git/*' '*/.git/*' '*/build/*' '.gradle/*' '*/.gradle/*' '*/node_modules/*' \
             '*.apk' '*.aab' '*.keystore' '*.jks' '*.zip' '*local.properties' '*.log'
       - uses: actions/upload-artifact@v4
         with:
-          name: KING-Plus-v10.0.85-Liked-Moments-Profile-TEST-APK-and-Source
-          path: /tmp/king-v10085-out/*
+          name: KING-Plus-v10.0.86-Me-Profile-Options-TEST-APK-and-Source
+          path: /tmp/king-v10086-out/*
           retention-days: 30
           if-no-files-found: error

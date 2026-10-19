@@ -682,7 +682,8 @@ public class KingDeepFlowActivity extends Activity {
         row("➕","Following","Open accounts you follow",()->openSocialTab10083("following"));
         row("💜","Friends","Open mutual followers",()->openSocialTab10083("friends"));
         row("👀","Visitors","Review account visitor history",()->openCommunity("Visitors"));
-        row("🎁","Profile Gift Wall","Open gifts received and Gift Center",()->openGiftCenter());
+        row("🎁","My Gift Wall","View gifts received by this signed-in account","gift_wall");
+        row("🕘","Gift History","View server-recorded sent and received gifts","gift_history");
         row("🔔","Notifications","Open your account inbox","detail_profile_notifications");
         row("🛡","Safety Center","Cloud block list, report receipts and privacy","detail_profile_safety");
         section("Activity & saved rooms");
@@ -694,6 +695,10 @@ public class KingDeepFlowActivity extends Activity {
         row("🏠","Family Square","Open family, members and activities",()->openCommunity("Family"));
         row("💞","Relationship / CP","Open relationship profile and activity",()->openCommunity("Relationship"));
         row("🎒","Backpack / Collection","Open your collection and saved gifts",()->openCommunity("Collection"));
+        section("Tasks & preferences");
+        row("✅","Daily Check-in & Missions","Open available activity shortcuts; unverified rewards stay disabled","task_center");
+        row("⚙","Settings & Privacy","Account, privacy, notifications and network","settings");
+        row("🔐","Account & Sign-in","Account recovery and sign-in options","settings_account");
     }
     private void reportHistory9981(){
         String owner=me==null?"":me.getUid();
