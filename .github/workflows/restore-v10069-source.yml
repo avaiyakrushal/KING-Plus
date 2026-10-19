@@ -5,8 +5,10 @@ on:
       - work/king-v10070-nongame-audit
     paths:
       - '.rollback-v10069/READY'
+      - '.rollback-v10069/READY2'
 permissions:
   contents: write
+  workflows: write
 jobs:
   restore-source:
     runs-on: ubuntu-24.04
