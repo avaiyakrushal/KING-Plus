@@ -9,7 +9,7 @@
 
 | Journey | Bolo Hi static evidence | KING Plus v10.0.77 | Remaining parity work |
 |---|---|---|---|
-| Install / first launch | Compiled login/home resource families | Native Android app `com.kingplus.social`; CI full build and signature pass | Physical Android 16 install, launch and upgrade acceptance |
+| Install / first launch | Compiled login/home resource families | Native Android app `com.kingplus.social`; v10.0.77 source is ready for CI, but its full build has not started | Physical Android 16 install, launch and upgrade acceptance |
 | Login / account | Login resource family | Google, Facebook and phone OTP paths | Real provider credentials, fresh accounts, OTP delivery and recovery |
 | Home / room discovery | Home, category, room and live-game resources | Live rooms, category aliases, covers, room ID entry, cross-category text search and cursor pages | Search results require paging; backend index needed for immediate global text results |
 | Discover / social | Discover and follow resources | Hot/New/Nearby/Follow tabs, public profiles, live follow listener and duplicate-action guard | Two-account follow, notification and stale-state tests |
@@ -31,4 +31,4 @@
 - v10.0.75 adds the same bounded follower name to the People/Social Follow transaction, closing the notification-name gap across both follow entry points.
 - v10.0.76 orders Hot profiles by server-side level rank on every cursor page. Earlier, each 60-profile page was sorted locally, so page two could show higher-ranked accounts than page one.
 - v10.0.77 waits and verifies fresh server membership after an unexpected missing-member snapshot, checks active bans and offers an explicit Rejoin or Leave choice instead of immediately sending the user to the lobby.
-- The v10.0.71, v10.0.72, v10.0.73 and v10.0.74 full Android CI builds and APK integrity checks passed. The v10.0.75 CI full Android build, package/version check, signature verification and APK artifact packaging passed. The v10.0.76 CI build must pass before its APK is delivered. The APK is a signed TEST build. Physical-device, live-provider and two-phone gates remain open.
+- The v10.0.71 through v10.0.76 full Android CI builds and APK integrity checks passed; v10.0.76 TEST APK was delivered. The v10.0.77 source checks pass locally, but this commit has no Actions run yet and its APK is not verified or available. The existing APKs are signed TEST builds. Physical-device, live-provider and two-phone gates remain open.
