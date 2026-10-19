@@ -9,7 +9,7 @@ rules = (root / 'firestore.rules').read_text()
 storage = (root / 'storage.rules').read_text()
 workflow = (root / '.github/workflows/king-v10077-party-rejoin-choice.yml').read_text()
 
-assert 'versionCode 367' in gradle and "10.0.88-profile-liked-count" in gradle
+assert 'versionCode 368' in gradle and "10.0.89-me-profile-editor" in gradle
 assert '☁ Cloud Profile Videos' in main and 'KingProfileVideos10087Activity.class' in main
 assert 'android:name=".KingProfileVideos10087Activity"' in manifest
 assert 'startActivityForResult(intent,PICK_VIDEO)' in activity
@@ -23,5 +23,5 @@ assert "request.resource.data.storagePath == 'chat_media/' + uid + '/profile_vid
 assert 'request.resource.data.sizeBytes <= 10485760' in rules
 assert "threadId != 'profile_videos' || request.resource.contentType.matches('video/.*')" in storage
 assert 'node tests/firestore/me-profile-videos-v10087.test.mjs' in workflow
-assert "versionCode='367'" in workflow
+assert "versionCode='368'" in workflow
 print('PASS: Me Profile cloud-video upload, live sync, owner-only deletion and size/type validation')
