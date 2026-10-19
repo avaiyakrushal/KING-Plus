@@ -1,13 +1,13 @@
-KING Plus v10.0.72 — Party reconnect grace (TEST source).
+KING Plus v10.0.73 — Party cleanup race fix (TEST source).
 
-Android metadata: versionCode 351; versionName 10.0.72-party-reconnect-grace.
+Android metadata: versionCode 352; versionName 10.0.73-party-cleanup-race-fix.
 This ZIP contains source only. It does not contain an APK or AAB.
 
 The reported MediaDocumentsProvider SecurityException is handled by eagerly
 opening and decoding local image URIs. Party-room search includes all categories
-and uses cursor pages. Member cleanup allows five minutes for mobile network
-recovery before considering presence stale. Two-device acceptance is pending.
+and uses cursor pages. Stale-member removal rereads current membership and seats
+transactionally after the server scan. Two-device acceptance is pending.
 
 The private production signing key is omitted. This is TEST source, not a final
-release; see RELEASE-NOTES-v10.0.72.md and
+release; see RELEASE-NOTES-v10.0.73.md and
 release/final-release-evidence.json.

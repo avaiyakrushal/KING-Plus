@@ -1660,9 +1660,6 @@ public class PartyActivity extends androidx.fragment.app.FragmentActivity implem
         expectedRoomRef967.collection("members").get(com.google.firebase.firestore.Source.SERVER)
             .addOnSuccessListener(members967->{
                 if(!isActivePresence967(expectedRoom967,expectedUid967,generation967)||!isOwner())return;
-                WriteBatch removedMembers967=db.batch();
-                int removed967=0;
-                final java.util.HashSet<String>active967=new java.util.HashSet<>();
                 for(DocumentSnapshot m967:members967.getDocuments()){
                     String uid967=m967.getId();
                     com.google.firebase.Timestamp last967=m967.getTimestamp("lastSeenAt");
@@ -1671,44 +1668,50 @@ public class PartyActivity extends androidx.fragment.app.FragmentActivity implem
                         // member before Firestore can reconnect and refresh presence.
                         && KingRoomPresence967.isStale(last967.toDate().getTime(),now967,300000L);
                     if(stale967&&!uid967.equals(owner967)){
-                        removedMembers967.delete(m967.getReference());
-                        removed967++;
-                    }else active967.add(uid967);
+                        // Re-read the current member and its seats atomically before
+                        // cleanup. A reconnect may refresh lastSeenAt after this
+                        // server scan but before its cleanup callback runs.
+                        cleanupStaleMember910(expectedRoomRef967,uid967,
+                            expectedRoom967,expectedUid967,generation967,owner967);
+                    }
                 }
-                if(removed967>0)removedMembers967.commit()
-                    .addOnFailureListener(e->{
-                        if(isActivePresence967(expectedRoom967,expectedUid967,generation967))
-                            KingStability.nonFatal(this,"stale-members",e);
-                    });
-                expectedRoomRef967.collection("seats")
-                    .get(com.google.firebase.firestore.Source.SERVER)
-                    .addOnSuccessListener(seats967->{
-                        if(!isActivePresence967(expectedRoom967,expectedUid967,generation967)||!isOwner())return;
-                        WriteBatch seatBatch967=db.batch();
-                        int removedSeats967=0;
-                        for(DocumentSnapshot seat967:seats967.getDocuments()){
-                            String sittingUid967=seat967.getString("uid");
-                            if(sittingUid967!=null&&!sittingUid967.equals(owner967)
-                               &&!active967.contains(sittingUid967)){
-                                seatBatch967.delete(seat967.getReference());
-                                removedSeats967++;
-                            }
-                        }
-                        if(removedSeats967>0)seatBatch967.commit()
-                            .addOnFailureListener(e->{
-                                if(isActivePresence967(expectedRoom967,expectedUid967,generation967))
-                                    KingStability.nonFatal(this,"stale-seats",e);
-                            });
-                    })
-                    .addOnFailureListener(e->{
-                        if(isActivePresence967(expectedRoom967,expectedUid967,generation967))
-                            KingStability.nonFatal(this,"stale-seats-scan",e);
-                    });
             })
             .addOnFailureListener(e->{
                 if(isActivePresence967(expectedRoom967,expectedUid967,generation967))
                     KingStability.nonFatal(this,"stale-scan",e);
             });
+    }
+    private void cleanupStaleMember910(DocumentReference roomRef,String candidateUid,
+            String expectedRoom,String expectedUid,int expectedGeneration,String expectedOwner){
+        if(roomRef==null||candidateUid==null||candidateUid.isEmpty()
+            ||candidateUid.equals(expectedOwner)
+            ||!isActivePresence967(expectedRoom,expectedUid,expectedGeneration)||!isOwner())return;
+        DocumentReference memberRef=roomRef.collection("members").document(candidateUid);
+        java.util.ArrayList<DocumentReference> seatRefs=new java.util.ArrayList<>();
+        for(int seatNo=1;seatNo<=12;seatNo++)
+            seatRefs.add(roomRef.collection("seats").document(String.valueOf(seatNo)));
+        db.runTransaction(tx->{
+            DocumentSnapshot current=tx.get(memberRef);
+            if(!current.exists()||!candidateUid.equals(current.getString("uid")))return 0;
+            com.google.firebase.Timestamp seen=current.getTimestamp("lastSeenAt");
+            long checkedAt=System.currentTimeMillis();
+            if(seen==null||!KingRoomPresence967.isStale(
+                    seen.toDate().getTime(),checkedAt,300000L))return 0;
+            java.util.ArrayList<DocumentSnapshot> currentSeats=new java.util.ArrayList<>();
+            for(DocumentReference seatRef:seatRefs)currentSeats.add(tx.get(seatRef));
+            int deletedSeats=0;
+            for(int i=0;i<seatRefs.size();i++){
+                DocumentSnapshot seat=currentSeats.get(i);
+                if(seat.exists()&&candidateUid.equals(seat.getString("uid"))){
+                    tx.delete(seatRefs.get(i));deletedSeats++;
+                }
+            }
+            tx.delete(memberRef);
+            return deletedSeats+1;
+        }).addOnFailureListener(error->{
+            if(isActivePresence967(expectedRoom,expectedUid,expectedGeneration))
+                KingStability.nonFatal(this,"stale-member-transaction",error);
+        });
     }
     private void setOnlineState900(boolean ok,String text){if(onlineStateLabel900!=null){onlineStateLabel900.setText((ok?"● ":"● ")+text);onlineStateLabel900.setTextColor(ok?0xff4ff0a3:0xffff9a9a);}}
     private void ensureRoomMembership900(){
