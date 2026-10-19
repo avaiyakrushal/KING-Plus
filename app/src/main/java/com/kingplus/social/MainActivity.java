@@ -1007,7 +1007,7 @@ public class MainActivity extends Activity {
             selectedPhoto = data.getData();
             try {
                 getContentResolver().takePersistableUriPermission(selectedPhoto, Intent.FLAG_GRANT_READ_URI_PERMISSION);
-                if (photoPreview != null) photoPreview.setImageURI(selectedPhoto);
+                if (photoPreview != null && !KingSafeImageUri10070.show(photoPreview, selectedPhoto)) throw new SecurityException("Photo access unavailable");
             } catch (Exception ex) { selectedPhoto = null; Toast.makeText(this, "ફોટો ખોલી શકાતો નથી", Toast.LENGTH_SHORT).show(); }
         }
 
@@ -1105,8 +1105,8 @@ public class MainActivity extends Activity {
                 if (!photo.isEmpty()) {
                     ImageView picture = new ImageView(this);
                     picture.setAdjustViewBounds(true); picture.setMaxHeight(dp(360));
-                    try { picture.setImageURI(Uri.parse(photo)); page.addView(picture, new LinearLayout.LayoutParams(-1, -2)); }
-                    catch (Exception ignored) { text("ફોટો ઉપલબ્ધ નથી", 14, MUTED, false); }
+                    if (KingSafeImageUri10070.show(picture, Uri.parse(photo))) page.addView(picture, new LinearLayout.LayoutParams(-1, -2));
+                    else text("ફોટો ઉપલબ્ધ નથી", 14, MUTED, false);
                 }
                 text("──────────────", 14, MUTED, false);
             }
@@ -2418,7 +2418,7 @@ public class MainActivity extends Activity {
         String photo=profilePhoto10042();
         if(!photo.isEmpty()){
             ImageView img=new ImageView(this); img.setAdjustViewBounds(true); img.setMaxHeight(dp(320));
-            try{img.setImageURI(Uri.parse(photo));page.addView(img,new LinearLayout.LayoutParams(-1,-2));}catch(Exception ignored){}
+            if(KingSafeImageUri10070.show(img,Uri.parse(photo)))page.addView(img,new LinearLayout.LayoutParams(-1,-2));
         }
         button("＋ Add Photo / Moment",PURPLE,this::composePost);
         button("☁ Live Moments (બંને ફોન)",PURPLE,this::momentsPage);

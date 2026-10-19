@@ -1,33 +1,33 @@
-# KING Plus v10.0.69 — TEST source
+# KING Plus v10.0.70 — TEST source
 
-This source bundle is for `com.kingplus.social`, Android version code `348` and
-version name `10.0.69-server-game-rules`.
+This source bundle is for `com.kingplus.social`, Android version code `349` and
+version name `10.0.70-android16-media-crash-fix`.
 
-## Scope and validation
+## Latest change
 
-The bundle includes the Android app, Firebase rules/functions, source checks, and
-the v10.0.69 server game rules work. The Bolo Hi static comparison is in
-`BOLO-COMPARISON-v10.0.69-REVIEW.md`.
+The Android 16 crash report showed `ImageView` lazily opening a document URI
+without a current provider grant. App image views now use a bounded eager decoder
+that catches revoked/missing URI access and leaves a fallback instead of failing
+during layout. Party exit also clears room listeners and releases membership before
+returning to the lobby. Details are in `RELEASE-NOTES-v10.0.70.md`.
 
-Run the non-game source checks from the project root:
+## Validation
+
+Run the source-level checks from the project root:
 
 ```sh
+python3 tools/android16-media-uri-v10070/check_source.py
 python3 tools/four-pages-v10048/check_source.py
 python3 tools/party-gifts-me-v10064/check_source.py
 python3 tools/home-me-party-v10067/check_source.py
 ```
 
-These source checks do not establish Android rendering, live Firebase behavior,
-or two-phone acceptance. The release gate state is recorded in
+Source checks do not establish Android rendering, signature validity, or
+crash-free behavior on a physical device. The release gate state is recorded in
 `release/final-release-evidence.json`.
 
-## Build requirements
+## Build status
 
-The project uses Java 17, Gradle 8.9, and Android SDK 35. This ZIP has no Gradle
-wrapper, APK/AAB, production signing key, or configured CI debug keystore. A
-signed build requires an authorized signing setup. See `BUILD-NOTES-READ-ME.txt`
-for the build status and `LUDO-PRODUCTION-v10.0.69.md` for the game validation
-notes.
-
-This is TEST source, not a final production release. Live provider setup,
-production deployment, and physical two-phone testing remain acceptance gates.
+This ZIP contains source only; it has no Gradle wrapper, APK/AAB, production
+signing key, or configured CI debug keystore. Building a signed APK requires an
+authorized signing setup. This remains TEST source, not a verified release.

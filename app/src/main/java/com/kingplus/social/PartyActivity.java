@@ -1026,7 +1026,7 @@ public class PartyActivity extends androidx.fragment.app.FragmentActivity implem
         ImageView img=new ImageView(this);img.setScaleType(ImageView.ScaleType.CENTER_CROP);cover.addView(img,new FrameLayout.LayoutParams(-1,-1));
         TextView initial=tv("",1,Color.TRANSPARENT,false);initial.setVisibility(View.GONE);cover.addView(initial,new FrameLayout.LayoutParams(1,1));
         if(id!=null&&id.equals(localCoverRoom10026)&&localCoverUri10026!=null){
-            try{img.setImageURI(localCoverUri10026);}catch(Exception ignored){}
+            KingSafeImageUri10070.show(img,localCoverUri10026);
         }
         if(img.getDrawable()==null&&photoUrl!=null&&!photoUrl.trim().isEmpty())
             loadProfilePhoto(img,initial,photoUrl.trim());
@@ -1086,7 +1086,7 @@ public class PartyActivity extends androidx.fragment.app.FragmentActivity implem
         TextView coverTitle953=tv("▣  Change cover",13,Color.WHITE,true);TextView coverType953=tv(pendingCreateCategory+"  •  "+(pendingCreatePrivate?"Private":"Public"),11,0xffe6eee9,true);overlay953.addView(coverTitle953,new LinearLayout.LayoutParams(-1,dp(28)));overlay953.addView(coverType953,new LinearLayout.LayoutParams(-1,dp(23)));cover.addView(overlay953,new FrameLayout.LayoutParams(-1,-1));
         cover.setOnClickListener(v->{Intent i=new Intent(Intent.ACTION_OPEN_DOCUMENT);i.addCategory(Intent.CATEGORY_OPENABLE);i.setType("image/*");i.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION|Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION);startActivityForResult(i,ROOM_COVER_PICK_REQUEST);});
         LinearLayout.LayoutParams cp=new LinearLayout.LayoutParams(-1,dp(178));cp.setMargins(0,dp(6),0,dp(7));body.addView(cover,cp);
-        if(pendingCreateCoverUri!=null){try{preview.setImageURI(pendingCreateCoverUri);coverTitle953.setText("✎  Change cover");}catch(Exception ignored){}}
+        if(pendingCreateCoverUri!=null&&KingSafeImageUri10070.show(preview,pendingCreateCoverUri)){coverTitle953.setText("✎  Change cover");}
         TextView tip=tv("A clear cover helps your room stand out",11,0xffffe86c,true);tip.setGravity(Gravity.CENTER);body.addView(tip,new LinearLayout.LayoutParams(-1,dp(30)));
 
         LinearLayout flags=new LinearLayout(this);flags.setGravity(Gravity.CENTER);
@@ -6882,7 +6882,7 @@ public class PartyActivity extends androidx.fragment.app.FragmentActivity implem
     private void applyProfilePhoto868(ImageView image,TextView fallback,String source){
         if(source==null||source.trim().isEmpty())return;String s=source.trim();
         if(s.startsWith("content://")||s.startsWith("file://")||s.startsWith("android.resource://")){
-            try{image.setImageURI(Uri.parse(s));if(image.getDrawable()!=null)fallback.setVisibility(View.GONE);}catch(Exception ignored){}
+            if(KingSafeImageUri10070.show(image,Uri.parse(s))&&image.getDrawable()!=null)fallback.setVisibility(View.GONE);
             return;
         }
         loadProfilePhoto(image,fallback,s);

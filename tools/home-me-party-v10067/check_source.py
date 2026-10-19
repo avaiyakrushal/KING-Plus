@@ -17,6 +17,10 @@ assert 'keyboard?View.GONE:View.VISIBLE' in party
 assert 'clearPartyVisuals995();' in party
 assert 'if(chatBox!=null)chatBox.removeAllViews();' in party
 assert 'roomId = null; cloudRoom = false; memberSeen=false;' in party
+leave=party[party.index('private void leaveRoom()'):party.index('    private void addBottomNav(',party.index('private void leaveRoom()'))]
+lobby=party[party.index('private void renderLobby('):party.index('    private ',party.index('private void renderLobby(')+20)]
+assert 'renderLobby(\"Hot\")' in leave
+assert 'clearListeners();' in lobby and 'unregisterMember();' in lobby
 assert 'pendingFollow10061.add(uid)' in discover
 assert 'db.runTransaction(transaction->' in discover
 assert 'followAccountCurrent10028(owner)' in discover
