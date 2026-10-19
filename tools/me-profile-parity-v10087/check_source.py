@@ -23,5 +23,5 @@ assert "request.resource.data.storagePath == 'chat_media/' + uid + '/profile_vid
 assert 'request.resource.data.sizeBytes <= 10485760' in rules
 assert "threadId != 'profile_videos' || request.resource.contentType.matches('video/.*')" in storage
 assert 'node tests/firestore/me-profile-videos-v10087.test.mjs' in workflow
-assert "versionCode='366'" in workflow
+assert "versionCode='367'" in workflow
 print('PASS: Me Profile cloud-video upload, live sync, owner-only deletion and size/type validation')
