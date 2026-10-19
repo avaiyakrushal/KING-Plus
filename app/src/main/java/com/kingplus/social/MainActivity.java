@@ -87,6 +87,9 @@ public class MainActivity extends Activity {
     // Live social counters use two subscriptions only while Profile is visible.
     private com.google.firebase.firestore.ListenerRegistration followingListener965,followersListener965;
     private com.google.firebase.firestore.ListenerRegistration meGalleryListener9993;
+    private com.google.firebase.firestore.ListenerRegistration profileLikesListener10088;
+    private int profileLikesGeneration10088;
+    private TextView profileLikesChip10088;
     private int meGalleryGeneration9994;
     private int visitorDialogGeneration10004;
     private int visitorCountGeneration10007;
@@ -1884,8 +1887,8 @@ public class MainActivity extends Activity {
         android.widget.HorizontalScrollView meMenuScroll10022=new android.widget.HorizontalScrollView(this);
         meMenuScroll10022.setHorizontalScrollBarEnabled(false);
         LinearLayout hub=new LinearLayout(this);hub.setPadding(dp(3),dp(3),dp(3),dp(3));
-        String[] hi={"👣 Visitors","📝 Moments","♡ Liked","💞 CP","🎒 Collection"};String[] ht={"Visitors","Moments","Liked","Relationship","Collection"};
-        for(int i=0;i<hi.length;i++){final String tab=ht[i];TextView x=new TextView(this);x.setText(hi[i]);x.setTextSize(12);x.setGravity(Gravity.CENTER);x.setTextColor(0xff41394b);x.setSingleLine(false);x.setMaxLines(2);x.setBackground(KingRoyalTheme10021.card(this,12));if("Visitors".equals(tab))profileVisitorsChip940=x;x.setOnClickListener(v->{if("Visitors".equals(tab))showProfileVisitors940();else openCommunityHub700(tab);});LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(dp(100),dp(56));lp.setMargins(dp(4),0,dp(4),0);hub.addView(x,lp);}meMenuScroll10022.addView(hub);content.addView(meMenuScroll10022,new LinearLayout.LayoutParams(-1,dp(68)));
+        String[] hi={"👣 Visitors","📝 Moments","♡ Liked …","💞 CP","🎒 Collection"};String[] ht={"Visitors","Moments","Liked","Relationship","Collection"};
+        for(int i=0;i<hi.length;i++){final String tab=ht[i];TextView x=new TextView(this);x.setText(hi[i]);x.setTextSize(12);x.setGravity(Gravity.CENTER);x.setTextColor(0xff41394b);x.setSingleLine(false);x.setMaxLines(2);x.setBackground(KingRoyalTheme10021.card(this,12));if("Visitors".equals(tab))profileVisitorsChip940=x;if("Liked".equals(tab))profileLikesChip10088=x;x.setOnClickListener(v->{if("Visitors".equals(tab))showProfileVisitors940();else openCommunityHub700(tab);});LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(dp(100),dp(56));lp.setMargins(dp(4),0,dp(4),0);hub.addView(x,lp);}meMenuScroll10022.addView(hub);content.addView(meMenuScroll10022,new LinearLayout.LayoutParams(-1,dp(68)));
         addProfileVideoTabs940(content);
         addProfileRecommendations940(content);
         TextView more9981=new TextView(this);
@@ -1917,7 +1920,7 @@ public class MainActivity extends Activity {
         LinearLayout recordList=new LinearLayout(this);recordList.setOrientation(LinearLayout.VERTICAL);
         meHostedRoomsHost10018=recordList;
         content.addView(recordList,new LinearLayout.LayoutParams(-1,-2));loadPartyRecordsV600(recordList);
-        root.addView(sv,new LinearLayout.LayoutParams(-1,0,1));addBottomNav(root,4);setSafeContentView(root);loadRealProfileData();
+        root.addView(sv,new LinearLayout.LayoutParams(-1,0,1));addBottomNav(root,4);setSafeContentView(root);loadRealProfileData();loadProfileLikesCount10088(currentProfileOwner10031);
     }
 
     // Hosted rooms are real cloud records. Do not hide the 13th room or older pages.
@@ -2155,6 +2158,34 @@ public class MainActivity extends Activity {
                 followersLoaded965=true;
                 renderProfileFollowUpdates965();
             });
+    }
+
+    /** Live account-scoped count of Moments this user has liked. */
+    private void loadProfileLikesCount10088(String account){
+        stopProfileLikes10088();
+        final int ticket=profileLikesGeneration10088;
+        final TextView chip=profileLikesChip10088;
+        if(chip==null)return;
+        FirebaseUser current=firebaseAuth==null?null:firebaseAuth.getCurrentUser();
+        if(account==null||account.isEmpty()||current==null||!account.equals(current.getUid())||firestore==null){
+            chip.setText("♡ Liked —");return;
+        }
+        chip.setText("♡ Liked …");
+        profileLikesListener10088=firestore.collectionGroup("likes")
+            .whereEqualTo("uid",account).limit(501)
+            .addSnapshotListener((snapshot,error)->{
+                FirebaseUser live=firebaseAuth==null?null:firebaseAuth.getCurrentUser();
+                if(ticket!=profileLikesGeneration10088||!"profile".equals(screen)
+                    ||isFinishing()||isDestroyed()||profileLikesChip10088!=chip
+                    ||live==null||!account.equals(live.getUid()))return;
+                if(error!=null||snapshot==null){chip.setText("♡ Liked —");return;}
+                int count=snapshot.size();
+                chip.setText("♡ Liked "+(count>500?"500+":String.valueOf(count)));
+            });
+    }
+    private void stopProfileLikes10088(){
+        ++profileLikesGeneration10088;
+        if(profileLikesListener10088!=null){profileLikesListener10088.remove();profileLikesListener10088=null;}
     }
 
     private void loadProfileVisitors940(String uid){
@@ -3020,15 +3051,17 @@ public class MainActivity extends Activity {
         if("profile".equals(screen)){
             refreshServerWallet();
             // Returning from another screen must pick up visits made on another phone.
-            if(firebaseAuth!=null && firebaseAuth.getCurrentUser()!=null)
+            if(firebaseAuth!=null && firebaseAuth.getCurrentUser()!=null){
                 loadProfileVisitors940(firebaseAuth.getCurrentUser().getUid());
+                if(profileLikesListener10088==null)loadProfileLikesCount10088(firebaseAuth.getCurrentUser().getUid());
+            }
         }
         if("wallet".equals(screen)&&walletPageListener10065==null)walletPage();
         if("profile_gallery".equals(screen)&&meCloudGalleryHost9993!=null&&meGalleryListener9993==null)
             showMyCloudGallery9992(meCloudGalleryHost9993);
     }
-    @Override protected void onPause() { ++visitorCountGeneration10007; ++visitorDialogGeneration10004; stopMeGallery9993(); stopWallet9989(); stopProfileFollowUpdates965(); super.onPause(); stopMic(); }
-    @Override protected void onDestroy() { profileImages10067.shutdownNow(); stopMeGallery9993(); stopWallet9989(); stopProfileFollowUpdates965(); stopMic(); super.onDestroy(); }
+    @Override protected void onPause() { ++visitorCountGeneration10007; ++visitorDialogGeneration10004; stopMeGallery9993(); stopProfileLikes10088(); stopWallet9989(); stopProfileFollowUpdates965(); super.onPause(); stopMic(); }
+    @Override protected void onDestroy() { profileImages10067.shutdownNow(); stopMeGallery9993(); stopProfileLikes10088(); stopWallet9989(); stopProfileFollowUpdates965(); stopMic(); super.onDestroy(); }
     private void notificationsCenter(){
         // The legacy Preferences-only list had dead "Opened" buttons and a
         // local read flag unrelated to actual Firebase notification items.

@@ -9,7 +9,7 @@ rules = (root / 'firestore.rules').read_text()
 storage = (root / 'storage.rules').read_text()
 workflow = (root / '.github/workflows/king-v10077-party-rejoin-choice.yml').read_text()
 
-assert 'versionCode 366' in gradle and "10.0.87-profile-cloud-videos" in gradle
+assert 'versionCode 367' in gradle and "10.0.88-profile-liked-count" in gradle
 assert '☁ Cloud Profile Videos' in main and 'KingProfileVideos10087Activity.class' in main
 assert 'android:name=".KingProfileVideos10087Activity"' in manifest
 assert 'startActivityForResult(intent,PICK_VIDEO)' in activity
