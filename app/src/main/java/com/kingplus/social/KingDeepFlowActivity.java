@@ -674,7 +674,7 @@ public class KingDeepFlowActivity extends Activity {
         row("ℹ","About Me","View your saved profile details and issued KING ID","detail_profile_about");
         row("🖼","My Gallery","Open your account's published Moments and local archive","detail_profile_gallery");
         row("🎬","My Videos","Manage videos saved on this device","detail_profile_videos");
-        row("↗","Share Profile","Share your verified KING ID and profile link","detail_profile_share");
+        row("↗","Share Profile","Share your verified KING ID invitation","detail_profile_share");
         section("Social & account");
         row("👥","Followers","Open your live account follower list",()->openSocialTab10083("followers"));
         row("➕","Following","Open accounts you follow",()->openSocialTab10083("following"));

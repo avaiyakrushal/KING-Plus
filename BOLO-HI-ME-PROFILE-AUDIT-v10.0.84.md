@@ -5,7 +5,7 @@
 | Edit profile / About | Existing profile editor and account About page |
 | Gallery / Photos | Existing account-scoped published Moments and local archive page |
 | Videos | Device-scoped saved-video manager; no claim that items are uploaded |
-| Share profile | Shares the verified KING ID/profile entry |
+| Share profile | Shares the account's verified KING ID invitation |
 | Followers / Following / Friends | Opens the corresponding live Social tab |
 | Visitors / Gift Wall | Existing Visitor Center / Gift Center routes |
 | Notifications / Safety | Account inbox and cloud privacy / report screens |
