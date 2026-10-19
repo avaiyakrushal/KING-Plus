@@ -1,4 +1,4 @@
-name: KING Plus v10.0.74 Games Recovery TEST
+name: KING Plus v10.0.75 Android 16 Media URI Crash Fix TEST
 
 on:
   push:
@@ -34,11 +34,13 @@ jobs:
           social=Path('app/src/main/java/com/kingplus/social/SocialActivity.java').read_text()
           gradle=Path('app/build.gradle').read_text()
           bridge=Path('app/src/main/java/com/kingplus/social/NativeMeetBridge.java').read_text()
-          assert "versionCode 353" in g and "versionName '10.0.74'" in g
+          assert "versionCode 354" in g and "versionName '10.0.75'" in g
           for dependency in ('firebase-firestore','firebase-functions','firebase-messaging','billing:8.0.0'):
               assert dependency in g, f'missing dependency: {dependency}'
           assert 'KingMessagingService' in manifest and 'POST_NOTIFICATIONS' in manifest
           assert 'collection("live_rooms")' in main and 'addSnapshotListener' in main
+          assert 'setImageURI(' not in main and 'showImageUri10075(' in main
+          assert 'openInputStream(uri)' in main and 'catch (Exception | OutOfMemoryError error)' in main
           assert '28+Math.abs(name.hashCode()%220)' not in main, 'legacy fake room count is not allowed'
           assert 'runTransaction(transaction' in party and 'sendQuickEmoji' in party
           assert 'selectGiftRecipient' in party and 'cleanupPresence' in party
@@ -71,7 +73,7 @@ jobs:
           test -s "$apk"
           aapt="$(find "$ANDROID_HOME/build-tools" -name aapt -type f | sort -V | tail -1)"
           signer="$(find "$ANDROID_HOME/build-tools" -name apksigner -type f | sort -V | tail -1)"
-          "$aapt" dump badging "$apk" | grep '^package:' | grep "name='com.kingplus.social'" | grep "versionCode='353'"
+          "$aapt" dump badging "$apk" | grep '^package:' | grep "name='com.kingplus.social'" | grep "versionCode='354'"
           "$signer" verify --print-certs "$apk"
           test "$(stat -c%s "$apk")" -gt 60000000 || { echo 'APK is unexpectedly small; full Jitsi/React Native runtime is missing'; exit 1; }
           unzip -Z1 "$apk" | grep -q '^lib/arm64-v8a/libjingle_peerconnection_so.so$' || { echo 'Jitsi WebRTC native library missing'; exit 1; }
@@ -80,16 +82,16 @@ jobs:
       - name: Package APK and source ZIP
         run: |
           set -euo pipefail
-          mkdir -p /tmp/king-v10074-out
-          cp app/build/outputs/apk/debug/app-debug.apk /tmp/king-v10074-out/KING-Plus-v10.0.74-Games-Recovery-TEST.apk
-          zip -qr /tmp/king-v10074-out/KING-Plus-v10.0.74-Games-Recovery-TEST-Source.zip . \
+          mkdir -p /tmp/king-v10075-out
+          cp app/build/outputs/apk/debug/app-debug.apk /tmp/king-v10075-out/KING-Plus-v10.0.75-Android16-Crash-Fix-TEST.apk
+          zip -qr /tmp/king-v10075-out/KING-Plus-v10.0.75-Android16-Crash-Fix-TEST-Source.zip . \
             -x '.git/*' '*/.git/*' '*/build/*' '.gradle/*' '*/.gradle/*' '*/node_modules/*' \
             '*.apk' '*.aab' '*.keystore' '*.jks' '*.zip' '*local.properties' '*.log'
-          sha256sum /tmp/king-v10074-out/*
+          sha256sum /tmp/king-v10075-out/*
       - uses: actions/upload-artifact@v4
         with:
-          name: KING-Plus-v10.0.74-Games-Recovery-TEST-APK-and-Source
-          path: /tmp/king-v10074-out/*
+          name: KING-Plus-v10.0.75-Android16-Crash-Fix-TEST-APK-and-Source
+          path: /tmp/king-v10075-out/*
           retention-days: 30
           if-no-files-found: error
       - name: Publish direct APK and source downloads
@@ -98,10 +100,10 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         continue-on-error: true
         run: |
-          gh release create v10.0.74-games-recovery-test \
-            /tmp/king-v10074-out/KING-Plus-v10.0.74-Games-Recovery-TEST.apk \
-            /tmp/king-v10074-out/KING-Plus-v10.0.74-Games-Recovery-TEST-Source.zip \
+          gh release create v10.0.75-android16-uri-crash-fix-test \
+            /tmp/king-v10075-out/KING-Plus-v10.0.75-Android16-Crash-Fix-TEST.apk \
+            /tmp/king-v10075-out/KING-Plus-v10.0.75-Android16-Crash-Fix-TEST-Source.zip \
             --target "$GITHUB_SHA" \
-            --title "KING Plus v10.0.74 Games Recovery TEST" \
-            --notes "Direct installable APK and source ZIP. Restores playable mini-games, Online Ludo entry and Offline Ludo mode. TEST build only. Online Ludo, Party voice, gifts and emojis still require deployed Firebase services and real two-device acceptance." \
+            --title "KING Plus v10.0.75 Android 16 Media URI Crash Fix TEST" \
+            --notes "TEST APK with the Android 16 MediaDocumentsProvider photo crash fix. Local document URIs are eagerly decoded with a bounded image size; unusable grants show a fallback. This is source/build verification, not a physical-device crash-free claim. Other live-service and two-device gates remain open." \
             --prerelease

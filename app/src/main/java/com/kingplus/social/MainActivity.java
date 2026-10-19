@@ -346,6 +346,38 @@ public class MainActivity extends Activity {
         });
         button("પાછા જાઓ", CARD, this::home);
     }
+    // Decode document URIs before layout measures ImageView. MediaDocumentsProvider grants can be revoked after picker return; setImageURI defers that read until measure and can crash the Activity.
+    private boolean showImageUri10075(ImageView target, Uri uri) {
+        if (target == null || uri == null) return false;
+        android.graphics.Bitmap bitmap = null;
+        try {
+            android.content.ContentResolver resolver = getContentResolver();
+            android.graphics.BitmapFactory.Options bounds = new android.graphics.BitmapFactory.Options();
+            bounds.inJustDecodeBounds = true;
+            try (java.io.InputStream input = resolver.openInputStream(uri)) {
+                if (input == null) return false;
+                android.graphics.BitmapFactory.decodeStream(input, null, bounds);
+            }
+            if (bounds.outWidth < 1 || bounds.outHeight < 1) return false;
+            int sample = 1;
+            while (bounds.outWidth / sample > 640 || bounds.outHeight / sample > 640) sample *= 2;
+            android.graphics.BitmapFactory.Options options = new android.graphics.BitmapFactory.Options();
+            options.inSampleSize = sample;
+            options.inPreferredConfig = android.graphics.Bitmap.Config.ARGB_8888;
+            try (java.io.InputStream input = resolver.openInputStream(uri)) {
+                if (input == null) return false;
+                bitmap = android.graphics.BitmapFactory.decodeStream(input, null, options);
+            }
+            if (bitmap == null) return false;
+            target.setImageBitmap(bitmap);
+            return true;
+        } catch (Exception | OutOfMemoryError error) {
+            if (bitmap != null && !bitmap.isRecycled()) bitmap.recycle();
+            target.setImageDrawable(null);
+            return false;
+        }
+    }
+
     @Override protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
         if (requestCode == GOOGLE_SIGN_IN_REQUEST) {
@@ -360,7 +392,7 @@ public class MainActivity extends Activity {
             selectedPhoto = data.getData();
             try {
                 getContentResolver().takePersistableUriPermission(selectedPhoto, Intent.FLAG_GRANT_READ_URI_PERMISSION);
-                if (photoPreview != null) photoPreview.setImageURI(selectedPhoto);
+                if (photoPreview != null && !showImageUri10075(photoPreview, selectedPhoto)) throw new SecurityException("Photo access unavailable");
             } catch (Exception ex) { selectedPhoto = null; Toast.makeText(this, "ફોટો ખોલી શકાતો નથી", Toast.LENGTH_SHORT).show(); }
         }
     
@@ -383,8 +415,8 @@ public class MainActivity extends Activity {
                 if (!photo.isEmpty()) {
                     ImageView picture = new ImageView(this);
                     picture.setAdjustViewBounds(true); picture.setMaxHeight(dp(360));
-                    try { picture.setImageURI(Uri.parse(photo)); page.addView(picture, new LinearLayout.LayoutParams(-1, -2)); }
-                    catch (Exception ignored) { text("ફોટો ઉપલબ્ધ નથી", 14, MUTED, false); }
+                    if (showImageUri10075(picture, Uri.parse(photo))) page.addView(picture, new LinearLayout.LayoutParams(-1, -2));
+                    else text("ફોટો ઉપલબ્ધ નથી", 14, MUTED, false);
                 }
                 text("──────────────", 14, MUTED, false);
             }
@@ -701,7 +733,7 @@ public class MainActivity extends Activity {
     private void editProfile(){
         screen="editProfile"; base("Edit Profile","Update your KING Plus identity");
         String photo=getPreferences(0).getString("profile_photo","");
-        if(!photo.isEmpty()){ImageView img=new ImageView(this);img.setAdjustViewBounds(true);img.setMaxHeight(dp(220));try{img.setImageURI(Uri.parse(photo));page.addView(img,new LinearLayout.LayoutParams(-1,-2));}catch(Exception ignored){}}
+        if(!photo.isEmpty()){ImageView img=new ImageView(this);img.setAdjustViewBounds(true);img.setMaxHeight(dp(220));if(showImageUri10075(img,Uri.parse(photo)))page.addView(img,new LinearLayout.LayoutParams(-1,-2));else text("ફોટો ઉપલબ્ધ નથી",13,0xff77717f,false);}
         button("📷 Choose profile photo",CARD,()->{Intent intent=new Intent(Intent.ACTION_OPEN_DOCUMENT);intent.addCategory(Intent.CATEGORY_OPENABLE);intent.setType("image/*");intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION|Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION);startActivityForResult(intent,24);});
         EditText name=input("Display name",displayName);
         EditText bio=input("Bio",getPreferences(0).getString("bio","Love music, games and new friends ✨"));
@@ -794,7 +826,7 @@ public class MainActivity extends Activity {
         LinearLayout root=new LinearLayout(this); root.setOrientation(LinearLayout.VERTICAL); root.setBackgroundColor(0xfff7f7fb);
         LinearLayout top=new LinearLayout(this); top.setGravity(Gravity.CENTER_VERTICAL); top.setPadding(dp(16),dp(16),dp(12),dp(6)); TextView title=new TextView(this); title.setText("Me"); title.setTextSize(25); title.setTextColor(0xff191919); title.setTypeface(null,Typeface.BOLD); top.addView(title,new LinearLayout.LayoutParams(0,dp(52),1)); TextView menu=new TextView(this); menu.setText("☰"); menu.setTextSize(27); menu.setGravity(Gravity.CENTER); menu.setOnClickListener(v->sideMenu()); top.addView(menu,new LinearLayout.LayoutParams(dp(54),dp(52))); root.addView(top);
         LinearLayout hero=new LinearLayout(this); hero.setOrientation(LinearLayout.VERTICAL); hero.setGravity(Gravity.CENTER); hero.setPadding(dp(12),dp(10),dp(12),dp(10));
-        String photo=getPreferences(0).getString("profile_photo",""); if(photo.isEmpty()){TextView av=new TextView(this);av.setText("👑");av.setTextSize(48);av.setGravity(Gravity.CENTER);av.setBackground(background(0xffeadfff,50));hero.addView(av,new LinearLayout.LayoutParams(dp(88),dp(88)));}else{ImageView av=new ImageView(this);av.setScaleType(ImageView.ScaleType.CENTER_CROP);try{av.setImageURI(Uri.parse(photo));}catch(Exception ignored){}hero.addView(av,new LinearLayout.LayoutParams(dp(88),dp(88)));}
+        String photo=getPreferences(0).getString("profile_photo",""); ImageView avatarImage=new ImageView(this);avatarImage.setScaleType(ImageView.ScaleType.CENTER_CROP);if(!photo.isEmpty()&&showImageUri10075(avatarImage,Uri.parse(photo))){hero.addView(avatarImage,new LinearLayout.LayoutParams(dp(88),dp(88)));}else{TextView av=new TextView(this);av.setText("👑");av.setTextSize(48);av.setGravity(Gravity.CENTER);av.setBackground(background(0xffeadfff,50));hero.addView(av,new LinearLayout.LayoutParams(dp(88),dp(88)));}
         TextView nm=new TextView(this); nm.setText(displayName); nm.setTextSize(23); nm.setTextColor(0xff202020); nm.setTypeface(null,Typeface.BOLD); nm.setGravity(Gravity.CENTER); hero.addView(nm);
         int xp=getPreferences(0).getInt("xp",0); FirebaseUser profileUser=firebaseAuth==null?null:firebaseAuth.getCurrentUser(); String profileId=profileUser==null?"TEST "+roomId(displayName):profileUser.getUid(); if(profileId.length()>12)profileId=profileId.substring(0,12); TextView id=new TextView(this); id.setText("ID: "+profileId+(profileUser==null?"   • TEST profile":"")); id.setTextSize(13); id.setTextColor(0xff777777); id.setGravity(Gravity.CENTER); hero.addView(id);
         TextView bio=new TextView(this); bio.setText(getPreferences(0).getString("bio","Love music, games and new friends ✨")); bio.setTextSize(13); bio.setTextColor(0xff666666); bio.setGravity(Gravity.CENTER); bio.setPadding(dp(20),dp(4),dp(20),0); hero.addView(bio); root.addView(hero,new LinearLayout.LayoutParams(-1,dp(185)));
