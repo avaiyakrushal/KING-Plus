@@ -5,3 +5,5 @@
 - Version code 356; version name `10.0.77-party-rejoin-choice`.
 
 Full source regression checks and Android CI build are required before APK delivery. Two-device Party acceptance, voice/video, production payments and every game round still require live services/devices.
+
+Android CI is the required APK build and signature verification gate for this release.
