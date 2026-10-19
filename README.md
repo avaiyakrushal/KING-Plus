@@ -1,7 +1,7 @@
-# KING Plus v10.0.75 — TEST source
+# KING Plus v10.0.76 — TEST source
 
-This source bundle is for `com.kingplus.social`, Android version code `354` and
-version name `10.0.75-social-follow-name`.
+This source bundle is for `com.kingplus.social`, Android version code `355` and
+version name `10.0.76-discover-hot-pages`.
 
 ## Latest change
 
@@ -11,9 +11,8 @@ that catches revoked/missing URI access and leaves a fallback instead of failing
 during layout. Party search now spans all room categories and keeps cursor paging
 for additional results. Party cleanup now rechecks member presence and removes
 stale membership and seats in a transaction, so a reconnect racing with cleanup
-is not ejected based on an old snapshot. Discover and People/Social Follow records now include the
-follower's display name so the notification can identify who followed. Details
-are in `RELEASE-NOTES-v10.0.75.md`.
+is not ejected based on an old snapshot. Discover and People/Social Follow records now include the follower's display name so the notification can identify who followed. The Discover Hot list now sorts and pages by server level rank. Details
+are in `RELEASE-NOTES-v10.0.76.md`.
 
 ## Validation
 
@@ -26,6 +25,7 @@ python3 tools/party-gifts-me-v10064/check_source.py
 python3 tools/home-me-party-v10067/check_source.py
 python3 tools/discover-follow-name-v10074/check_source.py
 python3 tools/social-follow-name-v10075/check_source.py
+python3 tools/discover-hot-pages-v10076/check_source.py
 ```
 
 Source checks do not establish Android rendering, signature validity, or

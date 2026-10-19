@@ -197,6 +197,8 @@ public class DiscoverActivity extends Activity {
             q=db.collection("public_profiles").whereEqualTo("hometown",city).limit(60);
         else if("New".equals(activePeopleTab))
             q=db.collection("public_profiles").orderBy("createdAt",Query.Direction.DESCENDING).limit(60);
+        else if("Hot".equals(activePeopleTab))
+            q=db.collection("public_profiles").orderBy("level",Query.Direction.DESCENDING).limit(60);
         final String tab10022=activePeopleTab,owner10022=me.getUid();
         q.get(com.google.firebase.firestore.Source.SERVER).addOnSuccessListener(snap->{
             if(!discoverCurrent10022(grid,owner10022,tab10022))return;
@@ -352,6 +354,8 @@ public class DiscoverActivity extends Activity {
                 page10025=db.collection("public_profiles").whereEqualTo("hometown",city10025).limit(60);
             else if("New".equals(tab10025))
                 page10025=db.collection("public_profiles").orderBy("createdAt",Query.Direction.DESCENDING).limit(60);
+            else if("Hot".equals(tab10025))
+                page10025=db.collection("public_profiles").orderBy("level",Query.Direction.DESCENDING).limit(60);
             page10025=page10025.startAfter(last10025);
             page10025.get(com.google.firebase.firestore.Source.SERVER)
                 .addOnSuccessListener(snap10025->{
