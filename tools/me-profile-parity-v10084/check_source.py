@@ -18,6 +18,7 @@ for section in ('About Me', 'My Gallery', 'My Videos', 'Share Profile', 'Notific
                 'Recent Party Rooms', 'Family Square', 'Relationship / CP', 'Backpack / Collection'):
     assert section in flow
 assert 'putExtra("initialSocialTab10018",tab)' in flow
+assert 'inbox10084.putExtra("openNotifications10010",true)' in main
 assert 'TEST preview only • device activity is not server verified or reward eligible' in main
 assert 'Achievements • locked' in main
 assert 'getMissionValue("mission_room")' not in main[main.index('private void levelPage()'):main.index('private void settingsPage()')]
