@@ -819,7 +819,7 @@ public class PartyActivity extends androidx.fragment.app.FragmentActivity implem
 
         if(!lobbyFilter.isEmpty()) {
             LinearLayout filterBar=new LinearLayout(this);filterBar.setGravity(Gravity.CENTER_VERTICAL);filterBar.setPadding(dp(14),0,dp(14),dp(6));
-            TextView f=tv("Search: "+lobbyFilter,12,0xffffd88f,true);
+            TextView f=tv("Search all categories: "+lobbyFilter,12,0xffffd88f,true);
             f.setBackground(bg(0xff3e2459,14));f.setGravity(Gravity.CENTER_VERTICAL);filterBar.addView(f,new LinearLayout.LayoutParams(0,dp(32),1));
             TextView clear=tv("×",22,0xffffdc91,true);clear.setGravity(Gravity.CENTER);clear.setOnClickListener(v->{lobbyFilter="";renderLobby(selected);});LinearLayout.LayoutParams cp=new LinearLayout.LayoutParams(dp(42),dp(32));cp.setMargins(dp(6),0,0,0);filterBar.addView(clear,cp);root.addView(filterBar);
         }
@@ -836,9 +836,13 @@ public class PartyActivity extends androidx.fragment.app.FragmentActivity implem
             lobbyState940.setGravity(Gravity.CENTER);
             lobbyState940.setBackground(royalNeon9924(0xff372050,0xff1b1231,0x88bb88d8,14));LinearLayout.LayoutParams lobbyStateLp940=new LinearLayout.LayoutParams(-1,dp(64));lobbyStateLp940.setMargins(dp(6),dp(8),dp(6),0);cloudList.addView(lobbyState940,lobbyStateLp940);
             java.util.List<String> aliases10067=KingPagePolicy10067.categories(selected);
-            Query lobbyRequest10067=aliases10067.isEmpty()
+            // Search spans all room categories. Browsing without a search keeps
+            // the category-specific server query and its cursor pagination.
+            Query lobbyRequest10067=!lobbyFilter.trim().isEmpty()
                 ?db.collection("live_rooms").whereEqualTo("closed",false)
-                :db.collection("live_rooms").whereIn("category",aliases10067);
+                :aliases10067.isEmpty()
+                    ?db.collection("live_rooms").whereEqualTo("closed",false)
+                    :db.collection("live_rooms").whereIn("category",aliases10067);
             if(lobbyCursor10067!=null)lobbyRequest10067=lobbyRequest10067.startAfter(lobbyCursor10067);
             roomsListener = lobbyRequest10067.limit(lobbyRoomLimit9989)
                 .addSnapshotListener(com.google.firebase.firestore.MetadataChanges.INCLUDE,(snap,error) -> {
@@ -870,7 +874,7 @@ public class PartyActivity extends androidx.fragment.app.FragmentActivity implem
                             boolean priv = Boolean.TRUE.equals(doc.getBoolean("isPrivate"));
                             boolean password = Boolean.TRUE.equals(doc.getBoolean("hasPassword"));
                             String q = lobbyFilter.toLowerCase(java.util.Locale.US);
-                            if(!categoryMatches(selected,category)) continue;
+                            if(q.isEmpty()&&!categoryMatches(selected,category)) continue;
                             if(!q.isEmpty() && !(name.toLowerCase(java.util.Locale.US).contains(q) || host.toLowerCase(java.util.Locale.US).contains(q) || category.toLowerCase(java.util.Locale.US).contains(q) || shortId(id).contains(q))) continue;
                             if (shown % 2 == 0) {
                                 row = new LinearLayout(this); row.setOrientation(LinearLayout.HORIZONTAL); row.setGravity(Gravity.TOP);
@@ -886,7 +890,7 @@ public class PartyActivity extends androidx.fragment.app.FragmentActivity implem
                     if(shown==0){
                         if(cachedLobby10033)cloudList.addView(tv("No cached matches • connect to refresh",13,0xffffd98c,true));
                         else if(more10067||lobbyCursor10067!=null||!lobbyFilter.isEmpty())
-                            cloudList.addView(tv("No matching open rooms on this page. Try another page or change the search.",13,0xffffd98c,true));
+                            cloudList.addView(tv("No matching open rooms on this page. Search checks every category; tap Next to check more rooms.",13,0xffffd98c,true));
                         else showEmptyLobby(cloudList,selected);
                     }
                     LinearLayout paging10067=new LinearLayout(this);paging10067.setGravity(Gravity.CENTER);

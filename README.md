@@ -1,15 +1,16 @@
-# KING Plus v10.0.70 — TEST source
+# KING Plus v10.0.71 — TEST source
 
-This source bundle is for `com.kingplus.social`, Android version code `349` and
-version name `10.0.70-android16-media-crash-fix`.
+This source bundle is for `com.kingplus.social`, Android version code `350` and
+version name `10.0.71-global-party-search`.
 
 ## Latest change
 
 The Android 16 crash report showed `ImageView` lazily opening a document URI
 without a current provider grant. App image views now use a bounded eager decoder
 that catches revoked/missing URI access and leaves a fallback instead of failing
-during layout. Party exit also clears room listeners and releases membership before
-returning to the lobby. Details are in `RELEASE-NOTES-v10.0.70.md`.
+during layout. Party search now spans all room categories and keeps cursor paging
+for additional results. Party exit clears room listeners and membership before
+returning to the lobby. Details are in `RELEASE-NOTES-v10.0.71.md`.
 
 ## Validation
 
@@ -28,6 +29,5 @@ crash-free behavior on a physical device. The release gate state is recorded in
 
 ## Build status
 
-This ZIP contains source only; it has no Gradle wrapper, APK/AAB, production
-signing key, or configured CI debug keystore. Building a signed APK requires an
-authorized signing setup. This remains TEST source, not a verified release.
+This is TEST source. Physical-device rendering, live service behavior and
+two-device acceptance remain unverified.

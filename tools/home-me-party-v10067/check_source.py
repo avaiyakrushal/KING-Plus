@@ -8,6 +8,9 @@ discover=(java/'DiscoverActivity.java').read_text();chat=(java/'ChatActivity.jav
 assert int(re.search(r'versionCode\s+(\d+)',(root/'app/build.gradle').read_text()).group(1))>=346
 assert "buildConfigField 'boolean', 'CLOUDFLARE_VOICE_ENABLED', 'false'" in (root/'app/build.gradle').read_text()
 assert 'whereIn("category",aliases10067)' in party and 'lobbyPrevious10067' in party
+assert 'Search all categories:' in party
+assert '!lobbyFilter.trim().isEmpty()' in party and 'if(q.isEmpty()&&!categoryMatches(selected,category)) continue;' in party
+assert 'tap Next to check more rooms' in party
 assert 'Math.min(300,lobbyRoomLimit9989' not in party
 assert 'if(!existing10067.exists())transaction10067.set' in main
 assert 'Profile photo updated' not in main

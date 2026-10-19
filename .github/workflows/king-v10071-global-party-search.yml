@@ -1,4 +1,4 @@
-name: KING Plus v10.0.70 Bolo Hi Parity and Android 16 TEST APK
+name: KING Plus v10.0.71 Global Party Search TEST APK
 on:
   push:
     branches: [work/king-v10070-nongame-audit]
@@ -7,9 +7,9 @@ on:
       - 'tools/**'
       - 'README.md'
       - 'BUILD-NOTES-READ-ME.txt'
-      - 'RELEASE-NOTES-v10.0.70.md'
-      - 'BOLO-HI-FULL-AUDIT-v10.0.70.md'
-      - '.github/workflows/king-v10070-bolo-parity.yml'
+      - 'RELEASE-NOTES-v10.0.71.md'
+      - 'BOLO-HI-FULL-AUDIT-v10.0.71.md'
+      - '.github/workflows/king-v10071-global-party-search.yml'
   workflow_dispatch:
 permissions:
   contents: read
@@ -27,26 +27,26 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '8.9'
-      - name: Verify source, Bolo Hi audit and Android 16 URI regression checks
+      - name: Verify Bolo Hi audit, source and room-search regression checks
         run: |
           set -euo pipefail
           python3 tools/four-pages-v10048/check_source.py
           python3 tools/party-gifts-me-v10064/check_source.py
           python3 tools/home-me-party-v10067/check_source.py
           python3 tools/android16-media-uri-v10070/check_source.py
-          grep -q "versionCode 349" app/build.gradle
-          grep -q "versionName '10.0.70-android16-media-crash-fix'" app/build.gradle
+          grep -q "versionCode 350" app/build.gradle
+          grep -q "versionName '10.0.71-global-party-search'" app/build.gradle
           test -s app/kingplus-ci-debug.keystore
       - name: Compile full Android app
         run: gradle :app:assembleDebug --no-daemon --max-workers=2
-      - name: Verify TEST APK package, version, signature and native runtime
+      - name: Verify TEST APK package, version, signature and RTC libraries
         run: |
           set -euo pipefail
           apk=app/build/outputs/apk/debug/app-debug.apk
           test -s "$apk"
           aapt="$(find "$ANDROID_HOME/build-tools" -name aapt -type f | sort -V | tail -1)"
           signer="$(find "$ANDROID_HOME/build-tools" -name apksigner -type f | sort -V | tail -1)"
-          "$aapt" dump badging "$apk" | grep '^package:' | grep "name='com.kingplus.social'" | grep "versionCode='349'"
+          "$aapt" dump badging "$apk" | grep '^package:' | grep "name='com.kingplus.social'" | grep "versionCode='350'"
           "$signer" verify --print-certs "$apk"
           test "$(stat -c%s "$apk")" -gt 60000000
           unzip -Z1 "$apk" | grep -q '^lib/arm64-v8a/libjingle_peerconnection_so.so$'
@@ -54,14 +54,14 @@ jobs:
       - name: Package TEST APK and source
         run: |
           set -euo pipefail
-          mkdir -p /tmp/king-v10070-out
-          cp app/build/outputs/apk/debug/app-debug.apk /tmp/king-v10070-out/KING-Plus-v10.0.70-Android16-Bolo-Hi-TEST.apk
-          zip -qr /tmp/king-v10070-out/KING-Plus-v10.0.70-Android16-Bolo-Hi-TEST-Source.zip . \
+          mkdir -p /tmp/king-v10071-out
+          cp app/build/outputs/apk/debug/app-debug.apk /tmp/king-v10071-out/KING-Plus-v10.0.71-Global-Party-Search-TEST.apk
+          zip -qr /tmp/king-v10071-out/KING-Plus-v10.0.71-Global-Party-Search-TEST-Source.zip . \
             -x '.git/*' '*/.git/*' '*/build/*' '.gradle/*' '*/.gradle/*' '*/node_modules/*' \
             '*.apk' '*.aab' '*.keystore' '*.jks' '*.zip' '*local.properties' '*.log'
       - uses: actions/upload-artifact@v4
         with:
-          name: KING-Plus-v10.0.70-Android16-Bolo-Hi-TEST-APK-and-Source
-          path: /tmp/king-v10070-out/*
+          name: KING-Plus-v10.0.71-Global-Party-Search-TEST-APK-and-Source
+          path: /tmp/king-v10071-out/*
           retention-days: 30
           if-no-files-found: error

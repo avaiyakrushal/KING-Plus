@@ -1,14 +1,12 @@
-KING Plus v10.0.70 — Android 16 media URI crash fix (TEST source).
+KING Plus v10.0.71 — global Party search (TEST source).
 
-Android metadata: versionCode 349; versionName 10.0.70-android16-media-crash-fix.
+Android metadata: versionCode 350; versionName 10.0.71-global-party-search.
 This ZIP contains source only. It does not contain an APK or AAB.
 
 The reported MediaDocumentsProvider SecurityException is handled by eagerly
-opening and decoding local image URIs. Source checks do not prove a physical
-Android 16 device no longer crashes. Reproduce and verify on the reported vivo
-V2575 before marking the gate passed.
+opening and decoding local image URIs. Party-room search now includes all
+categories and uses cursor pages for more results. Two-device acceptance is pending.
 
-The private production signing key and CI debug keystore are omitted. An
-authorized signing/build setup is required to produce an APK. This is TEST
-source, not a final release; see RELEASE-NOTES-v10.0.70.md and
+The private production signing key is omitted. This is TEST source, not a final
+release; see RELEASE-NOTES-v10.0.71.md and
 release/final-release-evidence.json.
