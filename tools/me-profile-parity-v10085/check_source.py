@@ -18,7 +18,8 @@ assert '"Liked".equals(selected)&&!liked.exists()' in community
 assert 'removeView(card)' in community
 assert 'case "detail_profile_liked":openCommunity("Liked");break;' in flow
 assert 'Liked Moments' in flow
-assert '"♡ Liked"' in main
+assert '"♡ Liked"' in main or '"♡ Liked …"' in main
+assert 'chip.setText("♡ Liked "+(count>500?"500+":String.valueOf(count)))' in main
 assert 'momentCardViewCurrent10084' in community
 assert 'node tests/firestore/liked-moments-v10085.test.mjs' in workflow
 assert "collectionGroup(alice,'likes')" in firestore_test
