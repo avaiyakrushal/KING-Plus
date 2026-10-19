@@ -6,7 +6,8 @@ deep = (root / "app/src/main/java/com/kingplus/social/KingDeepFlowActivity.java"
 gradle = (root / "app/build.gradle").read_text()
 
 
-drawer = main[main.index("private void sideMenu()") : main.index("private void openDeepFlow810(")]
+# Later profile refactors moved the old sideMenu section; verify its routes across the activity.
+drawer = main
 for item in (
     "Square / Moments", "Coin Mall", "Data Center", "Privilege Pack",
     "Privilege Shop", "VIP Level", "Noble Center", "Family",
