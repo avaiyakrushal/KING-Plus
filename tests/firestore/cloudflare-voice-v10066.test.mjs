@@ -1,0 +1,53 @@
+import {initializeTestEnvironment,assertFails} from '@firebase/rules-unit-testing';
+import {doc,setDoc,getDoc} from 'firebase/firestore';
+import fs from 'node:fs';
+import assert from 'node:assert/strict';
+import {createRequire} from 'node:module';
+const require=createRequire(new URL('../../functions/package.json',import.meta.url));
+const {initializeApp,deleteApp}=require('firebase-admin/app');
+const {getFirestore}=require('firebase-admin/firestore');
+const {createFirebaseVoice}=require('./cloudflare-voice-firebase');
+const projectId='demo-king-cloudflare-10066';
+const env=await initializeTestEnvironment({projectId,firestore:{host:'127.0.0.1',port:8080,rules:fs.readFileSync('firestore.rules','utf8')}});
+const app=initializeApp({projectId},'voice10066'),db=getFirestore(app);
+const calls=[];let sid=0;
+const oldFetch=globalThis.fetch;
+globalThis.fetch=async(url,options)=>{
+  if(!String(url).startsWith('https://rtc.live.cloudflare.com/'))return oldFetch(url,options);
+  url=String(url);
+  calls.push({url,options});const body=options.body?JSON.parse(options.body):null;
+  return {ok:true,json:async()=>url.endsWith('/sessions/new')?{sessionId:'session'+(++sid)}:
+    url.endsWith('/tracks/new')?{tracks:body.tracks,sessionDescription:{type:'answer',sdp:'v=0\r\nm=audio 9 RTP/AVP 111\r\n'}}:{}};
+};
+const cfg={enabled:true,zeroCostVerified:true,appId:'app',secret:'not-a-real-key'};
+const voice=createFirebaseVoice({db,config:async()=>cfg});
+const invoke=(action,extra={},uid='alice')=>voice.service({uid,data:{action,roomId:'room',visit:'visit',...extra}});
+try{
+ await env.clearFirestore();
+ await db.doc('live_rooms/room').set({ownerUid:'host',name:'Room',closed:false,muteAll:false,maxSeats:8,isPrivate:false,entranceMode:'free'});
+ for(const uid of ['alice','bob'])await db.doc('live_rooms/room/members/'+uid).set({uid,sessionId:'visit'});
+ await db.doc('live_rooms/room/seats/1').set({uid:'alice',micOn:true});
+ const A=env.authenticatedContext('alice').firestore();
+ await assertFails(setDoc(doc(A,'server_voice_sessions','forged'),{uid:'alice',published:true}));
+ const joined=await Promise.allSettled([invoke('join'),invoke('join')]);
+ assert.equal(joined.filter(x=>x.status==='fulfilled').length,1);
+ const handle=joined.find(x=>x.status==='fulfilled').value.handle;
+ await assertFails(getDoc(doc(A,'server_voice_sessions',handle)));
+ await invoke('publish',{handle,seat:1,mid:'0',description:{type:'offer',sdp:'v=0\r\nm=audio 9 RTP/AVP 111\r\n'}});
+ const bob=(await invoke('join',{},'bob')).handle;
+ assert.equal((await invoke('tracks',{handle:bob},'bob')).tracks.length,1);
+ await db.doc('live_rooms/room/seats/1').update({micOn:false});
+ assert.equal((await invoke('tracks',{handle:bob},'bob')).tracks.length,0);
+ await voice.reconcileRoom('room');
+ assert.equal((await db.doc('server_voice_sessions/'+handle).get()).exists,false);
+ assert(calls.some(c=>c.url.endsWith('/tracks/close')&&JSON.parse(c.options.body).force===true));
+ const next=(await invoke('join')).handle;
+ await db.doc('live_rooms/room/members/alice').update({sessionId:'new-visit'});
+ await assert.rejects(invoke('tracks',{handle:next}),{code:'permission-denied'});
+ await voice.reconcileRoom('room');
+ assert.equal((await db.doc('server_voice_sessions/'+next).get()).exists,false);
+ cfg.enabled=false;
+ const before=calls.length;await assert.rejects(invoke('join'),{code:'failed-precondition'});
+ assert.equal(calls.length,before);
+ console.log('PASS Cloudflare Firestore adapter: private records, atomic slots, host mic removal, old visit cleanup, disabled mode no provider calls. Provider network is mocked.');
+}finally{globalThis.fetch=oldFetch;await env.cleanup();await deleteApp(app);}

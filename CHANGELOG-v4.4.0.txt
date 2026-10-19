@@ -1,0 +1,3 @@
+KING Plus v4.4.0 — Party Room Complete Reference Flow
+
+Seat avatars now open the rich user profile sheet directly. The plus/more panel is rebuilt as Play Center + Tools using the supplied room references: Counter, Guess It, Truth or Dare, Pass the Bomb, Fan Box, Wheel Challenge, Party Wheel, Room Battle, Vote, Events, Room seat, Enable queue, Private chat, Music, Atmosphere, Income, Share Family and Theme Room. Profile overflow retains host/co-host seat moderation. No-billing and TEST OTP 123456 remain unchanged.

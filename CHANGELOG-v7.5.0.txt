@@ -1,0 +1,9 @@
+KING Plus v7.5.0 Complete Flow
+- Consistent root navigation, bottom tabs, Back and Exit confirmation
+- MainActivity singleTask routing prevents duplicate page stacks
+- Parent-aware Back behavior for profile/game/settings subpages
+- Expanded Gift catalog with VIP unlock tiers
+- VIP/Level identity shown in room chat
+- Realtime room game Ready state, rematch and result broadcast
+- Cloud profile visitors list
+- Existing v7.4 room multiplayer, cosmetics, native voice/video and Party moderation retained

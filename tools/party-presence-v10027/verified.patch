@@ -1,0 +1,145 @@
+--- a/app/src/main/java/com/kingplus/social/PartyActivity.java
++++ b/app/src/main/java/com/kingplus/social/PartyActivity.java
+@@ -1441,36 +1441,36 @@
+             showPartyJoinFailure977("Invalid Party Room reference");return;
+         }
+         if(isOwner()){join.run();return;}
+-        expectedRoom966.get(com.google.firebase.firestore.Source.SERVER)
+-            .addOnSuccessListener(roomDoc->{
++        // Fetch room state and member capacity together, not in two serial server
++        // round-trips. Keep the existing signed-in room+generation guards.
++        com.google.android.gms.tasks.Tasks.whenAllSuccess(
++                expectedRoom966.get(com.google.firebase.firestore.Source.SERVER),
++                expectedRoom966.collection("members").get(com.google.firebase.firestore.Source.SERVER))
++            .addOnSuccessListener(responses10027->{
+                 if(!isCurrentPartyJoin966(expectedId966,expectedUid966,token966))return;
+-                if(roomDoc==null||!roomDoc.exists()||Boolean.TRUE.equals(roomDoc.getBoolean("closed"))){
+-                    toast("This Party room is no longer available");
+-                    renderLobby("Hot");
+-                    return;
++                if(responses10027.size()!=2){
++                    showPartyJoinFailure977("Cannot verify Party Room capacity");return;
+                 }
+-                Long max=roomDoc.getLong("maxMembers");
+-                int limit=max==null?100:(int)Math.max(10,Math.min(200,max));
+-                maxMembers930=limit;
+-                expectedRoom966.collection("members").get(com.google.firebase.firestore.Source.SERVER)
+-                    .addOnSuccessListener(members->{
+-                        if(!isCurrentPartyJoin966(expectedId966,expectedUid966,token966))return;
+-                        if(members==null){showPartyJoinFailure977("Cannot verify Party Room members");return;}
+-                        if(members.size()>=limit){
+-                            toast("This Party Room is full ("+limit+" users)");
+-                            renderLobby("Hot");
+-                            return;
+-                        }
+-                        join.run();
+-                    })
+-                    .addOnFailureListener(error->{
+-                        if(isCurrentPartyJoin966(expectedId966,expectedUid966,token966))
+-                            roomJoinError891("Could not check Party room capacity",error);
+-                    });
++                DocumentSnapshot roomDoc10027=(DocumentSnapshot)responses10027.get(0);
++                com.google.firebase.firestore.QuerySnapshot members10027=
++                    (com.google.firebase.firestore.QuerySnapshot)responses10027.get(1);
++                if(roomDoc10027==null||!roomDoc10027.exists()
++                    ||Boolean.TRUE.equals(roomDoc10027.getBoolean("closed"))){
++                    toast("This Party room is no longer available");renderLobby("Hot");return;
++                }
++                Long cap10027=roomDoc10027.getLong("maxMembers");
++                int limit10027=cap10027==null?100:(int)Math.max(10,Math.min(200,cap10027));
++                maxMembers930=limit10027;
++                if(members10027==null){showPartyJoinFailure977("Cannot verify Party Room members");return;}
++                if(members10027.size()>=limit10027){
++                    toast("This Party Room is full ("+limit10027+" users)");
++                    renderLobby("Hot");return;
++                }
++                join.run();
+             })
+-            .addOnFailureListener(error->{
++            .addOnFailureListener(error10027->{
+                 if(isCurrentPartyJoin966(expectedId966,expectedUid966,token966))
+-                    roomJoinError891("Could not verify Party room",error);
++                    roomJoinError891("Could not verify Party room and member capacity",error10027);
+             });
+     }
+     private Map<String,Object> minimalMember921(){
+@@ -1536,7 +1536,7 @@
+     private void cleanupStaleRoom910(){
+         if(!isOwner()||db==null||roomId==null||user==null||roomId.isEmpty())return;
+         long now967=System.currentTimeMillis();
+-        if(now967-lastCleanup910<120000L)return;
++        if(now967-lastCleanup910<60000L)return;
+         lastCleanup910=now967;
+         final String expectedRoom967=roomId,expectedUid967=user.getUid(),owner967=ownerUid;
+         final int generation967=presenceGeneration967;
+@@ -1552,7 +1552,7 @@
+                     String uid967=m967.getId();
+                     com.google.firebase.Timestamp last967=m967.getTimestamp("lastSeenAt");
+                     boolean stale967=last967!=null
+-                        && KingRoomPresence967.isStale(last967.toDate().getTime(),now967,300000L);
++                        && KingRoomPresence967.isStale(last967.toDate().getTime(),now967,180000L);
+                     if(stale967&&!uid967.equals(owner967)){
+                         removedMembers967.delete(m967.getReference());
+                         removed967++;
+@@ -7576,19 +7576,37 @@
+                 }).addOnFailureListener(e9919->
+                     KingStability.nonFatal(this,"room-exit-seat-transaction-9919",e9919));
+             }).addOnFailureListener(e9919->{
+-                // Fallback never guesses which seat is owned from local UI;
+-                // only the session-authenticated membership record is removed.
+-                KingStability.nonFatal(this,"room-exit-seat-query-9919",e9919);
+-                db.runTransaction(tx9919->{
+-                    DocumentSnapshot joined9919=tx9919.get(member9919);
+-                    if(joined9919.exists()&&leavingUid9919.equals(joined9919.getString("uid"))
+-                        && KingRoomPresence967.canRemove(
+-                            joined9919.getString("sessionId"),leavingSession9919,
+-                            joined9919.getString("deviceId"),leavingDevice9919))
+-                        tx9919.delete(member9919);
+-                    return null;
+-                }).addOnFailureListener(err9919->
+-                    KingStability.nonFatal(this,"room-exit-member-fallback-9919",err9919));
++                // The server seat QUERY can fail transiently (for example while
++                // reconnecting). Read all bounded seat IDs in a transaction so
++                // a successful fallback also removes this user's ghost mic seat.
++                // Never delete another session's member/seat during a fast rejoin.
++                final java.util.ArrayList<DocumentReference> backupRefs10027=new java.util.ArrayList<>();
++                for(int seatNumber10027=1;seatNumber10027<=12;seatNumber10027++)
++                    backupRefs10027.add(room9919.collection("seats")
++                        .document(String.valueOf(seatNumber10027)));
++                db.runTransaction(tx10027->{
++                    DocumentSnapshot joined10027=tx10027.get(member9919);
++                    final java.util.ArrayList<DocumentSnapshot> seatDocs10027=new java.util.ArrayList<>();
++                    for(DocumentReference seatRef10027:backupRefs10027)
++                        seatDocs10027.add(tx10027.get(seatRef10027));
++                    if(!joined10027.exists()||!leavingUid9919.equals(joined10027.getString("uid"))
++                        ||!KingRoomPresence967.canRemove(
++                            joined10027.getString("sessionId"),leavingSession9919,
++                            joined10027.getString("deviceId"),leavingDevice9919))return 0;
++                    int released10027=0;
++                    for(int seatIndex10027=0;seatIndex10027<backupRefs10027.size();seatIndex10027++){
++                        DocumentSnapshot occupied10027=seatDocs10027.get(seatIndex10027);
++                        if(occupied10027.exists()
++                            &&leavingUid9919.equals(occupied10027.getString("uid"))){
++                            tx10027.delete(backupRefs10027.get(seatIndex10027));released10027++;
++                        }
++                    }
++                    tx10027.delete(member9919);
++                    return released10027;
++                }).addOnSuccessListener(released10027->
++                    android.util.Log.i("KINGPlusParty","Fallback room exit; seats released="+released10027))
++                  .addOnFailureListener(err10027->
++                    KingStability.nonFatal(this,"room-exit-seat-fallback-10027",err10027));
+             });
+     }
+ 
+--- a/app/build.gradle
++++ b/app/build.gradle
+@@ -14,7 +14,7 @@
+         }
+     }
+ 
+-    defaultConfig { applicationId 'com.kingplus.social'; minSdk 26; targetSdk 35; versionCode 305; versionName '10.0.26-party-room-session-fixes-test' }
++    defaultConfig { applicationId 'com.kingplus.social'; minSdk 26; targetSdk 35; versionCode 306; versionName '10.0.27-party-presence-fast-join-test' }
+     buildTypes {
+         debug { signingConfig signingConfigs.debug }
+         release {

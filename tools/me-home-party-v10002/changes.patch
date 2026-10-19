@@ -1,0 +1,217 @@
+--- a/app/build.gradle
++++ b/app/build.gradle
+@@ -14,7 +14,7 @@
+         }
+     }
+ 
+-    defaultConfig { applicationId 'com.kingplus.social'; minSdk 26; targetSdk 35; versionCode 280; versionName '10.0.1-me-home-party-photo-vote-test' }
++    defaultConfig { applicationId 'com.kingplus.social'; minSdk 26; targetSdk 35; versionCode 281; versionName '10.0.2-verified-id-and-room-votes-test' }
+     buildTypes {
+         debug { signingConfig signingConfigs.debug }
+         release {
+--- a/app/src/main/java/com/kingplus/social/MainActivity.java
++++ b/app/src/main/java/com/kingplus/social/MainActivity.java
+@@ -1565,7 +1565,8 @@
+     private void profileV600(){
+         screen="profile";stopMic();
+         final LevelSystem.Snapshot progress700=LevelSystem.read(this);final int level=progress700.level;
+-        final String uid=(firebaseAuth!=null&&firebaseAuth.getCurrentUser()!=null)?publicId(firebaseAuth.getCurrentUser().getUid()):roomId(displayName);
++        // Never show a guessed hash-based public ID. Fetch the issued ID from Firestore.
++        final String uid="Not issued";
+         final String photo=getPreferences(0).getString("profile_photo","");final String remotePhoto931=getPreferences(0).getString("profile_photo_cloud",getPreferences(0).getString("google_photo_url",""));
+         LinearLayout root=new LinearLayout(this);root.setOrientation(LinearLayout.VERTICAL);root.setBackgroundColor(Color.WHITE);
+         LinearLayout top=new LinearLayout(this);top.setGravity(Gravity.CENTER_VERTICAL);top.setPadding(dp(12),dp(5),dp(8),0);
+@@ -1581,6 +1582,7 @@
+         LinearLayout info=new LinearLayout(this);info.setOrientation(LinearLayout.VERTICAL);info.setPadding(dp(12),0,0,0);
+         TextView name=new TextView(this);name.setText(displayName+"  ›");name.setTextSize(18);name.setTypeface(null,Typeface.BOLD);name.setTextColor(0xff191919);name.setOnClickListener(v->editProfile());info.addView(name,new LinearLayout.LayoutParams(-1,dp(32)));
+         TextView id=new TextView(this);id.setText(KingCosmetics.frameEmoji(equippedFrame730)+"  ID: "+uid+"  "+KingCosmetics.frameEmoji(equippedFrame730));id.setTextSize(11);id.setTextColor(0xff3d3348);id.setGravity(Gravity.CENTER_VERTICAL);id.setPadding(dp(10),0,dp(10),0);id.setBackground(KingCosmetics.idFrame(this,equippedFrame730));info.addView(id,new LinearLayout.LayoutParams(-1,dp(28)));
++        loadVerifiedMeId10002(id,"profile",equippedFrame730);
+         LinearLayout mini=new LinearLayout(this);mini.setGravity(Gravity.CENTER_VERTICAL);TextView vip=smallBadge("VIP …",0xffffe57b,0xff5a4100);
+         loadVerifiedMeVip9988(vip);mini.addView(vip,new LinearLayout.LayoutParams(dp(50),dp(25)));TextView lv=smallBadge("Lv."+level,0xff8865e8,Color.WHITE);LinearLayout.LayoutParams lvp=new LinearLayout.LayoutParams(dp(58),dp(25));lvp.setMargins(dp(5),0,0,0);mini.addView(lv,lvp);info.addView(mini,new LinearLayout.LayoutParams(-1,dp(28)));header.addView(info,new LinearLayout.LayoutParams(0,dp(86),1));content.addView(header,new LinearLayout.LayoutParams(-1,dp(94)));
+ 
+@@ -1868,7 +1870,33 @@
+     }
+ 
+     private void shareMyProfile(){
+-        shareText("KING Plus • "+displayName+" • ID: "+roomId(displayName));
++        shareMyIssuedKingId9998();
++    }
++
++    /** Only display six-digit public IDs confirmed by the actual Firestore profile. */
++    private void loadVerifiedMeId10002(TextView label,String expectedScreen,String frame){
++        if(label==null||firebaseAuth==null||firestore==null||firebaseAuth.getCurrentUser()==null){
++            if(label!=null)label.setText("KING ID: Sign in required");return;
++        }
++        final String account=firebaseAuth.getCurrentUser().getUid();
++        label.setText("KING ID: Verifying…");
++        firestore.collection("public_profiles").document(account)
++            .get(com.google.firebase.firestore.Source.SERVER)
++            .addOnSuccessListener(doc->{
++                if(isFinishing()||isDestroyed()||!expectedScreen.equals(screen)
++                    ||label.getParent()==null||firebaseAuth.getCurrentUser()==null
++                    ||!account.equals(firebaseAuth.getCurrentUser().getUid()))return;
++                String issued=KingPublicId9996.verified(doc.getString("publicId"));
++                String suffix=issued==null?"Not issued":issued;
++                label.setText(frame==null?"KING ID: "+suffix:
++                    KingCosmetics.frameEmoji(frame)+"  ID: "+suffix+"  "+KingCosmetics.frameEmoji(frame));
++            }).addOnFailureListener(e->{
++                if(isFinishing()||isDestroyed()||!expectedScreen.equals(screen)
++                    ||label.getParent()==null||firebaseAuth.getCurrentUser()==null
++                    ||!account.equals(firebaseAuth.getCurrentUser().getUid()))return;
++                label.setText("KING ID: Verification unavailable • tap to retry");
++                label.setOnClickListener(v->loadVerifiedMeId10002(label,expectedScreen,frame));
++            });
+     }
+ 
+     private void profileAboutPage(){
+@@ -1877,7 +1905,12 @@
+         String hometown=getPreferences(0).getString("hometown","India");
+         String birthday=getPreferences(0).getString("birthday","2000-01-01");
+         String tags=getPreferences(0).getString("tags","Music, Games");
+-        text("👤 "+displayName,24,Color.WHITE,true); text("ID: "+roomId(displayName),14,MUTED,false);
++        text("👤 "+displayName,24,Color.WHITE,true);
++        TextView verifiedAboutId10002=new TextView(this);
++        verifiedAboutId10002.setTextColor(MUTED);verifiedAboutId10002.setTextSize(14);
++        verifiedAboutId10002.setPadding(dp(12),dp(8),dp(12),dp(8));
++        page.addView(verifiedAboutId10002,new LinearLayout.LayoutParams(-1,dp(46)));
++        loadVerifiedMeId10002(verifiedAboutId10002,"profile_about",null);
+         text("💬 "+bio,16,Color.WHITE,false); text("📍 "+(hometown.isEmpty()?"India":hometown),15,Color.WHITE,false);
+         text("🎂 "+birthday,15,Color.WHITE,false); text("🏷 "+tags,15,Color.WHITE,false);
+         text("🕘 Online Time: "+getPreferences(0).getString("online_time","8 PM - 12 AM"),15,Color.WHITE,false);
+@@ -2176,12 +2209,12 @@
+         TextView loading940=new TextView(this);loading940.setText("Finding KING profiles…");loading940.setTextSize(12);loading940.setTextColor(0xff8a8391);loading940.setPadding(dp(10),dp(12),dp(10),dp(12));box940.addView(loading940,new LinearLayout.LayoutParams(-1,dp(48)));
+         if(firestore==null||firebaseAuth==null||firebaseAuth.getCurrentUser()==null){loading940.setText("Sign in to see recommendations");return;}
+         String own=firebaseAuth.getCurrentUser().getUid();
+-        firestore.collection("public_profiles").limit(8).get().addOnSuccessListener(snap->{box940.removeAllViews();int shown=0;for(DocumentSnapshot d:snap.getDocuments()){String uid=d.getString("uid");if(uid==null||uid.isEmpty())uid=d.getId();if(uid.equals(own))continue;String n=d.getString("displayName");if(n==null||n.trim().isEmpty())n="KING User";Long vip=d.getLong("vipLevel"),lv=d.getLong("level");addProfileRecommendationRow940(box940,uid,n,vip==null?0:vip,lv==null?1:lv);if(++shown>=5)break;}if(shown==0){TextView e=new TextView(this);e.setText("No recommendations yet");e.setTextSize(12);e.setTextColor(0xff8a8391);e.setPadding(dp(10),dp(12),dp(10),dp(12));box940.addView(e,new LinearLayout.LayoutParams(-1,dp(48)));}}).addOnFailureListener(e->{loading940.setText("Recommendations unavailable • tap Status or try again later");});
+-    }
+-    private void addProfileRecommendationRow940(LinearLayout box,String uid,String name,long vip,long level){
++        firestore.collection("public_profiles").limit(8).get().addOnSuccessListener(snap->{box940.removeAllViews();int shown=0;for(DocumentSnapshot d:snap.getDocuments()){String uid=d.getString("uid");if(uid==null||uid.isEmpty())uid=d.getId();if(uid.equals(own))continue;String n=d.getString("displayName");if(n==null||n.trim().isEmpty())n="KING User";Long vip=d.getLong("vipLevel"),lv=d.getLong("level");String verifiedRecommendedId10002=KingPublicId9996.verified(d.getString("publicId"));addProfileRecommendationRow940(box940,uid,n,vip==null?0:vip,lv==null?1:lv,verifiedRecommendedId10002);if(++shown>=5)break;}if(shown==0){TextView e=new TextView(this);e.setText("No recommendations yet");e.setTextSize(12);e.setTextColor(0xff8a8391);e.setPadding(dp(10),dp(12),dp(10),dp(12));box940.addView(e,new LinearLayout.LayoutParams(-1,dp(48)));}}).addOnFailureListener(e->{loading940.setText("Recommendations unavailable • tap Status or try again later");});
++    }
++    private void addProfileRecommendationRow940(LinearLayout box,String uid,String name,long vip,long level,String issuedKingId10002){
+         LinearLayout row=new LinearLayout(this);row.setGravity(Gravity.CENTER_VERTICAL);row.setPadding(dp(10),dp(8),dp(10),dp(8));row.setBackground(background(Color.WHITE,12));
+         TextView av=new TextView(this);av.setText(name.isEmpty()?"K":name.substring(0,1).toUpperCase());av.setTextSize(18);av.setTypeface(null,Typeface.BOLD);av.setTextColor(Color.WHITE);av.setGravity(Gravity.CENTER);av.setBackground(background(0xff7c62d5,24));row.addView(av,new LinearLayout.LayoutParams(dp(48),dp(48)));
+-        LinearLayout info=new LinearLayout(this);info.setOrientation(LinearLayout.VERTICAL);info.setPadding(dp(10),0,0,0);TextView nm=new TextView(this);nm.setText(name);nm.setTextSize(14);nm.setTypeface(null,Typeface.BOLD);nm.setTextColor(0xff25222a);info.addView(nm,new LinearLayout.LayoutParams(-1,dp(25)));TextView sub=new TextView(this);sub.setText("VIP "+vip+"  •  Lv."+level+"  •  ID "+publicId(uid));sub.setTextSize(10);sub.setTextColor(0xff7b7480);info.addView(sub,new LinearLayout.LayoutParams(-1,dp(20)));row.addView(info,new LinearLayout.LayoutParams(0,dp(48),1));TextView arrow=new TextView(this);arrow.setText("›");arrow.setTextSize(24);arrow.setTextColor(0xffaaa4ad);arrow.setGravity(Gravity.CENTER);row.addView(arrow,new LinearLayout.LayoutParams(dp(30),dp(48)));row.setOnClickListener(v->{Intent i=new Intent(this,KingPublicProfileActivity.class);i.putExtra("uid",uid);i.putExtra("name",name);startActivity(i);});LinearLayout.LayoutParams rp=new LinearLayout.LayoutParams(-1,dp(70));rp.setMargins(0,dp(4),0,dp(4));box.addView(row,rp);
++        LinearLayout info=new LinearLayout(this);info.setOrientation(LinearLayout.VERTICAL);info.setPadding(dp(10),0,0,0);TextView nm=new TextView(this);nm.setText(name);nm.setTextSize(14);nm.setTypeface(null,Typeface.BOLD);nm.setTextColor(0xff25222a);info.addView(nm,new LinearLayout.LayoutParams(-1,dp(25)));TextView sub=new TextView(this);sub.setText("VIP "+vip+"  •  Lv."+level+"  •  ID "+(issuedKingId10002==null?"Not issued":issuedKingId10002));sub.setTextSize(10);sub.setTextColor(0xff7b7480);info.addView(sub,new LinearLayout.LayoutParams(-1,dp(20)));row.addView(info,new LinearLayout.LayoutParams(0,dp(48),1));TextView arrow=new TextView(this);arrow.setText("›");arrow.setTextSize(24);arrow.setTextColor(0xffaaa4ad);arrow.setGravity(Gravity.CENTER);row.addView(arrow,new LinearLayout.LayoutParams(dp(30),dp(48)));row.setOnClickListener(v->{Intent i=new Intent(this,KingPublicProfileActivity.class);i.putExtra("uid",uid);i.putExtra("name",name);startActivity(i);});LinearLayout.LayoutParams rp=new LinearLayout.LayoutParams(-1,dp(70));rp.setMargins(0,dp(4),0,dp(4));box.addView(row,rp);
+     }
+ 
+     private void rankingsPage(){
+--- a/app/src/main/java/com/kingplus/social/CommunityHubActivity.java
++++ b/app/src/main/java/com/kingplus/social/CommunityHubActivity.java
+@@ -369,11 +369,20 @@
+         body.addView(tv("Browse the latest KING Moments by topic.",13,MUTED,false));
+         if(!cloud()){body.addView(tv("Sign in to view Topic Square.",14,MUTED,false));return;}
+         LinearLayout grid=new LinearLayout(this);grid.setOrientation(LinearLayout.VERTICAL);body.addView(grid,new LinearLayout.LayoutParams(-1,-2));
++        final LinearLayout topicHost10002=body;
++        final int topicGeneration10002=searchGeneration9994;
++        final String topicAccount10002=me.getUid();
+         db.collection("moments").orderBy("createdAt",Query.Direction.DESCENDING).limit(100).get().addOnSuccessListener(s->{
++            if(!"Topics".equals(selected)||body!=topicHost10002||searchGeneration9994!=topicGeneration10002
++                ||isFinishing()||isDestroyed()||!KingSavedRoomsCloud9990.account(topicAccount10002))return;
+             Map<String,Integer> counts=new HashMap<>();for(String t:topicNames940())counts.put(t,0);
+             int total=0;for(DocumentSnapshot d:s.getDocuments()){String topic=safe(d.getString("topic"),"General");counts.put(topic,counts.containsKey(topic)?counts.get(topic)+1:1);total++;}counts.put("All",total);
+             String[] topics=topicNames940();for(String t:topics){TextView row=tv("#"+t+"   •   "+(counts.containsKey(t)?counts.get(t):0)+" posts",14,DARK,true);row.setGravity(Gravity.CENTER_VERTICAL);row.setBackground(bg(CARD,14));row.setOnClickListener(v->{selectedTopic940=t;render("Moments");});LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(-1,dp(54));lp.setMargins(0,dp(4),0,dp(4));grid.addView(row,lp);}
+-        }).addOnFailureListener(e->body.addView(tv("Topic Square unavailable right now.",14,MUTED,false)));
++        }).addOnFailureListener(e->{
++            if("Topics".equals(selected)&&body==topicHost10002&&searchGeneration9994==topicGeneration10002
++                &&!isFinishing()&&!isDestroyed()&&KingSavedRoomsCloud9990.account(topicAccount10002))
++                topicHost10002.addView(tv("Topic Square unavailable right now.",14,MUTED,false));
++        });
+     }
+ 
+     private void family(){body.addView(tv("Family & Agency",21,DARK,true));if(!cloud()){body.addView(tv("Sign in to use Family.",14,MUTED,false));return;}db.collection("users").document(me.getUid()).get(com.google.firebase.firestore.Source.SERVER).addOnSuccessListener(u->{String code=safe(u.getString("familyCode"),"");if(code.isEmpty()){familyJoinCreate();return;}db.collection("families").document(code).collection("members").document(me.getUid()).get(com.google.firebase.firestore.Source.SERVER).addOnSuccessListener(m->{if(m.exists())showFamily(code);else{clearFamily();familyJoinCreate();}}).addOnFailureListener(e->familyError955("Family membership unavailable",e,()->render("Family")));}).addOnFailureListener(e->familyError955("Family lookup unavailable",e,()->render("Family")));}
+--- a/app/src/main/java/com/kingplus/social/PartyActivity.java
++++ b/app/src/main/java/com/kingplus/social/PartyActivity.java
+@@ -4157,8 +4157,15 @@
+ 
+     private void startNewVoteDialog(){
+         if(!canStartRoomGame("Vote"))return;
++        final String startedInRoom10002=roomId;
++        final int startedBinding10002=roomListenerGeneration982;
++        final String startedUid10002=user==null?"":user.getUid();
+         final EditText input=new EditText(this);input.setHint("Vote question");input.setText("Do you like this Party Room?");
+         new AlertDialog.Builder(this).setTitle("💌 Start Room Vote").setView(input).setPositiveButton("Start",(d,w)->{
++            if(startedInRoom10002==null||!startedInRoom10002.equals(roomId)||!isModerator()
++                ||(cloudRoom&&!currentVoteRoom10001(startedInRoom10002,startedUid10002,startedBinding10002))){
++                toast("Room changed. Open a new vote in the current room.");return;
++            }
+             String q=input.getText().toString().trim();if(q.isEmpty())q="Room vote";
+             ArrayList<String> opts=new ArrayList<>();opts.add("👍 Yes");opts.add("👎 No");opts.add("❤️ Love it");opts.add("😂 Funny");Map<String,Object>x=new HashMap<>();x.put("options",opts);x.put("participantUids",new ArrayList<String>());publishGameState("vote",q,"",x);
+         }).setNegativeButton("Cancel",null).show();
+@@ -4195,12 +4202,22 @@
+                 vote.put("name",safeName());vote.put("roundId",round);
+                 vote.put("choice",a[w]);vote.put("choiceIndex",w);
+                 vote.put("updatedAt",FieldValue.serverTimestamp());
+-                liveRoom10001.collection("game_votes").document(expectedUid10001).set(vote)
+-                    .addOnSuccessListener(v->{if(currentVoteRoom10001(expectedRoom10001,expectedUid10001,binding10001)){
+-                        addEvent("vote",safeName()+" voted "+a[w]);toast("Vote sent: "+a[w]);
+-                    }})
+-                    .addOnFailureListener(e->{if(currentVoteRoom10001(expectedRoom10001,expectedUid10001,binding10001))
+-                        toast("Vote failed: "+msg(e));});
++                liveRoom10001.collection("game_state").document("current")
++                    .get(com.google.firebase.firestore.Source.SERVER).addOnSuccessListener(latest->{
++                        if(!currentVoteRoom10001(expectedRoom10001,expectedUid10001,binding10001))return;
++                        Long latestRound10002=latest.getLong("roundId");
++                        if(!latest.exists()||!"vote".equals(latest.getString("type"))
++                            ||!"active".equals(latest.getString("status"))
++                            ||latestRound10002==null||latestRound10002!=round){
++                            toast("The vote changed. Open the current vote again.");return;
++                        }
++                        liveRoom10001.collection("game_votes").document(expectedUid10001).set(vote)
++                            .addOnSuccessListener(v->{if(currentVoteRoom10001(expectedRoom10001,expectedUid10001,binding10001)){
++                                addEvent("vote",safeName()+" voted "+a[w]);toast("Vote sent: "+a[w]);
++                            }})
++                            .addOnFailureListener(e->{if(currentVoteRoom10001(expectedRoom10001,expectedUid10001,binding10001))
++                                toast("Vote failed: "+msg(e));});
++                    }).addOnFailureListener(e->{if(currentVoteRoom10001(expectedRoom10001,expectedUid10001,binding10001))toast("Cannot verify current vote. Please retry.");});
+             }).setNeutralButton(isModerator()?"Results":"Close",(d,w)->{
+                 if(currentVoteRoom10001(expectedRoom10001,expectedUid10001,binding10001)&&isModerator())showVoteResults();
+             }).setNegativeButton("Close",null).show();
+@@ -4209,14 +4226,40 @@
+     }
+ 
+     private void showVoteResults(){
+-        if(!cloudRoom||db==null){toast("Live room required");return;}
+-        db.collection("live_rooms").document(roomId).collection("game_state").document("current").get().addOnSuccessListener(state->{
+-            if(!state.exists()||!"vote".equals(state.getString("type"))){toast("No active vote");return;}Long rr=state.getLong("roundId");long round=rr==null?0:rr;String question=str(state,"prompt","Room vote");
+-            db.collection("live_rooms").document(roomId).collection("game_votes").get().addOnSuccessListener(snap->{Map<String,Integer>counts=new HashMap<>();int total=0;for(DocumentSnapshot v:snap.getDocuments()){Long r=v.getLong("roundId");if(r==null||r!=round)continue;String c=str(v,"choice","Vote");counts.put(c,counts.containsKey(c)?counts.get(c)+1:1);total++;}StringBuilder out=new StringBuilder(question).append("\n\n");ArrayList<String> known=new ArrayList<>();Object rawOptions=state.get("options");
+-                if(rawOptions instanceof List)for(Object o:(List<?>)rawOptions)if(o instanceof String&&!known.contains(o))known.add((String)o);
+-                if(known.isEmpty()){known.add("👍 Yes");known.add("👎 No");known.add("❤️ Love it");known.add("😂 Funny");}
+-                for(String k:known)out.append(k).append("  •  ").append(counts.containsKey(k)?counts.get(k):0).append('\n');out.append("\nTotal votes: ").append(total);new AlertDialog.Builder(this).setTitle("💌 Vote Results").setMessage(out.toString()).setPositiveButton("Vote",(d,w)->submitCurrentVote()).setNeutralButton(isModerator()?"Close vote":null,(d,w)->{if(isModerator())closeActiveGame();}).setNegativeButton("Close",null).show();}).addOnFailureListener(e->toast(msg(e)));
+-        });
++        if(!cloudRoom||db==null||user==null||roomId==null||!memberSeen){toast("Join a live room to see votes");return;}
++        final String resultsRoom10002=roomId,resultsUid10002=user.getUid();
++        final int resultsBinding10002=roomListenerGeneration982;
++        final DocumentReference resultsRef10002=db.collection("live_rooms").document(resultsRoom10002);
++        resultsRef10002.collection("game_state").document("current")
++            .get(com.google.firebase.firestore.Source.SERVER).addOnSuccessListener(state->{
++            if(!currentVoteRoom10001(resultsRoom10002,resultsUid10002,resultsBinding10002))return;
++            if(!state.exists()||!"vote".equals(state.getString("type"))){toast("No room vote");return;}
++            Long rr=state.getLong("roundId");long round=rr==null?0:rr;
++            String question=str(state,"prompt","Room vote");
++            resultsRef10002.collection("game_votes").get(com.google.firebase.firestore.Source.SERVER).addOnSuccessListener(snap->{
++                if(!currentVoteRoom10001(resultsRoom10002,resultsUid10002,resultsBinding10002))return;
++                Map<String,Integer>counts=new HashMap<>();int total=0;
++                for(DocumentSnapshot v:snap.getDocuments()){
++                    Long r=v.getLong("roundId");if(r==null||r!=round)continue;
++                    String c=str(v,"choice","Vote");counts.put(c,counts.containsKey(c)?counts.get(c)+1:1);total++;
++                }
++                StringBuilder out=new StringBuilder(question).append("\n\n");
++                ArrayList<String> known=new ArrayList<>();Object rawOptions=state.get("options");
++                if(rawOptions instanceof List)for(Object o:(List<?>)rawOptions)
++                    if(o instanceof String&&!known.contains(o))known.add((String)o);
++                if(known.isEmpty()){
++                    known.add("👍 Yes");known.add("👎 No");known.add("❤️ Love it");known.add("😂 Funny");
++                }
++                for(String k:known)out.append(k).append("  •  ").append(counts.containsKey(k)?counts.get(k):0).append('\n');
++                out.append("\nTotal votes: ").append(total);
++                new AlertDialog.Builder(this).setTitle("💌 Vote Results").setMessage(out.toString())
++                    .setPositiveButton("Vote",(d,w)->{
++                        if(currentVoteRoom10001(resultsRoom10002,resultsUid10002,resultsBinding10002))submitCurrentVote();
++                    }).setNeutralButton(isModerator()?"Close vote":null,(d,w)->{
++                        if(currentVoteRoom10001(resultsRoom10002,resultsUid10002,resultsBinding10002)&&isModerator())closeActiveGame();
++                    }).setNegativeButton("Close",null).show();
++            }).addOnFailureListener(e->{if(currentVoteRoom10001(resultsRoom10002,resultsUid10002,resultsBinding10002))toast("Results unavailable: "+msg(e));});
++        }).addOnFailureListener(e->{if(currentVoteRoom10001(resultsRoom10002,resultsUid10002,resultsBinding10002))toast("Vote unavailable: "+msg(e));});
+     }
+ 
+     private void localVotePanel(){

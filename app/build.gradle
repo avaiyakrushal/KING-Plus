@@ -14,30 +14,42 @@ android {
         }
     }
 
+    buildFeatures { buildConfig true }
     defaultConfig {
-        applicationId 'com.kingplus.social'
-        minSdk 26
-        targetSdk 35
-        versionCode 354
-        versionName '10.0.75'
-        // This deliverable targets Android phones; omit desktop x86 runtimes.
-        ndk { abiFilters 'arm64-v8a', 'armeabi-v7a' }
+        applicationId 'com.kingplus.social'; minSdk 26; targetSdk 35
+        versionCode 348; versionName '10.0.69-server-game-rules'
+        // Account, backend deployment and a guaranteed zero-cost policy are still pending.
+        buildConfigField 'boolean', 'CLOUDFLARE_VOICE_ENABLED', 'false'
     }
-    buildTypes { debug { signingConfig signingConfigs.debug } }
+    buildTypes {
+        debug { signingConfig signingConfigs.debug }
+        release {
+            signingConfig signingConfigs.debug
+            minifyEnabled true
+            shrinkResources true
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+        }
+    }
     compileOptions { sourceCompatibility JavaVersion.VERSION_17; targetCompatibility JavaVersion.VERSION_17 }
+    // Compress bundled native libraries inside the universal APK to reduce download size.
+    // Android extracts them at install time; runtime features/ABIs remain unchanged.
+    packaging {
+        jniLibs { useLegacyPackaging true }
+    }
 }
 
 dependencies {
+    implementation 'com.android.billingclient:billing:8.3.0'
+    implementation 'com.github.yyued:SVGAPlayer-Android:2.6.1'
     implementation 'androidx.core:core:1.15.0'
     implementation platform('com.google.firebase:firebase-bom:34.19.0')
     implementation 'com.google.firebase:firebase-auth'
-    implementation 'com.google.firebase:firebase-firestore'
     implementation 'com.google.firebase:firebase-functions'
+    implementation 'com.google.firebase:firebase-firestore'
     implementation 'com.google.firebase:firebase-messaging'
     implementation 'com.google.firebase:firebase-storage'
     implementation 'com.google.android.gms:play-services-auth:21.2.0'
-    implementation 'com.android.billingclient:billing:8.0.0'
-    implementation 'org.jitsi.react:jitsi-meet-sdk:13.1.1'
+    implementation ('org.jitsi.react:jitsi-meet-sdk:13.1.1') { transitive = true }
 }
 
 if (file('google-services.json').exists()) {

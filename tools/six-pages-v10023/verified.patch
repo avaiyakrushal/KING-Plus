@@ -1,0 +1,226 @@
+--- a/app/build.gradle
++++ b/app/build.gradle
+@@ -14,7 +14,7 @@
+         }
+     }
+ 
+-    defaultConfig { applicationId 'com.kingplus.social'; minSdk 26; targetSdk 35; versionCode 301; versionName '10.0.22-six-page-live-fixes-test' }
++    defaultConfig { applicationId 'com.kingplus.social'; minSdk 26; targetSdk 35; versionCode 302; versionName '10.0.23-six-page-live-integrity-test' }
+     buildTypes {
+         debug { signingConfig signingConfigs.debug }
+         release {
+--- a/app/src/main/java/com/kingplus/social/MainActivity.java
++++ b/app/src/main/java/com/kingplus/social/MainActivity.java
+@@ -1921,7 +1921,7 @@
+                 ||!account10003.equals(firebaseAuth.getCurrentUser().getUid()))return;
+             if(snap.isEmpty()){
+                 new AlertDialog.Builder(this).setTitle("👣 Profile Visitors")
+-                    .setMessage("No profile visitors yet.")
++                    .setMessage(page10019==1?"No profile visitors yet.":"✓ End of visitor history. Earlier pages remain available in Visitor Center.")
+                     .setPositiveButton("View all",(dialog,which)->openVerifiedVisitors10012(account10003,visitorTicket10004))
+                     .setNegativeButton("Close",null).show();return;
+             }
+--- a/app/src/main/java/com/kingplus/social/CommunityHubActivity.java
++++ b/app/src/main/java/com/kingplus/social/CommunityHubActivity.java
+@@ -360,7 +360,9 @@
+                 progress10018.setText("↻ Could not load older Moments • tap to retry");
+                 progress10018.setOnClickListener(v->{
+                     if(generation10018!=momentsGeneration9990||!"Moments".equals(selected)
+-                        ||!KingSavedRoomsCloud9990.account(account10018))return;
++                        ||!KingSavedRoomsCloud9990.account(account10018)
++                        ||progress10018.getParent()!=history10018)return;
++                    progress10018.setEnabled(false);
+                     history10018.removeView(progress10018);
+                     loadOlderMoments10018(history10018,cursor10018,generation10018,account10018,topic10018);
+                 });
+--- a/app/src/main/java/com/kingplus/social/PartyActivity.java
++++ b/app/src/main/java/com/kingplus/social/PartyActivity.java
+@@ -7014,7 +7014,7 @@
+         });
+     }
+     private boolean partyActivityCurrent10019(String room10019,String actor10019){
+-        return !isFinishing()&&!isDestroyed()&&cloudRoom&&db!=null&&user!=null
++        return !isFinishing()&&!isDestroyed()&&cloudRoom&&memberSeen&&db!=null&&user!=null
+             &&room10019!=null&&room10019.equals(roomId)
+             &&actor10019!=null&&actor10019.equals(user.getUid());
+     }
+--- a/app/src/main/java/com/kingplus/social/GamePlayActivity.java
++++ b/app/src/main/java/com/kingplus/social/GamePlayActivity.java
+@@ -76,7 +76,23 @@
+         for(int r=0;r<3;r++){LinearLayout row=new LinearLayout(this);for(int c=0;c<3;c++){int idx=r*3+c;Button b=action("");b.setTextSize(30);b.setBackground(bg(0xff4a3268,12));b.setOnClickListener(v->playCell(idx));cells[idx]=b;LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(0,dp(86),1);lp.setMargins(dp(3),dp(3),dp(3),dp(3));row.addView(b,lp);}grid.addView(row);}page.addView(grid,new LinearLayout.LayoutParams(-1,-2));
+         Button again=action("New Game");again.setOnClickListener(v->showTicTacToe());LinearLayout.LayoutParams ap=new LinearLayout.LayoutParams(-1,dp(52));ap.setMargins(0,dp(14),0,0);page.addView(again,ap);
+     }
+-    private void playCell(int idx){if(finished||board[idx]!=' ')return;board[idx]='X';cells[idx].setText("X");if(check('X')){finishTtt("You win 👑");return;}if(full()){finishTtt("Draw");return;}int bot;do{bot=random.nextInt(9);}while(board[bot]!=' ');board[bot]='O';cells[bot].setText("O");if(check('O'))finishTtt("KING Bot wins");else if(full())finishTtt("Draw");else status.setText("Your turn");}
++    private void playCell(int idx){if(finished||board[idx]!=' ')return;board[idx]='X';cells[idx].setText("X");if(check('X')){finishTtt("You win 👑");return;}if(full()){finishTtt("Draw");return;}int bot=kingBotCell10023();board[bot]='O';cells[bot].setText("O");if(check('O'))finishTtt("KING Bot wins");else if(full())finishTtt("Draw");else status.setText("Your turn");}
++    private int kingBotCell10023(){
++        int[][] lines10023={{0,1,2},{3,4,5},{6,7,8},{0,3,6},{1,4,7},{2,5,8},{0,4,8},{2,4,6}};
++        for(char player10023:new char[]{'O','X'})for(int[] line10023:lines10023){
++            int occupied10023=0,empty10023=-1;
++            for(int pos10023:line10023){
++                if(board[pos10023]==player10023)occupied10023++;
++                if(board[pos10023]==' ')empty10023=pos10023;
++            }
++            if(occupied10023==2&&empty10023>=0)return empty10023;
++        }
++        if(board[4]==' ')return 4;
++        int count10023=0;for(char ch10023:board)if(ch10023==' ')count10023++;
++        int pick10023=random.nextInt(count10023);
++        for(int i10023=0;i10023<board.length;i10023++)if(board[i10023]==' '&&pick10023--==0)return i10023;
++        return 0;
++    }
+     private boolean full(){for(char c:board)if(c==' ')return false;return true;}
+     private boolean check(char p){int[][] w={{0,1,2},{3,4,5},{6,7,8},{0,3,6},{1,4,7},{2,5,8},{0,4,8},{2,4,6}};for(int[] a:w)if(board[a[0]]==p&&board[a[1]]==p&&board[a[2]]==p)return true;return false;}
+     private void finishTtt(String msg){finished=true;status.setText(msg);}
+--- a/app/src/main/java/com/kingplus/social/DiscoverActivity.java
++++ b/app/src/main/java/com/kingplus/social/DiscoverActivity.java
+@@ -152,33 +152,57 @@
+             showDiscoverProfiles10022(grid,docs10022,owner10022,tab10022,0);
+         }).addOnFailureListener(e->{if(!discoverCurrent10022(grid,owner10022,tab10022))return;grid.removeAllViews();TextView retry=emptyText("Discover unavailable • tap to retry");retry.setOnClickListener(v->loadProfileGrid940());grid.addView(retry,new LinearLayout.LayoutParams(-1,dp(90)));});
+     }
++    private final ArrayList<DocumentSnapshot> followedPeople10023=new ArrayList<>();
++    private final Set<String> followedUids10023=new HashSet<>();
+     private void loadFollowedProfiles10022(LinearLayout grid10022,String owner10022){
+-        final String tab10022="Follow";
+-        db.collection("follows").whereEqualTo("followerUid",owner10022).limit(50)
+-            .get(com.google.firebase.firestore.Source.SERVER).addOnSuccessListener(follows10022->{
+-                if(!discoverCurrent10022(grid10022,owner10022,tab10022))return;
+-                List<com.google.android.gms.tasks.Task<DocumentSnapshot>> tasks10022=new ArrayList<>();
+-                Set<String>seen10022=new HashSet<>();
+-                for(DocumentSnapshot f10022:follows10022.getDocuments()){
+-                    String target10022=f10022.getString("targetUid");
+-                    if(target10022!=null&&!target10022.isEmpty()&&!owner10022.equals(target10022)&&seen10022.add(target10022))
+-                        tasks10022.add(db.collection("public_profiles").document(target10022).get());
++        followedPeople10023.clear();followedUids10023.clear();
++        loadFollowedPage10023(grid10022,owner10022,null);
++    }
++    private void loadFollowedPage10023(LinearLayout grid10022,String owner10022,
++            DocumentSnapshot cursor10023){
++        if(!discoverCurrent10022(grid10022,owner10022,"Follow"))return;
++        Query page10023=db.collection("follows").whereEqualTo("followerUid",owner10022).limit(50);
++        if(cursor10023!=null)page10023=page10023.startAfter(cursor10023);
++        page10023.get(com.google.firebase.firestore.Source.SERVER).addOnSuccessListener(follows10023->{
++            if(!discoverCurrent10022(grid10022,owner10022,"Follow"))return;
++            List<com.google.android.gms.tasks.Task<DocumentSnapshot>> tasks10023=new ArrayList<>();
++            for(DocumentSnapshot f10023:follows10023.getDocuments()){
++                String target10023=f10023.getString("targetUid");
++                if(target10023!=null&&!target10023.isEmpty()&&!owner10022.equals(target10023)
++                    &&followedUids10023.add(target10023))
++                    tasks10023.add(db.collection("public_profiles").document(target10023).get());
++            }
++            final DocumentSnapshot next10023=follows10023.size()==50
++                ?follows10023.getDocuments().get(follows10023.size()-1):null;
++            com.google.android.gms.tasks.Tasks.whenAllSuccess(tasks10023).addOnSuccessListener(results10023->{
++                if(!discoverCurrent10022(grid10022,owner10022,"Follow"))return;
++                for(Object result10023:results10023)
++                    if(result10023 instanceof DocumentSnapshot&&((DocumentSnapshot)result10023).exists())
++                        followedPeople10023.add((DocumentSnapshot)result10023);
++                showDiscoverProfiles10022(grid10022,new ArrayList<>(followedPeople10023),owner10022,"Follow",0);
++                if(next10023!=null){
++                    TextView more10023=tv("↓ Load 50 more followed profiles",14,DARK,true);
++                    more10023.setGravity(Gravity.CENTER);more10023.setBackground(KingRoyalTheme10021.card(this,14));
++                    more10023.setOnClickListener(v->{
++                        if(!discoverCurrent10022(grid10022,owner10022,"Follow")
++                            ||more10023.getParent()!=grid10022)return;
++                        more10023.setEnabled(false);more10023.setText("Loading followed profiles…");
++                        loadFollowedPage10023(grid10022,owner10022,next10023);
++                    });
++                    grid10022.addView(more10023,new LinearLayout.LayoutParams(-1,dp(52)));
+                 }
+-                if(tasks10022.isEmpty()){
+-                    grid10022.removeAllViews();grid10022.addView(emptyText("No followed KING profiles yet"),new LinearLayout.LayoutParams(-1,dp(90)));return;
+-                }
+-                com.google.android.gms.tasks.Tasks.whenAllSuccess(tasks10022).addOnSuccessListener(objects10022->{
+-                    if(!discoverCurrent10022(grid10022,owner10022,tab10022))return;
+-                    List<DocumentSnapshot>people10022=new ArrayList<>();
+-                    for(Object item10022:objects10022)if(item10022 instanceof DocumentSnapshot && ((DocumentSnapshot)item10022).exists())
+-                        people10022.add((DocumentSnapshot)item10022);
+-                    showDiscoverProfiles10022(grid10022,people10022,owner10022,tab10022,0);
+-                }).addOnFailureListener(error10022->{if(!discoverCurrent10022(grid10022,owner10022,tab10022))return;
+-                    grid10022.removeAllViews();TextView retry10022=emptyText("Followed profiles unavailable • tap to retry");
+-                    retry10022.setOnClickListener(v->loadProfileGrid940());grid10022.addView(retry10022,new LinearLayout.LayoutParams(-1,dp(90)));});
+-            }).addOnFailureListener(error10022->{if(!discoverCurrent10022(grid10022,owner10022,tab10022))return;
+-                grid10022.removeAllViews();TextView retry10022=emptyText("Follow list unavailable • tap to retry");
+-                retry10022.setOnClickListener(v->loadProfileGrid940());grid10022.addView(retry10022,new LinearLayout.LayoutParams(-1,dp(90)));});
++            }).addOnFailureListener(e->{
++                if(!discoverCurrent10022(grid10022,owner10022,"Follow"))return;
++                TextView retry10023=emptyText("Followed profiles unavailable • tap to retry");
++                retry10023.setOnClickListener(v->loadProfileGrid940());
++                grid10022.addView(retry10023,new LinearLayout.LayoutParams(-1,dp(70)));
++            });
++        }).addOnFailureListener(e->{
++            if(!discoverCurrent10022(grid10022,owner10022,"Follow"))return;
++            TextView retry10023=emptyText("Follow list unavailable • tap to retry");
++            retry10023.setOnClickListener(v->loadProfileGrid940());
++            grid10022.removeAllViews();grid10022.addView(retry10023,new LinearLayout.LayoutParams(-1,dp(90)));
++        });
+     }
+     private boolean discoverCurrent10022(LinearLayout grid10022,String uid10022,String tab10022){
+         FirebaseUser current10022=FirebaseAuth.getInstance().getCurrentUser();
+--- a/app/src/main/java/com/kingplus/social/InboxActivity.java
++++ b/app/src/main/java/com/kingplus/social/InboxActivity.java
+@@ -157,16 +157,18 @@
+ 
+     private void loadInbox() {
+         models.clear();
+-        Set<String> local = getSharedPreferences("chat_store", MODE_PRIVATE).getStringSet("recent_names", new HashSet<>());
+-        for (String name : local) if (name != null && !name.trim().isEmpty()) models.add(new ThreadModel("●",name,"Tap to continue chatting","","",false));
++        // v10.0.23: Names alone are not verified Firebase identities. Never show ghost threads.
++        // Real conversations populate from the authenticated user's direct_threads listener.
+         if(me==null)inboxState940="Sign in to sync real conversations";
+         else if(db==null)inboxState940="Cloud unavailable • showing local conversations";
+         else inboxState940="Syncing conversations…";
+         renderModels(models);
+ 
+         if (me == null || db == null) return;
+-        threadListener = db.collection("direct_threads").whereArrayContains("members", me.getUid())
++        final String sessionUid10023=me.getUid();
++        threadListener = db.collection("direct_threads").whereArrayContains("members", sessionUid10023)
+             .addSnapshotListener((snap,error)->{
++                if(!inboxCurrent10023(sessionUid10023))return;
+                 if(error!=null){
+                     inboxState940="Offline / sync unavailable • showing recent local conversations";
+                     renderModels(models);
+@@ -177,6 +179,20 @@
+             });
+     }
+ 
++    private boolean inboxCurrent10023(String session10023){
++        FirebaseUser current10023=FirebaseAuth.getInstance().getCurrentUser();
++        return !isFinishing()&&!isDestroyed()&&current10023!=null
++            &&me!=null&&session10023.equals(current10023.getUid())&&session10023.equals(me.getUid());
++    }
++    @Override protected void onResume(){
++        super.onResume();
++        FirebaseUser current10023=FirebaseAuth.getInstance().getCurrentUser();
++        String uid10023=current10023==null?null:current10023.getUid();
++        if(me==null?uid10023!=null:!me.getUid().equals(uid10023)){
++            if(threadListener!=null){threadListener.remove();threadListener=null;}
++            me=current10023;models.clear();loadInbox();
++        }
++    }
+     private void renderCloudThreads(QuerySnapshot snap) {
+         models.clear();
+         if (snap != null) {
+@@ -194,8 +210,7 @@
+                 models.add(new ThreadModel(initial(peerName),peerName,last,peerUid,formatTime(updated),isUnread(doc)));
+             }
+         }
+-        Set<String> local = getSharedPreferences("chat_store", MODE_PRIVATE).getStringSet("recent_names", new HashSet<>());
+-        for(String name:local){boolean found=false;for(ThreadModel m:models)if(m.name.equalsIgnoreCase(name)){found=true;break;}if(!found)models.add(new ThreadModel(initial(name),name,"Tap to continue chatting","","",false));}
++        // Do not merge unverified name-only local threads into a real Firestore inbox.
+         renderModels(models);
+     }
+ 
+@@ -300,7 +315,11 @@
+             if(me!=null&&id10022.equals(me.getUid())){Toast.makeText(this,"You cannot message yourself",Toast.LENGTH_SHORT).show();return;}
+             if(n.isEmpty())n="KING Friend";openChat(n,id10022);}).show();
+     }
+-    private void openChat(String name,String peerUid){Intent i=new Intent(this,ChatActivity.class);i.putExtra("peerName",name);i.putExtra("peerUid",peerUid);startActivity(i);}
++    private void openChat(String name,String peerUid){
++        if(me==null||peerUid==null||peerUid.trim().isEmpty()||peerUid.equals(me.getUid())){
++            Toast.makeText(this,"Choose a real KING profile in Discover to start live chat",Toast.LENGTH_LONG).show();return;
++        }
++        Intent i=new Intent(this,ChatActivity.class);i.putExtra("peerName",name);i.putExtra("peerUid",peerUid);startActivity(i);}
+ 
+     private void addBottomNav(LinearLayout root,int selected){
+         LinearLayout nav=new LinearLayout(this);nav.setGravity(Gravity.CENTER);nav.setBackground(KingRoyalTheme10021.bottomNav(this));String[] ni={"⌂\nParty","♟\nGame","◇\nDiscover","✉\nMessages","●\nMe"};

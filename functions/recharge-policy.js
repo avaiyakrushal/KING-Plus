@@ -7,6 +7,13 @@ const DIAMOND_PRODUCTS=Object.freeze({
   king_coins_100:100,
   king_coins_600:600,
   king_coins_1300:1300,
+  // Additional INR/UPI-only tiers. Prices are NEVER defined here or in the APK.
+  king_upi_8800:8800,
+  king_upi_17800:17800,
+  king_upi_45000:45000,
+  king_upi_90000:90000,
+  king_upi_180000:180000,
+  king_upi_450000:450000,
 });
 const VIP_MAX_POINTS=1000000000;
 const WALLET_MAX_DIAMONDS=1000000000;

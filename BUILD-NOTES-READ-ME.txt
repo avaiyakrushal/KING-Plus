@@ -1,0 +1,14 @@
+KING Plus v10.0.69 — server game rules TEST source.
+
+Android metadata: versionCode 348; versionName 10.0.69-server-game-rules.
+This ZIP contains source only; it does not contain an APK or AAB.
+
+The private production signing key and machine secrets are omitted. The configured
+CI debug keystore is also not included. A signed build therefore requires an
+authorized signing setup. A locally re-signed APK will not share the signing
+identity of an earlier release.
+
+This is a TEST build, not a final release. See
+LUDO-PRODUCTION-v10.0.69.md and release/final-release-evidence.json for validation
+requirements and outstanding acceptance gates. Full Bolo Hi parity and two-phone
+acceptance are not established.

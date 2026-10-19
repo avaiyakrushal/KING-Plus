@@ -1,0 +1,159 @@
+--- a/app/src/main/java/com/kingplus/social/CommunityHubActivity.java
++++ b/app/src/main/java/com/kingplus/social/CommunityHubActivity.java
+@@ -45,6 +45,11 @@
+     private String selected="Search", targetUid="", targetName="";
+     private String selectedTopic940="All";
+     private int searchGeneration9994;
++    // Shared live Moments shown by Home, Me and Party room broadcasts.
++    // Pagination is explicit to avoid silently hiding older account posts.
++    private int momentsQueryLimit10000=80;
++    private int momentsDisplayLimit10000=40;
++    private final List<com.google.firebase.firestore.ListenerRegistration> momentLikes10000=new ArrayList<>();
+ 
+     @Override public void onCreate(Bundle b){super.onCreate(b);try{me=FirebaseAuth.getInstance().getCurrentUser();db=FirebaseFirestore.getInstance();}catch(Exception ignored){}SharedPreferences p=getSharedPreferences("MainActivity",MODE_PRIVATE);displayName=safe(p.getString("name",me==null?"KING User":me.getDisplayName()),"KING User");String t=getIntent().getStringExtra("tab");if(t!=null&&!t.isEmpty())selected=t;targetUid=safe(getIntent().getStringExtra("targetUid"),"");targetName=safe(getIntent().getStringExtra("targetName"),"");render(selected);}
+     private com.google.firebase.firestore.ListenerRegistration familyMessages956;
+@@ -209,8 +214,15 @@
+     }
+     private com.google.firebase.firestore.ListenerRegistration momentsListener9990;
+     private int momentsGeneration9990;
++    private void stopMomentLikes10000(){
++        for(com.google.firebase.firestore.ListenerRegistration listener:momentLikes10000){
++            if(listener!=null)listener.remove();
++        }
++        momentLikes10000.clear();
++    }
+     private void stopMoments9990(){
+         ++momentsGeneration9990;
++        stopMomentLikes10000();
+         if(momentsListener9990!=null){momentsListener9990.remove();momentsListener9990=null;}
+     }
+     private void loadMoments(){
+@@ -218,19 +230,40 @@
+         final LinearLayout feed=new LinearLayout(this);feed.setOrientation(LinearLayout.VERTICAL);body.addView(feed);
+         final String account=me.getUid(),topicFilter=selectedTopic940;
+         feed.addView(tv("Loading live Moments…",14,MUTED,false));
+-        momentsListener9990=db.collection("moments").orderBy("createdAt",Query.Direction.DESCENDING).limit(80)
++        momentsListener9990=db.collection("moments").orderBy("createdAt",Query.Direction.DESCENDING).limit(momentsQueryLimit10000)
+             .addSnapshotListener((snap,error)->{
+                 if(generation!=momentsGeneration9990||isFinishing()||isDestroyed()||!"Moments".equals(selected)
+                     ||!KingSavedRoomsCloud9990.account(account))return;
++                stopMomentLikes10000();
+                 feed.removeAllViews();
+-                if(error!=null||snap==null){feed.addView(tv("Moments unavailable. Reopen Moments to retry.",14,MUTED,false));return;}
+-                int shown=0;
++                if(error!=null||snap==null){
++                    TextView retry=tv("Moments unavailable • tap to retry",14,MUTED,false);
++                    retry.setOnClickListener(v->{if(generation==momentsGeneration9990)loadMoments();});
++                    feed.addView(retry);return;
++                }
++                int shown=0,matched=0;
+                 for(DocumentSnapshot doc:snap.getDocuments()){
+                     String topic=safe(doc.getString("topic"),"General");
+                     if(!"All".equals(topicFilter)&&!topicFilter.equalsIgnoreCase(topic))continue;
+-                    addMoment(doc,feed);if(++shown>=40)break;
++                    ++matched;
++                    if(shown<momentsDisplayLimit10000){addMoment(doc,feed);++shown;}
+                 }
+-                if(shown==0)feed.addView(tv("No Moments in "+topicFilter+" yet.",14,MUTED,false));
++                if(shown==0)feed.addView(tv("No Moments found in the newest "+snap.size()+" posts for "+topicFilter+".",14,MUTED,false));
++                final boolean moreVisible=matched>shown;
++                final boolean olderAvailable=snap.size()>=momentsQueryLimit10000 && momentsQueryLimit10000<320;
++                if(moreVisible||olderAvailable){
++                    TextView more=button(moreVisible?"↓ Show more Moments ("+shown+" shown)":"↓ Search older Moments",()->{});
++                    more.setOnClickListener(v->{
++                        if(generation!=momentsGeneration9990 ||!"Moments".equals(selected)
++                            ||!KingSavedRoomsCloud9990.account(account))return;
++                        if(moreVisible)momentsDisplayLimit10000=Math.min(320,momentsDisplayLimit10000+40);
++                        else momentsQueryLimit10000=Math.min(320,momentsQueryLimit10000+80);
++                        loadMoments();
++                    });
++                    feed.addView(more,new LinearLayout.LayoutParams(-1,dp(48)));
++                } else if(momentsQueryLimit10000>=320 && snap.size()>=320){
++                    feed.addView(tv("Showing latest 320 Moments. Older history is not loaded.",12,MUTED,false));
++                }
+             });
+     }
+     private void showMomentPhoto9991(String url,LinearLayout card){
+@@ -244,7 +277,7 @@
+         Runnable load=()->{
+             placeholder.setText("📷 Loading photo…");
+             try{
+-                FirebaseStorage.getInstance().getReferenceFromUrl(url).getBytes(8L*1024*1024)
++                FirebaseStorage.getInstance().getReferenceFromUrl(url).getBytes(10L*1024*1024)
+                   .addOnSuccessListener(bytes->{
+                     if(isFinishing()||isDestroyed()||image.getParent()==null)return;
+                     BitmapFactory.Options opts=new BitmapFactory.Options();opts.inJustDecodeBounds=true;
+@@ -282,9 +315,17 @@
+         TextView like=button("♡ Like",()->{});like.setEnabled(false);
+         like.setOnClickListener(v->toggleMomentLike9990(d.getReference(),like));
+         final String account=me.getUid();
+-        d.getReference().collection("likes").document(account).get()
+-          .addOnSuccessListener(liked->{if(!isFinishing()&&!isDestroyed()&&KingSavedRoomsCloud9990.account(account)&&like.getParent()!=null){like.setText(liked.exists()?"♥ Liked":"♡ Like");like.setEnabled(true);}})
+-          .addOnFailureListener(e->{if(!isFinishing()&&!isDestroyed()){like.setEnabled(true);like.setText("♡ Like");}});
++        final int momentTicket10000=momentsGeneration9990;
++        momentLikes10000.add(d.getReference().collection("likes").document(account)
++          .addSnapshotListener((liked,error)->{
++            if(momentTicket10000!=momentsGeneration9990 ||isFinishing()||isDestroyed()
++                ||!"Moments".equals(selected)||!KingSavedRoomsCloud9990.account(account)
++                ||like.getParent()==null)return;
++            if(error!=null||liked==null){like.setText("Like unavailable");like.setEnabled(false);return;}
++            if(!Boolean.TRUE.equals(like.getTag())){
++                like.setText(liked.exists()?"♥ Liked":"♡ Like");like.setEnabled(true);
++            }
++          }));
+         actions.addView(like,new LinearLayout.LayoutParams(0,dp(42),1));
+         TextView other;
+         if(!uid.equals(account))other=button("💬 Message",()->openChat(uid,name));
+@@ -298,12 +339,12 @@
+     }
+     private void toggleMomentLike9990(DocumentReference ref,TextView button){
+         if(me==null||!KingSavedRoomsCloud9990.account(me.getUid()))return;
+-        button.setEnabled(false);String uid=me.getUid();DocumentReference like=ref.collection("likes").document(uid);
++        button.setEnabled(false);button.setTag(Boolean.TRUE);String uid=me.getUid();DocumentReference like=ref.collection("likes").document(uid);
+         db.runTransaction(tx->{DocumentSnapshot existing=tx.get(like);
+             if(existing.exists()){tx.delete(like);return false;}
+             Map<String,Object> data=new HashMap<>();data.put("uid",uid);data.put("createdAt",FieldValue.serverTimestamp());tx.set(like,data);return true;
+-        }).addOnSuccessListener(liked->{button.setEnabled(true);button.setText(liked?"♥ Liked":"♡ Like");})
+-          .addOnFailureListener(e->{button.setEnabled(true);toast("Could not update Like. Please retry.");});
++        }).addOnSuccessListener(liked->{if(button.getParent()!=null){button.setTag(null);button.setEnabled(true);button.setText(liked?"♥ Liked":"♡ Like");}})
++          .addOnFailureListener(e->{if(button.getParent()!=null){button.setTag(null);button.setEnabled(true);toast("Could not update Like. Please retry.");}});
+     }
+ 
+     private String[] topicNames940(){return new String[]{"All","General","Friends","Music","Games","KTV","Ludo","Family","Love","PK","Newcomers"};}
+--- a/app/src/main/java/com/kingplus/social/MainActivity.java
++++ b/app/src/main/java/com/kingplus/social/MainActivity.java
+@@ -1324,10 +1324,11 @@
+     }
+ 
+     private void userProfile(String who){
+-        // A device-only seat label has no authenticated UID. No invented stats or Follow.
++        // A local seat label is not an account UID. Never invent profile IDs,
++        // follower totals, VIP status or device-only Follow for a non-account.
+         new AlertDialog.Builder(this).setTitle("Find a real KING user")
+-            .setMessage("Open People Search to find a verified account by its issued KING ID.")
+-            .setPositiveButton("People Search",(d,w)->startActivity(new Intent(this,SocialActivity.class)))
++            .setMessage("A room seat name is not a verified KING account. Open People Search to find this user by their issued KING ID, and use their real live profile.")
++            .setPositiveButton("Open People Search",(d,w)->startActivity(new Intent(this,SocialActivity.class)))
+             .setNegativeButton("Close",null).show();
+     }
+     private void profileInfoRowV600(LinearLayout host,String icon,String text){TextView v=new TextView(this);v.setText(icon+"   "+text);v.setTextSize(13);v.setTextColor(0xff4c4c4c);v.setGravity(Gravity.CENTER_VERTICAL);host.addView(v,new LinearLayout.LayoutParams(-1,dp(38)));}
+@@ -1959,7 +1960,7 @@
+                             ImageView preview=new ImageView(this);
+                             preview.setAdjustViewBounds(true);preview.setMaxHeight(dp(230));
+                             entry.addView(preview,new LinearLayout.LayoutParams(-1,-2));
+-                            try{FirebaseStorage.getInstance().getReferenceFromUrl(url).getBytes(6L*1024*1024)
++                            try{FirebaseStorage.getInstance().getReferenceFromUrl(url).getBytes(10L*1024*1024)
+                                 .addOnSuccessListener(bytes->{
+                                     if(galleryTicket9994!=meGalleryGeneration9994
+                                         ||!"profile_gallery".equals(screen)||isFinishing()||isDestroyed()
+--- a/app/build.gradle
++++ b/app/build.gradle
+@@ -14,7 +14,7 @@
+         }
+     }
+ 
+-    defaultConfig { applicationId 'com.kingplus.social'; minSdk 26; targetSdk 35; versionCode 278; versionName '9.9.99-room-vote-issued-id-test' }
++    defaultConfig { applicationId 'com.kingplus.social'; minSdk 26; targetSdk 35; versionCode 279; versionName '10.0.0-live-moments-photo-feed-test' }
+     buildTypes {
+         debug { signingConfig signingConfigs.debug }
+         release {

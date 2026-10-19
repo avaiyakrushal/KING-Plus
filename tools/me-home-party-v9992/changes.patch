@@ -1,0 +1,255 @@
+--- a/app/build.gradle
++++ b/app/build.gradle
+@@ -14,7 +14,7 @@
+         }
+     }
+ 
+-    defaultConfig { applicationId 'com.kingplus.social'; minSdk 26; targetSdk 35; versionCode 270; versionName '9.9.91-live-me-moments-photo-party-test' }
++    defaultConfig { applicationId 'com.kingplus.social'; minSdk 26; targetSdk 35; versionCode 271; versionName '9.9.92-me-gallery-saved-room-guards-test' }
+     buildTypes {
+         debug { signingConfig signingConfigs.debug }
+         release {
+--- a/app/src/main/java/com/kingplus/social/MainActivity.java
++++ b/app/src/main/java/com/kingplus/social/MainActivity.java
+@@ -1895,10 +1895,90 @@
+             ImageView img=new ImageView(this); img.setAdjustViewBounds(true); img.setMaxHeight(dp(320));
+             try{img.setImageURI(Uri.parse(photo));page.addView(img,new LinearLayout.LayoutParams(-1,-2));}catch(Exception ignored){}
+         }
+-        button("＋ Add Photo / Moment",PURPLE,this::composePost); button("☁ Live Moments (બંને ફોન)",PURPLE,this::momentsPage); text("આ ફોનની જૂની પોસ્ટ (Local Archive)",16,Color.WHITE,true); showPosts();
++        button("＋ Add Photo / Moment",PURPLE,this::composePost);
++        button("☁ Live Moments (બંને ફોન)",PURPLE,this::momentsPage);
++        text("☁ My published Moments (બંને ફોન)",18,Color.WHITE,true);
++        LinearLayout myCloudGallery9992=new LinearLayout(this);
++        myCloudGallery9992.setOrientation(LinearLayout.VERTICAL);
++        page.addView(myCloudGallery9992,new LinearLayout.LayoutParams(-1,-2));
++        showMyCloudGallery9992(myCloudGallery9992);
++        text("આ ફોનની જૂની પોસ્ટ (Local Archive)",16,Color.WHITE,true); showPosts();
+         button("Back to Me",CARD,this::profile);
+     }
+ 
++    /** Account-scoped shared Moments appear in Me > Gallery as well as Community.
++     * No synthetic profiles, local-only posts or auto-publishing old photos. */
++    private void showMyCloudGallery9992(LinearLayout host){
++        if(firestore==null||firebaseAuth==null||firebaseAuth.getCurrentUser()==null){
++            TextView t=new TextView(this);t.setText("Sign in to view your published Moments.");
++            t.setTextColor(MUTED);host.addView(t);return;
++        }
++        final String account=firebaseAuth.getCurrentUser().getUid();
++        final TextView status=new TextView(this);status.setTextColor(MUTED);
++        status.setPadding(dp(6),dp(8),dp(6),dp(8));host.addView(status);
++        final Runnable[] refresh=new Runnable[1];
++        refresh[0]=()->{
++            if(!"profile_gallery".equals(screen)||isFinishing()||isDestroyed()
++                ||firebaseAuth.getCurrentUser()==null
++                ||!account.equals(firebaseAuth.getCurrentUser().getUid()))return;
++            status.setText("Loading your live Moments…");status.setOnClickListener(null);
++            firestore.collection("moments").whereEqualTo("uid",account).limit(40)
++                .get(com.google.firebase.firestore.Source.SERVER)
++                .addOnSuccessListener(result->{
++                    if(!"profile_gallery".equals(screen)||isFinishing()||isDestroyed()
++                        ||firebaseAuth.getCurrentUser()==null
++                        ||!account.equals(firebaseAuth.getCurrentUser().getUid()))return;
++                    host.removeViews(1,host.getChildCount()-1);
++                    java.util.List<DocumentSnapshot> docs=new ArrayList<>(result.getDocuments());
++                    java.util.Collections.sort(docs,(a,b)->{
++                        com.google.firebase.Timestamp ta=a.getTimestamp("createdAt"),tb=b.getTimestamp("createdAt");
++                        return ta==null?(tb==null?0:1):tb==null?-1:tb.compareTo(ta);
++                    });
++                    status.setText(docs.isEmpty()?"No published Moments yet. Create your first post above."
++                        :docs.size()+" published Moments • tap to refresh");
++                    status.setOnClickListener(v->refresh[0].run());
++                    int images=0;
++                    for(DocumentSnapshot doc:docs){
++                        LinearLayout entry=new LinearLayout(this);entry.setOrientation(LinearLayout.VERTICAL);
++                        entry.setPadding(dp(10),dp(8),dp(10),dp(12));
++                        TextView caption=new TextView(this);caption.setTextColor(Color.WHITE);
++                        caption.setTextSize(15);caption.setText(doc.getString("text")==null?"📷 Photo":doc.getString("text"));
++                        entry.addView(caption);
++                        String url=doc.getString("photoUrl");
++                        if(url!=null&&url.startsWith("https://firebasestorage.googleapis.com/")&&images++<6){
++                            ImageView preview=new ImageView(this);
++                            preview.setAdjustViewBounds(true);preview.setMaxHeight(dp(230));
++                            entry.addView(preview,new LinearLayout.LayoutParams(-1,-2));
++                            try{FirebaseStorage.getInstance().getReferenceFromUrl(url).getBytes(6L*1024*1024)
++                                .addOnSuccessListener(bytes->{
++                                    if(!"profile_gallery".equals(screen)||isFinishing()||isDestroyed()
++                                        ||preview.getParent()==null||firebaseAuth.getCurrentUser()==null
++                                        ||!account.equals(firebaseAuth.getCurrentUser().getUid()))return;
++                                    android.graphics.BitmapFactory.Options o=new android.graphics.BitmapFactory.Options();
++                                    o.inJustDecodeBounds=true;
++                                    android.graphics.BitmapFactory.decodeByteArray(bytes,0,bytes.length,o);
++                                    o.inJustDecodeBounds=false;
++                                    o.inSampleSize=Math.max(1,Math.max(o.outWidth/480,o.outHeight/480));
++                                    preview.setImageBitmap(android.graphics.BitmapFactory.decodeByteArray(bytes,0,bytes.length,o));
++                                });}catch(Exception ignored){}
++                        }
++                        TextView view=new TextView(this);view.setText("Open in Live Moments  ›");
++                        view.setTextSize(13);view.setTextColor(MUTED);
++                        view.setPadding(dp(4),dp(9),0,dp(3));
++                        view.setOnClickListener(v->momentsPage());entry.addView(view);
++                        host.addView(entry,new LinearLayout.LayoutParams(-1,-2));
++                    }
++                }).addOnFailureListener(error->{
++                    if(!"profile_gallery".equals(screen)||isFinishing()||isDestroyed()
++                        ||firebaseAuth.getCurrentUser()==null
++                        ||!account.equals(firebaseAuth.getCurrentUser().getUid()))return;
++                    status.setText("Published Moments unavailable. Tap to retry.");
++                    status.setOnClickListener(v->refresh[0].run());
++                });
++        };
++        refresh[0].run();
++    }
++
+     private void videoPage(){
+         screen="profile_videos"; base("My Videos","Saved profile videos");
+         String videos=getPreferences(0).getString("profile_videos","");
+--- a/app/src/main/java/com/kingplus/social/KingSavedRoomsPolicy9990.java
++++ b/app/src/main/java/com/kingplus/social/KingSavedRoomsPolicy9990.java
+@@ -39,6 +39,14 @@
+         rows.sort((a,b)->{int c=favoritesOnly?a.name.compareToIgnoreCase(b.name):Long.compare(b.visited,a.visited);return c==0?a.id.compareTo(b.id):c;});
+         return rows;
+     }
++    /** Explicit removal from both Favorites and Recent; no fake visit generated. */
++    public static Map<String,Map<String,Object>> remove(Object raw,String id){
++        if(!KingMeRoomHistory9981.validId(id)||id.equals(".")||id.equals(".."))
++            throw new IllegalArgumentException("Invalid room");
++        Map<String,Map<String,Object>> result=clean(raw);
++        result.remove(id);
++        return result;
++    }
+     public static Map<String,Map<String,Object>> change(Object raw,String id,String name,long at,boolean toggle){
+         if(!KingMeRoomHistory9981.validId(id)||id.equals(".")||id.equals(".."))throw new IllegalArgumentException("Invalid room");
+         Map<String,Map<String,Object>> all=clean(raw);Map<String,Object> old=all.get(id);
+--- a/app/src/main/java/com/kingplus/social/KingSavedRoomsCloud9990.java
++++ b/app/src/main/java/com/kingplus/social/KingSavedRoomsCloud9990.java
+@@ -21,6 +21,21 @@
+         }).addOnSuccessListener(v->{if(account(uid))result.done(null);})
+           .addOnFailureListener(e->{if(account(uid))result.done(e);});
+     }
++    public static void remove(Context context,FirebaseFirestore db,String uid,String id,Result result){
++        if(db==null||!account(uid)){result.done(new IllegalStateException("Sign in to edit saved rooms"));return;}
++        DocumentReference ref=db.collection("users").document(uid);
++        db.runTransaction(tx->{
++            if(!account(uid))throw new IllegalStateException("Account changed");
++            DocumentSnapshot doc=tx.get(ref);
++            Object current=doc.contains(KingSavedRoomsPolicy9990.FIELD)
++                ?doc.get(KingSavedRoomsPolicy9990.FIELD):local(context,uid);
++            Map<String,Object> update=new HashMap<>();
++            update.put(KingSavedRoomsPolicy9990.FIELD,KingSavedRoomsPolicy9990.remove(current,id));
++            tx.set(ref,update,SetOptions.mergeFields(KingSavedRoomsPolicy9990.FIELD));
++            return null;
++        }).addOnSuccessListener(v->result.done(account(uid)?null:new IllegalStateException("Account changed")))
++          .addOnFailureListener(result::done);
++    }
+     public static Object local(Context context,String uid){
+         android.content.SharedPreferences p=context.getSharedPreferences("king_party",Context.MODE_PRIVATE);
+         List<KingMeRoomHistory9981.Room> rooms=KingMeRoomHistory9981.from(
+--- a/app/src/main/java/com/kingplus/social/KingSavedRooms9990Activity.java
++++ b/app/src/main/java/com/kingplus/social/KingSavedRooms9990Activity.java
+@@ -50,6 +50,7 @@
+         });
+     }
+     private void render(){
++        if(!KingSavedRoomsCloud9990.account(uid)){finish();return;}
+         favTab.setBackgroundColor(favorites?0xff6e42a5:Color.TRANSPARENT);recentTab.setBackgroundColor(favorites?Color.TRANSPARENT:0xff6e42a5);list.removeAllViews();
+         if(!loaded)return;state.setText(cached?"Offline copy • reconnect to sync":"Synced to your account • available on your other phone");
+         List<KingSavedRoomsPolicy9990.Room> rooms=KingSavedRoomsPolicy9990.rows(records,favorites);
+@@ -58,12 +59,59 @@
+             LinearLayout row=new LinearLayout(this);row.setGravity(Gravity.CENTER_VERTICAL);
+             String date=room.visited>0?"\n"+java.text.DateFormat.getDateTimeInstance(java.text.DateFormat.SHORT,java.text.DateFormat.SHORT).format(new Date(room.visited)):"";
+             TextView name=text(room.name+date,16);row.addView(name,new LinearLayout.LayoutParams(0,-2,1));
+-            name.setOnClickListener(v->{Intent i=new Intent(this,PartyActivity.class);i.putExtra("directRoomId",room.id);i.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP|Intent.FLAG_ACTIVITY_SINGLE_TOP);startActivity(i);});
++            name.setOnClickListener(v->openSavedRoom9992(room,name));
+             TextView star=text(room.favorite?"★":"☆",27);star.setContentDescription(room.favorite?"Remove favorite":"Save favorite");
+             star.setOnClickListener(v->{star.setEnabled(false);KingSavedRoomsCloud9990.change(this,db,uid,room.id,room.name,true,error->{star.setEnabled(true);if(error!=null)new AlertDialog.Builder(this).setTitle("Could not save favorite").setMessage("Check your connection and try again. You can save up to 60 favorites.").setPositiveButton("OK",null).show();});});
+-            row.addView(star,new LinearLayout.LayoutParams(dp(64),dp(64)));list.addView(row);
++            row.addView(star,new LinearLayout.LayoutParams(dp(54),dp(64)));
++            TextView remove=text("×",25);remove.setContentDescription("Remove saved room");
++            remove.setOnClickListener(v->new AlertDialog.Builder(this)
++                .setTitle("Remove saved room?")
++                .setMessage("Remove " + room.name + " from Favorites and Recent on both phones?")
++                .setNegativeButton("Cancel",null).setPositiveButton("Remove",(d,w)->removeSavedRoom9992(room))
++                .show());
++            row.addView(remove,new LinearLayout.LayoutParams(dp(43),dp(64)));
++            list.addView(row);
+         }
+     }
++    private void removeSavedRoom9992(KingSavedRoomsPolicy9990.Room room){
++        if(!KingSavedRoomsCloud9990.account(uid)){finish();return;}
++        state.setText("Removing saved room…");
++        KingSavedRoomsCloud9990.remove(this,db,uid,room.id,error->{
++            if(isFinishing()||isDestroyed()||!KingSavedRoomsCloud9990.account(uid))return;
++            if(error!=null)new AlertDialog.Builder(this).setTitle("Could not remove room")
++                .setMessage("Check the connection and try again.").setPositiveButton("OK",null).show();
++        });
++    }
++    private void openSavedRoom9992(KingSavedRoomsPolicy9990.Room room,TextView label){
++        if(!KingSavedRoomsCloud9990.account(uid)){finish();return;}
++        if(!label.isEnabled())return;
++        label.setEnabled(false);
++        final String account=uid;
++        db.collection("live_rooms").document(room.id)
++            .get(com.google.firebase.firestore.Source.SERVER)
++            .addOnSuccessListener(doc->{
++                if(isFinishing()||isDestroyed()||!KingSavedRoomsCloud9990.account(account))return;
++                label.setEnabled(true);
++                if(!doc.exists()||Boolean.TRUE.equals(doc.getBoolean("closed"))){
++                    new AlertDialog.Builder(this).setTitle("Party room unavailable")
++                        .setMessage("This room was removed or closed. Remove it from your saved rooms?")
++                        .setNegativeButton("Keep",null)
++                        .setPositiveButton("Remove",(d,w)->removeSavedRoom9992(room)).show();
++                    return;
++                }
++                Intent i=new Intent(this,PartyActivity.class);
++                i.putExtra("directRoomId",room.id);
++                i.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP|Intent.FLAG_ACTIVITY_SINGLE_TOP);
++                startActivity(i);
++            })
++            .addOnFailureListener(e->{
++                if(isFinishing()||isDestroyed()||!KingSavedRoomsCloud9990.account(account))return;
++                label.setEnabled(true);
++                new AlertDialog.Builder(this).setTitle("Cannot verify Party room")
++                    .setMessage("Connect to the internet and try again. Your saved room is kept.")
++                    .setPositiveButton("OK",null).show();
++            });
++    }
+     @Override protected void onStart(){super.onStart();if(uid!=null)listen();}
+     @Override protected void onStop(){stop();super.onStop();}
+ }
+--- a/app/src/main/java/com/kingplus/social/PartyActivity.java
++++ b/app/src/main/java/com/kingplus/social/PartyActivity.java
+@@ -635,7 +635,9 @@
+         if(requested==null)requested=KingRoomInvite959.parse(incoming.getDataString());
+         incoming.removeExtra("directRoomId");
+         if(requested==null||requested.isEmpty())return;
+-        if(!KingMeRoomHistory9981.validId(requested)){toast("Invalid Party invite");return;}
++        if(!KingMeRoomHistory9981.validId(requested)){
++            requestedPanel940="";toast("Invalid Party invite");return;
++        }
+         final String target=requested;
+         requestedPanel940=safe(incoming.getStringExtra("requestedPanel"),"");
+         incoming.removeExtra("requestedPanel");
+@@ -653,18 +655,22 @@
+                     FirebaseUser signed=FirebaseAuth.getInstance().getCurrentUser();
+                     if(signed==null||!account.equals(signed.getUid()))return;
+                     if(!doc.exists()||Boolean.TRUE.equals(doc.getBoolean("closed"))){
++                        requestedPanel940="";
+                         toast("This Party room is unavailable. You stayed in your current room.");return;
+                     }
+                     if(roomId!=null)leaveRoom();
+                     openRoomDoc891(doc);
+                 }).addOnFailureListener(e->{
+-                    if(generation==inviteGeneration9989&&!partyUiDead())
++                    if(generation==inviteGeneration9989&&!partyUiDead()){
++                        requestedPanel940="";
+                         toast("Cannot verify Party invite. Check connection and retry.");
++                    }
+                 });
+         };
+         if(roomId==null)join.run();
+         else new AlertDialog.Builder(this).setTitle("Switch Party room?")
+             .setMessage("Leave this room and open the invited Party?")
++            .setOnCancelListener(d->requestedPanel940="")
+             .setNegativeButton("Stay",(d,w)->requestedPanel940="").setPositiveButton("Switch",(d,w)->join.run()).show();
+     }
+ 

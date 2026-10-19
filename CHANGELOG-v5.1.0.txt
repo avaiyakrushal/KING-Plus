@@ -1,0 +1,3 @@
+KING Plus v5.1.0 — Party Interaction Stage
+
+Builds on v5.0.0 Party Room Real State. Adds a synchronized Firestore game_state/current document, room-wide Play Center banners, host/co-host game start control, persistent active room template state, and real multi-user room voting with one vote document per signed-in member and live result counting. Guess It, Truth or Dare, Pass the Bomb, Wheel Challenge, Party Wheel, and Room Battle now publish or consume shared room game state instead of acting only as local dialogs. Fan Box now links to Charisma/Gift Senders, Gift History, and Room Ranking. Existing no-billing mode and TEST OTP 123456 remain unchanged.

@@ -54,25 +54,16 @@ exports.sendGift = onCall(async request => {
   const targetUid = cleanText(request.data && request.data.targetUid, 160);
   const giftName = cleanText(request.data && request.data.giftName, 60) || 'Gift';
   const cost = Number(request.data && request.data.cost);
-  const requestId = cleanText(request.data && request.data.requestId, 120);
-  if (!/^[A-Za-z0-9_-]{12,120}$/.test(requestId)) throw new HttpsError('invalid-argument', 'A unique gift requestId is required.');
   if (!targetUid || targetUid === senderUid) throw new HttpsError('invalid-argument', 'Choose another user.');
-  if (!Number.isInteger(cost) || cost < 1 || cost > 100000) throw new HttpsError('invalid-argument', 'Invalid gift cost.');
+  if (!Number.isInteger(cost) || cost < 1 || cost > 50000000) throw new HttpsError('invalid-argument', 'Invalid gift cost.');
 
   const senderRef = db.collection('wallets').doc(senderUid);
   const receiverRef = db.collection('wallets').doc(targetUid);
-  const ledgerRef = db.collection('wallet_ledger').doc(`${senderUid}_${requestId}`);
+  const ledgerRef = db.collection('wallet_ledger').doc();
   let senderBalance = 0;
-  let duplicate = false;
 
   await db.runTransaction(async tx => {
-    const [ledgerSnap, senderSnap, receiverSnap] = await Promise.all([tx.get(ledgerRef), tx.get(senderRef), tx.get(receiverRef)]);
-    if (ledgerSnap.exists) {
-      if (ledgerSnap.get('senderUid') !== senderUid || ledgerSnap.get('targetUid') !== targetUid || ledgerSnap.get('giftName') !== giftName || ledgerSnap.get('cost') !== cost) throw new HttpsError('already-exists', 'Gift requestId already used with different details.');
-      duplicate = true;
-      senderBalance = Number(ledgerSnap.get('balanceAfter'));
-      return;
-    }
+    const [senderSnap, receiverSnap] = await Promise.all([tx.get(senderRef), tx.get(receiverRef)]);
     const senderCoins = senderSnap.exists ? Number(senderSnap.get('coins') || 0) : 0;
     const receiverCoins = receiverSnap.exists ? Number(receiverSnap.get('coins') || 0) : 0;
     if (senderCoins < cost) throw new HttpsError('failed-precondition', 'Not enough server coins.');
@@ -80,12 +71,11 @@ exports.sendGift = onCall(async request => {
     tx.set(senderRef, { coins: senderBalance, updatedAt: FieldValue.serverTimestamp() }, { merge: true });
     tx.set(receiverRef, { coins: receiverCoins + cost, updatedAt: FieldValue.serverTimestamp() }, { merge: true });
     tx.set(ledgerRef, {
-      type: 'gift', senderUid, targetUid, giftName, cost, requestId, balanceAfter: senderBalance,
+      type: 'gift', senderUid, targetUid, giftName, cost,
       createdAt: FieldValue.serverTimestamp()
     });
   });
 
-  if (duplicate) return { ok: true, duplicate: true, balance: senderBalance, message: 'Gift already processed.' };
   await sendUserNotification(targetUid, 'You received a gift', `${giftName} • ${cost} coins`, { type: 'gift', senderUid });
   return { ok: true, balance: senderBalance, message: `${giftName} sent securely. Balance: ${senderBalance}` };
 });

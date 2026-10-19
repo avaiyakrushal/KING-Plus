@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android" android:orientation="vertical" android:layout_width="match_parent" android:layout_height="wrap_content" android:padding="8dp" android:background="#412310" android:contentDescription="VIP Privileges gold two_column micro preview">
+<TextView android:id="@+id/king_catalog_title" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="👑 VIP Privileges · two column" android:textColor="#FFDE77" android:textSize="14sp" android:gravity="center_vertical" android:ellipsize="end" android:maxLines="2"/>
+<TextView android:id="@+id/king_catalog_subtitle" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Verified tier previews and ownership · gold · micro" android:textColor="#FCECD5" android:textSize="11sp" android:gravity="center_vertical" android:ellipsize="end" android:maxLines="2"/>
+<LinearLayout android:orientation="horizontal" android:layout_width="match_parent" android:layout_height="wrap_content" android:paddingTop="5dp">
+<LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:orientation="vertical">
+<TextView android:id="@+id/king_catalog_primary" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="● VIP Privileges" android:textColor="#FFDE77" android:textSize="11sp" android:gravity="center_vertical" android:ellipsize="end" android:maxLines="2"/>
+</LinearLayout>
+<LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:orientation="vertical">
+<TextView android:id="@+id/king_catalog_secondary" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="◆ Gold" android:textColor="#FCECD5" android:textSize="11sp" android:gravity="center_vertical" android:ellipsize="end" android:maxLines="2"/>
+</LinearLayout>
+</LinearLayout>
+<TextView android:id="@+id/king_catalog_action" android:layout_width="match_parent" android:layout_height="28dp" android:text="OPEN VIP PRIVILEGES  ›" android:textColor="#412310" android:textSize="12sp" android:background="#FFDE77" android:gravity="center_vertical" android:ellipsize="end" android:maxLines="2"/>
+</LinearLayout>

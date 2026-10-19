@@ -3,6 +3,9 @@ package com.kingplus.social;
 import android.Manifest;
 import android.app.Activity;
 import android.app.Notification;
+import android.app.PendingIntent;
+import android.content.Intent;
+import androidx.core.app.NotificationCompat;
 import android.app.NotificationChannel;
 import android.app.NotificationManager;
 import android.content.Context;
@@ -42,12 +45,29 @@ public final class PushNotifications {
     public static void show(Context context, String title, String body) {
         initialize(context);
         if (Build.VERSION.SDK_INT >= 33 && ActivityCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) return;
-        Notification notification = new Notification.Builder(context, CHANNEL_ID)
+        String safeTitle = title == null || title.trim().isEmpty() ? "KING Plus" : title.trim();
+        String safeBody = body == null || body.trim().isEmpty() ? "New update" : body.trim();
+        if(safeTitle.length() > 90) safeTitle = safeTitle.substring(0,90);
+        if(safeBody.length() > 240) safeBody = safeBody.substring(0,240);
+        Intent open = new Intent(context, MainActivity.class);
+        open.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);
+        int flags = PendingIntent.FLAG_UPDATE_CURRENT |
+            (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M ? PendingIntent.FLAG_IMMUTABLE : 0);
+        PendingIntent tap = PendingIntent.getActivity(context, 0, open, flags);
+        Notification notification = new NotificationCompat.Builder(context, CHANNEL_ID)
             .setSmallIcon(android.R.drawable.ic_dialog_info)
-            .setContentTitle(title == null || title.isEmpty() ? "KING Plus" : title)
-            .setContentText(body == null ? "New update" : body)
+            .setContentTitle(safeTitle)
+            .setContentText(safeBody)
+            .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+            .setVisibility(NotificationCompat.VISIBILITY_PRIVATE)
+            .setContentIntent(tap)
             .setAutoCancel(true)
             .build();
-        NotificationManagerCompat.from(context).notify((int)(System.currentTimeMillis() & 0x7fffffff), notification);
+        try {
+            NotificationManagerCompat.from(context).notify(
+                (int)(System.currentTimeMillis() & 0x7fffffff), notification);
+        } catch (SecurityException ignored) {
+            // Android permission was denied, never crash chat/voice from a push.
+        }
     }
 }

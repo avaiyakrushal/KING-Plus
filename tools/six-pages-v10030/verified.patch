@@ -1,0 +1,208 @@
+--- a/app/build.gradle
++++ b/app/build.gradle
+@@ -14,7 +14,7 @@
+         }
+     }
+ 
+-    defaultConfig { applicationId 'com.kingplus.social'; minSdk 26; targetSdk 35; versionCode 308; versionName '10.0.29-six-page-live-fixes-test' }
++    defaultConfig { applicationId 'com.kingplus.social'; minSdk 26; targetSdk 35; versionCode 309; versionName '10.0.30-six-pages-session-integrity-test' }
+     buildTypes {
+         debug { signingConfig signingConfigs.debug }
+         release {
+--- a/app/src/main/java/com/kingplus/social/MainActivity.java
++++ b/app/src/main/java/com/kingplus/social/MainActivity.java
+@@ -92,6 +92,8 @@
+     private int visitorCountGeneration10007;
+     // The latest Me hosted-room request alone may update the visible list.
+     private int hostedRoomsGeneration10014;
++    private String renderedProfileUid10030;
++    private String renderedWalletUid10030;
+     private LinearLayout meHostedRoomsHost10018;
+     private int meGalleryLimit9996=40;
+     private LinearLayout meCloudGalleryHost9993;
+@@ -1480,7 +1482,12 @@
+     }
+ 
+     private void walletPage(){
+-        screen="wallet"; base("My Wallet","Server-authoritative KING Plus diamonds");
++        screen="wallet";
++        renderedWalletUid10030=firebaseAuth!=null&&firebaseAuth.getCurrentUser()!=null
++            ?firebaseAuth.getCurrentUser().getUid():null;
++        // A local test-coin value is not a verified spendable server balance.
++        coinBalance=0;
++        base("My Wallet","Server-authoritative KING Plus diamonds");
+         TextView bal=text("💎 Checking verified balance…",28,Color.WHITE,true); text("Only server-verified Diamonds can be spent on paid Gifts",14,MUTED,false);
+         if(firestore!=null&&firebaseAuth!=null&&firebaseAuth.getCurrentUser()!=null){
+             final String walletOwner10029=firebaseAuth.getCurrentUser().getUid();
+@@ -1596,6 +1603,8 @@
+ 
+     private void profileV600(){
+         screen="profile";stopMic();
++        renderedProfileUid10030=firebaseAuth!=null&&firebaseAuth.getCurrentUser()!=null
++            ?firebaseAuth.getCurrentUser().getUid():null;
+         final LevelSystem.Snapshot progress700=LevelSystem.read(this);final int level=progress700.level;
+         // Never show a guessed hash-based public ID. Fetch the issued ID from Firestore.
+         final String uid="Not issued";
+@@ -2608,6 +2617,16 @@
+     private long lastProfileAttempt996;
+     @Override protected void onResume(){
+         super.onResume();
++        String resumedUid10030=firebaseAuth!=null&&firebaseAuth.getCurrentUser()!=null
++            ?firebaseAuth.getCurrentUser().getUid():null;
++        if("profile".equals(screen)
++            &&!java.util.Objects.equals(renderedProfileUid10030,resumedUid10030)){
++            stopWallet9989();stopProfileFollowUpdates965();profile();return;
++        }
++        if("wallet".equals(screen)
++            &&!java.util.Objects.equals(renderedWalletUid10030,resumedUid10030)){
++            stopWallet9989();walletPage();return;
++        }
+         if(firestore!=null&&firebaseAuth!=null&&firebaseAuth.getCurrentUser()!=null){
+             long now=android.os.SystemClock.elapsedRealtime();
+             if(lastProfileAttempt996==0||now-lastProfileAttempt996>120000L){
+--- a/app/src/main/java/com/kingplus/social/CommunityHubActivity.java
++++ b/app/src/main/java/com/kingplus/social/CommunityHubActivity.java
+@@ -227,6 +227,8 @@
+     }
+     private void postMoment(EditText e,TextView post){
+         if(!cloud()||!KingSavedRoomsCloud9990.account(me.getUid())){toast("Sign in required");return;}
++        if(pendingMomentAccount10013!=null && !pendingMomentAccount10013.equals(me.getUid()))
++            pendingMomentAccount10013=null; // Previous signed-in account owns its callback.
+         if(pendingMomentAccount10013!=null){toast("A Moment is still posting. Check its result before posting again.");return;}
+         String text=e.getText().toString().trim();
+         if(text.isEmpty()){e.setError("Write a Moment first");return;}
+--- a/app/src/main/java/com/kingplus/social/PartyActivity.java
++++ b/app/src/main/java/com/kingplus/social/PartyActivity.java
+@@ -844,7 +844,11 @@
+         if(hostName!=null&&!hostName.trim().isEmpty())return hostName.trim().substring(0,1).toUpperCase(java.util.Locale.US);
+         return "👑";
+     }
+-    private void openMainTab(int tab){ KingNav.openRoot(this,tab); }
++    private void openMainTab(int tab){
++        if(roomId!=null)leaveRoom();
++        KingNav.openRoot(this,tab);
++        finish();
++    }
+     private void showPartyActions(String selected){
+         new AlertDialog.Builder(this).setItems(new String[]{"＋ Create Party","🔗 Join by Room ID / Code","↻ Refresh live rooms"},(d,w)->{
+             if(w==0){if(user!=null&&db!=null)createRoomDialog();else requireSignInForCreate();}
+@@ -7385,7 +7389,7 @@
+         Intent i=new Intent(this,RoomGameActivity.class);i.putExtra("roomId",roomId);i.putExtra("roomName",roomName);i.putExtra("displayName",safeName());startActivity(i);
+     }
+ 
+-    private void openGames(){KingNav.openRoot(this,1);}
++    private void openGames(){openMainTab(1);}
+     private void renameRoomDialog(){if(!isOwner())return;final EditText e=new EditText(this);e.setText(roomName);new AlertDialog.Builder(this).setTitle("Rename room").setView(e).setPositiveButton("Save",(d,w)->{String n=e.getText().toString().trim();if(n.length()<2)return;roomName=n;if(cloudRoom)setRoomValue("name",n);renderParty();}).setNegativeButton("Cancel",null).show();}
+     private void changeCategoryDialog(){if(!isOwner())return;String[] cats={"Chat","Date","Music","KTV","Radio","Sing","Game","PK","Pick Me","Family","Multi Video","Event","Birthday","Wedding"};new AlertDialog.Builder(this).setTitle("Room category").setItems(cats,(d,w)->{roomCategory=cats[w];if(cloudRoom)setRoomValue("category",roomCategory);renderParty();}).show();}
+     private void changeThemeDialog(){if(!isOwner())return;String[] labels={"Classic Emerald","Ocean KTV","PK Red vs Blue","Rose Love","Game Emerald","Royal Purple","Neon Night","Galaxy Stage","Festival Glow","Ice Crystal"};String[] themes={"Classic","KTV","PK","Love","Game","Royal","Neon","Galaxy","Festival","Ice"};new AlertDialog.Builder(this).setTitle("Room theme").setItems(labels,(d,w)->{roomTheme=themes[w];if(cloudRoom)setRoomValue("theme",roomTheme);else prefs.edit().putString("theme_"+roomName,roomTheme).apply();renderParty();}).show();}
+--- a/app/src/main/java/com/kingplus/social/GamePlayActivity.java
++++ b/app/src/main/java/com/kingplus/social/GamePlayActivity.java
+@@ -99,7 +99,17 @@
+     private void finishTtt(String msg){finished=true;status.setText(msg);}
+ 
+     private void showLudo(){
+-        base("Ludo Race","Playable KING Plus quick race • first to 30");ludoYou=0;ludoBot=0;status=label(ludoBoard(),18,0xffffd768,true);status.setGravity(Gravity.CENTER);page.addView(status,new LinearLayout.LayoutParams(-1,dp(150)));Button roll=action("🎲 Roll & Move");roll.setOnClickListener(v->ludoRoll());page.addView(roll,new LinearLayout.LayoutParams(-1,dp(60)));
++        base("Ludo Race","Local KING Bot practice • first to 30 (not online multiplayer)");
++        ludoYou=0;ludoBot=0;
++        status=label(ludoBoard(),18,0xffffd768,true);status.setGravity(Gravity.CENTER);
++        page.addView(status,new LinearLayout.LayoutParams(-1,dp(150)));
++        Button roll=action("🎲 Roll & Move");
++        roll.setOnClickListener(v->{ludoRoll();if(ludoYou>=30||ludoBot>=30)roll.setEnabled(false);});
++        page.addView(roll,new LinearLayout.LayoutParams(-1,dp(60)));
++        Button again10030=action("🔄 New Ludo Bot Race");
++        again10030.setOnClickListener(v->showLudo());
++        LinearLayout.LayoutParams againLp10030=new LinearLayout.LayoutParams(-1,dp(54));
++        againLp10030.topMargin=dp(10);page.addView(again10030,againLp10030);
+     }
+     private String raceBar(int n){int filled=Math.min(10,n/3);StringBuilder b=new StringBuilder();for(int i=0;i<10;i++)b.append(i<filled?"■":"□");return b.toString();}
+     private String ludoBoard(){return "YOU  "+raceBar(ludoYou)+"  "+ludoYou+"/30\n\nBOT  "+raceBar(ludoBot)+"  "+ludoBot+"/30";}
+--- a/app/src/main/java/com/kingplus/social/DiscoverActivity.java
++++ b/app/src/main/java/com/kingplus/social/DiscoverActivity.java
+@@ -62,6 +62,7 @@
+         }
+         publishStats();
+         renderDiscover();
++        if(!statsExplicit10024)loadDiscoverStats10030(me==null?null:me.getUid());
+         discoverLastOnline940=KingNetwork.online(this);
+         discoverNetworkCallback940=KingNetwork.watch(this,online->runOnUiThread(()->{
+             boolean recovered=online&&!discoverLastOnline940;discoverLastOnline940=online;
+@@ -88,6 +89,29 @@
+         x.put("updatedAt",FieldValue.serverTimestamp());
+         db.collection("discover_stats").document(me.getUid())
+             .set(x,com.google.firebase.firestore.SetOptions.merge()).addOnFailureListener(e->{});
++    }
++
++    private void loadDiscoverStats10030(String owner10030){
++        if(owner10030==null||db==null)return;
++        db.collection("discover_stats").document(owner10030)
++            .get(com.google.firebase.firestore.Source.SERVER).addOnSuccessListener(doc10030->{
++                FirebaseUser signed10030=FirebaseAuth.getInstance().getCurrentUser();
++                if(isFinishing()||isDestroyed()||signed10030==null
++                    ||!owner10030.equals(signed10030.getUid())||me==null
++                    ||!owner10030.equals(me.getUid())||statsExplicit10024)return;
++                gameScore=verifiedScore10030(doc10030,"gameScore");
++                chatScore=verifiedScore10030(doc10030,"chatScore");
++                eventScore=verifiedScore10030(doc10030,"eventScore");
++                // Only refresh the actual landing view, never replace an open profile.
++                if(content!=null&&content.isAttachedToWindow())renderDiscover();
++            }).addOnFailureListener(error10030->{
++                // Unverified values remain zero; never represent them as paid Diamonds.
++            });
++    }
++    private int verifiedScore10030(DocumentSnapshot doc10030,String field10030){
++        Object n10030=doc10030==null?null:doc10030.get(field10030);
++        if(!(n10030 instanceof Number))return 0;
++        return (int)Math.min(Integer.MAX_VALUE,Math.max(0,((Number)n10030).longValue()));
+     }
+ 
+     private void renderDiscover(){
+@@ -537,7 +561,10 @@
+         String was10024=me==null?null:me.getUid();
+         if(!java.util.Objects.equals(now10024,was10024)){
+             me=current10024;followedPeople10023.clear();followedUids10023.clear();
++            // Scores carried by the original Intent belong to the old account.
++            statsExplicit10024=false;gameScore=0;chatScore=0;eventScore=0;
+             renderDiscover();
++            loadDiscoverStats10030(now10024);
+         }
+     }
+     @Override public void onBackPressed(){if(isTaskRoot())KingNav.confirmExit(this);else finish();}
+--- a/app/src/main/java/com/kingplus/social/InboxActivity.java
++++ b/app/src/main/java/com/kingplus/social/InboxActivity.java
+@@ -44,6 +44,7 @@
+ 
+     private LinearLayout list;
+     private ListenerRegistration threadListener;
++    private int inboxListenerGeneration10030;
+     private FirebaseUser me;
+     private FirebaseFirestore db;
+     private final ArrayList<ThreadModel> models = new ArrayList<>();
+@@ -160,6 +161,7 @@
+     }
+ 
+     private void loadInbox() {
++        final int callbackGeneration10030=++inboxListenerGeneration10030;
+         if(threadListener!=null){threadListener.remove();threadListener=null;}
+         me=FirebaseAuth.getInstance().getCurrentUser();
+         models.clear();
+@@ -168,16 +170,17 @@
+         if(me==null)inboxState940="Sign in to sync real conversations";
+         else if(db==null)inboxState940="Cloud unavailable • showing local conversations";
+         else inboxState940="Syncing conversations…";
+-        renderModels(models);
++        renderCurrentInbox10029();
+ 
+         if (me == null || db == null) return;
+         final String sessionUid10023=me.getUid();
+         threadListener = db.collection("direct_threads").whereArrayContains("members", sessionUid10023)
+             .addSnapshotListener((snap,error)->{
+-                if(!inboxCurrent10023(sessionUid10023))return;
++                if(callbackGeneration10030!=inboxListenerGeneration10030
++                    ||!inboxCurrent10023(sessionUid10023))return;
+                 if(error!=null){
+                     inboxState940="Cloud sync unavailable • tap to retry";
+-                    renderModels(models);
++                    renderCurrentInbox10029();
+                     return;
+                 }
+                 inboxState940="";

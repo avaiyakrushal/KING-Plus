@@ -1,0 +1,10 @@
+KING Plus v7.4.0 – Realtime Room Games + Cloud Cosmetics
+
+- Added Firebase-backed Room Multiplayer with RPS, Dice Duel and Pick Number.
+- Host/co-host starts/finishes synchronized rounds; signed-in room members submit one realtime move document.
+- Added Room Games to Party tools and connected game activity templates to real room multiplayer.
+- Removed the last Coming soon activity tile by replacing it with Bingo/Room Games routing.
+- Fixed Firestore public profile rules so equippedFrame and entranceEffect actually persist across devices.
+- Public profile sync now merges safely and Discover profile detail shows frame + entrance effect.
+- Preserves v7.3 playable standalone games, ID frames, entry effects, v7.2 crash fixes and v7.1 native voice/video engine.
+- No billing / no real-money game wagering.

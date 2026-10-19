@@ -1,30 +1,33 @@
-# KING Plus v2.5
+# KING Plus v10.0.69 — TEST source
 
-This version advances the v2.1 Family & Agency prototype and replaces the fake mobile test PIN flow with Firebase-ready authentication.
+This source bundle is for `com.kingplus.social`, Android version code `348` and
+version name `10.0.69-server-game-rules`.
 
-## Changes
-- Real Firebase Phone Authentication flow (SMS OTP)
-- Google sign-in wired to Firebase Authentication
-- Test PIN `123456` removed
-- Firebase setup checks with clear in-app messages when config is missing
-- Family & Agency screens from v2.1 retained
-- Existing Party, room, profile, wallet, missions and local demo features retained
+## Scope and validation
 
-## Firebase status / remaining setup
-- The previously supplied `google-services.json` is included in `app/google-services.json`.
-- Its Android package matches `com.kingplus.social`.
-- Enable **Phone** in Firebase Authentication and allow the required SMS region(s) for real OTP.
-- Add SHA-1 and SHA-256 fingerprints for Android app verification.
-- The supplied config currently has no OAuth client entry, so Google sign-in still needs Google provider/SHA configuration and then a refreshed `google-services.json`.
+The bundle includes the Android app, Firebase rules/functions, source checks, and
+the v10.0.69 server game rules work. The Bolo Hi static comparison is in
+`BOLO-COMPARISON-v10.0.69-REVIEW.md`.
 
-The Gradle project uses Firebase Android BoM 34.19.0, Firebase Auth, Google Play services Auth 22.0.0 and Google services Gradle plugin 4.5.0.
+Run the non-game source checks from the project root:
 
-## Facebook
-The Facebook button no longer performs a fake local login. It displays a setup notice until Meta App credentials and Firebase Facebook provider configuration are added.
+```sh
+python3 tools/four-pages-v10048/check_source.py
+python3 tools/party-gifts-me-v10064/check_source.py
+python3 tools/home-me-party-v10067/check_source.py
+```
 
-## Note
-Family/agency and most social data are still local prototype data. A production backend, moderation, account storage, live rooms and server-side permissions are still required for a production social app.
+These source checks do not establish Android rendering, live Firebase behavior,
+or two-phone acceptance. The release gate state is recorded in
+`release/final-release-evidence.json`.
 
+## Build requirements
 
-## v2.5 full feature pass
-See `CHANGELOG-v2.5.txt` and `FEATURE_STATUS.md` for the expanded UI, local feature behavior, and the production backend work that still requires external services.
+The project uses Java 17, Gradle 8.9, and Android SDK 35. This ZIP has no Gradle
+wrapper, APK/AAB, production signing key, or configured CI debug keystore. A
+signed build requires an authorized signing setup. See `BUILD-NOTES-READ-ME.txt`
+for the build status and `LUDO-PRODUCTION-v10.0.69.md` for the game validation
+notes.
+
+This is TEST source, not a final production release. Live provider setup,
+production deployment, and physical two-phone testing remain acceptance gates.

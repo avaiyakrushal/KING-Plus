@@ -1,0 +1,3 @@
+KING Plus v6.0.0 — Full-app reference parity overhaul
+
+Reworks the primary user journey from login onward using the supplied reference APK/video as a behavioral and layout reference while keeping KING Plus branding and original implementation. Includes a white Party lobby with real Firebase room cards and optional uploaded room covers, target-style room creation page, existing realtime 8-seat voice/party system, live emoji, gifts, moderation, activities, KTV/music and PK controls, yellow/black bottom navigation, Ludo-style game hero, target-style Me/Profile page, side drawer, Edit Profile, VIP/wallet/family/level/settings flows, Discover rankings and Messages. No billing is enabled; TEST/no-billing behavior remains.

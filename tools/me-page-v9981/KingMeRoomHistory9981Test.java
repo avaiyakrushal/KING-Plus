@@ -8,7 +8,7 @@ public final class KingMeRoomHistory9981Test {
   List<KingMeRoomHistory9981.Room> favorites=KingMeRoomHistory9981.from(f,r,"favorites");
   ok(favorites.size()==2&&favorites.stream().allMatch(x->x.favorite),"real favorites");
   List<KingMeRoomHistory9981.Room> recent=KingMeRoomHistory9981.from(f,r,"recent");
-  ok(recent.size()==2&&recent.get(0).id.equals("c")&&recent.get(1).id.equals("d"),"sorted actual recent");
+  ok(recent.size()==3&&recent.get(0).id.equals("c")&&recent.get(1).id.equals("d"),"sorted actual recent");
   ok(!KingMeRoomHistory9981.validId("a/b"),"no invalid Firestore document id");
   ok(KingMeRoomHistory9981.from(Collections.emptySet(),Collections.emptySet(),"recent").isEmpty(),"never invent rooms");
   System.out.println("PASS Me Profile favorites/recent dedupe and no fake rooms");

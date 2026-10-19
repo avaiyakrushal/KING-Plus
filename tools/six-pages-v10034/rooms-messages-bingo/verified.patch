@@ -1,0 +1,214 @@
+--- a/app/build.gradle
++++ b/app/build.gradle
+@@ -14,7 +14,7 @@
+         }
+     }
+ 
+-    defaultConfig { applicationId 'com.kingplus.social'; minSdk 26; targetSdk 35; versionCode 311; versionName '10.0.32-six-pages-batched-stale-state-test' }
++    defaultConfig { applicationId 'com.kingplus.social'; minSdk 26; targetSdk 35; versionCode 312; versionName '10.0.33-six-pages-rooms-messages-bingo-test' }
+     buildTypes {
+         debug { signingConfig signingConfigs.debug }
+         release {
+--- a/app/src/main/java/com/kingplus/social/MainActivity.java
++++ b/app/src/main/java/com/kingplus/social/MainActivity.java
+@@ -1688,7 +1688,13 @@
+         reload10016.setPadding(dp(12),dp(10),dp(12),dp(10));
+         reload10016.setBackground(background(0xfff3edff,12));
+         reload10016.setOnClickListener(v->{
+-            if(!isFinishing()&&!isDestroyed()&&"profile".equals(screen))loadPartyRecordsV600(host);
++            if(reload10016.isEnabled()&&!isFinishing()&&!isDestroyed()&&host.getParent()!=null
++                &&"profile".equals(screen)){
++                // Loading a fresh page regenerates this button, preventing duplicate requests.
++                reload10016.setEnabled(false);
++                if(!isFinishing()&&!isDestroyed()&&host.getParent()!=null&&"profile".equals(screen))
++                    loadPartyRecordsV600(host);
++            }
+         });
+         host.addView(reload10016,new LinearLayout.LayoutParams(-1,-2));
+         if(firestore==null||firebaseAuth==null||firebaseAuth.getCurrentUser()==null){
+--- a/app/src/main/java/com/kingplus/social/CommunityHubActivity.java
++++ b/app/src/main/java/com/kingplus/social/CommunityHubActivity.java
+@@ -852,7 +852,23 @@
+                     }
+                 }
+             });
+-            LinearLayout comp=new LinearLayout(this);EditText msg=new EditText(this);msg.setHint("Message family…");msg.setSingleLine(true);msg.setBackground(bg(CARD,14));comp.addView(msg,new LinearLayout.LayoutParams(0,dp(48),1));TextView send=button("Send",()->{String t=msg.getText().toString().trim();if(t.isEmpty())return;if(t.length()>1000){toast("Family messages can contain up to 1000 characters");return;}Map<String,Object>m=new HashMap<>();m.put("uid",me.getUid());m.put("name",displayName);m.put("text",t);m.put("createdAt",FieldValue.serverTimestamp());r.collection("messages").add(m).addOnSuccessListener(v->{if(msg.getText().toString().trim().equals(t))msg.setText("");}).addOnFailureListener(e->toast("Message failed"));});LinearLayout.LayoutParams sp=new LinearLayout.LayoutParams(dp(72),dp(48));sp.setMargins(dp(6),0,0,0);comp.addView(send,sp);body.addView(comp);
++            LinearLayout comp=new LinearLayout(this);EditText msg=new EditText(this);msg.setHint("Message family…");msg.setSingleLine(true);msg.setBackground(bg(CARD,14));comp.addView(msg,new LinearLayout.LayoutParams(0,dp(48),1));final boolean[] sending10033={false};final String chatOwner10033=me.getUid();
++            final TextView[] sendButton10033={null};
++            TextView send=button("Send",()->{
++                if(sending10033[0]||me==null||!chatOwner10033.equals(me.getUid()))return;
++                FirebaseUser signed10033=FirebaseAuth.getInstance().getCurrentUser();
++                if(signed10033==null||!chatOwner10033.equals(signed10033.getUid()))return;
++                String t=msg.getText().toString().trim();if(t.isEmpty())return;
++                if(t.length()>1000){toast("Family messages can contain up to 1000 characters");return;}
++                sending10033[0]=true;sendButton10033[0].setEnabled(false);sendButton10033[0].setText("Sending…");
++                Map<String,Object>m=new HashMap<>();m.put("uid",chatOwner10033);m.put("name",displayName);
++                m.put("text",t);m.put("createdAt",FieldValue.serverTimestamp());
++                r.collection("messages").add(m).addOnSuccessListener(v->{
++                    if(!isFinishing()&&!isDestroyed()&&msg.getText().toString().trim().equals(t))msg.setText("");
++                    sending10033[0]=false;sendButton10033[0].setEnabled(true);sendButton10033[0].setText("Send");
++                }).addOnFailureListener(e->{sending10033[0]=false;sendButton10033[0].setEnabled(true);sendButton10033[0].setText("Send");
++                    if(!isFinishing()&&!isDestroyed())toast("Message failed • tap Send to retry");});
++            });sendButton10033[0]=send;LinearLayout.LayoutParams sp=new LinearLayout.LayoutParams(dp(72),dp(48));sp.setMargins(dp(6),0,0,0);comp.addView(send,sp);body.addView(comp);
+         }).addOnFailureListener(e->body.addView(tv("Family unavailable • pull back and retry",14,MUTED,false)));
+     }
+ 
+--- a/app/src/main/java/com/kingplus/social/PartyActivity.java
++++ b/app/src/main/java/com/kingplus/social/PartyActivity.java
+@@ -790,6 +790,12 @@
+                     if(partyUiDead() || generation9911!=lobbyRenderGeneration9911 || roomId!=null)return;
+                     if (error != null) { showLobbyError(cloudList,KingNetwork.online(this)?"Live rooms unavailable • tap to retry":"Offline • cached rooms unavailable • tap to retry",selected); return; }
+                     cloudList.removeAllViews();
++                    final boolean cachedLobby10033=snap!=null&&snap.getMetadata().isFromCache();
++                    if(cachedLobby10033){
++                        TextView cached10033=tv("Offline/cached rooms • opening any room requires fresh server verification",12,0xffffd98c,true);
++                        cached10033.setGravity(Gravity.CENTER_VERTICAL);cached10033.setPadding(dp(10),dp(6),dp(10),dp(6));
++                        cloudList.addView(cached10033,new LinearLayout.LayoutParams(-1,dp(52)));
++                    }
+                     int shown = 0;
+                     LinearLayout row = null;
+                     if (snap != null) {
+@@ -819,7 +825,10 @@
+                             shown++;
+                         }
+                     }
+-                    if (shown == 0) showEmptyLobby(cloudList,selected);
++                    if(shown==0){
++                        if(cachedLobby10033)cloudList.addView(tv("No cached matches • connect to refresh live rooms",13,0xffffd98c,true),new LinearLayout.LayoutParams(-1,dp(58)));
++                        else showEmptyLobby(cloudList,selected);
++                    }
+                     if(snap!=null&&snap.size()>=lobbyRoomLimit9989&&lobbyRoomLimit9989<300){
+                         TextView more=pill(lobbyFilter.isEmpty()?"Load more active rooms":"Search more live rooms",0xff6244a0,null);
+                         more.setOnClickListener(v->{
+--- a/app/src/main/java/com/kingplus/social/GamePlayActivity.java
++++ b/app/src/main/java/com/kingplus/social/GamePlayActivity.java
+@@ -243,9 +243,21 @@
+ 
+     private void showBingo(){
+         base("Bingo","Tap CALL, then mark matching numbers • complete a row");
+-        final int[] nums=new int[25];java.util.ArrayList<Integer> pool=new java.util.ArrayList<>();for(int i=1;i<=75;i++)pool.add(i);java.util.Collections.shuffle(pool);for(int i=0;i<25;i++)nums[i]=pool.get(i);
+-        final java.util.HashSet<Integer> called=new java.util.HashSet<>();final boolean[] won={false};final boolean[] marked=new boolean[25];final Button[] bs=new Button[25];status=label("Press CALL to draw a number",17,0xffffd768,true);status.setGravity(Gravity.CENTER);page.addView(status,new LinearLayout.LayoutParams(-1,dp(55)));
+-        LinearLayout grid=new LinearLayout(this);grid.setOrientation(LinearLayout.VERTICAL);for(int r=0;r<5;r++){LinearLayout row=new LinearLayout(this);for(int c=0;c<5;c++){int k=r*5+c;Button b=action(String.valueOf(nums[k]));b.setTextSize(12);bs[k]=b;b.setOnClickListener(v->{if(won[0]||!called.contains(nums[k]))return;marked[k]=!marked[k];b.setText(marked[k]?"✓"+nums[k]:String.valueOf(nums[k]));if(bingoWin(marked)){won[0]=true;status.setText("BINGO! 🏆");KingSoundFx.win(this);}});LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(0,dp(52),1);lp.setMargins(dp(2),dp(2),dp(2),dp(2));row.addView(b,lp);}grid.addView(row);}page.addView(grid);
++        // Standard B-I-N-G-O columns: 1-15, 16-30, 31-45, 46-60, 61-75.
++        final int[] nums=new int[25];
++        for(int col10033=0;col10033<5;col10033++){
++            java.util.ArrayList<Integer> band10033=new java.util.ArrayList<>();
++            for(int value10033=col10033*15+1;value10033<=(col10033+1)*15;value10033++)band10033.add(value10033);
++            java.util.Collections.shuffle(band10033);
++            for(int row10033=0;row10033<5;row10033++)nums[row10033*5+col10033]=band10033.get(row10033);
++        }
++        nums[12]=0; // Center is the FREE spot; it must never require a called number.
++        final java.util.HashSet<Integer> called=new java.util.HashSet<>();final boolean[] won={false};
++        final boolean[] marked=new boolean[25];marked[12]=true;
++        final Button[] bs=new Button[25];status=label("B I N G O • center FREE • press CALL",17,0xffffd768,true);status.setGravity(Gravity.CENTER);page.addView(status,new LinearLayout.LayoutParams(-1,dp(55)));
++        LinearLayout grid=new LinearLayout(this);grid.setOrientation(LinearLayout.VERTICAL);for(int r=0;r<5;r++){LinearLayout row=new LinearLayout(this);for(int c=0;c<5;c++){int k=r*5+c;Button b=action(k==12?"FREE":String.valueOf(nums[k]));b.setTextSize(12);bs[k]=b;
++                if(k==12){b.setEnabled(false);b.setBackground(bg(0xff5f8d44,12));}
++                b.setOnClickListener(v->{if(k==12||won[0]||!called.contains(nums[k]))return;marked[k]=!marked[k];b.setText(marked[k]?"✓"+nums[k]:String.valueOf(nums[k]));if(bingoWin(marked)){won[0]=true;status.setText("BINGO! 🏆");KingSoundFx.win(this);}});LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(0,dp(52),1);lp.setMargins(dp(2),dp(2),dp(2),dp(2));row.addView(b,lp);}grid.addView(row);}page.addView(grid);
+         final java.util.ArrayList<Integer> draws=new java.util.ArrayList<>();for(int n=1;n<=75;n++)draws.add(n);java.util.Collections.shuffle(draws);Button call=action("🎱 CALL NUMBER");LinearLayout.LayoutParams cp=new LinearLayout.LayoutParams(-1,dp(58));cp.setMargins(0,dp(8),0,0);call.setOnClickListener(v->{if(won[0]||draws.isEmpty()){call.setEnabled(false);return;}int n=draws.remove(draws.size()-1);called.add(n);for(int k=0;k<25;k++)if(nums[k]==n)bs[k].setBackground(bg(0xff775626,12));status.setText("CALLED: "+n+" • "+called.size()+"/75 • mark highlighted numbers");if(draws.isEmpty())call.setEnabled(false);});page.addView(call,cp);
+         Button nextBingo10031=action("🔄 New Bingo Card");
+         nextBingo10031.setOnClickListener(v->showBingo());
+--- a/app/src/main/java/com/kingplus/social/DiscoverActivity.java
++++ b/app/src/main/java/com/kingplus/social/DiscoverActivity.java
+@@ -427,10 +427,36 @@
+ 
+     private void sectionTitle(String title,String more,Runnable action){LinearLayout r=new LinearLayout(this);r.setGravity(Gravity.CENTER_VERTICAL);r.setPadding(dp(0),dp(14),0,dp(8));TextView t=tv(title,19,KingRoyalTheme10021.INK,true);t.setGravity(Gravity.CENTER_VERTICAL);t.setMaxLines(2);r.addView(t,new LinearLayout.LayoutParams(0,dp(46),1));TextView m=tv(more+"  ›",14,0xff333037,true);m.setGravity(Gravity.CENTER);m.setBackground(KingRoyalTheme10021.card(this,12));m.setOnClickListener(v->KingSafe.run(this,"ui-action",action));r.addView(m,new LinearLayout.LayoutParams(dp(112),dp(42)));content.addView(r);}
+ 
++    private boolean discoverSectionCurrent10033(LinearLayout section10033,String account10033){
++        FirebaseUser signed10033=FirebaseAuth.getInstance().getCurrentUser();
++        return !isFinishing()&&!isDestroyed()&&me!=null&&signed10033!=null
++            &&account10033.equals(me.getUid())&&account10033.equals(signed10033.getUid())
++            &&content!=null&&section10033.getParent()==content&&content.isAttachedToWindow();
++    }
+     private void loadActivityRecommendations(){
+         LinearLayout grid=new LinearLayout(this);grid.setOrientation(LinearLayout.VERTICAL);content.addView(grid);
+         if(me==null||db==null){grid.addView(emptyText("Sign in to see real live activities"),new LinearLayout.LayoutParams(-1,dp(80)));return;}
+-        db.collection("live_rooms").orderBy("createdAt",Query.Direction.DESCENDING).limit(4).get().addOnSuccessListener(q->{grid.removeAllViews();List<DocumentSnapshot> docs=q.getDocuments();if(docs.isEmpty()){grid.addView(emptyText("No live activities yet"),new LinearLayout.LayoutParams(-1,dp(80)));return;}LinearLayout row=null;int c=0;for(DocumentSnapshot d:docs){if(Boolean.TRUE.equals(d.getBoolean("closed")))continue;if(c%2==0){row=new LinearLayout(this);row.setGravity(Gravity.TOP);grid.addView(row,new LinearLayout.LayoutParams(-1,dp(188)));}addActivityCard(row,d);c++;}}).addOnFailureListener(e->{grid.removeAllViews();grid.addView(emptyText("Live activities unavailable"),new LinearLayout.LayoutParams(-1,dp(80)));});
++        final String owner10033=me.getUid();
++        // Fetch open rooms on the server, not the latest four including closed rooms.
++        // Avoid a Firestore composite index dependency by sorting the small active set locally.
++        db.collection("live_rooms").whereEqualTo("closed",false).limit(24)
++            .get(com.google.firebase.firestore.Source.SERVER).addOnSuccessListener(q->{
++                if(!discoverSectionCurrent10033(grid,owner10033))return;
++                grid.removeAllViews();List<DocumentSnapshot> docs=new ArrayList<>(q.getDocuments());
++                docs.sort((a,b)->{com.google.firebase.Timestamp at=a.getTimestamp("createdAt"),bt=b.getTimestamp("createdAt");
++                    return Long.compare(bt==null?0:bt.toDate().getTime(),at==null?0:at.toDate().getTime());});
++                int c=0;LinearLayout row=null;
++                for(DocumentSnapshot d:docs){if(Boolean.TRUE.equals(d.getBoolean("closed")))continue;
++                    if(c%2==0){row=new LinearLayout(this);row.setGravity(Gravity.TOP);grid.addView(row,new LinearLayout.LayoutParams(-1,dp(188)));}
++                    addActivityCard(row,d);if(++c>=4)break;
++                }
++                if(c==0)grid.addView(emptyText("No open Party rooms yet"),new LinearLayout.LayoutParams(-1,dp(80)));
++            }).addOnFailureListener(e->{
++                if(!discoverSectionCurrent10033(grid,owner10033))return;
++                grid.removeAllViews();TextView retry10033=emptyText("Live Party rooms unavailable • tap to retry");
++                retry10033.setOnClickListener(v->{if(discoverSectionCurrent10033(grid,owner10033))renderDiscover();});
++                grid.addView(retry10033,new LinearLayout.LayoutParams(-1,dp(80)));
++            });
+     }
+ 
+     private void addActivityCard(LinearLayout row,DocumentSnapshot d){
+@@ -449,7 +475,20 @@
+     private void loadTalentGrid(String field,boolean chatMode){
+         LinearLayout grid=new LinearLayout(this);grid.setOrientation(LinearLayout.VERTICAL);content.addView(grid);
+         if(me==null||db==null){grid.addView(emptyText("Sign in to see real talent rankings"),new LinearLayout.LayoutParams(-1,dp(90)));return;}
+-        db.collection("discover_stats").orderBy(field,Query.Direction.DESCENDING).limit(4).get().addOnSuccessListener(q->{grid.removeAllViews();List<DocumentSnapshot> docs=q.getDocuments();if(docs.isEmpty()){grid.addView(emptyText("No talent data yet"),new LinearLayout.LayoutParams(-1,dp(90)));return;}LinearLayout row=null;int c=0;for(DocumentSnapshot d:docs){if(c%2==0){row=new LinearLayout(this);grid.addView(row,new LinearLayout.LayoutParams(-1,dp(205)));}addTalentCard(row,d,field,chatMode);c++;}}).addOnFailureListener(e->{grid.removeAllViews();grid.addView(emptyText("Talent ranking unavailable"));});
++        final String owner10033=me.getUid();
++        db.collection("discover_stats").orderBy(field,Query.Direction.DESCENDING).limit(4)
++            .get(com.google.firebase.firestore.Source.SERVER).addOnSuccessListener(q->{
++                if(!discoverSectionCurrent10033(grid,owner10033))return;
++                grid.removeAllViews();List<DocumentSnapshot> docs=q.getDocuments();
++                if(docs.isEmpty()){grid.addView(emptyText("No talent data yet"),new LinearLayout.LayoutParams(-1,dp(90)));return;}
++                LinearLayout row=null;int c=0;
++                for(DocumentSnapshot d:docs){if(c%2==0){row=new LinearLayout(this);grid.addView(row,new LinearLayout.LayoutParams(-1,dp(205)));}addTalentCard(row,d,field,chatMode);c++;}
++            }).addOnFailureListener(e->{
++                if(!discoverSectionCurrent10033(grid,owner10033))return;
++                grid.removeAllViews();TextView retry10033=emptyText("Talent ranking unavailable • tap to retry");
++                retry10033.setOnClickListener(v->{if(discoverSectionCurrent10033(grid,owner10033))renderDiscover();});
++                grid.addView(retry10033,new LinearLayout.LayoutParams(-1,dp(90)));
++            });
+     }
+     private void addTalentCard(LinearLayout row,DocumentSnapshot stat,String field,boolean chatMode){
+         LinearLayout card=new LinearLayout(this);card.setOrientation(LinearLayout.VERTICAL);card.setGravity(Gravity.CENTER_HORIZONTAL);card.setPadding(dp(8),dp(8),dp(8),dp(8));card.setBackground(bg(Color.WHITE,14));
+@@ -457,7 +496,12 @@
+         TextView name=tv("KING "+publicId(stat.getId()),14,DARK,true);name.setGravity(Gravity.CENTER);name.setMaxLines(1);card.addView(name,new LinearLayout.LayoutParams(-1,dp(32)));
+         TextView score=tv(scoreOf(stat,field)+" pts",12,MUTED,true);score.setGravity(Gravity.CENTER);card.addView(score,new LinearLayout.LayoutParams(-1,dp(28)));
+         TextView action=tv(chatMode?"💬 Chat room  ›":"🎮 Game profile  ›",12,DARK,true);action.setGravity(Gravity.CENTER_VERTICAL);action.setPadding(dp(10),0,0,0);action.setBackground(bg(0xfff4f3f7,10));card.addView(action,new LinearLayout.LayoutParams(-1,dp(42)));
+-        db.collection("public_profiles").document(stat.getId()).get().addOnSuccessListener(p->{if(p.exists())name.setText(shortName(nameOf(p)));});card.setOnClickListener(v->openProfile(stat.getId()));
++        final String owner10033=me==null?"":me.getUid();
++        db.collection("public_profiles").document(stat.getId()).get().addOnSuccessListener(p->{
++            FirebaseUser now10033=FirebaseAuth.getInstance().getCurrentUser();
++            if(p.exists()&&now10033!=null&&owner10033.equals(now10033.getUid())
++                &&card.getParent()!=null&&!isFinishing()&&!isDestroyed())name.setText(shortName(nameOf(p)));
++        });card.setOnClickListener(v->openProfile(stat.getId()));
+         LinearLayout.LayoutParams p=new LinearLayout.LayoutParams(0,dp(194),1);p.setMargins(dp(3),dp(3),dp(3),dp(3));row.addView(card,p);
+     }
+ 
+--- a/app/src/main/java/com/kingplus/social/InboxActivity.java
++++ b/app/src/main/java/com/kingplus/social/InboxActivity.java
+@@ -328,7 +328,12 @@
+         return !isFinishing()&&!isDestroyed()&&current!=null&&account.equals(current.getUid());
+     }
+     private void openNotification940(DocumentSnapshot n){
+-        if(n!=null&&!Boolean.TRUE.equals(n.getBoolean("read")))n.getReference().update("read",true).addOnFailureListener(e->{});
++        if(n==null||me==null||!noticeAccountCurrent10010(me.getUid()))return;
++        final String noticeOwner10033=me.getUid();
++        // Do not mark account A's notification read after switching to account B.
++        if(!Boolean.TRUE.equals(n.getBoolean("read")))n.getReference().update("read",true)
++            .addOnFailureListener(e->{if(noticeAccountCurrent10010(noticeOwner10033))
++                Toast.makeText(this,"Could not mark notification read",Toast.LENGTH_SHORT).show();});
+         Object dataObj=n.get("data");if(!(dataObj instanceof Map)){return;}Map<?,?> data=(Map<?,?>)dataObj;String type=data.get("type")==null?"":String.valueOf(data.get("type"));
+         if("room_invite".equals(type)){
+             String rid=data.get("roomId")==null?"":String.valueOf(data.get("roomId"));if(rid.isEmpty()){Toast.makeText(this,"Room invite is missing its room ID",Toast.LENGTH_SHORT).show();return;}
+@@ -336,7 +341,11 @@
+             db.collection("live_rooms").document(rid).get(com.google.firebase.firestore.Source.SERVER)
+                 .addOnSuccessListener(room->{if(!noticeAccountCurrent10010(invitingAccount10024))return;if(room==null||!room.exists()||Boolean.TRUE.equals(room.getBoolean("closed"))){Toast.makeText(this,"This Party room is no longer available",Toast.LENGTH_SHORT).show();return;}Intent i=new Intent(this,PartyActivity.class);i.putExtra("directRoomId",rid);i.putExtra("directRoomName",room.getString("name"));i.putExtra("directOwnerUid",room.getString("ownerUid"));i.putExtra("directOwnerName",room.getString("ownerName"));i.putExtra("directPrivate",Boolean.TRUE.equals(room.getBoolean("isPrivate")));i.putExtra("directPassword",Boolean.TRUE.equals(room.getBoolean("hasPassword")));startActivity(i);});
+         }else if("direct_message".equals(type)){
+-            String uid=data.get("senderUid")==null?"":String.valueOf(data.get("senderUid"));String name=n.getString("title");openChat(name==null?"KING Friend":name,uid);
++            String uid=data.get("senderUid")==null?"":String.valueOf(data.get("senderUid"));
++            if(uid.trim().isEmpty()||uid.equals(noticeOwner10033)){
++                Toast.makeText(this,"This message does not contain a valid sender",Toast.LENGTH_SHORT).show();return;
++            }
++            String name=n.getString("title");openChat(name==null?"KING Friend":name,uid);
+         }else if("follow".equals(type)){
+             String uid=data.get("followerUid")==null?"":String.valueOf(data.get("followerUid"));if(uid.isEmpty())return;Intent i=new Intent(this,KingPublicProfileActivity.class);i.putExtra("uid",uid);startActivity(i);
+         }else Toast.makeText(this,n.getString("body")==null?"KING Plus notification":n.getString("body"),Toast.LENGTH_SHORT).show();

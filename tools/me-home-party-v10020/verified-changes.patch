@@ -1,0 +1,239 @@
+--- a/app/build.gradle
++++ b/app/build.gradle
+@@ -14,7 +14,7 @@
+         }
+     }
+ 
+-    defaultConfig { applicationId 'com.kingplus.social'; minSdk 26; targetSdk 35; versionCode 298; versionName '10.0.19-me-home-party-combined-test' }
++    defaultConfig { applicationId 'com.kingplus.social'; minSdk 26; targetSdk 35; versionCode 299; versionName '10.0.20-me-home-party-batch-test' }
+     buildTypes {
+         debug { signingConfig signingConfigs.debug }
+         release {
+--- a/firestore.rules
++++ b/firestore.rules
+@@ -147,7 +147,10 @@
+         allow update: if roomAccess(roomId) && validStageSeat9970(roomId,seatId) && (
+           (resource.data.uid == request.auth.uid
+             && request.resource.data.uid == request.auth.uid
+-            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['micOn']))
++            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['micOn'])
++            && (request.resource.data.get('micOn',false) != true
++                || roomData(roomId).get('muteAll',false) != true
++                || roomModerator(roomId)))
+           || (roomModerator(roomId)
+             && request.resource.data.uid == resource.data.uid
+             && request.resource.data.get('micOn',false) == false
+--- a/app/src/main/java/com/kingplus/social/MainActivity.java
++++ b/app/src/main/java/com/kingplus/social/MainActivity.java
+@@ -2510,13 +2510,22 @@
+     private void showGlobalRank952(String mode){
+         if(firestore==null){Toast.makeText(this,"Rankings unavailable",Toast.LENGTH_SHORT).show();return;}
+         final String title="vip".equals(mode)?"💎 VIP Progress Rank":"⭐ Level & XP Rank";
++        // This query checks a maximum of 100 profiles. Do not label it an all-time global ranking.
++        final String rankingOwner10020=firebaseAuth==null||firebaseAuth.getCurrentUser()==null?"":firebaseAuth.getCurrentUser().getUid();
++        if(rankingOwner10020.isEmpty()){Toast.makeText(this,"Sign in to view rankings",Toast.LENGTH_SHORT).show();return;}
+         LinearLayout load=new LinearLayout(this);load.setGravity(Gravity.CENTER);android.widget.ProgressBar spin=new android.widget.ProgressBar(this);load.addView(spin,new LinearLayout.LayoutParams(dp(42),dp(42)));TextView msg=new TextView(this);msg.setText("  Loading real KING profiles…");msg.setTextSize(13);load.addView(msg);
+         final AlertDialog waiting=new AlertDialog.Builder(this).setTitle(title).setView(load).setCancelable(false).create();waiting.show();
+         firestore.collection("public_profiles").limit(100).get().addOnSuccessListener(q->{
+-            if(waiting.isShowing())waiting.dismiss();java.util.List<com.google.firebase.firestore.DocumentSnapshot> docs=new ArrayList<>(q.getDocuments());java.util.Collections.sort(docs,(a,b)->Long.compare(rankMetric952(b,mode),rankMetric952(a,mode)));
++            if(waiting.isShowing())waiting.dismiss();
++            if(isFinishing()||isDestroyed()||firebaseAuth==null||firebaseAuth.getCurrentUser()==null
++                ||!rankingOwner10020.equals(firebaseAuth.getCurrentUser().getUid()))return;
++            java.util.List<com.google.firebase.firestore.DocumentSnapshot> docs=new ArrayList<>(q.getDocuments());java.util.Collections.sort(docs,(a,b)->Long.compare(rankMetric952(b,mode),rankMetric952(a,mode)));
+             LinearLayout root=new LinearLayout(this);root.setOrientation(LinearLayout.VERTICAL);root.setPadding(dp(12),dp(8),dp(12),dp(10));ScrollView sc=new ScrollView(this);LinearLayout rows=new LinearLayout(this);rows.setOrientation(LinearLayout.VERTICAL);sc.addView(rows);
+-            int rank=1;for(com.google.firebase.firestore.DocumentSnapshot d:docs){if(rank>30)break;String n=d.getString("displayName");if(n==null||n.trim().isEmpty())n="KING User";Long lv=d.getLong("level"),vip=d.getLong("vipLevel"),xp=d.getLong("xp"),vp=d.getLong("vipPoints");String medal=rank==1?"🥇":rank==2?"🥈":rank==3?"🥉":"#"+rank;TextView row=new TextView(this);row.setText(medal+"  "+n+"\\n"+("vip".equals(mode)?"VIP "+(vip==null?0:vip)+" • "+(vp==null?0:vp)+" points":"Lv."+(lv==null?1:lv)+" • "+(xp==null?0:xp)+" XP"));row.setTextSize(13);row.setTextColor(0xff27232c);row.setTypeface(null,Typeface.BOLD);row.setGravity(Gravity.CENTER_VERTICAL);row.setPadding(dp(12),dp(5),dp(12),dp(5));row.setBackground(background(rank<=3?0xfffff4ca:0xfff7f5f9,12));LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(-1,dp(58));lp.setMargins(0,dp(2),0,dp(2));rows.addView(row,lp);rank++;}if(rank==1){TextView empty=new TextView(this);empty.setText("No public KING profiles available yet.");empty.setGravity(Gravity.CENTER);rows.addView(empty,new LinearLayout.LayoutParams(-1,dp(100)));}root.addView(sc,new LinearLayout.LayoutParams(-1,Math.min(dp(620),Math.max(dp(120),(rank-1)*dp(61)))));new AlertDialog.Builder(this).setTitle(title).setView(root).setPositiveButton("Refresh",(d,w)->showGlobalRank952(mode)).setNegativeButton("Close",null).show();
+-        }).addOnFailureListener(e->{if(waiting.isShowing())waiting.dismiss();new AlertDialog.Builder(this).setTitle(title).setMessage("Ranking unavailable right now.").setPositiveButton("Retry",(d,w)->showGlobalRank952(mode)).setNegativeButton("Close",null).show();});
++            int rank=1;for(com.google.firebase.firestore.DocumentSnapshot d:docs){if(rank>30)break;String n=d.getString("displayName");if(n==null||n.trim().isEmpty())n="KING User";Long lv=d.getLong("level"),vip=d.getLong("vipLevel"),xp=d.getLong("xp"),vp=d.getLong("vipPoints");String medal=rank==1?"🥇":rank==2?"🥈":rank==3?"🥉":"#"+rank;TextView row=new TextView(this);row.setText(medal+"  "+n+"\\n"+("vip".equals(mode)?"VIP "+(vip==null?0:vip)+" • "+(vp==null?0:vp)+" points":"Lv."+(lv==null?1:lv)+" • "+(xp==null?0:xp)+" XP"));row.setTextSize(13);row.setTextColor(0xff27232c);row.setTypeface(null,Typeface.BOLD);row.setGravity(Gravity.CENTER_VERTICAL);row.setPadding(dp(12),dp(5),dp(12),dp(5));row.setBackground(background(rank<=3?0xfffff4ca:0xfff7f5f9,12));LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(-1,dp(58));lp.setMargins(0,dp(2),0,dp(2));rows.addView(row,lp);rank++;}if(rank==1){TextView empty=new TextView(this);empty.setText("No public KING profiles available yet.");empty.setGravity(Gravity.CENTER);rows.addView(empty,new LinearLayout.LayoutParams(-1,dp(100)));}root.addView(sc,new LinearLayout.LayoutParams(-1,Math.min(dp(620),Math.max(dp(120),(rank-1)*dp(61)))));new AlertDialog.Builder(this).setTitle(title+" • 100-profile sample").setMessage("Rankings are based on up to 100 retrieved public profiles, not all KING users.").setView(root).setPositiveButton("Refresh",(d,w)->showGlobalRank952(mode)).setNegativeButton("Close",null).show();
++         }).addOnFailureListener(e->{if(waiting.isShowing())waiting.dismiss();
++            if(isFinishing()||isDestroyed()||firebaseAuth==null||firebaseAuth.getCurrentUser()==null
++                ||!rankingOwner10020.equals(firebaseAuth.getCurrentUser().getUid()))return;
++            new AlertDialog.Builder(this).setTitle(title).setMessage("Ranking unavailable right now.").setPositiveButton("Retry",(d,w)->showGlobalRank952(mode)).setNegativeButton("Close",null).show();});
+     }
+ 
+     private void transactionHistoryPage(){screen="transactions";base("Transaction History","Local wallet activity");String raw=getPreferences(0).getString("transactions","");if(raw.isEmpty())text("No wallet activity yet",15,MUTED,false);else for(String x:raw.split("\\|\\|\\|"))text(x,15,Color.WHITE,false);button("Back to Wallet",PURPLE,this::walletPage);}
+--- a/app/src/main/java/com/kingplus/social/CommunityHubActivity.java
++++ b/app/src/main/java/com/kingplus/social/CommunityHubActivity.java
+@@ -415,9 +415,29 @@
+         showMomentPhoto9991(photoUrl10001,card,autoPhoto10001);
+         String type=safe(d.getString("type"),""),roomId=safe(d.getString("roomId"),""),roomName=safe(d.getString("roomName"),"Live Party");
+         if("room_broadcast".equals(type)&&!roomId.isEmpty()){
++            final String momentRoom10020=roomId, momentAccount10020=me.getUid();
+             TextView join=button("🎤 Join "+roomName,()->{
+-                Intent i=new Intent(this,PartyActivity.class);i.putExtra("directRoomId",roomId);
+-                i.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP|Intent.FLAG_ACTIVITY_SINGLE_TOP);startActivity(i);
++                if(db==null||isFinishing()||isDestroyed()||!"Moments".equals(selected)
++                    ||me==null||!momentAccount10020.equals(me.getUid())
++                    ||!KingSavedRoomsCloud9990.account(momentAccount10020)){
++                    toast("Open Moments again to join this Party");return;
++                }
++                db.collection("live_rooms").document(momentRoom10020)
++                    .get(com.google.firebase.firestore.Source.SERVER).addOnSuccessListener(live10020->{
++                        if(isFinishing()||isDestroyed()||!"Moments".equals(selected)
++                            ||me==null||!momentAccount10020.equals(me.getUid())
++                            ||!KingSavedRoomsCloud9990.account(momentAccount10020))return;
++                        if(!live10020.exists()||Boolean.TRUE.equals(live10020.getBoolean("closed"))){
++                            toast("This Party room has ended");return;
++                        }
++                        Intent i=new Intent(this,PartyActivity.class);
++                        i.putExtra("directRoomId",momentRoom10020);
++                        i.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP|Intent.FLAG_ACTIVITY_SINGLE_TOP);
++                        startActivity(i);
++                    }).addOnFailureListener(err->{
++                        if(me!=null&&momentAccount10020.equals(me.getUid()))
++                            toast("Could not check Party room. Try again.");
++                    });
+             });
+             LinearLayout.LayoutParams jp=new LinearLayout.LayoutParams(-1,dp(44));jp.setMargins(0,dp(6),0,dp(6));card.addView(join,jp);
+         }
+@@ -470,7 +490,10 @@
+     private void toggleMomentLike9990(DocumentReference ref,TextView button){
+         if(me==null||!KingSavedRoomsCloud9990.account(me.getUid()))return;
+         button.setEnabled(false);button.setTag(Boolean.TRUE);String uid=me.getUid();DocumentReference like=ref.collection("likes").document(uid);
+-        db.runTransaction(tx->{DocumentSnapshot existing=tx.get(like);
++        db.runTransaction(tx->{
++            DocumentSnapshot livePost10020=tx.get(ref);
++            if(!livePost10020.exists())throw new IllegalStateException("Moment was deleted. Refresh your feed.");
++            DocumentSnapshot existing=tx.get(like);
+             if(existing.exists()){tx.delete(like);return false;}
+             Map<String,Object> data=new HashMap<>();data.put("uid",uid);data.put("createdAt",FieldValue.serverTimestamp());tx.set(like,data);return true;
+         }).addOnSuccessListener(liked->{
+--- a/app/src/main/java/com/kingplus/social/PartyActivity.java
++++ b/app/src/main/java/com/kingplus/social/PartyActivity.java
+@@ -6193,9 +6193,84 @@
+             }).show();
+     }
+     private void editAnnouncement(){final EditText e=new EditText(this);e.setText(announcement);new AlertDialog.Builder(this).setTitle("Room announcement").setView(e).setNegativeButton("Cancel",null).setPositiveButton("Save",(d,w)->{String s=e.getText().toString().trim();if(s.isEmpty())return;if(s.length()>220)s=s.substring(0,220);final String notice940=s;if(cloudRoom){setRoomValue("announcement",notice940);addEvent("notice",safeName()+" • "+notice940);}else{announcement=notice940;prefs.edit().putString("notice_"+roomId,notice940).apply();if(announcementLabel!=null)announcementLabel.setText("📢  "+notice940);}}).show();}
+-    private void setRoomFlag(String key,boolean value){if(!isModerator()){toast("Host/co-host only");return;}if(cloudRoom){setRoomValue(key,value);if("muteAll".equals(key)&&value&&db!=null){db.collection("live_rooms").document(roomId).collection("seats").get().addOnSuccessListener(q->{WriteBatch b=db.batch();for(DocumentSnapshot d:q.getDocuments())b.update(d.getReference(),"micOn",false);b.commit().addOnFailureListener(e->{});});}}else{if("locked".equals(key))roomLocked=value;else muteAll=value;prefs.edit().putBoolean(("locked".equals(key)?"locked_":"mute_")+roomId,value).apply();toast("Room updated");}}
++    private void setRoomFlag(String key,boolean value){
++        if(!isModerator()){toast("Host/co-host only");return;}
++        if(!cloudRoom){
++            if("locked".equals(key))roomLocked=value;else muteAll=value;
++            prefs.edit().putBoolean(("locked".equals(key)?"locked_":"mute_")+roomId,value).apply();
++            toast("Room updated");return;
++        }
++        if(db==null||user==null||roomId==null){toast("Live Party connection required");return;}
++        final String room10020=roomId,actor10020=user.getUid();
++        final int visit10020=presenceGeneration967;
++        if(!isActivePresence967(room10020,actor10020,visit10020)){toast("Room changed");return;}
++        final DocumentReference roomRef10020=db.collection("live_rooms").document(room10020);
++        roomRef10020.update(key,value,"updatedAt",FieldValue.serverTimestamp())
++            .addOnSuccessListener(done->{
++                if(!isActivePresence967(room10020,actor10020,visit10020)||!isModerator())return;
++                toast(value?("muteAll".equals(key)?"Room microphones muted":"Room updated"):"Room updated");
++                if("muteAll".equals(key)&&value)muteExistingRoomSeats10020(room10020,actor10020,visit10020);
++            }).addOnFailureListener(e->{
++                if(isActivePresence967(room10020,actor10020,visit10020))
++                    toast("Could not update room: "+msg(e));
++            });
++    }
++    // Each live occupant is checked at write time. A seat reassigned on a
++    // second phone cannot be muted using a stale server snapshot.
++    private void muteExistingRoomSeats10020(String room10020,String actor10020,int visit10020){
++        if(!isActivePresence967(room10020,actor10020,visit10020)||!isModerator()||db==null)return;
++        final DocumentReference roomRef10020=db.collection("live_rooms").document(room10020);
++        roomRef10020.collection("seats").get(com.google.firebase.firestore.Source.SERVER)
++            .addOnSuccessListener(seats10020->{
++                if(!isActivePresence967(room10020,actor10020,visit10020)||!isModerator())return;
++                for(DocumentSnapshot previous10020:seats10020.getDocuments()){
++                    final String uid10020=previous10020.getString("uid");
++                    if(uid10020==null||uid10020.isEmpty()
++                        ||!Boolean.TRUE.equals(previous10020.getBoolean("micOn")))continue;
++                    db.runTransaction(tx10020->{
++                        DocumentSnapshot liveRoom10020=tx10020.get(roomRef10020);
++                        DocumentSnapshot liveSeat10020=tx10020.get(previous10020.getReference());
++                        if(!liveRoom10020.exists()||Boolean.TRUE.equals(liveRoom10020.getBoolean("closed"))
++                            ||!Boolean.TRUE.equals(liveRoom10020.getBoolean("muteAll")))
++                            return false;
++                        if(!liveSeat10020.exists()||!uid10020.equals(liveSeat10020.getString("uid"))
++                            ||!Boolean.TRUE.equals(liveSeat10020.getBoolean("micOn")))return false;
++                        tx10020.update(previous10020.getReference(),"micOn",false);
++                        return true;
++                    }).addOnFailureListener(err->{
++                        if(isActivePresence967(room10020,actor10020,visit10020))
++                            toast("Some microphones could not be muted. Reopen the room controls.");
++                    });
++                }
++            }).addOnFailureListener(err->{
++                if(isActivePresence967(room10020,actor10020,visit10020))
++                    toast("Could not read live mic seats. Please retry.");
++            });
++    }
+     private void setRoomValue(String key,Object value){if(db==null)return;db.collection("live_rooms").document(roomId).update(key,value,"updatedAt",FieldValue.serverTimestamp()).addOnFailureListener(e->toast(msg(e)));}
+-    private void closeRoom(){if(!isOwner()){toast("Host only");return;}if(cloudRoom)setRoomValue("closed",true);leaveRoom();}
++    private void closeRoom(){
++        if(!isOwner()){toast("Host only");return;}
++        if(!cloudRoom){leaveRoom();return;}
++        if(db==null||user==null||roomId==null){toast("Room connection required");return;}
++        final String closedRoom10020=roomId,owner10020=user.getUid();
++        final int visit10020=presenceGeneration967;
++        DocumentReference ref10020=db.collection("live_rooms").document(closedRoom10020);
++        db.runTransaction(tx10020->{
++            DocumentSnapshot live10020=tx10020.get(ref10020);
++            if(!live10020.exists()||!owner10020.equals(live10020.getString("ownerUid")))
++                throw new IllegalStateException("You are no longer this room's host");
++            if(Boolean.TRUE.equals(live10020.getBoolean("closed")))return false;
++            tx10020.update(ref10020,"closed",true,"updatedAt",FieldValue.serverTimestamp());
++            return true;
++        }).addOnSuccessListener(done->{
++            if(isActivePresence967(closedRoom10020,owner10020,visit10020)){
++                toast("Party room closed");leaveRoom();
++            }
++        }).addOnFailureListener(err->{
++            if(isActivePresence967(closedRoom10020,owner10020,visit10020))
++                toast("Room was NOT closed: "+msg(err));
++        });
++    }
+ 
+     private boolean categoryMatches(String selected,String category){
+         if(selected==null||"Hot".equalsIgnoreCase(selected))return true;
+@@ -6380,7 +6455,7 @@
+     private void loadProfileRoomStats(String uid,TextView vip,TextView level,TextView vipStat,TextView contributionStat,TextView charismaStat){
+         if(db==null||roomId==null||uid==null)return;db.collection("live_rooms").document(roomId).collection("events").orderBy("createdAt",Query.Direction.DESCENDING).limit(100).get().addOnSuccessListener(q->{long sent=0,received=0,activity=0;for(DocumentSnapshot d:q.getDocuments()){String a=d.getString("actorUid"),t=d.getString("targetUid"),type=d.getString("type");Long raw=d.getLong("giftValue");long v=raw==null?0:Math.max(0,raw);if(uid.equals(a)){activity++;if("gift".equals(type))sent+=v;}if(uid.equals(t)&&"gift".equals(type))received+=v;}int v=(int)Math.min(LevelSystem.MAX_VIP,sent/10000),lv=(int)Math.min(99,1+activity/10+(sent+received)/50000);vip.setText("💎 VIP "+v);level.setText("Lv "+Math.max(1,lv));vipStat.setText("⭐  VIP level\nvip."+v);contributionStat.setText("🏆  Contribution\n"+compactNumber(sent));charismaStat.setText("🔥  Charisma\n"+compactNumber(received));});
+     }
+-    private void logProfileVisit750(String targetUid){if(user==null||db==null||targetUid==null||targetUid.isEmpty()||targetUid.equals(user.getUid()))return;Map<String,Object>v=new HashMap<>();v.put("uid",user.getUid());v.put("name",safeName());v.put("updatedAt",FieldValue.serverTimestamp());db.collection("public_profiles").document(targetUid).collection("visitors").document(user.getUid()).set(v,SetOptions.merge());}
++    private void logProfileVisit750(String targetUid){if(user==null||db==null||targetUid==null||targetUid.isEmpty()||targetUid.equals(user.getUid()))return;Map<String,Object>v=new HashMap<>();v.put("uid",user.getUid());v.put("name",safeName());v.put("visitedAt",FieldValue.serverTimestamp());v.put("updatedAt",FieldValue.serverTimestamp());db.collection("public_profiles").document(targetUid).collection("visitors").document(user.getUid()).set(v,SetOptions.merge());}
+     private void profileFamilyDialog(String uid,String name){boolean self=user!=null&&uid.equals(user.getUid());if(self){SharedPreferences p=getSharedPreferences("MainActivity",MODE_PRIVATE);String family=p.getString("family_name","Not joined"),code=p.getString("family_code","");new AlertDialog.Builder(this).setTitle("👑 Family").setMessage("Current family: "+family+(code.isEmpty()?"":"\nFamily code: "+code)).setPositiveButton("Open Family Center",(d,w)->openCommunityHub700("Family")).setNeutralButton("Share Family",(d,w)->shareFamilyRoom()).setNegativeButton("Close",null).show();}else new AlertDialog.Builder(this).setTitle("👑 "+name+" • Family").setMessage("Family details stay private until shared. You can invite this user in private chat or share your Family room.").setPositiveButton("Private chat",(d,w)->openPrivateChat(uid,name)).setNeutralButton("Share Family",(d,w)->shareFamilyRoom()).setNegativeButton("Close",null).show();}
+     private void profileRelationshipDialog(String uid,String name){if(user!=null&&uid.equals(user.getUid())){new AlertDialog.Builder(this).setTitle("💞 Relationship").setMessage("Manage your relationship from the Me page.").setPositiveButton("Open Me page",(d,w)->{Intent i=new Intent(this,MainActivity.class);i.putExtra("openTab",4);startActivity(i);}).setNegativeButton("Close",null).show();return;}new AlertDialog.Builder(this).setTitle("💞 "+name).setMessage("Start a private chat or send a relationship gift.").setPositiveButton("Private chat",(d,w)->openPrivateChat(uid,name)).setNeutralButton("Send Gift",(d,w)->giftDialogFor(uid,name)).setNegativeButton("Close",null).show();}
+     private void profileGiftWallDialog(String uid,String name){if(db==null||roomId==null){toast("Live room required");return;}db.collection("live_rooms").document(roomId).collection("events").orderBy("createdAt",Query.Direction.DESCENDING).limit(100).get().addOnSuccessListener(q->{ArrayList<String> rows=new ArrayList<>();long total=0;for(DocumentSnapshot d:q.getDocuments())if("gift".equals(d.getString("type"))&&uid.equals(d.getString("targetUid"))){String g=d.getString("giftName"),a=d.getString("actorName");Long val=d.getLong("giftValue"),qty=d.getLong("giftQty");long v=val==null?0:val;total+=v;rows.add((g==null?"Gift":g)+" x"+(qty==null?1:qty)+" • from "+(a==null?"User":a)+" • 💎"+v);}if(rows.isEmpty()){new AlertDialog.Builder(this).setTitle("🎁 "+name+" • Gift Wall").setMessage("No gifts received in this room yet.").setPositiveButton("Send first gift",(d,w)->giftDialogFor(uid,name)).setNegativeButton("Close",null).show();return;}new AlertDialog.Builder(this).setTitle("🎁 Gift Wall • Recent 100 events 💎"+compactNumber(total)).setItems(rows.toArray(new String[0]),null).setPositiveButton("Send Gift",(d,w)->giftDialogFor(uid,name)).setNegativeButton("Close",null).show();}).addOnFailureListener(e->toast("Gift Wall unavailable: "+msg(e)));}
+@@ -7552,33 +7627,15 @@
+         if(seatNo<1){toast("All Mic seats are occupied");return;}
+         requestSeat(seatNo);
+     }
++    // All mic-request entry points share one safety-checked room-bound queue.
++    // The legacy menu used blind document.delete() and could silently assign
++    // an entirely different seat from the one the member requested.
+     private void openMicRequests940(){
+-        if(!cloudRoom||db==null||user==null){toast("Live Party room required");return;}
+-        if(!isModerator()){toast("Host/co-host only");return;}
+-        com.google.firebase.firestore.CollectionReference requests=db.collection("live_rooms").document(roomId).collection("seat_requests");
+-        requests.orderBy("createdAt",Query.Direction.ASCENDING).limit(30).get().addOnSuccessListener(snap->{
+-            if(snap==null||snap.isEmpty()){new AlertDialog.Builder(this).setTitle("🎙 Mic requests").setMessage("No one is waiting for a mic seat.").setPositiveButton("OK",null).show();return;}
+-            List<DocumentSnapshot> docs=new ArrayList<>(snap.getDocuments());String[] rows=new String[docs.size()];
+-            for(int i=0;i<docs.size();i++){DocumentSnapshot d=docs.get(i);Long n=d.getLong("seatNo");rows[i]=str(d,"name","Guest")+"   •   Seat "+(n==null?"?":n);}
+-            new AlertDialog.Builder(this).setTitle("🎙 Mic requests • "+docs.size()).setItems(rows,(dlg,w)->reviewMicRequest940(docs.get(w))).setNegativeButton("Close",null).show();
+-        }).addOnFailureListener(e->toast("Mic requests unavailable: "+msg(e)));
+-    }
+-    private void reviewMicRequest940(DocumentSnapshot request){
+-        if(request==null||!isModerator())return;
+-        final String uid=request.getString("uid");final String name=str(request,"name","Guest");Long raw=request.getLong("seatNo");final int preferred=raw==null?-1:raw.intValue();
+-        new AlertDialog.Builder(this).setTitle(name).setMessage("Requested mic seat "+(preferred>0?preferred:"")+"\n\nApprove to place this member on stage with mic OFF.")
+-            .setPositiveButton("Approve",(d,w)->approveMicRequest940(request,uid,name,preferred))
+-            .setNeutralButton("Reject",(d,w)->request.getReference().delete().addOnSuccessListener(v->toast("Mic request rejected")).addOnFailureListener(e->toast("Reject failed: "+msg(e))))
+-            .setNegativeButton("Cancel",null).show();
+-    }
+-    private void approveMicRequest940(DocumentSnapshot request,String uid,String name,int preferred){
+-        if(request==null||uid==null||uid.isEmpty()||db==null||roomId==null)return;
+-        int seat=(preferred>0&&preferred<=maxSeats&&!seatUids.containsKey(preferred))
+-            ?preferred:firstFreeMicSeat940();
+-        if(seat<1){toast("No free mic seat");return;}
+-        approveOrMoveMemberSeat9913(uid,name,-1,seat,request.getReference(),"Mic approved");
+-    }
+-
++        if(!cloudRoom||db==null||user==null||!memberSeen||!canModerateSeatsV530()){
++            toast("Join this Party as Host/co-host to review Mic requests");return;
++        }
++        allSeatRequestsDialog();
++    }
+     private void showSeatLockMenu940(int seatNo){
+         if(!isModerator()||!cloudRoom||db==null||roomId==null||user==null)return;
+         final String room10019=roomId,actor10019=user.getUid();

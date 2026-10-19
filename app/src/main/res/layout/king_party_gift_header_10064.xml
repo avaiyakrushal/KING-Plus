@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical">
+    <TextView android:id="@+id/party_gift_title_10064" android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content" android:minHeight="48dp" android:textSize="19sp" android:textStyle="bold" android:textColor="#FFFFFF" />
+    <TextView android:id="@+id/party_gift_balance_10064" android:layout_width="wrap_content" android:layout_height="wrap_content" android:minHeight="48dp" android:maxWidth="150dp" android:gravity="center" android:padding="8dp" android:textSize="13sp" android:textColor="#FFD768" />
+</LinearLayout>

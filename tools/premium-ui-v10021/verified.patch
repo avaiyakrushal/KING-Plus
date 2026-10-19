@@ -1,0 +1,207 @@
+--- a/app/build.gradle
++++ b/app/build.gradle
+@@ -17 +17 @@
+-    defaultConfig { applicationId 'com.kingplus.social'; minSdk 26; targetSdk 35; versionCode 299; versionName '10.0.20-me-home-party-batch-test' }
++    defaultConfig { applicationId 'com.kingplus.social'; minSdk 26; targetSdk 35; versionCode 300; versionName '10.0.21-premium-ui-logo-test' }
+--- a/app/src/main/java/com/kingplus/social/MainActivity.java
++++ b/app/src/main/java/com/kingplus/social/MainActivity.java
+@@ -329 +329 @@
+-        logo.setImageResource(R.drawable.king_logo);
++        logo.setImageResource(R.drawable.king_logo_royal10021);
+@@ -1196 +1196 @@
+-        LinearLayout nav=new LinearLayout(this); nav.setGravity(Gravity.CENTER); nav.setBackgroundColor(Color.WHITE); String[] ni={"⌂\nParty","♟\nGame","◇\nDiscover","✉\nMessages","●\nMe"};
++        LinearLayout nav=new LinearLayout(this); nav.setGravity(Gravity.CENTER); nav.setBackground(KingRoyalTheme10021.bottomNav(this)); String[] ni={"⌂\nParty","♟\nGame","◇\nDiscover","✉\nMessages","●\nMe"};
+@@ -1204 +1204 @@
+-        root.setOrientation(LinearLayout.VERTICAL);root.setBackgroundColor(0xfffafafa);
++        root.setOrientation(LinearLayout.VERTICAL);root.setBackground(KingRoyalTheme10021.page());
+@@ -1207 +1207 @@
+-        head.setPadding(dp(16),dp(12),dp(10),dp(6));
++        head.setPadding(dp(16),dp(10),dp(10),dp(6));head.setBackground(KingRoyalTheme10021.header(this));
+@@ -1216 +1216 @@
+-        root.addView(head,new LinearLayout.LayoutParams(-1,dp(66)));
++        root.addView(head,new LinearLayout.LayoutParams(-1,dp(78)));
+@@ -1220 +1220 @@
+-        host.setPadding(dp(14),0,dp(14),dp(18));scroll.addView(host);
++        host.setPadding(dp(14),dp(10),dp(14),dp(36));scroll.addView(host);
+@@ -1231 +1231 @@
+-        multiplayer.setBackground(background(0xff6b3bbe,16));
++        multiplayer.setBackground(KingRoyalTheme10021.violetCard(this,18));
+@@ -1233 +1233 @@
+-        LinearLayout.LayoutParams mp=new LinearLayout.LayoutParams(-1,dp(90));
++        LinearLayout.LayoutParams mp=new LinearLayout.LayoutParams(-1,dp(102));
+@@ -1245 +1245 @@
+-        host.addView(highlights,new LinearLayout.LayoutParams(-1,dp(147)));
++        host.addView(highlights,new LinearLayout.LayoutParams(-1,-2));
+@@ -1266 +1266 @@
+-                host.addView(row,new LinearLayout.LayoutParams(-1,dp(150)));
++                host.addView(row,new LinearLayout.LayoutParams(-1,-2));
+@@ -1272 +1272 @@
+-        addBottomNav(root,1);setContentView(root);
++        addBottomNav(root,1);setSafeContentView(root);
+@@ -1275,5 +1275,5 @@
+-        LinearLayout card=new LinearLayout(this);card.setOrientation(LinearLayout.VERTICAL);card.setPadding(dp(4),dp(4),dp(4),dp(6));card.setBackground(background(Color.WHITE,12));card.setOnClickListener(v->openPlayableGame(code));
+-        KingGameArtView art=new KingGameArtView(this,code,title);card.addView(art,new LinearLayout.LayoutParams(-1,dp(88)));
+-        TextView nm=new TextView(this);nm.setText(title);nm.setTextSize(12);nm.setTypeface(null,Typeface.BOLD);nm.setTextColor(0xff27242b);nm.setGravity(Gravity.CENTER_VERTICAL);nm.setSingleLine(true);card.addView(nm,new LinearLayout.LayoutParams(-1,dp(24)));
+-        TextView sub=new TextView(this);sub.setText("● "+badge);sub.setTextSize(9);sub.setTextColor(0xff23a578);sub.setSingleLine(true);card.addView(sub,new LinearLayout.LayoutParams(-1,dp(18)));
+-        LinearLayout.LayoutParams p=new LinearLayout.LayoutParams(0,dp(136),1);p.setMargins(dp(4),dp(2),dp(4),dp(6));row.addView(card,p);
++        LinearLayout card=new LinearLayout(this);card.setOrientation(LinearLayout.VERTICAL);card.setPadding(dp(4),dp(4),dp(4),dp(6));card.setBackground(KingRoyalTheme10021.card(this,14));card.setOnClickListener(v->openPlayableGame(code));
++        KingGameArtView art=new KingGameArtView(this,code,title);card.addView(art,new LinearLayout.LayoutParams(-1,dp(94)));
++        TextView nm=new TextView(this);nm.setText(title);nm.setTextSize(12);nm.setTypeface(null,Typeface.BOLD);nm.setTextColor(0xff27242b);nm.setGravity(Gravity.CENTER_VERTICAL);nm.setSingleLine(false);nm.setMaxLines(2);card.addView(nm,new LinearLayout.LayoutParams(-1,dp(38)));
++        TextView sub=new TextView(this);sub.setText("● "+badge);sub.setTextSize(9);sub.setTextColor(0xff23a578);sub.setSingleLine(false);sub.setMaxLines(2);card.addView(sub,new LinearLayout.LayoutParams(-1,dp(27)));
++        LinearLayout.LayoutParams p=new LinearLayout.LayoutParams(0,dp(168),1);p.setMargins(dp(4),dp(2),dp(4),dp(6));row.addView(card,p);
+@@ -1583,2 +1583,2 @@
+-        LinearLayout root=new LinearLayout(this);root.setOrientation(LinearLayout.VERTICAL);root.setBackgroundColor(Color.WHITE);
+-        LinearLayout top=new LinearLayout(this);top.setGravity(Gravity.CENTER_VERTICAL);top.setPadding(dp(12),dp(5),dp(8),0);
++        LinearLayout root=new LinearLayout(this);root.setOrientation(LinearLayout.VERTICAL);root.setBackground(KingRoyalTheme10021.page());
++        LinearLayout top=new LinearLayout(this);top.setGravity(Gravity.CENTER_VERTICAL);top.setPadding(dp(12),dp(5),dp(8),0);top.setBackground(KingRoyalTheme10021.header(this));
+@@ -1590 +1590 @@
+-        ScrollView sv=new ScrollView(this);LinearLayout content=new LinearLayout(this);content.setOrientation(LinearLayout.VERTICAL);content.setPadding(dp(14),dp(6),dp(14),dp(16));sv.addView(content);
++        ScrollView sv=new ScrollView(this);LinearLayout content=new LinearLayout(this);content.setOrientation(LinearLayout.VERTICAL);content.setPadding(dp(14),dp(12),dp(14),dp(34));sv.addView(content);
+@@ -1603 +1603 @@
+-        LinearLayout family=new LinearLayout(this);family.setGravity(Gravity.CENTER_VERTICAL);family.setPadding(dp(12),0,dp(12),0);family.setBackground(background(0xfffff3dc,7));TextView fi=new TextView(this);fi.setText("👑");fi.setTextSize(21);fi.setGravity(Gravity.CENTER);family.addView(fi,new LinearLayout.LayoutParams(dp(42),dp(48)));TextView ft=new TextView(this);ft.setText("Family Square");ft.setTextSize(14);ft.setTypeface(null,Typeface.BOLD);ft.setTextColor(0xff473819);family.addView(ft,new LinearLayout.LayoutParams(0,dp(48),1));TextView ar=new TextView(this);ar.setText("›");ar.setTextSize(25);ar.setGravity(Gravity.CENTER);family.addView(ar,new LinearLayout.LayoutParams(dp(34),dp(48)));family.setOnClickListener(v->openCommunityHub700("Family"));LinearLayout.LayoutParams fp=new LinearLayout.LayoutParams(-1,dp(52));fp.setMargins(0,dp(7),0,dp(12));content.addView(family,fp);
++        LinearLayout family=new LinearLayout(this);family.setGravity(Gravity.CENTER_VERTICAL);family.setPadding(dp(12),0,dp(12),0);family.setBackground(KingRoyalTheme10021.card(this,16));TextView fi=new TextView(this);fi.setText("👑");fi.setTextSize(21);fi.setGravity(Gravity.CENTER);family.addView(fi,new LinearLayout.LayoutParams(dp(42),dp(48)));TextView ft=new TextView(this);ft.setText("Family Square");ft.setTextSize(14);ft.setTypeface(null,Typeface.BOLD);ft.setTextColor(0xff473819);family.addView(ft,new LinearLayout.LayoutParams(0,dp(48),1));TextView ar=new TextView(this);ar.setText("›");ar.setTextSize(25);ar.setGravity(Gravity.CENTER);family.addView(ar,new LinearLayout.LayoutParams(dp(34),dp(48)));family.setOnClickListener(v->openCommunityHub700("Family"));LinearLayout.LayoutParams fp=new LinearLayout.LayoutParams(-1,dp(52));fp.setMargins(0,dp(7),0,dp(12));content.addView(family,fp);
+--- a/app/src/main/java/com/kingplus/social/DiscoverActivity.java
++++ b/app/src/main/java/com/kingplus/social/DiscoverActivity.java
+@@ -84 +84 @@
+-        LinearLayout root=new LinearLayout(this);root.setOrientation(LinearLayout.VERTICAL);root.setBackgroundColor(Color.WHITE);
++        LinearLayout root=new LinearLayout(this);root.setOrientation(LinearLayout.VERTICAL);root.setBackground(KingRoyalTheme10021.page());
+@@ -86 +86 @@
+-        ScrollView sv=new ScrollView(this);content=new LinearLayout(this);content.setOrientation(LinearLayout.VERTICAL);content.setPadding(dp(14),dp(8),dp(14),dp(24));sv.addView(content);root.addView(sv,new LinearLayout.LayoutParams(-1,0,1));
++        ScrollView sv=new ScrollView(this);content=new LinearLayout(this);content.setOrientation(LinearLayout.VERTICAL);content.setPadding(dp(14),dp(12),dp(14),dp(36));sv.addView(content);root.addView(sv,new LinearLayout.LayoutParams(-1,0,1));
+@@ -101 +101 @@
+-        LinearLayout h=new LinearLayout(this);h.setGravity(Gravity.CENTER_VERTICAL);h.setPadding(dp(16),dp(4),dp(10),0);h.setBackgroundColor(Color.WHITE);
++        LinearLayout h=new LinearLayout(this);h.setGravity(Gravity.CENTER_VERTICAL);h.setPadding(dp(16),dp(4),dp(10),0);h.setBackground(KingRoyalTheme10021.header(this));
+@@ -108 +108 @@
+-        LinearLayout row=new LinearLayout(this);row.setGravity(Gravity.CENTER);
++        LinearLayout row=new LinearLayout(this);row.setGravity(Gravity.CENTER_VERTICAL);
+@@ -113 +113,2 @@
+-        LinearLayout.LayoutParams rp=new LinearLayout.LayoutParams(-1,dp(94));rp.setMargins(0,dp(2),0,dp(8));content.addView(row,rp);
++        HorizontalScrollView strip=new HorizontalScrollView(this);strip.setHorizontalScrollBarEnabled(false);strip.setFillViewport(false);strip.addView(row);
++        LinearLayout.LayoutParams rp=new LinearLayout.LayoutParams(-1,dp(112));rp.setMargins(0,dp(2),0,dp(8));content.addView(strip,rp);
+@@ -116 +117 @@
+-        LinearLayout card=new LinearLayout(this);card.setOrientation(LinearLayout.VERTICAL);card.setGravity(Gravity.CENTER);card.setPadding(dp(4),dp(6),dp(4),dp(4));card.setBackground(bg(0xfff7f4fb,14));
++        LinearLayout card=new LinearLayout(this);card.setOrientation(LinearLayout.VERTICAL);card.setGravity(Gravity.CENTER);card.setPadding(dp(4),dp(6),dp(4),dp(4));card.setBackground(KingRoyalTheme10021.card(this,16));
+@@ -119,2 +120,2 @@
+-        TextView s=tv(sub,9,MUTED,false);s.setGravity(Gravity.CENTER);s.setSingleLine(true);card.addView(s,new LinearLayout.LayoutParams(-1,dp(20)));
+-        card.setOnClickListener(v->KingSafe.run(this,"ui-action",action));LinearLayout.LayoutParams p=new LinearLayout.LayoutParams(0,dp(88),1);p.setMargins(dp(3),0,dp(3),0);row.addView(card,p);
++        TextView s=tv(sub,9,MUTED,false);s.setGravity(Gravity.CENTER);s.setSingleLine(false);s.setMaxLines(2);card.addView(s,new LinearLayout.LayoutParams(-1,dp(30)));
++        card.setOnClickListener(v->KingSafe.run(this,"ui-action",action));LinearLayout.LayoutParams p=new LinearLayout.LayoutParams(dp(113),dp(103));p.setMargins(dp(3),0,dp(6),0);row.addView(card,p);
+@@ -135 +136 @@
+-        q.get().addOnSuccessListener(snap->{grid.removeAllViews();LinearLayout row=null;int shown=0;for(DocumentSnapshot p:snap.getDocuments()){String uid=safe(p.getString("uid"),p.getId());if(uid.equals(me.getUid()))continue;if(shown%2==0){row=new LinearLayout(this);row.setGravity(Gravity.TOP);grid.addView(row,new LinearLayout.LayoutParams(-1,dp(222)));}addProfileCard940(row,p);shown++;if(shown>=8)break;}if(shown==0){TextView empty=emptyText("No matching KING profiles yet • tap to refresh");empty.setOnClickListener(v->loadProfileGrid940());grid.addView(empty,new LinearLayout.LayoutParams(-1,dp(90)));}}).addOnFailureListener(e->{grid.removeAllViews();TextView retry=emptyText("Discover unavailable • tap to retry");retry.setOnClickListener(v->loadProfileGrid940());grid.addView(retry,new LinearLayout.LayoutParams(-1,dp(90)));});
++        q.get().addOnSuccessListener(snap->{grid.removeAllViews();LinearLayout row=null;int shown=0;for(DocumentSnapshot p:snap.getDocuments()){String uid=safe(p.getString("uid"),p.getId());if(uid.equals(me.getUid()))continue;if(shown%2==0){row=new LinearLayout(this);row.setGravity(Gravity.TOP);grid.addView(row,new LinearLayout.LayoutParams(-1,dp(256)));}addProfileCard940(row,p);shown++;if(shown>=8)break;}if(shown==0){TextView empty=emptyText("No matching KING profiles yet • tap to refresh");empty.setOnClickListener(v->loadProfileGrid940());grid.addView(empty,new LinearLayout.LayoutParams(-1,dp(90)));}}).addOnFailureListener(e->{grid.removeAllViews();TextView retry=emptyText("Discover unavailable • tap to retry");retry.setOnClickListener(v->loadProfileGrid940());grid.addView(retry,new LinearLayout.LayoutParams(-1,dp(90)));});
+@@ -138 +139 @@
+-        String uid=safe(p.getString("uid"),p.getId()),name=nameOf(p);LinearLayout card=new LinearLayout(this);card.setOrientation(LinearLayout.VERTICAL);card.setPadding(dp(5),dp(5),dp(5),dp(7));card.setBackground(bg(Color.WHITE,14));
++        String uid=safe(p.getString("uid"),p.getId()),name=nameOf(p);LinearLayout card=new LinearLayout(this);card.setOrientation(LinearLayout.VERTICAL);card.setPadding(dp(5),dp(5),dp(5),dp(7));card.setBackground(KingRoyalTheme10021.card(this,16));
+@@ -141 +142 @@
+-        TextView chat=tv("● Chat",12,0xff126d50,true);chat.setGravity(Gravity.CENTER);chat.setBackground(bg(0xffd9f7ea,12));chat.setOnClickListener(v->openProfile(uid));card.addView(chat,new LinearLayout.LayoutParams(-1,dp(32)));card.setOnClickListener(v->openProfile(uid));LinearLayout.LayoutParams cp=new LinearLayout.LayoutParams(0,dp(214),1);cp.setMargins(dp(4),dp(4),dp(4),dp(4));row.addView(card,cp);
++        TextView chat=tv("● Chat",12,0xff126d50,true);chat.setGravity(Gravity.CENTER);chat.setBackground(bg(0xffd9f7ea,12));chat.setOnClickListener(v->openProfile(uid));card.addView(chat,new LinearLayout.LayoutParams(-1,dp(32)));card.setOnClickListener(v->openProfile(uid));LinearLayout.LayoutParams cp=new LinearLayout.LayoutParams(0,dp(246),1);cp.setMargins(dp(4),dp(4),dp(4),dp(4));row.addView(card,cp);
+@@ -167,3 +168,3 @@
+-    private TextView smallRankCard(String s){TextView t=tv(s,13,DARK,true);t.setGravity(Gravity.CENTER_VERTICAL);t.setPadding(dp(14),0,dp(8),0);t.setBackground(bg(0xfffff0bd,14));return t;}
+-
+-    private void sectionTitle(String title,String more,Runnable action){LinearLayout r=new LinearLayout(this);r.setGravity(Gravity.CENTER_VERTICAL);r.setPadding(dp(0),dp(14),0,dp(8));TextView t=tv(title,22,0xff171717,true);r.addView(t,new LinearLayout.LayoutParams(0,dp(46),1));TextView m=tv(more+"  ›",14,0xff333037,true);m.setGravity(Gravity.CENTER);m.setBackground(bg(Color.WHITE,12));m.setOnClickListener(v->KingSafe.run(this,"ui-action",action));r.addView(m,new LinearLayout.LayoutParams(dp(112),dp(42)));content.addView(r);}
++    private TextView smallRankCard(String s){TextView t=tv(s,13,DARK,true);t.setGravity(Gravity.CENTER_VERTICAL);t.setPadding(dp(14),0,dp(8),0);t.setBackground(KingRoyalTheme10021.card(this,14));return t;}
++
++    private void sectionTitle(String title,String more,Runnable action){LinearLayout r=new LinearLayout(this);r.setGravity(Gravity.CENTER_VERTICAL);r.setPadding(dp(0),dp(14),0,dp(8));TextView t=tv(title,19,KingRoyalTheme10021.INK,true);t.setGravity(Gravity.CENTER_VERTICAL);t.setMaxLines(2);r.addView(t,new LinearLayout.LayoutParams(0,dp(46),1));TextView m=tv(more+"  ›",14,0xff333037,true);m.setGravity(Gravity.CENTER);m.setBackground(KingRoyalTheme10021.card(this,12));m.setOnClickListener(v->KingSafe.run(this,"ui-action",action));r.addView(m,new LinearLayout.LayoutParams(dp(112),dp(42)));content.addView(r);}
+@@ -271 +272 @@
+-    private View bottomNav(){LinearLayout nav=new LinearLayout(this);nav.setGravity(Gravity.CENTER);nav.setBackgroundColor(Color.WHITE);addNav(nav,"⌂\nParty",0);addNav(nav,"▣\nGame",1);addNav(nav,"◉\nDiscover",2);addNav(nav,"▢\nMessages",3);addNav(nav,"♙\nMe",4);return nav;}
++    private View bottomNav(){LinearLayout nav=new LinearLayout(this);nav.setGravity(Gravity.CENTER);nav.setBackground(KingRoyalTheme10021.bottomNav(this));addNav(nav,"⌂\nParty",0);addNav(nav,"▣\nGame",1);addNav(nav,"◉\nDiscover",2);addNav(nav,"▢\nMessages",3);addNav(nav,"♙\nMe",4);return nav;}
+--- a/app/src/main/java/com/kingplus/social/InboxActivity.java
++++ b/app/src/main/java/com/kingplus/social/InboxActivity.java
+@@ -16,0 +17,3 @@
++import androidx.core.graphics.Insets;
++import androidx.core.view.ViewCompat;
++import androidx.core.view.WindowInsetsCompat;
+@@ -37 +40 @@
+-    private static final int BG = 0xfffbfafc;
++    private static final int BG = 0xfffff8ed;
+@@ -85,3 +88,3 @@
+-        LinearLayout root = new LinearLayout(this); root.setOrientation(LinearLayout.VERTICAL); root.setBackgroundColor(BG);
+-
+-        LinearLayout head = new LinearLayout(this); head.setGravity(Gravity.CENTER_VERTICAL); head.setPadding(dp(18),dp(10),dp(8),dp(4));
++        LinearLayout root = new LinearLayout(this); root.setOrientation(LinearLayout.VERTICAL); root.setBackground(KingRoyalTheme10021.page());
++
++        LinearLayout head = new LinearLayout(this); head.setGravity(Gravity.CENTER_VERTICAL); head.setPadding(dp(18),dp(10),dp(8),dp(4));head.setBackground(KingRoyalTheme10021.header(this));
+@@ -93 +96 @@
+-        LinearLayout notice940=new LinearLayout(this);notice940.setGravity(Gravity.CENTER_VERTICAL);notice940.setPadding(dp(14),dp(6),dp(10),dp(6));notice940.setBackground(bg(0xfffff8d8,12));
++        LinearLayout notice940=new LinearLayout(this);notice940.setGravity(Gravity.CENTER_VERTICAL);notice940.setPadding(dp(14),dp(6),dp(10),dp(6));notice940.setBackground(KingRoyalTheme10021.card(this,14));
+@@ -104,0 +108,4 @@
++        setSafeContentView10021(root);
++    }
++
++    private void setSafeContentView10021(View root){
+@@ -105,0 +113,7 @@
++        final int l=root.getPaddingLeft(),t=root.getPaddingTop(),rr=root.getPaddingRight(),b=root.getPaddingBottom();
++        ViewCompat.setOnApplyWindowInsetsListener(root,(v,insets)->{
++            Insets safe=insets.getInsets(WindowInsetsCompat.Type.systemBars());
++            v.setPadding(l+safe.left,t+safe.top,rr+safe.right,b+safe.bottom);
++            return insets;
++        });
++        ViewCompat.requestApplyInsets(root);
+@@ -120 +134 @@
+-    private void addSystemRow940(String icon,String title,String sub,Runnable action){LinearLayout row=new LinearLayout(this);row.setGravity(Gravity.CENTER_VERTICAL);row.setPadding(dp(16),dp(8),dp(14),dp(8));row.setBackgroundColor(Color.WHITE);TextView av=label(icon,23,DARK,false);av.setGravity(Gravity.CENTER);av.setBackground(bg(0xfffff1d6,27));row.addView(av,new LinearLayout.LayoutParams(dp(52),dp(52)));LinearLayout info=new LinearLayout(this);info.setOrientation(LinearLayout.VERTICAL);info.setPadding(dp(12),0,0,0);info.addView(label(title,15,DARK,true),new LinearLayout.LayoutParams(-1,dp(28)));TextView sb=label(sub,12,MUTED,false);sb.setSingleLine(true);info.addView(sb,new LinearLayout.LayoutParams(-1,dp(24)));row.addView(info,new LinearLayout.LayoutParams(0,dp(52),1));TextView ar=label("›",24,0xffaaa4ad,false);ar.setGravity(Gravity.CENTER);row.addView(ar,new LinearLayout.LayoutParams(dp(34),dp(52)));row.setOnClickListener(v->KingSafe.run(this,"ui-action",action));list.addView(row,new LinearLayout.LayoutParams(-1,dp(70)));}
++    private void addSystemRow940(String icon,String title,String sub,Runnable action){LinearLayout row=new LinearLayout(this);row.setGravity(Gravity.CENTER_VERTICAL);row.setPadding(dp(16),dp(8),dp(14),dp(8));row.setBackground(KingRoyalTheme10021.card(this,14));TextView av=label(icon,23,DARK,false);av.setGravity(Gravity.CENTER);av.setBackground(bg(0xfffff1d6,27));row.addView(av,new LinearLayout.LayoutParams(dp(52),dp(52)));LinearLayout info=new LinearLayout(this);info.setOrientation(LinearLayout.VERTICAL);info.setPadding(dp(12),0,0,0);info.addView(label(title,15,DARK,true),new LinearLayout.LayoutParams(-1,dp(28)));TextView sb=label(sub,12,MUTED,false);sb.setSingleLine(true);info.addView(sb,new LinearLayout.LayoutParams(-1,dp(24)));row.addView(info,new LinearLayout.LayoutParams(0,dp(52),1));TextView ar=label("›",24,0xffaaa4ad,false);ar.setGravity(Gravity.CENTER);row.addView(ar,new LinearLayout.LayoutParams(dp(34),dp(52)));row.setOnClickListener(v->KingSafe.run(this,"ui-action",action));LinearLayout.LayoutParams rowLp=new LinearLayout.LayoutParams(-1,dp(76));rowLp.setMargins(dp(10),dp(4),dp(10),dp(4));list.addView(row,rowLp);}
+@@ -194 +208 @@
+-        LinearLayout row=new LinearLayout(this);row.setGravity(Gravity.CENTER_VERTICAL);row.setPadding(dp(16),dp(10),dp(14),dp(10));row.setBackgroundColor(Color.WHITE);
++        LinearLayout row=new LinearLayout(this);row.setGravity(Gravity.CENTER_VERTICAL);row.setPadding(dp(16),dp(10),dp(14),dp(10));row.setBackground(KingRoyalTheme10021.card(this,14));
+@@ -204 +218 @@
+-        row.setOnClickListener(v->openChat(m.name,m.peerUid)); list.addView(row,new LinearLayout.LayoutParams(-1,dp(74)));
++        row.setOnClickListener(v->openChat(m.name,m.peerUid)); LinearLayout.LayoutParams rowLp=new LinearLayout.LayoutParams(-1,dp(80));rowLp.setMargins(dp(10),dp(4),dp(10),dp(4));list.addView(row,rowLp);
+@@ -273 +287 @@
+-        LinearLayout nav=new LinearLayout(this);nav.setGravity(Gravity.CENTER);nav.setBackgroundColor(Color.WHITE);String[] ni={"⌂\nParty","♟\nGame","◇\nDiscover","✉\nMessages","●\nMe"};
++        LinearLayout nav=new LinearLayout(this);nav.setGravity(Gravity.CENTER);nav.setBackground(KingRoyalTheme10021.bottomNav(this));String[] ni={"⌂\nParty","♟\nGame","◇\nDiscover","✉\nMessages","●\nMe"};
+--- /dev/null
++++ b/app/src/main/java/com/kingplus/social/KingRoyalTheme10021.java
+@@ -0,0 +1,30 @@
++package com.kingplus.social;
++
++import android.graphics.drawable.GradientDrawable;
++import android.graphics.Color;
++import android.content.Context;
++
++/** Premium gold, cream and violet visual identity shared by KING Plus screens. */
++public final class KingRoyalTheme10021 {
++    public static final int INK=0xff292044;
++    public static final int CREAM=0xfffff8eb;
++    public static final int GOLD=0xffdcb65d;
++    public static final int VIOLET=0xff7555b7;
++    public static final int SUBTITLE=0xff766a80;
++    private KingRoyalTheme10021(){}
++    private static float dp(Context c,float value){return c.getResources().getDisplayMetrics().density*value;}
++    public static GradientDrawable page(){return new GradientDrawable(
++        GradientDrawable.Orientation.TOP_BOTTOM,new int[]{0xfffff6db,0xfffaf1fd,0xfffffaf1});}
++    public static GradientDrawable header(Context c){GradientDrawable d=new GradientDrawable(
++        GradientDrawable.Orientation.TL_BR,new int[]{0xffffedb9,0xfff5e5ff});
++        d.setCornerRadius(dp(c,18)); d.setStroke((int)dp(c,1),0xffecd28b);return d;}
++    public static GradientDrawable card(Context c,int radius){GradientDrawable d=new GradientDrawable(
++        GradientDrawable.Orientation.TL_BR,new int[]{0xffffffff,0xfffffaef});
++        d.setCornerRadius(dp(c,radius));d.setStroke((int)Math.max(1,dp(c,1)),0xffe5c876);return d;}
++    public static GradientDrawable violetCard(Context c,int radius){GradientDrawable d=new GradientDrawable(
++        GradientDrawable.Orientation.TL_BR,new int[]{0xff6242a4,0xff9870d2});
++        d.setCornerRadius(dp(c,radius));d.setStroke((int)Math.max(1,dp(c,1)),0xfff0cb68);return d;}
++    public static GradientDrawable bottomNav(Context c){GradientDrawable d=new GradientDrawable(
++        GradientDrawable.Orientation.TOP_BOTTOM,new int[]{0xfffffaed,0xffffffff});
++        d.setStroke((int)Math.max(1,dp(c,1)),0xfff2dfad);return d;}
++}
+--- /dev/null
++++ b/app/src/main/res/drawable/king_logo_royal10021.xml
+@@ -0,0 +1,15 @@
++<?xml version="1.0" encoding="utf-8"?>
++<vector xmlns:android="http://schemas.android.com/apk/res/android"
++    android:width="108dp" android:height="108dp"
++    android:viewportWidth="108" android:viewportHeight="108">
++    <path android:fillColor="#191234" android:pathData="M22,2 L86,2 Q106,2 106,22 L106,86 Q106,106 86,106 L22,106 Q2,106 2,86 L2,22 Q2,2 22,2Z"/>
++    <path android:fillColor="#38245F" android:pathData="M54,8 L94,28 L94,81 L54,100 L14,81 L14,28Z"/>
++    <path android:fillColor="#00000000" android:strokeColor="#F4CE72" android:strokeWidth="2.3"
++        android:pathData="M54,10 L92,30 L92,79 L54,98 L16,79 L16,30Z"/>
++    <path android:fillColor="#EFC76E" android:pathData="M27,28 L37,36 L46,20 L54,35 L63,20 L72,36 L82,28 L78,48 L30,48Z"/>
++    <path android:fillColor="#FFF0BD" android:pathData="M31,50 L77,50 L77,54 L31,54Z"/>
++    <path android:fillColor="#FCDE96" android:pathData="M35,59 L44,59 L44,71 L62,57 L77,57 L60,72 L77,89 L61,89 L49,77 L44,81 L44,89 L35,89Z"/>
++    <path android:fillColor="#B78CF9" android:pathData="M46,59 L59,59 L48,67 L46,66Z"/>
++    <path android:fillColor="#FFFFFF" android:pathData="M52,40 L54,37 L56,40 L54,43Z"/>
++    <path android:fillColor="#F5D99C" android:pathData="M22,56 L25,51 L28,56 L25,61Z M80,56 L83,51 L86,56 L83,61Z"/>
++</vector>
+--- a/app/src/main/AndroidManifest.xml
++++ b/app/src/main/AndroidManifest.xml
+@@ -10 +10 @@
+-    <application android:name=".KingApplication" tools:replace="android:label" android:theme="@android:style/Theme.Material.Light.NoActionBar" android:label="KING Plus" android:icon="@drawable/king_logo" android:usesCleartextTraffic="false">
++    <application android:name=".KingApplication" tools:replace="android:label" android:theme="@android:style/Theme.Material.Light.NoActionBar" android:label="KING Plus" android:icon="@drawable/king_logo_royal10021" android:usesCleartextTraffic="false">

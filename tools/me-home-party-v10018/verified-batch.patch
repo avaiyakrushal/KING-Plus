@@ -1,0 +1,331 @@
+--- a/app/src/main/java/com/kingplus/social/MainActivity.java
++++ b/app/src/main/java/com/kingplus/social/MainActivity.java
+@@ -92,6 +92,7 @@
+     private int visitorCountGeneration10007;
+     // The latest Me hosted-room request alone may update the visible list.
+     private int hostedRoomsGeneration10014;
++    private LinearLayout meHostedRoomsHost10018;
+     private int meGalleryLimit9996=40;
+     private LinearLayout meCloudGalleryHost9993;
+     private final java.util.Set<String> liveFollowing965=new java.util.HashSet<>();
+@@ -1323,8 +1324,15 @@
+     }
+ 
+     private void peoplePage(String title){
+-        // Use the Firebase-backed social screen instead of seeding fake people.
+-        startActivity(new Intent(this,SocialActivity.class));
++        // Open the ACTUAL cloud list selected by the profile counter.
++        // Previously all three counters incorrectly opened Discover.
++        Intent social10018=new Intent(this,SocialActivity.class);
++        String tab10018="discover";
++        if("Followers".equalsIgnoreCase(title))tab10018="followers";
++        else if("Following".equalsIgnoreCase(title))tab10018="following";
++        else if("Friends".equalsIgnoreCase(title))tab10018="friends";
++        social10018.putExtra("initialSocialTab10018",tab10018);
++        startActivity(social10018);
+     }
+ 
+     private void userProfile(String who){
+@@ -1622,7 +1630,9 @@
+         rec9981.setOnClickListener(v->showMeRoomHistory9981("recent"));
+         tabs.addView(rec9981,new LinearLayout.LayoutParams(dp(78),dp(38)));TextView follow=new TextView(this);follow.setText("Follow");follow.setTextSize(14);follow.setTextColor(0xff555555);follow.setGravity(Gravity.CENTER);follow.setOnClickListener(v->peoplePage("Following"));tabs.addView(follow,new LinearLayout.LayoutParams(dp(78),dp(38)));content.addView(tabs,new LinearLayout.LayoutParams(-1,dp(44)));
+         TextView records=new TextView(this);records.setText("My Hosted Party Rooms");records.setTextSize(15);records.setTypeface(null,Typeface.BOLD);records.setTextColor(0xff222222);records.setPadding(0,dp(8),0,dp(6));content.addView(records,new LinearLayout.LayoutParams(-1,dp(44)));
+-        LinearLayout recordList=new LinearLayout(this);recordList.setOrientation(LinearLayout.VERTICAL);content.addView(recordList,new LinearLayout.LayoutParams(-1,-2));loadPartyRecordsV600(recordList);
++        LinearLayout recordList=new LinearLayout(this);recordList.setOrientation(LinearLayout.VERTICAL);
++        meHostedRoomsHost10018=recordList;
++        content.addView(recordList,new LinearLayout.LayoutParams(-1,-2));loadPartyRecordsV600(recordList);
+         root.addView(sv,new LinearLayout.LayoutParams(-1,0,1));addBottomNav(root,4);setSafeContentView(root);loadRealProfileData();
+     }
+ 
+@@ -2545,6 +2555,11 @@
+                 syncPublicProfile();
+             }
+         }
++        // Refresh the real hosted-room list after returning from Party creation/closure.
++        // Generation guards prevent in-flight replies from an older account overwriting it.
++        if("profile".equals(screen)&&meHostedRoomsHost10018!=null
++                &&meHostedRoomsHost10018.getParent()!=null)
++            loadPartyRecordsV600(meHostedRoomsHost10018);
+         if("profile".equals(screen) && followingListener965==null && followersListener965==null
+                 && firestore!=null && firebaseAuth!=null && firebaseAuth.getCurrentUser()!=null)
+             startProfileFollowUpdates965(firebaseAuth.getCurrentUser().getUid());
+--- a/app/src/main/java/com/kingplus/social/SocialActivity.java
++++ b/app/src/main/java/com/kingplus/social/SocialActivity.java
+@@ -68,7 +68,11 @@
+         render();
+         if (cloudReady()) {
+             verifyOwnProfile996();
+-            loadDiscover();
++            String initial10018=getIntent()==null?"discover":getIntent().getStringExtra("initialSocialTab10018");
++            if("followers".equals(initial10018))loadFollowers();
++            else if("following".equals(initial10018))loadFollowing();
++            else if("friends".equals(initial10018))loadFriends();
++            else loadDiscover();
+         } else {
+             status.setText("Local/test mode • sign in with Firebase for live people search");
+             showLocalDemo();
+--- a/app/src/main/java/com/kingplus/social/CommunityHubActivity.java
++++ b/app/src/main/java/com/kingplus/social/CommunityHubActivity.java
+@@ -305,8 +305,64 @@
+                     });
+                     feed.addView(more,new LinearLayout.LayoutParams(-1,dp(48)));
+                 } else if(momentsQueryLimit10000>=320 && snap.size()>=320){
+-                    feed.addView(tv("Showing latest 320 Moments. Older history is not loaded.",12,MUTED,false));
++                    final DocumentSnapshot last10018=snap.getDocuments().get(snap.size()-1);
++                    LinearLayout history10018=new LinearLayout(this);
++                    history10018.setOrientation(LinearLayout.VERTICAL);
++                    feed.addView(history10018);
++                    TextView older10018=button("↓ Load Moments older than the latest 320",()->{});
++                    older10018.setOnClickListener(v->{
++                        if(generation!=momentsGeneration9990 || !"Moments".equals(selected)
++                            || !KingSavedRoomsCloud9990.account(account) || history10018.getParent()!=feed)return;
++                        feed.removeView(older10018);
++                        loadOlderMoments10018(history10018,last10018,generation,account,topicFilter);
++                    });
++                    feed.addView(older10018,new LinearLayout.LayoutParams(-1,dp(46)));
+                 }
++            });
++    }
++    // Real server-cursor history; not an ever-growing in-memory 320-row query.
++    private void loadOlderMoments10018(LinearLayout history10018,DocumentSnapshot cursor10018,
++                                      int generation10018,String account10018,String topic10018){
++        if(cursor10018==null||generation10018!=momentsGeneration9990
++            ||!"Moments".equals(selected)||!KingSavedRoomsCloud9990.account(account10018)
++            ||history10018.getParent()==null)return;
++        TextView progress10018=tv("⌛ Loading older Moments…",13,MUTED,false);
++        history10018.addView(progress10018);
++        db.collection("moments").orderBy("createdAt",Query.Direction.DESCENDING)
++            .startAfter(cursor10018).limit(80).get(com.google.firebase.firestore.Source.SERVER)
++            .addOnSuccessListener(page10018->{
++                if(generation10018!=momentsGeneration9990||!"Moments".equals(selected)
++                    ||isFinishing()||isDestroyed()||!KingSavedRoomsCloud9990.account(account10018)
++                    ||history10018.getParent()==null)return;
++                history10018.removeView(progress10018);
++                autoMomentPhotos10001=0;int shown10018=0;
++                for(DocumentSnapshot d10018:page10018.getDocuments()){
++                    String topicRow10018=safe(d10018.getString("topic"),"General");
++                    if(!"All".equals(topic10018)&&!topic10018.equalsIgnoreCase(topicRow10018))continue;
++                    addMoment(d10018,history10018);shown10018++;
++                }
++                if(shown10018==0)history10018.addView(tv("No matching Moments on this page.",12,MUTED,false));
++                if(page10018.size()==80){
++                    DocumentSnapshot next10018=page10018.getDocuments().get(page10018.size()-1);
++                    TextView more10018=button("↓ Load even older Moments",()->{});
++                    more10018.setOnClickListener(v->{
++                        if(generation10018!=momentsGeneration9990||!"Moments".equals(selected)
++                            ||!KingSavedRoomsCloud9990.account(account10018)||history10018.getParent()==null)return;
++                        history10018.removeView(more10018);
++                        loadOlderMoments10018(history10018,next10018,generation10018,account10018,topic10018);
++                    });
++                    history10018.addView(more10018,new LinearLayout.LayoutParams(-1,dp(46)));
++                }else history10018.addView(tv("✓ End of Moments history",12,MUTED,false));
++            }).addOnFailureListener(error10018->{
++                if(generation10018!=momentsGeneration9990||!"Moments".equals(selected)
++                    ||!KingSavedRoomsCloud9990.account(account10018)||history10018.getParent()==null)return;
++                progress10018.setText("↻ Could not load older Moments • tap to retry");
++                progress10018.setOnClickListener(v->{
++                    if(generation10018!=momentsGeneration9990||!"Moments".equals(selected)
++                        ||!KingSavedRoomsCloud9990.account(account10018))return;
++                    history10018.removeView(progress10018);
++                    loadOlderMoments10018(history10018,cursor10018,generation10018,account10018,topic10018);
++                });
+             });
+     }
+     private void showMomentPhoto9991(String url,LinearLayout card,boolean loadAutomatically10001){
+@@ -395,8 +451,17 @@
+         db.runTransaction(tx->{DocumentSnapshot existing=tx.get(like);
+             if(existing.exists()){tx.delete(like);return false;}
+             Map<String,Object> data=new HashMap<>();data.put("uid",uid);data.put("createdAt",FieldValue.serverTimestamp());tx.set(like,data);return true;
+-        }).addOnSuccessListener(liked->{if(button.getParent()!=null){button.setTag(null);button.setEnabled(true);button.setText(liked?"♥ Liked":"♡ Like");}})
+-          .addOnFailureListener(e->{if(button.getParent()!=null){button.setTag(null);button.setEnabled(true);toast("Could not update Like. Please retry.");}});
++        }).addOnSuccessListener(liked->{
++            if(me!=null&&uid.equals(me.getUid())&&"Moments".equals(selected)
++                &&!isFinishing()&&!isDestroyed()&&button.getParent()!=null){
++                button.setTag(null);button.setEnabled(true);button.setText(liked?"♥ Liked":"♡ Like");
++            }
++        }).addOnFailureListener(e->{
++            if(me!=null&&uid.equals(me.getUid())&&"Moments".equals(selected)
++                &&!isFinishing()&&!isDestroyed()&&button.getParent()!=null){
++                button.setTag(null);button.setEnabled(true);toast("Could not update Like. Please retry.");
++            }
++        });
+     }
+ 
+     private String[] topicNames940(){return new String[]{"All","General","Friends","Music","Games","KTV","Ludo","Family","Love","PK","Newcomers"};}
+@@ -406,7 +471,7 @@
+     }
+     private void topics940(){
+         body.addView(tv("Topic Square",21,DARK,true));
+-        body.addView(tv("Browse the latest KING Moments by topic.",13,MUTED,false));
++        body.addView(tv("Topic counts are from the latest 100 Moments. Open a topic to load older posts too.",13,MUTED,false));
+         if(!cloud()){body.addView(tv("Sign in to view Topic Square.",14,MUTED,false));return;}
+         LinearLayout grid=new LinearLayout(this);grid.setOrientation(LinearLayout.VERTICAL);body.addView(grid,new LinearLayout.LayoutParams(-1,-2));
+         final LinearLayout topicHost10002=body;
+--- a/app/src/main/java/com/kingplus/social/PartyActivity.java
++++ b/app/src/main/java/com/kingplus/social/PartyActivity.java
+@@ -6903,33 +6903,90 @@
+             .addOnFailureListener(e->toast(msg(e)));
+     }
+     private void giftHistoryDialog(){
+-        if(!cloudRoom||db==null){new AlertDialog.Builder(this).setTitle("🎁 Gift history").setMessage("Gift history for local rooms stays in test activity only.").setPositiveButton("OK",null).show();return;}
+-        db.collection("live_rooms").document(roomId).collection("events").orderBy("createdAt",Query.Direction.DESCENDING).limit(100).get()
+-            .addOnSuccessListener(snap->{List<String> rows=new ArrayList<>();for(DocumentSnapshot d:snap.getDocuments())if("gift".equals(d.getString("type")))rows.add(str(d,"text","Gift sent"));showRows("🎁 Gift history",rows,"No gifts sent in this room yet");})
+-            .addOnFailureListener(e->toast(msg(e)));
++        if(!cloudRoom||db==null||roomId==null||user==null){
++            new AlertDialog.Builder(this).setTitle("🎁 Gift history")
++                .setMessage("Join a live Firebase Party to see its gift history.")
++                .setPositiveButton("OK",null).show();return;
++        }
++        loadGiftHistoryPage10018(roomId,user.getUid(),null,1);
++    }
++    // Real per-room cursor pagination. Gift events older than the first 100
++    // must remain accessible without ever showing another room's history.
++    private void loadGiftHistoryPage10018(String room10018,String actor10018,
++                                         DocumentSnapshot cursor10018,int page10018){
++        if(isFinishing()||isDestroyed()||!cloudRoom||db==null||user==null
++            ||!room10018.equals(roomId)||!actor10018.equals(user.getUid()))return;
++        Query query10018=db.collection("live_rooms").document(room10018)
++            .collection("events").orderBy("createdAt",Query.Direction.DESCENDING).limit(100);
++        if(cursor10018!=null)query10018=query10018.startAfter(cursor10018);
++        query10018.get(com.google.firebase.firestore.Source.SERVER).addOnSuccessListener(snap->{
++            if(isFinishing()||isDestroyed()||user==null
++                ||!room10018.equals(roomId)||!actor10018.equals(user.getUid()))return;
++            List<String> rows10018=new ArrayList<>();
++            for(DocumentSnapshot event10018:snap.getDocuments())
++                if("gift".equals(event10018.getString("type")))
++                    rows10018.add(str(event10018,"text","Gift sent"));
++            if(rows10018.isEmpty())rows10018.add("No gifts in this page of room events");
++            final boolean more10018=snap.size()==100;
++            final DocumentSnapshot next10018=more10018?snap.getDocuments().get(snap.size()-1):null;
++            final int olderIndex10018=rows10018.size();
++            if(more10018)rows10018.add("↓ Load earlier room gift events");
++            if(!more10018)rows10018.add("✓ End of available room gift history");
++            new AlertDialog.Builder(this).setTitle("🎁 Room Gift History • Page "+page10018)
++                .setItems(rows10018.toArray(new String[0]),(dialog,choice)->{
++                    if(more10018&&choice==olderIndex10018)
++                        loadGiftHistoryPage10018(room10018,actor10018,next10018,page10018+1);
++                }).setNegativeButton("Close",null).show();
++        }).addOnFailureListener(error10018->{
++            if(!isFinishing()&&!isDestroyed()&&user!=null
++                &&room10018.equals(roomId)&&actor10018.equals(user.getUid()))
++                new AlertDialog.Builder(this).setTitle("Gift history unavailable")
++                    .setMessage(msg(error10018))
++                    .setPositiveButton("Retry",(d,w)->
++                        loadGiftHistoryPage10018(room10018,actor10018,cursor10018,page10018))
++                    .setNegativeButton("Close",null).show();
++        });
+     }
+     private void roomRankingDialog(){
+         if(!cloudRoom||db==null){new AlertDialog.Builder(this).setTitle("🏆 Room ranking").setMessage("Live gift ranking is available in Firebase rooms.").setPositiveButton("OK",null).show();return;}
+-        db.collection("live_rooms").document(roomId).collection("events").orderBy("createdAt",Query.Direction.DESCENDING).limit(250).get()
++        final String rankRoom10018=roomId;
++        db.collection("live_rooms").document(rankRoom10018).collection("events")
++            .orderBy("createdAt",Query.Direction.DESCENDING).limit(250).get()
+             .addOnSuccessListener(snap->{
++                if(isFinishing()||isDestroyed()||!rankRoom10018.equals(roomId))return;
+                 Map<String,Long>score=new HashMap<>();Map<String,Integer>count=new HashMap<>();
+-                for(DocumentSnapshot d:snap.getDocuments())if("gift".equals(d.getString("type"))){String n=str(d,"actorName","User");Long v=d.getLong("giftValue");long value=v==null?1:Math.max(1,v);score.put(n,(score.containsKey(n)?score.get(n):0L)+value);count.put(n,(count.containsKey(n)?count.get(n):0)+1);}
++                Map<String,String>displayNames10018=new HashMap<>();
++                for(DocumentSnapshot d:snap.getDocuments())if("gift".equals(d.getString("type"))){
++                    String uid10018=d.getString("actorUid");Long v=d.getLong("giftValue");
++                    // Score only paid gifts attached to a real sender UID.
++                    // A FREE gift costs 0 diamonds, and two users may have the same name.
++                    if(uid10018==null||uid10018.trim().isEmpty()||v==null||v<=0)continue;
++                    String n=str(d,"actorName","User");
++                    displayNames10018.put(uid10018,n);
++                    score.put(uid10018,score.containsKey(uid10018)?score.get(uid10018)+v:v);
++                    count.put(uid10018,count.containsKey(uid10018)?count.get(uid10018)+1:1);
++                }
+                 List<Map.Entry<String,Long>>list=new ArrayList<>(score.entrySet());java.util.Collections.sort(list,(a,b)->Long.compare(b.getValue(),a.getValue()));
+                 LinearLayout root=new LinearLayout(this);root.setOrientation(LinearLayout.VERTICAL);root.setPadding(dp(12),dp(8),dp(12),dp(12));root.setBackgroundColor(0xfff7f5fa);
+-                TextView sub951=tv("Top supporters • based on gift value in this room",11,0xff77717f,true);sub951.setGravity(Gravity.CENTER);root.addView(sub951,new LinearLayout.LayoutParams(-1,dp(34)));
++                TextView sub951=tv("Verified paid-gift supporters • latest 250 room events",11,0xff77717f,true);sub951.setGravity(Gravity.CENTER);root.addView(sub951,new LinearLayout.LayoutParams(-1,dp(34)));
+                 if(list.isEmpty()){TextView empty=tv("🏆\\nNo gift ranking yet\\nSend the first gift to enter the board.",14,0xff81798b,true);empty.setGravity(Gravity.CENTER);root.addView(empty,new LinearLayout.LayoutParams(-1,dp(150)));}
+                 else{
+                     LinearLayout podium=new LinearLayout(this);podium.setGravity(Gravity.BOTTOM|Gravity.CENTER_HORIZONTAL);
+                     int[] order={1,0,2};String[] medals={"🥇","🥈","🥉"};
+-                    for(int pos:order){if(pos>=list.size())continue;Map.Entry<String,Long> e=list.get(pos);LinearLayout card=new LinearLayout(this);card.setOrientation(LinearLayout.VERTICAL);card.setGravity(Gravity.CENTER);card.setBackground(bg(pos==0?0xffffefad:pos==1?0xffe9edf4:0xffffe1c4,16));TextView med=tv(medals[pos],25,0xff333333,false);med.setGravity(Gravity.CENTER);card.addView(med,new LinearLayout.LayoutParams(-1,dp(38)));TextView nm=tv(e.getKey(),12,0xff2c2930,true);nm.setGravity(Gravity.CENTER);nm.setSingleLine(true);card.addView(nm,new LinearLayout.LayoutParams(-1,dp(26)));TextView val=tv("💎 "+compactNumber(e.getValue()),11,0xff725b00,true);val.setGravity(Gravity.CENTER);card.addView(val,new LinearLayout.LayoutParams(-1,dp(24)));int h=pos==0?dp(112):dp(98);LinearLayout.LayoutParams cp=new LinearLayout.LayoutParams(0,h,1);cp.setMargins(dp(3),0,dp(3),0);podium.addView(card,cp);}
++                    for(int pos:order){if(pos>=list.size())continue;Map.Entry<String,Long> e=list.get(pos);LinearLayout card=new LinearLayout(this);card.setOrientation(LinearLayout.VERTICAL);card.setGravity(Gravity.CENTER);card.setBackground(bg(pos==0?0xffffefad:pos==1?0xffe9edf4:0xffffe1c4,16));TextView med=tv(medals[pos],25,0xff333333,false);med.setGravity(Gravity.CENTER);card.addView(med,new LinearLayout.LayoutParams(-1,dp(38)));TextView nm=tv(displayNames10018.get(e.getKey()),12,0xff2c2930,true);nm.setGravity(Gravity.CENTER);nm.setSingleLine(true);card.addView(nm,new LinearLayout.LayoutParams(-1,dp(26)));TextView val=tv("💎 "+compactNumber(e.getValue()),11,0xff725b00,true);val.setGravity(Gravity.CENTER);card.addView(val,new LinearLayout.LayoutParams(-1,dp(24)));int h=pos==0?dp(112):dp(98);LinearLayout.LayoutParams cp=new LinearLayout.LayoutParams(0,h,1);cp.setMargins(dp(3),0,dp(3),0);podium.addView(card,cp);}
+                     root.addView(podium,new LinearLayout.LayoutParams(-1,dp(120)));
+                     ScrollView sc=new ScrollView(this);LinearLayout rows=new LinearLayout(this);rows.setOrientation(LinearLayout.VERTICAL);sc.addView(rows);
+-                    for(int i=3;i<list.size()&&i<20;i++){Map.Entry<String,Long>e=list.get(i);LinearLayout row=new LinearLayout(this);row.setGravity(Gravity.CENTER_VERTICAL);row.setPadding(dp(10),0,dp(10),0);row.setBackground(bg(Color.WHITE,12));TextView rank=tv(String.valueOf(i+1),13,0xff81798b,true);rank.setGravity(Gravity.CENTER);row.addView(rank,new LinearLayout.LayoutParams(dp(38),dp(48)));TextView name=tv(e.getKey(),13,0xff2c2930,true);name.setSingleLine(true);row.addView(name,new LinearLayout.LayoutParams(0,dp(48),1));TextView val=tv("💎"+compactNumber(e.getValue())+"  • "+count.get(e.getKey())+" gifts",11,0xff756d7c,true);val.setGravity(Gravity.RIGHT|Gravity.CENTER_VERTICAL);row.addView(val,new LinearLayout.LayoutParams(dp(145),dp(48)));LinearLayout.LayoutParams rp=new LinearLayout.LayoutParams(-1,dp(50));rp.setMargins(0,dp(2),0,dp(2));rows.addView(row,rp);}
++                    for(int i=3;i<list.size()&&i<20;i++){Map.Entry<String,Long>e=list.get(i);LinearLayout row=new LinearLayout(this);row.setGravity(Gravity.CENTER_VERTICAL);row.setPadding(dp(10),0,dp(10),0);row.setBackground(bg(Color.WHITE,12));TextView rank=tv(String.valueOf(i+1),13,0xff81798b,true);rank.setGravity(Gravity.CENTER);row.addView(rank,new LinearLayout.LayoutParams(dp(38),dp(48)));TextView name=tv(displayNames10018.get(e.getKey()),13,0xff2c2930,true);name.setSingleLine(true);row.addView(name,new LinearLayout.LayoutParams(0,dp(48),1));TextView val=tv("💎"+compactNumber(e.getValue())+"  • "+count.get(e.getKey())+" gifts",11,0xff756d7c,true);val.setGravity(Gravity.RIGHT|Gravity.CENTER_VERTICAL);row.addView(val,new LinearLayout.LayoutParams(dp(145),dp(48)));LinearLayout.LayoutParams rp=new LinearLayout.LayoutParams(-1,dp(50));rp.setMargins(0,dp(2),0,dp(2));rows.addView(row,rp);}
+                     root.addView(sc,new LinearLayout.LayoutParams(-1,Math.min(dp(360),Math.max(dp(80),(Math.max(0,Math.min(20,list.size())-3))*dp(52)))));
+                 }
+                 AlertDialog dlg951=new AlertDialog.Builder(this).setTitle("🏆 Room Gift Ranking").setView(root).setPositiveButton("Refresh",(d,w)->roomRankingDialog()).setNegativeButton("Close",null).create();dlg951.show();
+             })
+-            .addOnFailureListener(e->new AlertDialog.Builder(this).setTitle("Ranking unavailable").setMessage(msg(e)).setPositiveButton("Retry",(d,w)->roomRankingDialog()).setNegativeButton("Close",null).show());
++            .addOnFailureListener(e->{
++                if(!isFinishing()&&!isDestroyed()&&rankRoom10018.equals(roomId))
++                    new AlertDialog.Builder(this).setTitle("Ranking unavailable")
++                        .setMessage(msg(e)).setPositiveButton("Retry",(d,w)->roomRankingDialog())
++                        .setNegativeButton("Close",null).show();
++            });
+     }
+     private void allSeatRequestsDialog(){
+         if(!canModerateSeatsV530()||!cloudRoom||db==null||roomId==null||user==null){toast("Host/co-host only");return;}
+@@ -6954,13 +7011,47 @@
+             });
+     }
+     private void coHostListDialog(){
+-        if(!isOwner()||!cloudRoom||db==null){toast("Host only");return;}
+-        db.collection("live_rooms").document(roomId).collection("roles").get().addOnSuccessListener(snap->{
+-            List<DocumentSnapshot>docs=new ArrayList<>();List<String>rows=new ArrayList<>();
+-            for(DocumentSnapshot d:snap.getDocuments())if("cohost".equals(d.getString("role"))){docs.add(d);rows.add("👑 "+memberNameForUid(d.getId()));}
++        if(!isOwner()||!cloudRoom||db==null||roomId==null||user==null){toast("Host only");return;}
++        final String room10018=roomId,owner10018=user.getUid();
++        final int generation10018=presenceGeneration967;
++        db.collection("live_rooms").document(room10018).collection("roles")
++            .get(com.google.firebase.firestore.Source.SERVER).addOnSuccessListener(snap->{
++            if(!isActivePresence967(room10018,owner10018,generation10018)||!isOwner())return;
++            List<DocumentSnapshot> docs=new ArrayList<>();List<String> rows=new ArrayList<>();
++            for(DocumentSnapshot d:snap.getDocuments())if("cohost".equals(d.getString("role"))){
++                docs.add(d);rows.add("👑 "+memberNameForUid(d.getId()));
++            }
+             if(rows.isEmpty()){toast("No co-hosts assigned");return;}
+-            new AlertDialog.Builder(this).setTitle("👑 Co-host list").setItems(rows.toArray(new String[0]),(x,w)->{DocumentSnapshot d=docs.get(w);String uid=d.getId();String name=memberNameForUid(uid);new AlertDialog.Builder(this).setTitle(name).setMessage("Remove co-host role?").setPositiveButton("Remove",(a,b)->d.getReference().delete().addOnSuccessListener(v->toast("Co-host removed")).addOnFailureListener(e->toast(msg(e)))).setNegativeButton("Cancel",null).show();}).setNegativeButton("Close",null).show();
+-        }).addOnFailureListener(e->toast(msg(e)));
++            new AlertDialog.Builder(this).setTitle("👑 Co-host list")
++                .setItems(rows.toArray(new String[0]),(x,w)->{
++                    if(!isActivePresence967(room10018,owner10018,generation10018)||!isOwner())return;
++                    DocumentSnapshot role10018=docs.get(w);
++                    final String target10018=role10018.getId();
++                    final String name10018=memberNameForUid(target10018);
++                    new AlertDialog.Builder(this).setTitle(name10018)
++                        .setMessage("Remove co-host role from this member?")
++                        .setPositiveButton("Remove",(a,b)->{
++                            if(!isActivePresence967(room10018,owner10018,generation10018)||!isOwner()){
++                                toast("Room or host permission changed. Reopen co-host list.");return;
++                            }
++                            final DocumentReference roleRef10018=role10018.getReference();
++                            db.runTransaction(tx10018->{
++                                DocumentSnapshot current10018=tx10018.get(roleRef10018);
++                                if(!current10018.exists()||!"cohost".equals(current10018.getString("role")))
++                                    throw new IllegalStateException("Co-host role changed. Refresh the list.");
++                                tx10018.delete(roleRef10018);return true;
++                            }).addOnSuccessListener(ok->{
++                                if(isActivePresence967(room10018,owner10018,generation10018)&&isOwner())
++                                    toast("Co-host removed: "+name10018);
++                            }).addOnFailureListener(error->{
++                                if(isActivePresence967(room10018,owner10018,generation10018))
++                                    toast("Cannot remove co-host: "+msg(error));
++                            });
++                        }).setNegativeButton("Cancel",null).show();
++                }).setNegativeButton("Close",null).show();
++        }).addOnFailureListener(e->{
++            if(isActivePresence967(room10018,owner10018,generation10018))toast(msg(e));
++        });
+     }
+     private void banListDialog(){
+         if(!isModerator()||!cloudRoom||db==null||roomId==null||user==null){toast("Host/co-host only");return;}
+--- a/app/build.gradle
++++ b/app/build.gradle
+@@ -14,7 +14,7 @@
+         }
+     }
+ 
+-    defaultConfig { applicationId 'com.kingplus.social'; minSdk 26; targetSdk 35; versionCode 296; versionName '10.0.17-me-home-loopmic-real-test' }
++    defaultConfig { applicationId 'com.kingplus.social'; minSdk 26; targetSdk 35; versionCode 297; versionName '10.0.18-me-home-party-batch-test' }
+     buildTypes {
+         debug { signingConfig signingConfigs.debug }
+         release {

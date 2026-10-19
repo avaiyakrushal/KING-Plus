@@ -1,0 +1,12 @@
+'use strict';
+const assert=require('node:assert/strict');
+const {test}=require('node:test');
+const {COLORS,validPremiumNumber,validColor,priceFor,validOperationId}=require('./vip-style-policy');
+for(const v of ['111111','888888','123456','900001'])test('valid VIP # '+v,()=>assert.equal(validPremiumNumber(v),true));
+for(const v of ['000000','012345','12345','1234567','abcdef',' 888888 ','12345/','123456\n',null])test('invalid VIP # '+v,()=>assert.equal(validPremiumNumber(v),false));
+for(const color of Object.keys(COLORS))test('allowed color '+color,()=>assert.equal(validColor(color),true));
+for(const color of ['#FFFFFF','red','transparent','','__proto__',null])test('forbid arbitrary color '+color,()=>assert.equal(validColor(color),false));
+test('catalog is disabled absent trusted server settings',()=>{assert.equal(priceFor(null,'vip_number'),null);assert.equal(priceFor({enabled:true,vipNumberDiamonds:5},'vip_number'),null);assert.equal(priceFor({enabled:false,paymentMode:'verified_diamonds',vipNumberDiamonds:5},'vip_number'),null);});
+test('catalog has server prices only',()=>{let c={enabled:true,paymentMode:'verified_diamonds',vipNumberDiamonds:5000,nameColorDiamonds:1000};assert.equal(priceFor(c,'vip_number'),5000);assert.equal(priceFor(c,'name_color'),1000);assert.equal(priceFor(c,'other'),null);});
+test('catalog rejects bad prices',()=>{for(const n of [0,-1,0.5,10000001,'5',Infinity,NaN])assert.equal(priceFor({enabled:true,paymentMode:'verified_diamonds',vipNumberDiamonds:n},'vip_number'),null);});
+test('operation tokens validated',()=>{assert.equal(validOperationId('vip_abCD-1989'),true);assert.equal(validOperationId('../badreq'),false);assert.equal(validOperationId('short'),false);});

@@ -1,0 +1,7 @@
+KING Plus v7.2.0 — Visual Parity
+
+- Full-screen original gift burst animations with value tiers and gift combos.
+- VIP/Level seat frames and labels sourced from realtime room member metadata.
+- VIP-aware entrance banners and realtime event level/VIP metadata.
+- New Neon, Galaxy, Festival and Ice room themes.
+- Preserves v7.1 native Jitsi/WebRTC media engine and no-billing/test-OTP mode.

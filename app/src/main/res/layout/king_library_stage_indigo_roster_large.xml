@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android" android:orientation="vertical" android:layout_width="match_parent" android:layout_height="wrap_content" android:padding="22dp" android:background="#252064" android:contentDescription="Live Stage indigo roster large preview">
+<TextView android:id="@+id/king_catalog_title" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="✨ Live Stage · roster" android:textColor="#D3C7FF" android:textSize="23sp" android:gravity="center_vertical" android:ellipsize="end" android:maxLines="2"/>
+<TextView android:id="@+id/king_catalog_subtitle" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Crowd, karaoke and stage effects · indigo · large" android:textColor="#F1EFFF" android:textSize="15sp" android:gravity="center_vertical" android:ellipsize="end" android:maxLines="2"/>
+<LinearLayout android:orientation="horizontal" android:layout_width="match_parent" android:layout_height="wrap_content" android:paddingTop="5dp">
+<LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:orientation="vertical">
+<TextView android:id="@+id/king_catalog_primary" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="● Live Stage" android:textColor="#D3C7FF" android:textSize="15sp" android:gravity="center_vertical" android:ellipsize="end" android:maxLines="2"/>
+</LinearLayout>
+<LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:orientation="vertical">
+<TextView android:id="@+id/king_catalog_secondary" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="◆ Indigo" android:textColor="#F1EFFF" android:textSize="15sp" android:gravity="center_vertical" android:ellipsize="end" android:maxLines="2"/>
+</LinearLayout>
+</LinearLayout>
+<TextView android:id="@+id/king_catalog_action" android:layout_width="match_parent" android:layout_height="40dp" android:text="OPEN LIVE STAGE  ›" android:textColor="#252064" android:textSize="16sp" android:background="#D3C7FF" android:gravity="center_vertical" android:ellipsize="end" android:maxLines="2"/>
+</LinearLayout>

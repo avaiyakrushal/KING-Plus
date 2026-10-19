@@ -1,0 +1,209 @@
+--- a/app/src/main/java/com/kingplus/social/MainActivity.java
++++ b/app/src/main/java/com/kingplus/social/MainActivity.java
+@@ -1956,23 +1956,51 @@
+                         caption.setTextSize(15);caption.setText(doc.getString("text")==null?"📷 Photo":doc.getString("text"));
+                         entry.addView(caption);
+                         String url=doc.getString("photoUrl");
+-                        if(url!=null&&url.startsWith("https://firebasestorage.googleapis.com/")&&images++<6){
++                        if(url!=null&&url.startsWith("https://firebasestorage.googleapis.com/")){
++                            // Render every Gallery photo, not only the first six; avoid
++                            // launching hundreds of 10 MB downloads at once.
++                            final boolean autoPreview10001=images++<6;
+                             ImageView preview=new ImageView(this);
+                             preview.setAdjustViewBounds(true);preview.setMaxHeight(dp(230));
+                             entry.addView(preview,new LinearLayout.LayoutParams(-1,-2));
+-                            try{FirebaseStorage.getInstance().getReferenceFromUrl(url).getBytes(10L*1024*1024)
+-                                .addOnSuccessListener(bytes->{
+-                                    if(galleryTicket9994!=meGalleryGeneration9994
+-                                        ||!"profile_gallery".equals(screen)||isFinishing()||isDestroyed()
+-                                        ||preview.getParent()==null||firebaseAuth.getCurrentUser()==null
+-                                        ||!account.equals(firebaseAuth.getCurrentUser().getUid()))return;
+-                                    android.graphics.BitmapFactory.Options o=new android.graphics.BitmapFactory.Options();
+-                                    o.inJustDecodeBounds=true;
+-                                    android.graphics.BitmapFactory.decodeByteArray(bytes,0,bytes.length,o);
+-                                    o.inJustDecodeBounds=false;
+-                                    o.inSampleSize=Math.max(1,Math.max(o.outWidth/480,o.outHeight/480));
+-                                    preview.setImageBitmap(android.graphics.BitmapFactory.decodeByteArray(bytes,0,bytes.length,o));
+-                                });}catch(Exception ignored){}
++                            TextView photoStatus10001=new TextView(this);
++                            photoStatus10001.setTextColor(MUTED);photoStatus10001.setTextSize(13);
++                            photoStatus10001.setPadding(dp(4),dp(6),0,dp(6));
++                            entry.addView(photoStatus10001);
++                            final boolean[] photoLoading10001={false};
++                            Runnable loadPhoto10001=()->{
++                                if(photoLoading10001[0] || galleryTicket9994!=meGalleryGeneration9994
++                                    ||!"profile_gallery".equals(screen)||isFinishing()||isDestroyed()
++                                    ||firebaseAuth.getCurrentUser()==null
++                                    ||!account.equals(firebaseAuth.getCurrentUser().getUid()))return;
++                                photoLoading10001[0]=true;
++                                photoStatus10001.setText("📷 Loading photo…");
++                                try{FirebaseStorage.getInstance().getReferenceFromUrl(url).getBytes(10L*1024*1024)
++                                    .addOnSuccessListener(bytes->{
++                                        photoLoading10001[0]=false;
++                                        if(galleryTicket9994!=meGalleryGeneration9994
++                                            ||!"profile_gallery".equals(screen)||isFinishing()||isDestroyed()
++                                            ||preview.getParent()==null||firebaseAuth.getCurrentUser()==null
++                                            ||!account.equals(firebaseAuth.getCurrentUser().getUid()))return;
++                                        android.graphics.BitmapFactory.Options o=new android.graphics.BitmapFactory.Options();
++                                        o.inJustDecodeBounds=true;
++                                        android.graphics.BitmapFactory.decodeByteArray(bytes,0,bytes.length,o);
++                                        o.inJustDecodeBounds=false;
++                                        o.inSampleSize=Math.max(1,Math.max(o.outWidth/480,o.outHeight/480));
++                                        android.graphics.Bitmap photo=android.graphics.BitmapFactory.decodeByteArray(bytes,0,bytes.length,o);
++                                        if(photo!=null){preview.setImageBitmap(photo);photoStatus10001.setVisibility(View.GONE);}
++                                        else photoStatus10001.setText("Photo unavailable • tap to retry");
++                                    }).addOnFailureListener(failure->{
++                                        photoLoading10001[0]=false;
++                                        if(galleryTicket9994==meGalleryGeneration9994&&preview.getParent()!=null)
++                                            photoStatus10001.setText("Photo unavailable • tap to retry");
++                                    });
++                                }catch(Exception ignored){photoLoading10001[0]=false;
++                                    photoStatus10001.setText("Photo unavailable • tap to retry");}
++                            };
++                            photoStatus10001.setOnClickListener(v->loadPhoto10001.run());
++                            if(autoPreview10001)loadPhoto10001.run();
++                            else photoStatus10001.setText("📷 Tap to load this photo");
+                         }
+                         TextView view=new TextView(this);view.setText("Open in Live Moments  ›");
+                         view.setTextSize(13);view.setTextColor(MUTED);
+--- a/app/src/main/java/com/kingplus/social/CommunityHubActivity.java
++++ b/app/src/main/java/com/kingplus/social/CommunityHubActivity.java
+@@ -49,6 +49,8 @@
+     // Pagination is explicit to avoid silently hiding older account posts.
+     private int momentsQueryLimit10000=80;
+     private int momentsDisplayLimit10000=40;
++    // Keep large feeds usable on phones: only first three photos auto-download.
++    private int autoMomentPhotos10001=3;
+     private final List<com.google.firebase.firestore.ListenerRegistration> momentLikes10000=new ArrayList<>();
+ 
+     @Override public void onCreate(Bundle b){super.onCreate(b);try{me=FirebaseAuth.getInstance().getCurrentUser();db=FirebaseFirestore.getInstance();}catch(Exception ignored){}SharedPreferences p=getSharedPreferences("MainActivity",MODE_PRIVATE);displayName=safe(p.getString("name",me==null?"KING User":me.getDisplayName()),"KING User");String t=getIntent().getStringExtra("tab");if(t!=null&&!t.isEmpty())selected=t;targetUid=safe(getIntent().getStringExtra("targetUid"),"");targetName=safe(getIntent().getStringExtra("targetName"),"");render(selected);}
+@@ -242,6 +244,7 @@
+                     feed.addView(retry);return;
+                 }
+                 int shown=0,matched=0;
++                autoMomentPhotos10001=3;
+                 for(DocumentSnapshot doc:snap.getDocuments()){
+                     String topic=safe(doc.getString("topic"),"General");
+                     if(!"All".equals(topicFilter)&&!topicFilter.equalsIgnoreCase(topic))continue;
+@@ -266,7 +269,7 @@
+                 }
+             });
+     }
+-    private void showMomentPhoto9991(String url,LinearLayout card){
++    private void showMomentPhoto9991(String url,LinearLayout card,boolean loadAutomatically10001){
+         if(url==null||!url.startsWith("https://firebasestorage.googleapis.com/"))return;
+         TextView placeholder=tv("📷 Loading photo…",12,MUTED,false);
+         card.addView(placeholder);
+@@ -274,11 +277,15 @@
+         image.setScaleType(ImageView.ScaleType.CENTER_CROP);
+         image.setVisibility(android.view.View.GONE);
+         card.addView(image,new LinearLayout.LayoutParams(-1,dp(210)));
++        final boolean[] photoLoading10001={false};
+         Runnable load=()->{
++            if(photoLoading10001[0]||isFinishing()||isDestroyed()||image.getParent()==null)return;
++            photoLoading10001[0]=true;
+             placeholder.setText("📷 Loading photo…");
+             try{
+                 FirebaseStorage.getInstance().getReferenceFromUrl(url).getBytes(10L*1024*1024)
+                   .addOnSuccessListener(bytes->{
++                    photoLoading10001[0]=false;
+                     if(isFinishing()||isDestroyed()||image.getParent()==null)return;
+                     BitmapFactory.Options opts=new BitmapFactory.Options();opts.inJustDecodeBounds=true;
+                     BitmapFactory.decodeByteArray(bytes,0,bytes.length,opts);
+@@ -286,10 +293,13 @@
+                     android.graphics.Bitmap bitmap=BitmapFactory.decodeByteArray(bytes,0,bytes.length,opts);
+                     if(bitmap!=null){image.setImageBitmap(bitmap);image.setVisibility(android.view.View.VISIBLE);placeholder.setVisibility(android.view.View.GONE);}
+                     else placeholder.setText("Photo not available • tap to retry");
+-                  }).addOnFailureListener(err->placeholder.setText("Photo unavailable • tap to retry"));
+-            }catch(Exception ex){placeholder.setText("Photo unavailable • tap to retry");}
++                  }).addOnFailureListener(err->{photoLoading10001[0]=false;
++                      if(image.getParent()!=null)placeholder.setText("Photo unavailable • tap to retry");});
++            }catch(Exception ex){photoLoading10001[0]=false;placeholder.setText("Photo unavailable • tap to retry");}
+         };
+-        placeholder.setOnClickListener(v->load.run());load.run();
++        placeholder.setOnClickListener(v->load.run());
++        if(loadAutomatically10001)load.run();
++        else placeholder.setText("📷 Tap to load this photo");
+     }
+     private void addMoment(DocumentSnapshot d,LinearLayout feed){
+         if(me==null)return;
+@@ -302,7 +312,9 @@
+         tag.setOnClickListener(v->{selectedTopic940=topic;render("Moments");});
+         card.addView(tag,new LinearLayout.LayoutParams(-1,dp(30)));
+         card.addView(tv(text,15,DARK,false));
+-        showMomentPhoto9991(d.getString("photoUrl"),card);
++        String photoUrl10001=d.getString("photoUrl");
++        boolean autoPhoto10001=photoUrl10001!=null && photoUrl10001.startsWith("https://firebasestorage.googleapis.com/") && autoMomentPhotos10001-->0;
++        showMomentPhoto9991(photoUrl10001,card,autoPhoto10001);
+         String type=safe(d.getString("type"),""),roomId=safe(d.getString("roomId"),""),roomName=safe(d.getString("roomName"),"Live Party");
+         if("room_broadcast".equals(type)&&!roomId.isEmpty()){
+             TextView join=button("🎤 Join "+roomName,()->{
+--- a/app/src/main/java/com/kingplus/social/PartyActivity.java
++++ b/app/src/main/java/com/kingplus/social/PartyActivity.java
+@@ -4164,15 +4164,48 @@
+         }).setNegativeButton("Cancel",null).show();
+     }
+ 
++    private boolean currentVoteRoom10001(String expectedRoom,String expectedUid,int binding){
++        return cloudRoom&&memberSeen&&db!=null&&user!=null&&roomId!=null
++            &&roomId.equals(expectedRoom)&&expectedUid.equals(user.getUid())
++            &&binding==roomListenerGeneration982&&!isFinishing()&&!isDestroyed();
++    }
++
+     private void submitCurrentVote(){
+-        if(!cloudRoom||db==null||user==null){localVotePanel();return;}
+-        db.collection("live_rooms").document(roomId).collection("game_state").document("current").get().addOnSuccessListener(doc->{
++        if(!cloudRoom||db==null||user==null||roomId==null){toast("Join a live Party Room to vote");return;}
++        final String expectedRoom10001=roomId,expectedUid10001=user.getUid();
++        final int binding10001=roomListenerGeneration982;
++        if(!currentVoteRoom10001(expectedRoom10001,expectedUid10001,binding10001)){
++            toast("Room membership required to vote");return;
++        }
++        final DocumentReference liveRoom10001=db.collection("live_rooms").document(expectedRoom10001);
++        liveRoom10001.collection("game_state").document("current").get().addOnSuccessListener(doc->{
++            if(!currentVoteRoom10001(expectedRoom10001,expectedUid10001,binding10001))return;
+             if(!doc.exists()||!"vote".equals(doc.getString("type"))||!"active".equals(doc.getString("status"))){toast("No active room vote");return;}
+-            Long r=doc.getLong("roundId");long round=r==null?0:r;String question=str(doc,"prompt","Room vote");ArrayList<String> options=new ArrayList<>();Object raw=doc.get("options");if(raw instanceof List)for(Object o:(List<?>)raw)if(o!=null)options.add(String.valueOf(o));if(options.isEmpty()){options.add("👍 Yes");options.add("👎 No");options.add("❤️ Love it");options.add("😂 Funny");}
+-            String[] a=options.toArray(new String[0]);new AlertDialog.Builder(this).setTitle("💌 "+question).setItems(a,(d,w)->{
+-                Map<String,Object>vote=new HashMap<>();vote.put("uid",user.getUid());vote.put("name",safeName());vote.put("roundId",round);vote.put("choice",a[w]);vote.put("choiceIndex",w);vote.put("updatedAt",FieldValue.serverTimestamp());db.collection("live_rooms").document(roomId).collection("game_votes").document(user.getUid()).set(vote).addOnSuccessListener(v->{addEvent("vote",safeName()+" voted "+a[w]);toast("Vote sent: "+a[w]);}).addOnFailureListener(e->toast("Vote failed: "+msg(e)));
+-            }).setNeutralButton(isModerator()?"Results":"Close",(d,w)->{if(isModerator())showVoteResults();}).setNegativeButton("Close",null).show();
+-        }).addOnFailureListener(e->toast("Vote unavailable: "+msg(e)));
++            Long r=doc.getLong("roundId");long round=r==null?0:r;
++            String question=str(doc,"prompt","Room vote");ArrayList<String> options=new ArrayList<>();
++            Object raw=doc.get("options");if(raw instanceof List)for(Object o:(List<?>)raw)if(o!=null)options.add(String.valueOf(o));
++            if(options.isEmpty()){options.add("👍 Yes");options.add("👎 No");options.add("❤️ Love it");options.add("😂 Funny");}
++            String[] a=options.toArray(new String[0]);
++            new AlertDialog.Builder(this).setTitle("💌 "+question).setItems(a,(d,w)->{
++                // Never submit a delayed dialog's vote into a different room.
++                if(!currentVoteRoom10001(expectedRoom10001,expectedUid10001,binding10001)){
++                    toast("Room changed. Open voting again.");return;
++                }
++                Map<String,Object>vote=new HashMap<>();vote.put("uid",expectedUid10001);
++                vote.put("name",safeName());vote.put("roundId",round);
++                vote.put("choice",a[w]);vote.put("choiceIndex",w);
++                vote.put("updatedAt",FieldValue.serverTimestamp());
++                liveRoom10001.collection("game_votes").document(expectedUid10001).set(vote)
++                    .addOnSuccessListener(v->{if(currentVoteRoom10001(expectedRoom10001,expectedUid10001,binding10001)){
++                        addEvent("vote",safeName()+" voted "+a[w]);toast("Vote sent: "+a[w]);
++                    }})
++                    .addOnFailureListener(e->{if(currentVoteRoom10001(expectedRoom10001,expectedUid10001,binding10001))
++                        toast("Vote failed: "+msg(e));});
++            }).setNeutralButton(isModerator()?"Results":"Close",(d,w)->{
++                if(currentVoteRoom10001(expectedRoom10001,expectedUid10001,binding10001)&&isModerator())showVoteResults();
++            }).setNegativeButton("Close",null).show();
++        }).addOnFailureListener(e->{if(currentVoteRoom10001(expectedRoom10001,expectedUid10001,binding10001))
++            toast("Vote unavailable: "+msg(e));});
+     }
+ 
+     private void showVoteResults(){
+--- a/app/build.gradle
++++ b/app/build.gradle
+@@ -14,7 +14,7 @@
+         }
+     }
+ 
+-    defaultConfig { applicationId 'com.kingplus.social'; minSdk 26; targetSdk 35; versionCode 279; versionName '10.0.0-live-moments-photo-feed-test' }
++    defaultConfig { applicationId 'com.kingplus.social'; minSdk 26; targetSdk 35; versionCode 280; versionName '10.0.1-me-home-party-photo-vote-test' }
+     buildTypes {
+         debug { signingConfig signingConfigs.debug }
+         release {

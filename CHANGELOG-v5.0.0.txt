@@ -1,0 +1,3 @@
+KING Plus v5.0.0 — Party Room Real State Stage
+
+Builds on v4.9.0 Party Room Full Feature. Room music is now backed by a persistent Firestore music_playlist plus a durable music_state/current document, so host/co-host playlists survive room reopen and shared playback state is not dependent on scanning transient room events. Added moderator-only playlist writes, per-room cloud playlist delete support, secure Firestore rules for music state/playlist and future room invites/settings/templates/announcements, plus backend-only gift/sticker ledgers. Room level and Heart level now update from real room activity and gift value instead of staying hard-coded at level 1. Existing no-billing mode and TEST OTP 123456 remain unchanged.

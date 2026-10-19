@@ -1,9 +1,7 @@
 const base = require('./index');
 const crypto = require('crypto');
-const {levelFromVerifiedSpend} = require('./king-vip-level');
-const {DIAMOND_PRODUCTS, purchaseAmount, applyVerifiedRecharge, applyGiftDebit, applyGiftReception, WALLET_MAX_DIAMONDS} = require('./recharge-policy');
-const {priceFor, MAX_VALUE} = require('./gift-catalog');
 const { onCall, HttpsError } = require('firebase-functions/v2/https');
+const { defineSecret } = require('firebase-functions/params');
 const { onDocumentCreated } = require('firebase-functions/v2/firestore');
 const { getFirestore, FieldValue } = require('firebase-admin/firestore');
 const { getMessaging } = require('firebase-admin/messaging');
@@ -11,8 +9,11 @@ const { google } = require('googleapis');
 
 const db = getFirestore();
 const PACKAGE_NAME = 'com.kingplus.social';
-// Google Play Console must register these exact consumable one-time product IDs.
-const PRODUCT_COINS = DIAMOND_PRODUCTS;
+const PRODUCT_COINS = Object.freeze({
+  king_coins_100: 100,
+  king_coins_600: 600,
+  king_coins_1300: 1300,
+});
 
 function requireAuth(request) {
   if (!request.auth) throw new HttpsError('unauthenticated', 'Sign in required.');
@@ -22,6 +23,39 @@ function requireAuth(request) {
 function cleanText(value, max = 160) {
   if (typeof value !== 'string') return '';
   return value.trim().slice(0, max);
+}
+
+async function isBanned(uid) {
+  if (!uid) return true;
+  const snap = await db.collection('bans').doc(uid).get();
+  return snap.exists && snap.get('active') === true;
+}
+
+async function assertActiveUser(uid) {
+  if (await isBanned(uid)) {
+    throw new HttpsError('permission-denied', 'This account is restricted.');
+  }
+}
+
+async function assertReceivableUser(uid) {
+  if (await isBanned(uid)) {
+    throw new HttpsError('failed-precondition', 'Target account is restricted.');
+  }
+}
+
+async function isBlockedEither(uidA, uidB) {
+  if (!uidA || !uidB) return true;
+  const [a, b] = await Promise.all([
+    db.collection('blocks').doc(`${uidA}_${uidB}`).get(),
+    db.collection('blocks').doc(`${uidB}_${uidA}`).get(),
+  ]);
+  return a.exists || b.exists;
+}
+
+async function assertSocialAllowed(uidA, uidB) {
+  if (await isBlockedEither(uidA, uidB)) {
+    throw new HttpsError('permission-denied', 'This interaction is blocked.');
+  }
 }
 
 function hash(value) {
@@ -64,78 +98,71 @@ async function sendUserNotification(uid, title, body, data = {}) {
   return { sent: response.successCount, failed: response.failureCount };
 }
 
-const secureSendGift = onCall(async request => {
-  const senderUid = requireAuth(request);
-  const targetUid = cleanText(request.data && request.data.targetUid, 160);
-  const giftName = cleanText(request.data && request.data.giftName, 60) || 'Gift';
-  const cost = Number(request.data && request.data.cost);
-  const requestId = cleanText(request.data && request.data.requestId, 120) || crypto.randomUUID();
-
-  if (!targetUid || targetUid === senderUid) throw new HttpsError('invalid-argument', 'Choose another user.');
-  const officialGift = priceFor(giftName);
-  if (!officialGift || !Number.isSafeInteger(cost) || cost !== officialGift.total || cost > MAX_VALUE)
-    throw new HttpsError('invalid-argument', 'Unknown Gift or price does not match the verified KING catalog.');
-
-  const operationId = `${senderUid}_${hash(requestId)}`;
-  const operationRef = db.collection('wallet_operations').doc(operationId);
-  const senderRef = db.collection('wallets').doc(senderUid);
-  const receiverRef = db.collection('wallets').doc(targetUid);
-  const ledgerRef = db.collection('wallet_ledger').doc(`gift_${hash(operationId)}`);
-  let senderBalance = 0;
-  let alreadyProcessed = false;
-
-  await db.runTransaction(async tx => {
-    const opSnap = await tx.get(operationRef);
-    if (opSnap.exists) {
-      if (opSnap.get('targetUid') !== targetUid ||
-          (opSnap.get('giftCost') != null && Number(opSnap.get('giftCost')) !== cost)) {
-        throw new HttpsError('already-exists', 'Gift request ID already belongs to a different purchase.');
-      }
-      alreadyProcessed = true;
-      senderBalance = Number(opSnap.get('senderBalance') || 0);
-      return;
+const {createGiftService, GiftError} = require('./room-gift-service');
+const commitGift10064 = createGiftService({db, timestamp: () => FieldValue.serverTimestamp()});
+async function purchaseGift10064(request, inRoom) {
+  const senderUid=requireAuth(request);
+  const data=request.data||{};
+  if(inRoom&&(typeof data.roomId!=='string'||!data.roomId.trim()))
+    throw new HttpsError('invalid-argument','A live Party room is required.');
+  if(request.auth.token?.firebase?.sign_in_provider==='anonymous')
+    throw new HttpsError('unauthenticated','Sign in to send Diamond gifts.');
+  try {
+    const result=await commitGift10064({senderUid,targetUid:data.targetUid,
+      giftName:data.giftName,cost:data.cost,requestId:data.requestId,
+      roomId:inRoom?data.roomId:null});
+    if(!result.idempotent) {
+      try { await sendUserNotification(data.targetUid,'You received a gift',data.giftName,
+        {type:'gift',senderUid,giftId:result.giftId}); }
+      catch(error){console.warn('Gift committed; notification unavailable.');}
     }
-
-    const senderSnap = await tx.get(senderRef);
-    const receiverSnap = await tx.get(receiverRef);
-    const currentSender = senderSnap.exists ? senderSnap.data() : {};
-    const senderAfter = applyGiftDebit(currentSender, cost);
-    const recipientAfter = applyGiftReception(receiverSnap.exists ? receiverSnap.data() : {}, cost);
-    senderBalance = senderAfter.coins;
-    // The sender's VIP is NOT incremented when sending Gifts.
-    // VIP increases only after a verified Google Play Diamond recharge.
-    tx.set(senderRef, { coins: senderBalance, updatedAt: FieldValue.serverTimestamp() }, { merge: true });
-    tx.set(receiverRef, { giftScore: recipientAfter.giftScore, updatedAt: FieldValue.serverTimestamp() }, { merge: true });
-    tx.set(ledgerRef, {
-      type: 'gift', senderUid, targetUid, giftName: officialGift.giftName,
-      quantity: officialGift.quantity, cost,
-      vipPointsEarned: 0, nonRedeemable: true, requestIdHash: hash(requestId),
-      createdAt: FieldValue.serverTimestamp()
-    });
-    tx.set(operationRef, {
-      type: 'gift', senderUid, targetUid, senderBalance, giftCost: cost,
-      requestIdHash: hash(requestId), createdAt: FieldValue.serverTimestamp()
-    });
-  });
-
-  if (!alreadyProcessed) {
-    try {
-      await sendUserNotification(targetUid, 'You received a gift', `${giftName} • ${cost} coins`, { type: 'gift', senderUid });
-    } catch (notificationError) {
-      // The secure wallet transaction has committed. FCM failure cannot undo it.
-      console.warn('Gift paid; push notification deferred', notificationError);
-    }
+    return result;
+  } catch(error) {
+    if(error instanceof GiftError)throw new HttpsError(error.code,error.message);
+    throw new HttpsError('internal','Gift confirmation unavailable. Retry the same gift.');
   }
+}
+const secureSendGift = onCall(request => purchaseGift10064(request,false));
+const sendRoomGift = onCall(request => purchaseGift10064(request,true));
 
-  return {
-    ok: true,
-    idempotent: alreadyProcessed,
-    balance: senderBalance,
-    message: alreadyProcessed
-      ? `Gift request already processed. Balance: ${senderBalance}`
-      : `${giftName} sent securely. Balance: ${senderBalance}`
-  };
+// Both flags default OFF. An allowance is not a guaranteed zero-cost spending cap.
+// Never enable these without checking the account's billing behavior and backend costs.
+const {defineBoolean} = require('firebase-functions/params');
+const voiceEnabled10066 = defineBoolean('CLOUDFLARE_VOICE_ENABLED', {default:false});
+const voiceZeroCost10066 = defineBoolean('CLOUDFLARE_ZERO_COST_VERIFIED', {default:false});
+const voiceApp10066 = defineSecret('CLOUDFLARE_SFU_APP_ID');
+const voiceSecret10066 = defineSecret('CLOUDFLARE_SFU_APP_SECRET');
+const partyVoice = onCall({secrets:[voiceApp10066,voiceSecret10066], timeoutSeconds:30}, async request => {
+  const uid = requireAuth(request);
+  const {createFirebaseVoice} = require('./cloudflare-voice-firebase');
+  const {VoiceError} = require('./cloudflare-voice');
+  const {service} = createFirebaseVoice({db, config:async () => ({
+    enabled:voiceEnabled10066.value(), zeroCostVerified:voiceZeroCost10066.value(),
+    appId:voiceApp10066.value(), secret:voiceSecret10066.value()
+  })});
+  try { return await service({uid, data:request.data}); }
+  catch(error) {
+    if(error instanceof VoiceError) throw new HttpsError(error.code,error.message);
+    throw new HttpsError('unavailable','Room voice could not complete. Reconnect voice.');
+  }
 });
+const {onDocumentWritten} = require('firebase-functions/v2/firestore');
+function voiceModeration10066(document, byUser=false, fields=[]) {
+  return onDocumentWritten({document,secrets:[voiceApp10066,voiceSecret10066],retry:true},async event=>{
+    const before=event.data?.before,after=event.data?.after;
+    if(before?.exists&&after?.exists&&fields.length&&
+        fields.every(key=>JSON.stringify(before.get(key))===JSON.stringify(after.get(key))))return;
+    const {createFirebaseVoice} = require('./cloudflare-voice-firebase');
+    const voice=createFirebaseVoice({db,config:async()=>({appId:voiceApp10066.value(),secret:voiceSecret10066.value()})});
+    return byUser?voice.reconcileUser(event.params.uid):voice.reconcileRoom(event.params.roomId);
+  });
+}
+const voiceRoomChanged10066=voiceModeration10066('live_rooms/{roomId}',false,['closed','muteAll','ownerUid','maxSeats']);
+const voiceSeatChanged10066=voiceModeration10066('live_rooms/{roomId}/seats/{seatId}',false,['uid','micOn']);
+const voiceMemberChanged10066=voiceModeration10066('live_rooms/{roomId}/members/{uid}',true,['uid','sessionId']);
+const voiceRoomBanChanged10066=voiceModeration10066('live_rooms/{roomId}/room_bans/{uid}',true,['active']);
+const voiceAccountBanChanged10066=voiceModeration10066('bans/{uid}',true,['active']);
+const voiceRoleChanged10066=voiceModeration10066('live_rooms/{roomId}/roles/{uid}',true,['role']);
 
 const verifyPlayPurchase = onCall(async request => {
   const uid = requireAuth(request);
@@ -159,12 +186,32 @@ const verifyPlayPurchase = onCall(async request => {
   }
 });
 
+const secureSendRoomInvite = onCall(async request => {
+  const senderUid = requireAuth(request);
+  const targetUid = cleanText(request.data && request.data.targetUid, 160);
+  const roomId = cleanText(request.data && request.data.roomId, 160);
+  const roomName = cleanText(request.data && request.data.roomName, 100) || 'KING Plus room';
+  if (!targetUid || !roomId || targetUid === senderUid) {
+    throw new HttpsError('invalid-argument', 'Target user and room are required.');
+  }
+  await assertActiveUser(senderUid);
+  await assertReceivableUser(targetUid);
+  await assertSocialAllowed(senderUid, targetUid);
+  const result = await sendUserNotification(targetUid, 'Room invitation', roomName, {
+    type: 'room_invite', roomId, senderUid
+  });
+  return { ok: true, ...result, message: result.sent ? 'Room invite push sent.' : 'Invite saved; no active push token found.' };
+});
+
 const sendDirectMessageNotification = onCall(async request => {
   const senderUid = requireAuth(request);
   const targetUid = cleanText(request.data && request.data.targetUid, 160);
   const senderName = cleanText(request.data && request.data.senderName, 60) || 'KING user';
   const preview = cleanText(request.data && request.data.preview, 100) || 'New message';
   if (!targetUid || targetUid === senderUid) throw new HttpsError('invalid-argument', 'Target user required.');
+  await assertActiveUser(senderUid);
+  await assertReceivableUser(targetUid);
+  await assertSocialAllowed(senderUid, targetUid);
   const result = await sendUserNotification(targetUid, senderName, preview, { type: 'direct_message', senderUid });
   return { ok: true, ...result, message: result.sent ? 'Message push sent.' : 'Message saved; no active push token found.' };
 });
@@ -174,8 +221,19 @@ const sendFollowNotification = onCall(async request => {
   const targetUid = cleanText(request.data && request.data.targetUid, 160);
   const followerName = cleanText(request.data && request.data.followerName, 60) || 'KING user';
   if (!targetUid || targetUid === followerUid) throw new HttpsError('invalid-argument', 'Target user required.');
+  await assertActiveUser(followerUid);
+  await assertReceivableUser(targetUid);
+  await assertSocialAllowed(followerUid, targetUid);
   const result = await sendUserNotification(targetUid, 'New follower', `${followerName} followed you`, { type: 'follow', followerUid });
   return { ok: true, ...result, message: result.sent ? 'Follow push sent.' : 'Follow notification saved.' };
+});
+
+const requestAccountDeletion = onCall(async request => {
+  const uid = requireAuth(request);
+  await db.collection('account_deletion_requests').doc(uid).set({
+    uid, status: 'requested', requestedAt: FieldValue.serverTimestamp()
+  }, { merge: true });
+  return { ok: true, message: 'Account deletion request recorded. Sign out after saving anything you need.' };
 });
 
 const onDirectMessageCreated = onDocumentCreated('direct_threads/{threadId}/messages/{messageId}', async event => {
@@ -184,6 +242,7 @@ const onDirectMessageCreated = onDocumentCreated('direct_threads/{threadId}/mess
   const senderUid = cleanText(message.senderUid, 160);
   const targetUid = cleanText(message.recipientUid, 160);
   if (!senderUid || !targetUid || senderUid === targetUid) return;
+  if (await isBanned(senderUid) || await isBanned(targetUid) || await isBlockedEither(senderUid, targetUid)) return;
   const senderName = cleanText(message.senderName, 60) || 'KING user';
   const preview = cleanText(message.text, 100) || 'New message';
   await sendUserNotification(targetUid, senderName, preview, {
@@ -197,16 +256,84 @@ const onFollowCreated = onDocumentCreated('follows/{followId}', async event => {
   const followerUid = cleanText(follow.followerUid, 160);
   const targetUid = cleanText(follow.targetUid, 160);
   if (!followerUid || !targetUid || followerUid === targetUid) return;
+  if (await isBanned(followerUid) || await isBanned(targetUid) || await isBlockedEither(followerUid, targetUid)) return;
   const followerName = cleanText(follow.followerName, 60) || 'KING user';
   await sendUserNotification(targetUid, 'New follower', `${followerName} followed you`, { type: 'follow', followerUid });
 });
 
+// Cashfree is an optional zero-upfront merchant integration, never active by default.
+// Merchant must do their own KYC, create server secrets and explicitly enable a
+// permitted distribution/billing mode. No API keys ship in an APK or Git.
+const cashfreeClientId = defineSecret('KING_CASHFREE_CLIENT_ID');
+const cashfreeClientSecret = defineSecret('KING_CASHFREE_CLIENT_SECRET');
+function cashfreeService(){
+  const mode = process.env.KING_CASHFREE_MODE;
+  const id = cashfreeClientId.value();
+  const secret = cashfreeClientSecret.value();
+  // Explicit opt-in: credentials alone MUST NEVER enable real money charging.
+  // Production also requires merchant confirmation of the distribution policy.
+  const enabled=require('./cashfree-recharge-config').paymentEnabled({
+    mode,hasId:!!id,hasSecret:!!secret,
+    enabled:process.env.KING_CASHFREE_ENABLED,
+    billingApproved:process.env.KING_CASHFREE_BILLING_APPROVED
+  });
+  const provider = enabled
+    ? require('./cashfree-recharge-provider').createProvider({clientId:id,clientSecret:secret,mode})
+    : null;
+  return require('./cashfree-recharge-service').createCashfreeRechargeService({
+    db, provider, enabled, mode, isBanned,
+    stamp:()=>FieldValue.serverTimestamp()
+  });
+}
+function cashfreeUser(request){
+  const uid=requireAuth(request);
+  if(request.auth.token?.firebase?.sign_in_provider==='anonymous')
+    throw new HttpsError('unauthenticated','Permanent account required for recharge.');
+  return uid;
+}
+async function cashfreeCall(request,action){
+  const uid=cashfreeUser(request);
+  try {return await action(cashfreeService(),uid);}
+  catch(error){
+    if(error instanceof HttpsError)throw error;
+    const codes=['unauthenticated','permission-denied','invalid-argument','failed-precondition','unavailable'];
+    throw new HttpsError(codes.includes(error.code)?error.code:'internal',
+      codes.includes(error.code)?error.message:'Recharge verification unavailable. No Diamonds credited.');
+  }
+}
+const cashfreeConfig={secrets:[cashfreeClientId,cashfreeClientSecret]};
+const getCashfreeRechargeCatalog=onCall(cashfreeConfig,req=>cashfreeCall(req,(service,uid)=>service.catalog({uid})));
+const getCashfreeRechargeHistory=onCall(cashfreeConfig,req=>cashfreeCall(req,(service,uid)=>service.history({uid})));
+const createCashfreeRechargeLink=onCall(cashfreeConfig,req=>cashfreeCall(req,(service,uid)=>service.create({
+  uid,productId:req.data?.productId,phone:req.data?.phone
+})));
+const confirmCashfreeRecharge=onCall(cashfreeConfig,req=>cashfreeCall(req,(service,uid)=>service.confirm({
+  uid,orderId:req.data?.orderId
+})));
+const resumeCashfreeRecharge=onCall(cashfreeConfig,req=>cashfreeCall(req,(service,uid)=>service.resume({
+  uid,orderId:req.data?.orderId
+})));
+
 module.exports = {
   ...base,
   sendGift: secureSendGift,
+  sendRoomGift,
+  partyVoice,
+  voiceRoomChanged10066,voiceSeatChanged10066,voiceMemberChanged10066,
+  voiceRoomBanChanged10066,voiceAccountBanChanged10066,voiceRoleChanged10066,
+  sendRoomInvite: secureSendRoomInvite,
   verifyPlayPurchase,
+  getCashfreeRechargeCatalog,
+  getCashfreeRechargeHistory,
+  createCashfreeRechargeLink,
+  confirmCashfreeRecharge,
+  resumeCashfreeRecharge,
+  buyVipIdentity: require('./vip-style-service').createVipStyleService({
+    db, FieldValue, HttpsError, requireAuth, isBanned
+  }),
   sendDirectMessageNotification,
   sendFollowNotification,
+  requestAccountDeletion,
   onDirectMessageCreated,
   onFollowCreated,
 };

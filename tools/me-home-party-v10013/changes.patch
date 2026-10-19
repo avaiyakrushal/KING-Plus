@@ -1,0 +1,173 @@
+--- a/app/src/main/java/com/kingplus/social/MainActivity.java
++++ b/app/src/main/java/com/kingplus/social/MainActivity.java
+@@ -1633,7 +1633,8 @@
+         mePartyRecordV600(host,"⌛","Loading hosted rooms","Account-verified Party records",null);
+         firestore.collection("live_rooms").whereEqualTo("ownerUid",currentUid9981).limit(30).get()
+             .addOnSuccessListener(q->{
+-                if(isFinishing()||isDestroyed()||firebaseAuth==null||firebaseAuth.getCurrentUser()==null
++                if(isFinishing()||isDestroyed()||!"profile".equals(screen)
++                        ||host.getParent()==null||firebaseAuth==null||firebaseAuth.getCurrentUser()==null
+                         ||!currentUid9981.equals(firebaseAuth.getCurrentUser().getUid()))return;
+                 host.removeAllViews();
+                 java.util.List<DocumentSnapshot> docs=new ArrayList<>(q.getDocuments());
+@@ -1654,8 +1655,15 @@
+                 }
+                 if(count==0)mePartyRecordV600(host,"🎤","No hosted Party rooms yet",
+                     "Open Party to create one",this::openPartyActivity);
+-            }).addOnFailureListener(e->{host.removeAllViews();mePartyRecordV600(host,"🎤",
+-                    "Hosted rooms unavailable","Open Party or retry",this::openPartyActivity);});
++            }).addOnFailureListener(e->{
++                // An older account's request must not overwrite a newly opened Me page.
++                if(isFinishing()||isDestroyed()||!"profile".equals(screen)
++                    ||host.getParent()==null||firebaseAuth==null||firebaseAuth.getCurrentUser()==null
++                    ||!currentUid9981.equals(firebaseAuth.getCurrentUser().getUid()))return;
++                host.removeAllViews();
++                mePartyRecordV600(host,"↻","Hosted rooms unavailable",
++                    "Tap to retry loading your rooms",()->loadPartyRecordsV600(host));
++            });
+     }
+     private void showMeRoomHistory9981(String tab){
+         if(firebaseAuth==null||firebaseAuth.getCurrentUser()==null){login();return;}
+@@ -1677,8 +1685,12 @@
+                 Intent intent=new Intent(this,PartyActivity.class);
+                 intent.putExtra("directRoomId",roomId9981);
+                 startActivity(intent); // PartyActivity still checks privacy/password and membership.
+-            }).addOnFailureListener(e->Toast.makeText(this,
+-                "Unable to verify Party room online",Toast.LENGTH_LONG).show());
++            }).addOnFailureListener(e->{
++                if(!isFinishing()&&!isDestroyed()&&firebaseAuth!=null
++                    &&firebaseAuth.getCurrentUser()!=null
++                    &&account9981.equals(firebaseAuth.getCurrentUser().getUid()))
++                    Toast.makeText(this,"Unable to verify Party room online",Toast.LENGTH_LONG).show();
++            });
+     }
+ 
+     private void mePartyRecordV600(LinearLayout host,String icon,String title,String sub,Runnable action){
+--- a/app/src/main/java/com/kingplus/social/CommunityHubActivity.java
++++ b/app/src/main/java/com/kingplus/social/CommunityHubActivity.java
+@@ -46,6 +46,9 @@
+     private String selectedTopic940="All";
+     private int searchGeneration9994;
+     private boolean relationshipRequestInFlight10012;
++    // A Moment POST stays in flight when users switch between Home tabs.
++    // Keep the gate on the Activity, rather than only the discarded button.
++    private String pendingMomentAccount10013;
+     private String searchDraft10007="";
+     // Shared live Moments shown by Home, Me and Party room broadcasts.
+     // Pagination is explicit to avoid silently hiding older account posts.
+@@ -224,20 +227,26 @@
+     }
+     private void postMoment(EditText e,TextView post){
+         if(!cloud()||!KingSavedRoomsCloud9990.account(me.getUid())){toast("Sign in required");return;}
++        if(pendingMomentAccount10013!=null){toast("A Moment is still posting. Check its result before posting again.");return;}
+         String text=e.getText().toString().trim();
+         if(text.isEmpty()){e.setError("Write a Moment first");return;}
+         if(text.length()>1000){e.setError("Moments must be under 1000 characters");return;}
+         final String postingUid10007=me.getUid();
+         final LinearLayout postingHost10007=body;
+         final int postingGeneration10007=searchGeneration9994;
++        pendingMomentAccount10013=postingUid10007;
+         post.setEnabled(false);post.setText("Posting…");
+         Map<String,Object> m=new HashMap<>();m.put("uid",postingUid10007);m.put("name",displayName);
+         m.put("text",text);m.put("topic","All".equals(selectedTopic940)?"General":selectedTopic940);
+         m.put("createdAt",FieldValue.serverTimestamp());
+         db.collection("moments").add(m)
+-          .addOnSuccessListener(v->{if(!currentMomentPost10007(postingUid10007,postingGeneration10007,postingHost10007))return;
++          .addOnSuccessListener(v->{
++              if(postingUid10007.equals(pendingMomentAccount10013))pendingMomentAccount10013=null;
++              if(!currentMomentPost10007(postingUid10007,postingGeneration10007,postingHost10007))return;
+               e.setText("");post.setEnabled(true);post.setText("Post Moment");})
+-          .addOnFailureListener(x->{if(!currentMomentPost10007(postingUid10007,postingGeneration10007,postingHost10007))return;
++          .addOnFailureListener(x->{
++              if(postingUid10007.equals(pendingMomentAccount10013))pendingMomentAccount10013=null;
++              if(!currentMomentPost10007(postingUid10007,postingGeneration10007,postingHost10007))return;
+               post.setEnabled(true);post.setText("Post Moment");toast("Could not post. Try again.");});
+     }
+     private com.google.firebase.firestore.ListenerRegistration momentsListener9990;
+--- a/app/src/main/java/com/kingplus/social/PartyActivity.java
++++ b/app/src/main/java/com/kingplus/social/PartyActivity.java
+@@ -6836,14 +6836,46 @@
+     }
+     private void reportUser(String uid,String name){String target=(uid==null||uid.isEmpty())?name:uid;CloudSync.submitReport(this,target,"Party room user report",(ok,m)->runOnUiThread(()->toast(m)));}
+     private void hostToggleSeat(int no){
+-        if(!isModerator()){toast("Host/co-host only");return;} boolean next=!Boolean.TRUE.equals(seatMics.get(no));
+-        if(cloudRoom&&db!=null)db.collection("live_rooms").document(roomId).collection("seats").document(String.valueOf(no)).update("micOn",next).addOnFailureListener(e->toast(msg(e)));
+-        else{seatMics.put(no,next);rebuildSeats();}
++        if(!isModerator()||user==null||!cloudRoom||db==null||roomId==null){
++            toast("Host/co-host in a live room only");return;
++        }
++        final String expectedUid10013=seatUids.get(no);
++        if(expectedUid10013==null||expectedUid10013.isEmpty()){
++            toast("The selected seat is empty");return;
++        }
++        if(expectedUid10013.equals(user.getUid())){
++            // Only the microphone owner can activate their own actual RTC audio.
++            toggleMic();return;
++        }
++        if(!Boolean.TRUE.equals(seatMics.get(no))){
++            toast("Only the seated member can switch their mic on");return;
++        }
++        final String moderationRoom10013=roomId;
++        DocumentReference seat10013=db.collection("live_rooms").document(moderationRoom10013)
++            .collection("seats").document(String.valueOf(no));
++        db.runTransaction(tx->{
++            DocumentSnapshot current10013=tx.get(seat10013);
++            if(!current10013.exists()||!expectedUid10013.equals(current10013.getString("uid")))
++                throw new IllegalStateException("Seat changed; reopen member menu");
++            if(!Boolean.TRUE.equals(current10013.getBoolean("micOn")))return false;
++            tx.update(seat10013,"micOn",false);
++            return true;
++        }).addOnSuccessListener(changed10013->{
++            if(moderationRoom10013.equals(roomId)&&Boolean.TRUE.equals(changed10013))
++                addEvent("seat_mic", "Host muted seat "+no);
++        }).addOnFailureListener(error10013->{
++            if(moderationRoom10013.equals(roomId))toast("Mute failed: "+msg(error10013));
++        });
+     }
+     private void hostRemoveSeat(int no){
+         if(!isModerator()){toast("Host/co-host only");return;}
+-        if(cloudRoom&&db!=null)db.collection("live_rooms").document(roomId).collection("seats").document(String.valueOf(no)).delete().addOnSuccessListener(v->addEvent("seat",safeName()+" removed a mic seat")).addOnFailureListener(e->toast(msg(e)));
+-        else{localRemovedSeats.add(no);seatNames.remove(no);seatMics.remove(no);rebuildSeats();}
++        if(cloudRoom&&db!=null){
++            // All in-room seat menus must use the same occupant-checked transaction.
++            // Never delete a seat blindly after an old menu has been left open.
++            kickSeatV530(no,false);
++        }else{
++            localRemovedSeats.add(no);seatNames.remove(no);seatMics.remove(no);rebuildSeats();
++        }
+     }
+     private void reactionDialog(){
+         String[] r={"❤️ Love","😂 Haha","👏 Clap","🔥 Fire","🎉 Party","😍 Wow"};
+--- a/firestore.rules
++++ b/firestore.rules
+@@ -245,6 +245,8 @@
+           && (roleUid == request.auth.uid || roomModerator(roomId));
+         allow create, update: if roomOwner(roomId)
+           && roleUid != roomData(roomId).ownerUid
++          && exists(/databases/$(database)/documents/live_rooms/$(roomId)/members/$(roleUid))
++          && !exists(/databases/$(database)/documents/live_rooms/$(roomId)/room_bans/$(roleUid))
+           && request.resource.data.uid == roleUid
+           && request.resource.data.role == 'cohost';
+         allow delete: if roomOwner(roomId);
+@@ -260,7 +262,9 @@
+           && request.resource.data.uid == bannedUid
+           && request.resource.data.active == true;
+         allow delete: if roomModerator(roomId)
+-          && bannedUid != roomData(roomId).ownerUid;
++          && bannedUid != roomData(roomId).ownerUid
++          && (roomOwner(roomId)
++            || !exists(/databases/$(database)/documents/live_rooms/$(roomId)/roles/$(bannedUid)));
+       }
+ 
+       match /secrets/{secretId} {
+--- a/app/build.gradle
++++ b/app/build.gradle
+@@ -14,7 +14,7 @@
+         }
+     }
+ 
+-    defaultConfig { applicationId 'com.kingplus.social'; minSdk 26; targetSdk 35; versionCode 291; versionName '10.0.12-me-home-party-live-safety-test' }
++    defaultConfig { applicationId 'com.kingplus.social'; minSdk 26; targetSdk 35; versionCode 292; versionName '10.0.13-me-home-party-moderation-test' }
+     buildTypes {
+         debug { signingConfig signingConfigs.debug }
+         release {

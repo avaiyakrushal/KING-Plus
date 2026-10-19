@@ -1,0 +1,280 @@
+--- a/app/src/main/java/com/kingplus/social/MainActivity.java
++++ b/app/src/main/java/com/kingplus/social/MainActivity.java
+@@ -1893,9 +1893,23 @@
+         final String account10003=firebaseAuth.getCurrentUser().getUid();
+         final int visitorTicket10004=++visitorDialogGeneration10004;
+         if(!"profile".equals(screen))return;
+-        firestore.collection("public_profiles").document(account10003).collection("visitors")
+-          .orderBy("visitedAt",com.google.firebase.firestore.Query.Direction.DESCENDING)
+-          .limit(50).get(com.google.firebase.firestore.Source.SERVER).addOnSuccessListener(snap->{
++        loadVisitorPage10019(account10003,visitorTicket10004,null,1);
++    }
++    // Complete visitor history, scoped to the exact Me account and view generation.
++    private boolean visitorsCurrent10019(String account10019,int ticket10019){
++        return !isFinishing()&&!isDestroyed()&&"profile".equals(screen)
++            &&ticket10019==visitorDialogGeneration10004
++            &&firebaseAuth!=null&&firebaseAuth.getCurrentUser()!=null
++            &&account10019.equals(firebaseAuth.getCurrentUser().getUid());
++    }
++    private void loadVisitorPage10019(String account10003,int visitorTicket10004,
++             DocumentSnapshot cursor10019,int page10019){
++        if(!visitorsCurrent10019(account10003,visitorTicket10004))return;
++        com.google.firebase.firestore.Query q10019=firestore.collection("public_profiles")
++            .document(account10003).collection("visitors")
++            .orderBy("visitedAt",com.google.firebase.firestore.Query.Direction.DESCENDING).limit(50);
++        if(cursor10019!=null)q10019=q10019.startAfter(cursor10019);
++        q10019.get(com.google.firebase.firestore.Source.SERVER).addOnSuccessListener(snap->{
+             if(isFinishing()||isDestroyed()||!"profile".equals(screen)
+                 ||visitorTicket10004!=visitorDialogGeneration10004
+                 ||firebaseAuth.getCurrentUser()==null
+@@ -1924,23 +1938,31 @@
+                     .setPositiveButton("View all",(dialog,which)->openVerifiedVisitors10012(account10003,visitorTicket10004))
+                     .setNegativeButton("Close",null).show();return;
+             }
+-            new AlertDialog.Builder(this).setTitle("👣 Recent Profile Visitors")
++            final DocumentSnapshot next10019=snap.size()==50
++                ?snap.getDocuments().get(snap.size()-1):null;
++            new AlertDialog.Builder(this).setTitle("👣 Profile Visitors • Page "+page10019)
+                 .setItems(rows.toArray(new String[0]),(dlg,w)->{
+-                    if(!"profile".equals(screen)||visitorTicket10004!=visitorDialogGeneration10004
+-                        ||firebaseAuth.getCurrentUser()==null||!account10003.equals(firebaseAuth.getCurrentUser().getUid()))return;
++                    if(!visitorsCurrent10019(account10003,visitorTicket10004))return;
+                     Intent i=new Intent(this,KingPublicProfileActivity.class);
+                     i.putExtra("uid",ids.get(w));startActivity(i);
+-                }).setPositiveButton("View all",(dlg,w)->{
+-                    openVerifiedVisitors10012(account10003,visitorTicket10004);
+-                }).setNegativeButton("Close",null).show();
++                }).setPositiveButton(next10019==null?"Visitor Center":"↓ Next 50 visitors",(dlg,w)->{
++                    if(!visitorsCurrent10019(account10003,visitorTicket10004))return;
++                    if(next10019==null)openVerifiedVisitors10012(account10003,visitorTicket10004);
++                    else loadVisitorPage10019(account10003,visitorTicket10004,next10019,page10019+1);
++                }).setNeutralButton("Visitor Center",(dlg,w)->
++                    openVerifiedVisitors10012(account10003,visitorTicket10004))
++                .setNegativeButton("Close",null).show();
+         }).addOnFailureListener(e->{
+             if(isFinishing()||isDestroyed()||!"profile".equals(screen)
+                 ||visitorTicket10004!=visitorDialogGeneration10004
+                 ||firebaseAuth.getCurrentUser()==null
+                 ||!account10003.equals(firebaseAuth.getCurrentUser().getUid()))return;
+             new AlertDialog.Builder(this).setTitle("👣 Profile Visitors")
+-                .setMessage("Visitors are unavailable right now.")
+-                .setPositiveButton("Retry",(d,w)->showProfileVisitors940())
++                .setMessage("Visitors are unavailable right now. Page "+page10019)
++                .setPositiveButton("Retry",(d,w)->{
++                    if(visitorsCurrent10019(account10003,visitorTicket10004))
++                        loadVisitorPage10019(account10003,visitorTicket10004,cursor10019,page10019);
++                })
+                 .setNegativeButton("Close",null).show();
+         });
+     }
+--- a/app/src/main/java/com/kingplus/social/CommunityHubActivity.java
++++ b/app/src/main/java/com/kingplus/social/CommunityHubActivity.java
+@@ -349,6 +349,8 @@
+                         if(generation10018!=momentsGeneration9990||!"Moments".equals(selected)
+                             ||!KingSavedRoomsCloud9990.account(account10018)||history10018.getParent()==null)return;
+                         history10018.removeView(more10018);
++                        if(more10018.getParent()!=history10018)return;
++                        history10018.removeView(more10018);
+                         loadOlderMoments10018(history10018,next10018,generation10018,account10018,topic10018);
+                     });
+                     history10018.addView(more10018,new LinearLayout.LayoutParams(-1,dp(46)));
+@@ -440,10 +442,30 @@
+         else other=button("Delete",()->new AlertDialog.Builder(this)
+             .setTitle("Delete this Moment?").setMessage("Remove this post from the shared feed?")
+             .setNegativeButton("Cancel",null).setPositiveButton("Delete",(dialog,w)->
+-                d.getReference().delete().addOnFailureListener(e->toast("Could not delete Moment"))).show());
++                deleteOwnedMoment10019(d.getReference(),account)).show());
+         LinearLayout.LayoutParams op=new LinearLayout.LayoutParams(0,dp(42),1);op.setMargins(dp(6),0,0,0);
+         actions.addView(other,op);card.addView(actions);
+         LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(-1,-2);lp.setMargins(0,dp(6),0,dp(6));feed.addView(card,lp);
++    }
++    // Delete only the same live post owned by the current signed-in account.
++    // A dialog left open while switching accounts must never delete the old post.
++    private void deleteOwnedMoment10019(DocumentReference ref10019,String owner10019){
++        if(ref10019==null||me==null||!owner10019.equals(me.getUid())
++            ||!KingSavedRoomsCloud9990.account(owner10019)||!"Moments".equals(selected)){
++            toast("Account changed. Reopen your Moment.");return;
++        }
++        db.runTransaction(tx10019->{
++            DocumentSnapshot live10019=tx10019.get(ref10019);
++            if(!live10019.exists()||!owner10019.equals(live10019.getString("uid")))
++                throw new IllegalStateException("Moment changed or was already deleted");
++            tx10019.delete(ref10019);return true;
++        }).addOnSuccessListener(v->{
++            if(me!=null&&owner10019.equals(me.getUid())&&"Moments".equals(selected)
++                &&!isFinishing()&&!isDestroyed())toast("Moment deleted");
++        }).addOnFailureListener(e->{
++            if(me!=null&&owner10019.equals(me.getUid())&&!isFinishing()&&!isDestroyed())
++                toast("Could not delete Moment: "+e.getMessage());
++        });
+     }
+     private void toggleMomentLike9990(DocumentReference ref,TextView button){
+         if(me==null||!KingSavedRoomsCloud9990.account(me.getUid()))return;
+--- a/app/src/main/java/com/kingplus/social/PartyActivity.java
++++ b/app/src/main/java/com/kingplus/social/PartyActivity.java
+@@ -6383,8 +6383,8 @@
+     private void logProfileVisit750(String targetUid){if(user==null||db==null||targetUid==null||targetUid.isEmpty()||targetUid.equals(user.getUid()))return;Map<String,Object>v=new HashMap<>();v.put("uid",user.getUid());v.put("name",safeName());v.put("updatedAt",FieldValue.serverTimestamp());db.collection("public_profiles").document(targetUid).collection("visitors").document(user.getUid()).set(v,SetOptions.merge());}
+     private void profileFamilyDialog(String uid,String name){boolean self=user!=null&&uid.equals(user.getUid());if(self){SharedPreferences p=getSharedPreferences("MainActivity",MODE_PRIVATE);String family=p.getString("family_name","Not joined"),code=p.getString("family_code","");new AlertDialog.Builder(this).setTitle("👑 Family").setMessage("Current family: "+family+(code.isEmpty()?"":"\nFamily code: "+code)).setPositiveButton("Open Family Center",(d,w)->openCommunityHub700("Family")).setNeutralButton("Share Family",(d,w)->shareFamilyRoom()).setNegativeButton("Close",null).show();}else new AlertDialog.Builder(this).setTitle("👑 "+name+" • Family").setMessage("Family details stay private until shared. You can invite this user in private chat or share your Family room.").setPositiveButton("Private chat",(d,w)->openPrivateChat(uid,name)).setNeutralButton("Share Family",(d,w)->shareFamilyRoom()).setNegativeButton("Close",null).show();}
+     private void profileRelationshipDialog(String uid,String name){if(user!=null&&uid.equals(user.getUid())){new AlertDialog.Builder(this).setTitle("💞 Relationship").setMessage("Manage your relationship from the Me page.").setPositiveButton("Open Me page",(d,w)->{Intent i=new Intent(this,MainActivity.class);i.putExtra("openTab",4);startActivity(i);}).setNegativeButton("Close",null).show();return;}new AlertDialog.Builder(this).setTitle("💞 "+name).setMessage("Start a private chat or send a relationship gift.").setPositiveButton("Private chat",(d,w)->openPrivateChat(uid,name)).setNeutralButton("Send Gift",(d,w)->giftDialogFor(uid,name)).setNegativeButton("Close",null).show();}
+-    private void profileGiftWallDialog(String uid,String name){if(db==null||roomId==null){toast("Live room required");return;}db.collection("live_rooms").document(roomId).collection("events").orderBy("createdAt",Query.Direction.DESCENDING).limit(100).get().addOnSuccessListener(q->{ArrayList<String> rows=new ArrayList<>();long total=0;for(DocumentSnapshot d:q.getDocuments())if("gift".equals(d.getString("type"))&&uid.equals(d.getString("targetUid"))){String g=d.getString("giftName"),a=d.getString("actorName");Long val=d.getLong("giftValue"),qty=d.getLong("giftQty");long v=val==null?0:val;total+=v;rows.add((g==null?"Gift":g)+" x"+(qty==null?1:qty)+" • from "+(a==null?"User":a)+" • 💎"+v);}if(rows.isEmpty()){new AlertDialog.Builder(this).setTitle("🎁 "+name+" • Gift Wall").setMessage("No gifts received in this room yet.").setPositiveButton("Send first gift",(d,w)->giftDialogFor(uid,name)).setNegativeButton("Close",null).show();return;}new AlertDialog.Builder(this).setTitle("🎁 Gift Wall • Total 💎"+compactNumber(total)).setItems(rows.toArray(new String[0]),null).setPositiveButton("Send Gift",(d,w)->giftDialogFor(uid,name)).setNegativeButton("Close",null).show();}).addOnFailureListener(e->toast("Gift Wall unavailable: "+msg(e)));}
+-    private void profileMedalsDialog(String uid,String name,boolean host){if(db==null||roomId==null){toast("Live room required");return;}db.collection("live_rooms").document(roomId).collection("events").orderBy("createdAt",Query.Direction.DESCENDING).limit(100).get().addOnSuccessListener(q->{long sent=0,received=0,activity=0;for(DocumentSnapshot d:q.getDocuments()){Long val=d.getLong("giftValue");if(uid.equals(d.getString("actorUid"))){activity++;if("gift".equals(d.getString("type"))&&val!=null)sent+=val;}if(uid.equals(d.getString("targetUid"))&&"gift".equals(d.getString("type"))&&val!=null)received+=val;}ArrayList<String> m=new ArrayList<>();if(host)m.add("👑 Room Host");if(activity>=5)m.add("🏅 Active Member");if(sent>0)m.add("💎 Supporter • "+compactNumber(sent));if(received>0)m.add("🌟 Gift Star • "+compactNumber(received));if(m.isEmpty())m.add("No medals earned in this room yet");new AlertDialog.Builder(this).setTitle("🏅 "+name+" • Medals").setItems(m.toArray(new String[0]),null).setPositiveButton("OK",null).show();}).addOnFailureListener(e->toast("Medals unavailable: "+msg(e)));}
++    private void profileGiftWallDialog(String uid,String name){if(db==null||roomId==null){toast("Live room required");return;}db.collection("live_rooms").document(roomId).collection("events").orderBy("createdAt",Query.Direction.DESCENDING).limit(100).get().addOnSuccessListener(q->{ArrayList<String> rows=new ArrayList<>();long total=0;for(DocumentSnapshot d:q.getDocuments())if("gift".equals(d.getString("type"))&&uid.equals(d.getString("targetUid"))){String g=d.getString("giftName"),a=d.getString("actorName");Long val=d.getLong("giftValue"),qty=d.getLong("giftQty");long v=val==null?0:val;total+=v;rows.add((g==null?"Gift":g)+" x"+(qty==null?1:qty)+" • from "+(a==null?"User":a)+" • 💎"+v);}if(rows.isEmpty()){new AlertDialog.Builder(this).setTitle("🎁 "+name+" • Gift Wall").setMessage("No gifts received in this room yet.").setPositiveButton("Send first gift",(d,w)->giftDialogFor(uid,name)).setNegativeButton("Close",null).show();return;}new AlertDialog.Builder(this).setTitle("🎁 Gift Wall • Recent 100 events 💎"+compactNumber(total)).setItems(rows.toArray(new String[0]),null).setPositiveButton("Send Gift",(d,w)->giftDialogFor(uid,name)).setNegativeButton("Close",null).show();}).addOnFailureListener(e->toast("Gift Wall unavailable: "+msg(e)));}
++    private void profileMedalsDialog(String uid,String name,boolean host){if(db==null||roomId==null){toast("Live room required");return;}db.collection("live_rooms").document(roomId).collection("events").orderBy("createdAt",Query.Direction.DESCENDING).limit(100).get().addOnSuccessListener(q->{long sent=0,received=0,activity=0;for(DocumentSnapshot d:q.getDocuments()){Long val=d.getLong("giftValue");if(uid.equals(d.getString("actorUid"))){activity++;if("gift".equals(d.getString("type"))&&val!=null)sent+=val;}if(uid.equals(d.getString("targetUid"))&&"gift".equals(d.getString("type"))&&val!=null)received+=val;}ArrayList<String> m=new ArrayList<>();if(host)m.add("👑 Room Host");if(activity>=5)m.add("🏅 Active Member");if(sent>0)m.add("💎 Supporter • "+compactNumber(sent));if(received>0)m.add("🌟 Gift Star • "+compactNumber(received));if(m.isEmpty())m.add("No medals earned in this room yet");new AlertDialog.Builder(this).setTitle("🏅 "+name+" • Recent room medals").setItems(m.toArray(new String[0]),null).setPositiveButton("OK",null).show();}).addOnFailureListener(e->toast("Medals unavailable: "+msg(e)));}
+ 
+     private void openCommunityHub700(String tab){Intent i=new Intent(this,CommunityHubActivity.class);i.putExtra("tab",tab);startActivity(i);}
+     private void backpackGiftDialog700(){
+@@ -6897,10 +6897,51 @@
+         new AlertDialog.Builder(this).setTitle("ℹ Party room info").setMessage(info).setPositiveButton("OK",null).show();
+     }
+     private void recentActivityDialog(){
+-        if(!cloudRoom||db==null){new AlertDialog.Builder(this).setTitle("🕘 Recent activity").setMessage("Local test room activity is shown directly on the Party page.").setPositiveButton("OK",null).show();return;}
+-        db.collection("live_rooms").document(roomId).collection("events").orderBy("createdAt",Query.Direction.DESCENDING).limit(40).get()
+-            .addOnSuccessListener(snap->{List<String> rows=new ArrayList<>();for(DocumentSnapshot d:snap.getDocuments())rows.add(str(d,"text","Room activity"));showRows("🕘 Recent activity",rows,"No room activity yet");})
+-            .addOnFailureListener(e->toast(msg(e)));
++        if(!cloudRoom||db==null||roomId==null||user==null){
++            new AlertDialog.Builder(this).setTitle("🕘 Recent activity")
++                .setMessage("Join a live Party to see saved activity.")
++                .setPositiveButton("OK",null).show();return;
++        }
++        loadRoomActivityPage10019(roomId,user.getUid(),null,1);
++    }
++    // Firestore cursor paging, never mixes events after joining a different room.
++    private void loadRoomActivityPage10019(String room10019,String actor10019,
++                 DocumentSnapshot cursor10019,int page10019){
++        if(!partyActivityCurrent10019(room10019,actor10019))return;
++        Query q10019=db.collection("live_rooms").document(room10019).collection("events")
++            .orderBy("createdAt",Query.Direction.DESCENDING).limit(80);
++        if(cursor10019!=null)q10019=q10019.startAfter(cursor10019);
++        q10019.get(com.google.firebase.firestore.Source.SERVER).addOnSuccessListener(snap->{
++            if(!partyActivityCurrent10019(room10019,actor10019))return;
++            List<String> rows10019=new ArrayList<>();
++            for(DocumentSnapshot event10019:snap.getDocuments())
++                rows10019.add(str(event10019,"text","Room activity"));
++            if(rows10019.isEmpty())rows10019.add("No activity in this page");
++            final boolean more10019=snap.size()==80;
++            final DocumentSnapshot next10019=more10019?snap.getDocuments().get(snap.size()-1):null;
++            final int moreIndex10019=rows10019.size();
++            rows10019.add(more10019?"↓ Load older room activity":"✓ End of activity history");
++            new AlertDialog.Builder(this).setTitle("🕘 Room activity • Page "+page10019)
++                .setItems(rows10019.toArray(new String[0]),(d,w)->{
++                    if(!partyActivityCurrent10019(room10019,actor10019))return;
++                    if(more10019&&w==moreIndex10019)
++                        loadRoomActivityPage10019(room10019,actor10019,next10019,page10019+1);
++                }).setPositiveButton("Refresh",(d,w)->{
++                    if(partyActivityCurrent10019(room10019,actor10019))
++                        loadRoomActivityPage10019(room10019,actor10019,null,1);
++                }).setNegativeButton("Close",null).show();
++        }).addOnFailureListener(e->{
++            if(partyActivityCurrent10019(room10019,actor10019))
++                new AlertDialog.Builder(this).setTitle("Activity unavailable")
++                    .setMessage(msg(e)).setPositiveButton("Retry",(d,w)->
++                        loadRoomActivityPage10019(room10019,actor10019,cursor10019,page10019))
++                    .setNegativeButton("Close",null).show();
++        });
++    }
++    private boolean partyActivityCurrent10019(String room10019,String actor10019){
++        return !isFinishing()&&!isDestroyed()&&cloudRoom&&db!=null&&user!=null
++            &&room10019!=null&&room10019.equals(roomId)
++            &&actor10019!=null&&actor10019.equals(user.getUid());
+     }
+     private void giftHistoryDialog(){
+         if(!cloudRoom||db==null||roomId==null||user==null){
+@@ -7072,9 +7113,21 @@
+                         ||user==null||!banActor10014.equals(user.getUid())||!isModerator()){
+                         toast("Room or moderation role changed. Reopen ban list.");return;
+                     }
+-                    d.getReference().delete().addOnSuccessListener(v->{
+-                        if(banRoom10014.equals(roomId)){addEvent("unban",safeName()+" unbanned "+name);toast(name+" unbanned");}
+-                    }).addOnFailureListener(e->{if(banRoom10014.equals(roomId))toast(msg(e));});
++                    final DocumentReference banRef10019=d.getReference();
++                    db.runTransaction(tx10019->{
++                        DocumentSnapshot current10019=tx10019.get(banRef10019);
++                        if(!current10019.exists()||!Boolean.TRUE.equals(current10019.getBoolean("active"))
++                            ||!java.util.Objects.equals(d.getTimestamp("createdAt"),current10019.getTimestamp("createdAt"))
++                            ||!java.util.Objects.equals(d.getString("reason"),current10019.getString("reason")))
++                            throw new IllegalStateException("Ban changed. Refresh banned users first.");
++                        tx10019.delete(banRef10019);return true;
++                    }).addOnSuccessListener(v->{
++                        if(partyActivityCurrent10019(banRoom10014,banActor10014)&&isModerator()){
++                            addEvent("unban",safeName()+" unbanned "+name);toast(name+" unbanned");
++                        }
++                    }).addOnFailureListener(e->{
++                        if(partyActivityCurrent10019(banRoom10014,banActor10014))toast("Unban failed: "+msg(e));
++                    });
+                 }).setNegativeButton("Cancel",null).show();
+             }).setNegativeButton("Close",null).show();
+         }).addOnFailureListener(e->toast(msg(e)));
+@@ -7527,20 +7580,51 @@
+     }
+ 
+     private void showSeatLockMenu940(int seatNo){
+-        if(!isModerator()||db==null)return;
++        if(!isModerator()||!cloudRoom||db==null||roomId==null||user==null)return;
++        final String room10019=roomId,actor10019=user.getUid();
++        final int generation10019=presenceGeneration967;
+         boolean locked=lockedSeats940.contains(seatNo);
+-        new AlertDialog.Builder(this).setTitle("Mic seat "+seatNo).setItems(new String[]{locked?"🔓 Unlock seat":"🔒 Lock seat","🎙 Take seat"},(d,w)->{
+-            if(w==0)setSeatLock940(seatNo,!locked);
+-            else takeModeratorSeat940(seatNo);
+-        }).setNegativeButton("Cancel",null).show();
++        new AlertDialog.Builder(this).setTitle("Mic seat "+seatNo)
++            .setItems(new String[]{locked?"🔓 Unlock seat":"🔒 Lock seat","🎙 Take seat"},(d,w)->{
++                if(!isActivePresence967(room10019,actor10019,generation10019)||!isModerator()){
++                    toast("Room changed. Reopen Seat Lock menu.");return;
++                }
++                if(w==0)setSeatLock10019(room10019,actor10019,generation10019,seatNo,!locked);
++                else takeModeratorSeat940(seatNo);
++            }).setNegativeButton("Cancel",null).show();
+     }
+     private void setSeatLock940(int seatNo,boolean locked){
+-        if(!isModerator()||db==null)return;
+-        DocumentReference ref=db.collection("live_rooms").document(roomId).collection("seat_locks").document(String.valueOf(seatNo));
+-        if(locked){
+-            Map<String,Object>x=new HashMap<>();x.put("locked",true);x.put("byUid",user==null?"":user.getUid());x.put("updatedAt",FieldValue.serverTimestamp());
+-            ref.set(x).addOnSuccessListener(v->{toast("Seat "+seatNo+" locked");addEvent("seat_lock",safeName()+" locked mic seat "+seatNo);}).addOnFailureListener(e->toast("Seat lock failed: "+msg(e)));
+-        }else ref.delete().addOnSuccessListener(v->{toast("Seat "+seatNo+" unlocked");addEvent("seat_unlock",safeName()+" unlocked mic seat "+seatNo);}).addOnFailureListener(e->toast("Seat unlock failed: "+msg(e)));
++        if(!isModerator()||!cloudRoom||db==null||roomId==null||user==null)return;
++        setSeatLock10019(roomId,user.getUid(),presenceGeneration967,seatNo,locked);
++    }
++    private void setSeatLock10019(String room10019,String actor10019,int generation10019,
++                                 int seatNo,boolean locked){
++        if(!isActivePresence967(room10019,actor10019,generation10019)||!isModerator()
++            ||seatNo<1||seatNo>maxSeats){toast("Room or moderation permissions changed");return;}
++        final DocumentReference ref10019=db.collection("live_rooms").document(room10019)
++            .collection("seat_locks").document(String.valueOf(seatNo));
++        db.runTransaction(tx10019->{
++            DocumentSnapshot live10019=tx10019.get(ref10019);
++            boolean isLocked10019=live10019.exists()&&Boolean.TRUE.equals(live10019.getBoolean("locked"));
++            if(isLocked10019==locked)
++                throw new IllegalStateException("Seat lock already changed. Reopen the menu.");
++            if(locked){
++                Map<String,Object> value10019=new HashMap<>();
++                value10019.put("locked",true);value10019.put("byUid",actor10019);
++                value10019.put("updatedAt",FieldValue.serverTimestamp());
++                tx10019.set(ref10019,value10019);
++            }else tx10019.delete(ref10019);
++            return true;
++        }).addOnSuccessListener(done->{
++            if(isActivePresence967(room10019,actor10019,generation10019)&&isModerator()){
++                addEvent(locked?"seat_lock":"seat_unlock",safeName()+
++                    (locked?" locked mic seat ":" unlocked mic seat ")+seatNo);
++                toast("Seat "+seatNo+(locked?" locked":" unlocked"));
++            }
++        }).addOnFailureListener(error->{
++            if(partyActivityCurrent10019(room10019,actor10019))
++                toast("Seat lock was not changed: "+msg(error));
++        });
+     }
+     private void takeModeratorSeat940(int seatNo){
+         if(!canModerateSeatsV530()||db==null||roomId==null||user==null)return;
+--- a/app/build.gradle
++++ b/app/build.gradle
+@@ -14,7 +14,7 @@
+         }
+     }
+ 
+-    defaultConfig { applicationId 'com.kingplus.social'; minSdk 26; targetSdk 35; versionCode 297; versionName '10.0.18-me-home-party-batch-test' }
++    defaultConfig { applicationId 'com.kingplus.social'; minSdk 26; targetSdk 35; versionCode 298; versionName '10.0.19-me-home-party-combined-test' }
+     buildTypes {
+         debug { signingConfig signingConfigs.debug }
+         release {

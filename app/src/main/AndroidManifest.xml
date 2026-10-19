@@ -1,21 +1,61 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android" xmlns:tools="http://schemas.android.com/tools">
     <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    <uses-permission android:name="android.permission.CAMERA" />
+    <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-feature android:name="android.hardware.microphone" android:required="false" />
-    <application tools:replace="android:label" android:theme="@android:style/Theme.Material.Light.NoActionBar" android:label="KING Plus" android:icon="@drawable/king_logo" android:usesCleartextTraffic="false">
-        <activity android:name=".PartyActivity" android:exported="false" />
-        <activity android:name=".SocialActivity" android:exported="false" />
-        <activity android:name=".InboxActivity" android:exported="false" />
-        <activity android:name=".ChatActivity" android:exported="false" />
+    <uses-feature android:name="android.hardware.camera.any" android:required="false" />
+    <application android:name=".KingApplication" tools:replace="android:label" android:theme="@android:style/Theme.Material.Light.NoActionBar" android:label="KING Plus" android:icon="@drawable/king_logo_royal10021" android:usesCleartextTraffic="false">
+        <activity android:name=".PartyActivity" android:exported="false" android:windowSoftInputMode="adjustResize" />
+        <activity android:name=".KingMultiVideoActivity" android:exported="false" />
+        <activity android:name=".KingParityHubActivity" android:exported="false" />
+        <activity android:name=".KingEcosystemProActivity" android:exported="false" />
+        <activity android:name=".KingProductionTestActivity" android:exported="false" />
+        <activity android:name=".KingDeepFlowActivity" android:exported="false" />
+        <activity android:name=".KingMePrivacy9984Activity" android:exported="false" />
+        <activity android:name=".KingPublicProfileActivity" android:exported="false" />
+        <activity android:name=".KingGiftCenterActivity" android:exported="false" />
+        <activity android:name=".AssetPackActivity" android:exported="false" />
+        <activity android:name=".CommunityHubActivity" android:exported="false" />
         <activity android:name=".GamePlayActivity" android:exported="false" />
+        <activity android:name=".KingLudoLobbyActivity" android:exported="false" />
+        <activity android:name=".KingVipIdentityShopActivity" android:exported="false" />
+        <activity android:name=".KingVipVisualActivity" android:exported="false" />
+        <activity android:name=".KingSavedRooms9990Activity" android:exported="false" />
+        <activity android:name=".KingMeVerifiedPrestige9988Activity" android:exported="false" />
+        <activity android:name=".KingFrameGallery981Activity" android:exported="false" />
+        <activity android:name=".KingRecharge974Activity" android:exported="false" />
+        <activity android:name=".KingConnection983Activity" android:exported="false" />
+        <activity android:name=".KingPhoneOtp975Activity" android:exported="false" />
+        <activity android:name=".KingWallet976Activity" android:exported="false" />
+        <activity android:name=".KingWalletVisualActivity" android:exported="false" />
+        <activity android:name=".KingWardrobeActivity" android:exported="false" />
         <activity android:name=".OnlineLudoActivity" android:exported="false" />
         <activity android:name=".KingOfflineLudoActivity" android:exported="false" />
         <activity android:name=".RoomGameActivity" android:exported="false" />
+        <activity android:name=".KingAgency9982Activity" android:exported="false" />
+        <activity android:name=".KingLiveBingo9980Activity" android:exported="false" />
+        <activity android:name=".KingLiveChessActivity" android:exported="false" />
+        <activity android:name=".KingKnifeArena9923Activity" android:exported="false" />
+        <activity android:name=".SocialActivity" android:exported="false" />
+        <activity android:name=".DiscoverActivity" android:exported="false" />
+        <activity android:name=".InboxActivity" android:exported="false" />
+        <activity android:name=".ChatActivity" android:exported="false" />
         <service android:name=".KingMessagingService" android:exported="false">
             <intent-filter><action android:name="com.google.firebase.MESSAGING_EVENT" /></intent-filter>
         </service>
-        <activity android:name=".MainActivity" android:exported="true">
+        <activity android:name=".VoiceWebActivity" android:exported="false" />
+        <activity android:name=".AdminActivity" android:exported="false" />
+        <activity android:name=".LiveCloudActivity" android:exported="false" />
+        <activity android:name=".MainActivity" android:exported="true" android:launchMode="singleTask">
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="kingplus" android:host="party" />
+            </intent-filter>
             <intent-filter><action android:name="android.intent.action.MAIN"/><category android:name="android.intent.category.LAUNCHER"/></intent-filter>
         </activity>
     </application>

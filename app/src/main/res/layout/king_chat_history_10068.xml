@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent" android:layout_height="wrap_content"
+    android:orientation="horizontal" android:padding="4dp" android:background="#F1EDF8">
+    <TextView android:id="@+id/chat_newer_10068" android:layout_width="0dp" android:layout_weight="1"
+        android:layout_height="48dp" android:gravity="center" android:text="Newer" android:textSize="13sp" android:textColor="#4F3679" />
+    <TextView android:id="@+id/chat_latest_10068" android:layout_width="0dp" android:layout_weight="1"
+        android:layout_height="48dp" android:gravity="center" android:text="Latest" android:textSize="13sp" android:textColor="#4F3679" />
+    <TextView android:id="@+id/chat_older_10068" android:layout_width="0dp" android:layout_weight="1"
+        android:layout_height="48dp" android:gravity="center" android:text="Older" android:textSize="13sp" android:textColor="#4F3679" />
+</LinearLayout>

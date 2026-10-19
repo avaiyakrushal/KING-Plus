@@ -1,0 +1,177 @@
+--- a/app/build.gradle
++++ b/app/build.gradle
+@@ -14,7 +14,7 @@
+         }
+     }
+ 
+-    defaultConfig { applicationId 'com.kingplus.social'; minSdk 26; targetSdk 35; versionCode 311; versionName '10.0.32-six-pages-batched-stale-state-test' }
++    defaultConfig { applicationId 'com.kingplus.social'; minSdk 26; targetSdk 35; versionCode 312; versionName '10.0.33-six-pages-live-actions-test' }
+     buildTypes {
+         debug { signingConfig signingConfigs.debug }
+         release {
+--- a/app/src/main/java/com/kingplus/social/MainActivity.java
++++ b/app/src/main/java/com/kingplus/social/MainActivity.java
+@@ -2448,11 +2448,13 @@
+         if(firestore==null||firebaseAuth==null||firebaseAuth.getCurrentUser()==null){loading940.setText("Sign in to see recommendations");return;}
+         final String own=firebaseAuth.getCurrentUser().getUid();
+         // A delayed recommendation cannot paint the Me page of another Firebase account.
+-        firestore.collection("public_profiles").limit(8)
++        firestore.collection("public_profiles").limit(30)
+             .get(com.google.firebase.firestore.Source.SERVER).addOnSuccessListener(snap->{
+                 if(!recommendationsCurrent10032(own,box940,list))return;
+                 box940.removeAllViews();int shown=0;
+-                for(DocumentSnapshot d:snap.getDocuments()){
++                java.util.List<DocumentSnapshot> suggestions10033=new java.util.ArrayList<>(snap.getDocuments());
++                java.util.Collections.shuffle(suggestions10033);
++                for(DocumentSnapshot d:suggestions10033){
+                     String uid=d.getString("uid");if(uid==null||uid.isEmpty())uid=d.getId();
+                     if(uid.equals(own))continue;
+                     String n=d.getString("displayName");if(n==null||n.trim().isEmpty())n="KING User";
+@@ -2464,6 +2466,18 @@
+                 if(shown==0){TextView e=new TextView(this);e.setText("No recommendations yet");
+                     e.setTextSize(12);e.setTextColor(0xff8a8391);e.setPadding(dp(10),dp(12),dp(10),dp(12));
+                     box940.addView(e,new LinearLayout.LayoutParams(-1,dp(48)));}
++                TextView refresh10033=new TextView(this);
++                refresh10033.setText("↻ Refresh real KING recommendations");
++                refresh10033.setTextSize(13);refresh10033.setTextColor(0xff7650b3);
++                refresh10033.setGravity(Gravity.CENTER);
++                refresh10033.setPadding(dp(8),dp(6),dp(8),dp(6));
++                refresh10033.setOnClickListener(v->{
++                    if(!recommendationsCurrent10032(own,box940,list)||!refresh10033.isEnabled())return;
++                    refresh10033.setEnabled(false);
++                    list.removeView(title940);list.removeView(box940);
++                    addProfileRecommendations940(list);
++                });
++                box940.addView(refresh10033,new LinearLayout.LayoutParams(-1,dp(45)));
+             }).addOnFailureListener(error->{
+                 if(recommendationsCurrent10032(own,box940,list)){
+                     loading940.setText("Recommendations unavailable • tap to retry");
+--- a/app/src/main/java/com/kingplus/social/CommunityHubActivity.java
++++ b/app/src/main/java/com/kingplus/social/CommunityHubActivity.java
+@@ -48,6 +48,7 @@
+     private boolean relationshipRequestInFlight10012;
+     // A Moment POST stays in flight when users switch between Home tabs.
+     // Keep the gate on the Activity, rather than only the discarded button.
++    private final java.util.Set<String> followPending10033=new java.util.HashSet<>();
+     private String pendingMomentAccount10013;
+     private String searchDraft10007="";
+     // Shared live Moments shown by Home, Me and Party room broadcasts.
+@@ -86,6 +87,7 @@
+             // A new signed-in account gets a new live Home session, never cached posts.
+             ++searchGeneration9994;stopMoments9990();stopFamilyMessages956();
+             me=signed10031;pendingMomentAccount10013=null;relationshipRequestInFlight10012=false;
++            followPending10033.clear();
+             searchDraft10007="";momentsQueryLimit10000=80;momentsDisplayLimit10000=40;
+             targetUid="";targetName="";
+             displayName=safe(signed10031.getDisplayName(),"KING User");
+@@ -150,9 +152,15 @@
+     }
+     private void userActions(String uid,String name,String issuedId9996){String[] a={"Follow / Unfollow","Private Chat","Relationship / CP","Gift in Chat","Share KING ID"};new AlertDialog.Builder(this).setTitle(name).setItems(a,(d,w)->{if(w==0)toggleFollow(uid,name);else if(w==1||w==3)openChat(uid,name);else if(w==2){targetUid=uid;targetName=name;render("Relationship");}else shareId(uid,name,issuedId9996);}).show();}
+     private void toggleFollow(String uid,String name){
+-        if(!cloud()){toast("Sign in required");return;}
++        if(!cloud()||!KingSavedRoomsCloud9990.account(me.getUid())){toast("Sign in required");return;}
++        if(uid==null||uid.trim().isEmpty()||uid.equals(me.getUid()))return;
++        final String owner10033=me.getUid();
++        final String flight10033=owner10033+"__"+uid;
++        if(!followPending10033.add(flight10033)){toast("Follow update is still saving");return;}
+         KingFollowLive9997.toggle(db,me,uid,displayName,(following,error)->{
+-            if(isFinishing()||isDestroyed())return;
++            followPending10033.remove(flight10033);
++            if(isFinishing()||isDestroyed()||!KingSavedRoomsCloud9990.account(owner10033)
++                ||me==null||!owner10033.equals(me.getUid()))return;
+             if(error!=null){toast("Follow not changed • "+error.getMessage());return;}
+             toast(Boolean.TRUE.equals(following)?"Following "+name:"Unfollowed "+name);
+         });
+--- a/app/src/main/java/com/kingplus/social/PartyActivity.java
++++ b/app/src/main/java/com/kingplus/social/PartyActivity.java
+@@ -649,6 +649,7 @@
+         gameSnapshotReady=false; activeGameRound=0L; activeGameType=""; activeGamePrompt=""; activeGameResult="";
+     }
+ 
++    private boolean partyNavigationPending10033;
+     private int lobbyRoomLimit9989=50;
+     private int inviteGeneration9989;
+     private void handlePartyIntent9989(Intent incoming){
+@@ -7823,10 +7824,14 @@
+             item.setOnClickListener(v->{
+                 if(tab==0){if(roomId!=null)confirmLeave940();else renderLobby("Hot");}
+                 else {
+-                    // v10.0.28: Bottom navigation is a Leave, not background presence.
++                    // Single navigation at a time: rapid taps must never race a second Leave.
++                    if(partyNavigationPending10033)return;
++                    partyNavigationPending10033=true;
++                    for(int k10033=0;k10033<nav.getChildCount();k10033++)
++                        nav.getChildAt(k10033).setEnabled(false);
++                    // This releases mic, membership, and seats before leaving Party.
+                     if(roomId!=null)leaveRoom();
+                     KingNav.openRoot(this,tab);
+-                    // A closed Party must not stay in the task back stack with old room state.
+                     finish();
+                 }
+             });
+--- a/app/src/main/java/com/kingplus/social/GamePlayActivity.java
++++ b/app/src/main/java/com/kingplus/social/GamePlayActivity.java
+@@ -200,7 +200,14 @@
+         base("Sheep Fight","Train your sheep, then battle KING Bot");
+         final int[] power={45};status=label("🐑 Power: "+power[0]+"\nTrain before battle",22,0xffffd768,true);status.setGravity(Gravity.CENTER);page.addView(status,new LinearLayout.LayoutParams(-1,dp(120)));
+         Button train=action("🏋 Train +5 to +15");train.setOnClickListener(v->{int gain=5+random.nextInt(11);power[0]=Math.min(100,power[0]+gain);status.setText("🐑 Power: "+power[0]+"\n+"+gain+" training");});page.addView(train,new LinearLayout.LayoutParams(-1,dp(58)));
+-        Button fight=action("⚔ Battle");LinearLayout.LayoutParams fp=new LinearLayout.LayoutParams(-1,dp(60));fp.setMargins(0,dp(8),0,0);fight.setOnClickListener(v->{int bot=45+random.nextInt(56);boolean win=power[0]>=bot;status.setText("YOU "+power[0]+"  vs  BOT "+bot+"\n"+(win?"🏆 YOU WIN":"Bot wins • train more"));if(win)KingSoundFx.win(this);power[0]=45;});page.addView(fight,fp);
++        Button fight=action("⚔ Battle");LinearLayout.LayoutParams fp=new LinearLayout.LayoutParams(-1,dp(60));fp.setMargins(0,dp(8),0,0);fight.setOnClickListener(v->{int bot=45+random.nextInt(56);boolean win=power[0]>=bot;
++            status.setText("YOU "+power[0]+"  vs  BOT "+bot+"\n"+(win?"🏆 YOU WIN":"Bot wins")
++                +"\nNext match power resets to 45 • train again");
++            if(win)KingSoundFx.win(this);power[0]=45;});page.addView(fight,fp);
++        Button newFight10033=action("🔄 New Sheep Battle");
++        newFight10033.setOnClickListener(v->showSheepFight());
++        LinearLayout.LayoutParams fresh10033=new LinearLayout.LayoutParams(-1,dp(54));
++        fresh10033.topMargin=dp(10);page.addView(newFight10033,fresh10033);
+     }
+ 
+     private void showWerewolf(){
+--- a/app/src/main/java/com/kingplus/social/DiscoverActivity.java
++++ b/app/src/main/java/com/kingplus/social/DiscoverActivity.java
+@@ -66,7 +66,8 @@
+         discoverLastOnline940=KingNetwork.online(this);
+         discoverNetworkCallback940=KingNetwork.watch(this,online->runOnUiThread(()->{
+             boolean recovered=online&&!discoverLastOnline940;discoverLastOnline940=online;
+-            if(recovered&&!isFinishing()&&!isDestroyed())renderDiscover();
++            if(recovered&&!isFinishing()&&!isDestroyed()
++                &&content!=null&&content.isAttachedToWindow())renderDiscover();
+         }));
+     }
+ 
+--- a/app/src/main/java/com/kingplus/social/InboxActivity.java
++++ b/app/src/main/java/com/kingplus/social/InboxActivity.java
+@@ -184,7 +184,7 @@
+                     return;
+                 }
+                 // Cached snapshots can be useful offline, but must not be labelled live.
+-                inboxState940=snap!=null&&snap.getMetadata().isFromCache()
++                inboxState940=!KingNetwork.online(this)||(snap!=null&&snap.getMetadata().isFromCache())
+                     ?"Offline • cached thread summaries only":"";
+                 renderCloudThreads(snap);
+             });
+@@ -213,14 +213,16 @@
+             for (DocumentSnapshot doc : docs) {
+                 // Direct chat must contain exactly two unique real user IDs.
+                 // A group or malformed document cannot masquerade as a private thread.
+-                List<String> members = (List<String>) doc.get("members");
+-                if(members==null||members.size()!=2||!members.contains(me.getUid())
+-                    ||members.get(0)==null||members.get(1)==null
+-                    ||members.get(0).equals(members.get(1)))continue;
+-                String peerUid=null;
+-                for(String uid:members)
+-                    if(uid!=null&&!uid.trim().isEmpty()&&!me.getUid().equals(uid))peerUid=uid;
+-                if(peerUid==null)continue;
++                Object membersValue10033=doc.get("members");
++                if(!(membersValue10033 instanceof List))continue;
++                List<?> members10033=(List<?>)membersValue10033;
++                if(members10033.size()!=2||!(members10033.get(0) instanceof String)
++                    ||!(members10033.get(1) instanceof String))continue;
++                String first10033=((String)members10033.get(0)).trim();
++                String second10033=((String)members10033.get(1)).trim();
++                if(first10033.isEmpty()||second10033.isEmpty()||first10033.equals(second10033)
++                    ||!first10033.equals(me.getUid())&&!second10033.equals(me.getUid()))continue;
++                String peerUid=first10033.equals(me.getUid())?second10033:first10033;
+                 String peerName=peerUid; Object namesObj=doc.get("memberNames");
+                 if(namesObj instanceof Map){Object n=((Map<?,?>)namesObj).get(peerUid);if(n!=null)peerName=String.valueOf(n);}
+                 if(!seen.add(peerUid))continue;

@@ -1,0 +1,252 @@
+--- a/app/src/main/java/com/kingplus/social/MainActivity.java
++++ b/app/src/main/java/com/kingplus/social/MainActivity.java
+@@ -1626,49 +1626,79 @@
+         root.addView(sv,new LinearLayout.LayoutParams(-1,0,1));addBottomNav(root,4);setSafeContentView(root);loadRealProfileData();
+     }
+ 
++    // Hosted rooms are real cloud records. Do not hide the 13th room or older pages.
+     private void loadPartyRecordsV600(LinearLayout host){
+-        final int hostedTicket10014=++hostedRoomsGeneration10014;
++        final int generation10015=++hostedRoomsGeneration10014;
+         host.removeAllViews();
+         if(firestore==null||firebaseAuth==null||firebaseAuth.getCurrentUser()==null){
+             mePartyRecordV600(host,"🎤","Sign in for hosted rooms","Only your real rooms appear here",null);return;
+         }
+-        final String currentUid9981=firebaseAuth.getCurrentUser().getUid();
+-        mePartyRecordV600(host,"⌛","Loading hosted rooms","Account-verified Party records",null);
+-        firestore.collection("live_rooms").whereEqualTo("ownerUid",currentUid9981).limit(30).get()
+-            .addOnSuccessListener(q->{
+-                if(isFinishing()||isDestroyed()||!"profile".equals(screen)
+-                        ||hostedTicket10014!=hostedRoomsGeneration10014
+-                        ||host.getParent()==null||firebaseAuth==null||firebaseAuth.getCurrentUser()==null
+-                        ||!currentUid9981.equals(firebaseAuth.getCurrentUser().getUid()))return;
+-                host.removeAllViews();
+-                java.util.List<DocumentSnapshot> docs=new ArrayList<>(q.getDocuments());
+-                java.util.Collections.sort(docs,(a,b)->{
+-                    com.google.firebase.Timestamp at=a.getTimestamp("createdAt"),bt=b.getTimestamp("createdAt");
+-                    return at==null?(bt==null?0:1):bt==null?-1:bt.compareTo(at);
++        final String account10015=firebaseAuth.getCurrentUser().getUid();
++        loadHostedRoomsPage10015(host,account10015,generation10015,null,0);
++    }
++    private boolean hostedRoomsCurrent10015(LinearLayout host,String account,int generation){
++        return !isFinishing()&&!isDestroyed()&&"profile".equals(screen)
++            && generation==hostedRoomsGeneration10014 && host.getParent()!=null
++            && firebaseAuth!=null&&firebaseAuth.getCurrentUser()!=null
++            && account.equals(firebaseAuth.getCurrentUser().getUid());
++    }
++    private void loadHostedRoomsPage10015(LinearLayout host,String account10015,int generation10015,
++                                           DocumentSnapshot cursor10015,int page10015){
++        if(!hostedRoomsCurrent10015(host,account10015,generation10015))return;
++        final TextView progress10015=new TextView(this);
++        progress10015.setText(page10015==0?"⌛ Loading hosted Party rooms…":"⌛ Loading more of your rooms…");
++        progress10015.setTextSize(13);progress10015.setPadding(dp(10),dp(12),dp(10),dp(12));
++        host.addView(progress10015,new LinearLayout.LayoutParams(-1,-2));
++        com.google.firebase.firestore.Query query10015=firestore.collection("live_rooms")
++            .whereEqualTo("ownerUid",account10015).limit(30);
++        if(cursor10015!=null)query10015=query10015.startAfter(cursor10015);
++        query10015.get(com.google.firebase.firestore.Source.SERVER).addOnSuccessListener(q->{
++            if(!hostedRoomsCurrent10015(host,account10015,generation10015))return;
++            host.removeView(progress10015);
++            java.util.List<DocumentSnapshot> docs=new ArrayList<>(q.getDocuments());
++            java.util.Collections.sort(docs,(a,b)->{
++                com.google.firebase.Timestamp at=a.getTimestamp("createdAt"),bt=b.getTimestamp("createdAt");
++                return at==null?(bt==null?0:1):bt==null?-1:bt.compareTo(at);
++            });
++            int count=0;
++            for(DocumentSnapshot doc:docs){
++                if(!account10015.equals(doc.getString("ownerUid")))continue;
++                String id=doc.getId(),name=doc.getString("name");
++                if(name==null||name.trim().isEmpty())name="KING Party";
++                boolean closed=Boolean.TRUE.equals(doc.getBoolean("closed"));
++                mePartyRecordV600(host,closed?"🔒":"🎤",name,
++                    closed?"Closed room":"Hosted by your account",
++                    closed?null:()->{
++                        if(hostedRoomsCurrent10015(host,account10015,generation10015))openVerifiedMeRoom9981(id);
++                    });
++                count++;
++            }
++            if(page10015==0 && count==0)mePartyRecordV600(host,"🎤","No hosted Party rooms yet",
++                "Open Party to create one",this::openPartyActivity);
++            if(q.size()==30){
++                final DocumentSnapshot next10015=q.getDocuments().get(q.size()-1);
++                TextView more10015=new TextView(this);
++                more10015.setText("↓ Load more hosted Party rooms");more10015.setTextSize(14);
++                more10015.setPadding(dp(12),dp(13),dp(12),dp(13));
++                more10015.setBackground(background(0xffffedbb,12));
++                more10015.setOnClickListener(v->{
++                    if(!hostedRoomsCurrent10015(host,account10015,generation10015))return;
++                    host.removeView(more10015);
++                    loadHostedRoomsPage10015(host,account10015,generation10015,next10015,page10015+1);
+                 });
+-                int count=0;
+-                for(DocumentSnapshot doc:docs){
+-                    if(!currentUid9981.equals(doc.getString("ownerUid")))continue;
+-                    String id=doc.getId(),name=doc.getString("name");
+-                    if(name==null||name.trim().isEmpty())name="KING Party";
+-                    boolean closed=Boolean.TRUE.equals(doc.getBoolean("closed"));
+-                    mePartyRecordV600(host,closed?"🔒":"🎤",name,
+-                        closed?"Closed room":"Hosted by your account",
+-                        closed?null:()->openVerifiedMeRoom9981(id));
+-                    if(++count>=12)break;
+-                }
+-                if(count==0)mePartyRecordV600(host,"🎤","No hosted Party rooms yet",
+-                    "Open Party to create one",this::openPartyActivity);
+-            }).addOnFailureListener(e->{
+-                // An older account's request must not overwrite a newly opened Me page.
+-                if(isFinishing()||isDestroyed()||!"profile".equals(screen)
+-                    ||hostedTicket10014!=hostedRoomsGeneration10014
+-                    ||host.getParent()==null||firebaseAuth==null||firebaseAuth.getCurrentUser()==null
+-                    ||!currentUid9981.equals(firebaseAuth.getCurrentUser().getUid()))return;
+-                host.removeAllViews();
+-                mePartyRecordV600(host,"↻","Hosted rooms unavailable",
+-                    "Tap to retry loading your rooms",()->loadPartyRecordsV600(host));
++                host.addView(more10015,new LinearLayout.LayoutParams(-1,-2));
++            }else if(page10015>0){
++                mePartyRecordV600(host,"✓","All hosted rooms loaded","End of your Party rooms",null);
++            }
++        }).addOnFailureListener(e->{
++            if(!hostedRoomsCurrent10015(host,account10015,generation10015))return;
++            progress10015.setText("↻ Hosted rooms unavailable • tap to retry");
++            progress10015.setOnClickListener(v->{
++                if(!hostedRoomsCurrent10015(host,account10015,generation10015))return;
++                host.removeView(progress10015);
++                loadHostedRoomsPage10015(host,account10015,generation10015,cursor10015,page10015);
+             });
++        });
+     }
+     private void showMeRoomHistory9981(String tab){
+         if(firebaseAuth==null||firebaseAuth.getCurrentUser()==null){login();return;}
+--- a/app/src/main/java/com/kingplus/social/CommunityHubActivity.java
++++ b/app/src/main/java/com/kingplus/social/CommunityHubActivity.java
+@@ -936,9 +936,28 @@
+                     new AlertDialog.Builder(this).setTitle("Remove "+name+"?")
+                         .setMessage("The CP connection or request will be deleted for both members.")
+                         .setNegativeButton("Cancel",null)
+-                        .setPositiveButton("Remove",(confirm,which)->d.getReference().delete()
+-                            .addOnSuccessListener(done->refreshRelationship10012(account10012))
+-                            .addOnFailureListener(error->toast("Could not remove CP: "+safe(error.getMessage(),"Permission denied"))))
++                        .setPositiveButton("Remove",(confirm,which)->{
++                            if(me==null||!account10012.equals(me.getUid())||!"Relationship".equals(selected))return;
++                            // The confirmation could have remained open while a second phone
++                            // accepted/recreated this CP. Delete only the exact observed state.
++                            final com.google.firebase.Timestamp originallyCreated10015=d.getTimestamp("createdAt");
++                            db.runTransaction(tx10015->{
++                                DocumentSnapshot now10015=tx10015.get(d.getReference());
++                                if(!now10015.exists()
++                                    ||!status.equals(now10015.getString("status"))
++                                    ||!initiator.equals(now10015.getString("initiatorUid"))
++                                    ||!java.util.Objects.equals(originallyCreated10015,now10015.getTimestamp("createdAt"))
++                                    ||!account10012.equals(a)&&!account10012.equals(b))
++                                    throw new IllegalStateException("CP changed on another phone. Refresh Home.");
++                                tx10015.delete(d.getReference());return null;
++                            }).addOnSuccessListener(done->refreshRelationship10012(account10012))
++                              .addOnFailureListener(error->{
++                                  if(me!=null&&account10012.equals(me.getUid())){
++                                      toast("Could not remove CP: "+safe(error.getMessage(),"Refresh Home"));
++                                      refreshRelationship10012(account10012);
++                                  }
++                              });
++                        })
+                         .show();return;
+                 }
+                 // The list is a snapshot. A second phone may have already accepted,
+--- a/app/src/main/java/com/kingplus/social/PartyActivity.java
++++ b/app/src/main/java/com/kingplus/social/PartyActivity.java
+@@ -2645,25 +2645,67 @@
+     }
+ 
+     private void inviteMemberToSeatV530(int seatNoV530) {
+-        if(!canModerateSeatsV530() || db==null || user==null || roomId==null) { toast("Host / co-host only"); return; }
+-        db.collection("live_rooms").document(roomId).collection("members").get().addOnSuccessListener(snapV530 -> {
+-            final List<String> uidsV530=new ArrayList<>(); final List<String> namesV530=new ArrayList<>();
+-            for(DocumentSnapshot docV530:snapV530.getDocuments()){
+-                String uidV530=docV530.getString("uid"); if(uidV530==null) uidV530=docV530.getId();
+-                if(uidV530.equals(user.getUid()) || seatUids.containsValue(uidV530)) continue;
+-                uidsV530.add(uidV530); namesV530.add(str(docV530,"name","Member"));
+-            }
+-            if(uidsV530.isEmpty()){toast("No available room members to invite");return;}
+-            String[] labelsV530=new String[namesV530.size()]; for(int i=0;i<labelsV530.length;i++) labelsV530[i]="👤 "+namesV530.get(i);
+-            new AlertDialog.Builder(this).setTitle("Invite to Seat "+seatNoV530).setItems(labelsV530,(d,w) -> {
+-                String uidV530=uidsV530.get(w), nameV530=namesV530.get(w);
+-                Map<String,Object> inviteV530=new HashMap<>(); inviteV530.put("targetUid",uidV530); inviteV530.put("targetName",nameV530); inviteV530.put("seatId",String.valueOf(seatNoV530)); inviteV530.put("seatNo",seatNoV530);
+-                inviteV530.put("invitedByUid",user.getUid()); inviteV530.put("invitedByName",safeName()); inviteV530.put("createdAt",FieldValue.serverTimestamp());
+-                db.collection("live_rooms").document(roomId).collection("seat_invites").document(uidV530).set(inviteV530)
+-                    .addOnSuccessListener(v -> {toast("Invite sent to "+nameV530);addEvent("seat_invite",safeName()+" invited "+nameV530+" to seat "+seatNoV530);})
+-                    .addOnFailureListener(e -> toast("Invite failed: "+msg(e)));
+-            }).setNegativeButton("Cancel",null).show();
+-        }).addOnFailureListener(e -> toast("Members unavailable: "+msg(e)));
++        if(!canModerateSeatsV530() || db==null || user==null || roomId==null || !cloudRoom){
++            toast("Host / co-host only");return;
++        }
++        final String inviteRoom10015=roomId,inviter10015=user.getUid();
++        final DocumentReference roomRef10015=db.collection("live_rooms").document(inviteRoom10015);
++        roomRef10015.collection("members").get(com.google.firebase.firestore.Source.SERVER)
++            .addOnSuccessListener(snapV530 -> {
++                if(!inviteContextCurrent10015(inviteRoom10015,inviter10015))return;
++                final List<String> uidsV530=new ArrayList<>();final List<String> namesV530=new ArrayList<>();
++                for(DocumentSnapshot docV530:snapV530.getDocuments()){
++                    String uidV530=docV530.getString("uid");if(uidV530==null)uidV530=docV530.getId();
++                    if(uidV530.equals(inviter10015)||seatUids.containsValue(uidV530))continue;
++                    uidsV530.add(uidV530);namesV530.add(str(docV530,"name","Member"));
++                }
++                if(uidsV530.isEmpty()){toast("No available room members to invite");return;}
++                String[] labelsV530=new String[namesV530.size()];
++                for(int i=0;i<labelsV530.length;i++)labelsV530[i]="👤 "+namesV530.get(i);
++                new AlertDialog.Builder(this).setTitle("Invite to Seat "+seatNoV530)
++                    .setItems(labelsV530,(dialog,w)->{
++                        if(!inviteContextCurrent10015(inviteRoom10015,inviter10015)){
++                            toast("Room or host role changed. Reopen seat menu.");return;
++                        }
++                        final String uidV530=uidsV530.get(w),nameV530=namesV530.get(w);
++                        if(seatUids.containsValue(uidV530)){
++                            toast("Member already joined a seat. Refresh room.");return;
++                        }
++                        // A member might leave between listing and tap; only send to
++                        // a person still in this same room on the server.
++                        roomRef10015.collection("members").document(uidV530)
++                            .get(com.google.firebase.firestore.Source.SERVER)
++                            .addOnSuccessListener(liveMember10015->{
++                                if(!inviteContextCurrent10015(inviteRoom10015,inviter10015))return;
++                                if(!liveMember10015.exists()||seatUids.containsValue(uidV530)){
++                                    toast("Member left or took a seat. Refresh room.");return;
++                                }
++                                Map<String,Object> inviteV530=new HashMap<>();
++                                inviteV530.put("targetUid",uidV530);inviteV530.put("targetName",nameV530);
++                                inviteV530.put("seatId",String.valueOf(seatNoV530));inviteV530.put("seatNo",seatNoV530);
++                                inviteV530.put("invitedByUid",inviter10015);inviteV530.put("invitedByName",safeName());
++                                inviteV530.put("createdAt",FieldValue.serverTimestamp());
++                                roomRef10015.collection("seat_invites").document(uidV530).set(inviteV530)
++                                    .addOnSuccessListener(v->{
++                                        if(inviteContextCurrent10015(inviteRoom10015,inviter10015)){
++                                            toast("Invite sent to "+nameV530);
++                                            addEvent("seat_invite",safeName()+" invited "+nameV530+" to seat "+seatNoV530);
++                                        }
++                                    }).addOnFailureListener(e->{
++                                        if(inviteContextCurrent10015(inviteRoom10015,inviter10015))toast("Invite failed: "+msg(e));
++                                    });
++                            }).addOnFailureListener(e->{
++                                if(inviteContextCurrent10015(inviteRoom10015,inviter10015))toast("Member unavailable: "+msg(e));
++                            });
++                    }).setNegativeButton("Cancel",null).show();
++            }).addOnFailureListener(e->{
++                if(inviteContextCurrent10015(inviteRoom10015,inviter10015))toast("Members unavailable: "+msg(e));
++            });
++    }
++    private boolean inviteContextCurrent10015(String boundRoom,String inviterUid){
++        return !isFinishing()&&!isDestroyed()&&cloudRoom&&db!=null
++            &&user!=null&&boundRoom!=null&&boundRoom.equals(roomId)
++            &&inviterUid.equals(user.getUid())&&canModerateSeatsV530();
+     }
+ 
+     private void attachV530RealtimeHelpers() {
+--- a/app/build.gradle
++++ b/app/build.gradle
+@@ -14,7 +14,7 @@
+         }
+     }
+ 
+-    defaultConfig { applicationId 'com.kingplus.social'; minSdk 26; targetSdk 35; versionCode 293; versionName '10.0.14-me-home-party-live-guards-test' }
++    defaultConfig { applicationId 'com.kingplus.social'; minSdk 26; targetSdk 35; versionCode 294; versionName '10.0.15-me-home-room-pagination-test' }
+     buildTypes {
+         debug { signingConfig signingConfigs.debug }
+         release {

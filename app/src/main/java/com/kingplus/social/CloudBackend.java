@@ -11,7 +11,12 @@ public final class CloudBackend {
 
     private static void call(String name, Map<String,Object> data, Callback callback) {
         FirebaseFunctions.getInstance().getHttpsCallable(name).call(data)
-            .addOnSuccessListener(result -> callback.onResult(true, successMessage(result.getData())))
+            .addOnSuccessListener(result -> {
+                Object payload=result.getData();
+                if(payload instanceof Map && Boolean.FALSE.equals(((Map<?,?>)payload).get("ok")))
+                    callback.onResult(false,successMessage(payload));
+                else callback.onResult(true,successMessage(payload));
+            })
             .addOnFailureListener(error -> callback.onResult(false, "Backend error: " + safe(error.getLocalizedMessage())));
     }
 
@@ -43,6 +48,10 @@ public final class CloudBackend {
         data.put("targetUid", targetUid);
         data.put("followerName", followerName);
         call("sendFollowNotification", data, callback);
+    }
+
+    public static void requestAccountDeletion(Callback callback) {
+        call("requestAccountDeletion", new HashMap<>(), callback);
     }
 
     public static void moderateReport(String reportId, String status, Callback callback) {
