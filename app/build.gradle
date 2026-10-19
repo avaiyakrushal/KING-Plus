@@ -17,7 +17,7 @@ android {
     buildFeatures { buildConfig true }
     defaultConfig {
         applicationId 'com.kingplus.social'; minSdk 26; targetSdk 35
-        versionCode 368; versionName '10.0.89-me-profile-editor'
+        versionCode 369; versionName '10.0.90-agency-visibility'
         // Account, backend deployment and a guaranteed zero-cost policy are still pending.
         buildConfigField 'boolean', 'CLOUDFLARE_VOICE_ENABLED', 'false'
     }

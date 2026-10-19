@@ -1904,8 +1904,14 @@ public class MainActivity extends Activity {
         agencyEntry9982.setBackground(background(0xffffedbb,12));
         agencyEntry9982.setOnClickListener(v->startActivity(
             new Intent(this,KingAgency9982Activity.class)));
-        LinearLayout.LayoutParams agencyEntryLp9982=new LinearLayout.LayoutParams(-1,dp(52));
-        agencyEntryLp9982.setMargins(0,dp(5),0,dp(10));content.addView(agencyEntry9982,agencyEntryLp9982);
+        KingAgencyAccess9982.check(this,allowed->{
+            int menuIndex=content.indexOfChild(more9981);
+            if(allowed&&menuIndex>=0){
+                LinearLayout.LayoutParams agencyEntryLp9982=new LinearLayout.LayoutParams(-1,dp(52));
+                agencyEntryLp9982.setMargins(0,dp(5),0,dp(10));
+                content.addView(agencyEntry9982,menuIndex);
+            }
+        });
 
         LinearLayout.LayoutParams moreLp9981=new LinearLayout.LayoutParams(-1,dp(60));
         moreLp9981.setMargins(0,dp(8),0,dp(10));content.addView(more9981,moreLp9981);

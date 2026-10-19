@@ -6,7 +6,7 @@ deep = (root / 'app/src/main/java/com/kingplus/social/KingDeepFlowActivity.java'
 gradle = (root / 'app/build.gradle').read_text()
 workflow = (root / '.github/workflows/king-v10077-party-rejoin-choice.yml').read_text()
 
-assert 'versionCode 368' in gradle and "10.0.89-me-profile-editor" in gradle
+assert 'versionCode 369' in gradle and "10.0.90-agency-visibility" in gradle
 assert '♡ Liked …' in main and '♡ Liked "+(count>500?"500+":String.valueOf(count))' in main
 assert 'collectionGroup("likes")' in main and '.whereEqualTo("uid",account).limit(501)' in main
 assert 'addSnapshotListener((snapshot,error)->{' in main
@@ -19,5 +19,5 @@ assert 'python3 tools/me-profile-parity-v10088/check_source.py' in workflow
 assert 'node tests/firestore/me-profile-likes-v10088.test.mjs' in workflow
 likes_test = (root / 'tests/firestore/me-profile-likes-v10088.test.mjs').read_text()
 assert 'liked-count-alice-v10088' in likes_test
-assert "versionCode='368'" in workflow
+assert "versionCode='369'" in workflow
 print('PASS: Me shows a live, signed-in account count for liked Moments and opens the existing Liked feed')

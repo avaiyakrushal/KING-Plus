@@ -68,7 +68,10 @@ public class KingDeepFlowActivity extends Activity {
         root.addView(head);
         ScrollView sc=new ScrollView(this);body=new LinearLayout(this);body.setOrientation(LinearLayout.VERTICAL);body.setPadding(dp(12),dp(8),dp(12),dp(30));sc.addView(body);root.addView(sc,new LinearLayout.LayoutParams(-1,0,1));setContentView(root);
         switch(route){
-            case "agency": startActivity(new Intent(this,KingAgency9982Activity.class));finish();break;
+            case "agency": KingAgencyAccess9982.check(this,allowed->{
+                if(allowed){startActivity(new Intent(this,KingAgency9982Activity.class));finish();}
+                else {toast("Agency options are available only to approved accounts.");finish();}
+            });break;
             case "profile_menu": profileMenu();break; case "data_center": dataCenter();break;
             case "coin_mall": case "web_diamond": startActivity(new Intent(this,KingRecharge974Activity.class));finish();break;
             case "privilege_pack": privilegePack();break; case "privilege_shop": startActivity(new Intent(this,KingWardrobeActivity.class));break;
@@ -186,7 +189,9 @@ public class KingDeepFlowActivity extends Activity {
     "Activity level is a device-only TEST preview • VIP is read from verified Wallet");
         section("Account & status");
         row("📊","Data Center","Profile activity, social counts, gifts and rooms","data_center");
-        row("🏢","Agency & Agent Recharge","Super Admin, Agency owner, Agent requests","agency");
+        KingAgencyAccess9982.check(this,allowed->{
+            if(allowed&&!isFinishing())row("🏢","Agency & Agent Recharge","Approved Agency management and Agent requests","agency");
+        });
         row("⭐","User Level Center","Normal level, XP and achievements","level_center");
         row("💎","VIP Level","VIP 0–50 progression and privileges","vip");
         row("♛","Noble Center","Noble identity and room privileges","noble");
