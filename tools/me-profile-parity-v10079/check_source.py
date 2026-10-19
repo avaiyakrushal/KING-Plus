@@ -6,20 +6,10 @@ deep = (root / "app/src/main/java/com/kingplus/social/KingDeepFlowActivity.java"
 gradle = (root / "app/build.gradle").read_text()
 
 
-# Later profile refactors moved the old sideMenu section; verify its routes across the activity.
-drawer = main
-for item in (
-    "Square / Moments", "Coin Mall", "Data Center", "Privilege Pack",
-    "Privilege Shop", "VIP Level", "Noble Center", "Family",
-    "User Level Center", "Wallet", "Web Diamond Recharge",
-    "Gift Wall / Share Gift", "Social Media", "Invite Friends",
-    "Settings", "Help & Customer Support", "Rules and Policies",
-    "All Me Options",
-):
-    assert item in drawer, f"missing Me drawer item: {item}"
-for route in ("coin_mall", "data_center", "web_diamond", "social_center", "profile_menu", "settings", "help", "rules"):
-    assert f'openDeepFlow810("{route}")' in drawer, f"missing drawer route: {route}"
-assert "startActivity(new Intent(this,KingGiftCenterActivity.class))" in drawer
+# The refactored Me profile opens the nested All Me Options screen from its More row.
+assert 'more9981.setOnClickListener(v->openDeepFlow810("profile_menu"))' in main
+assert 'case "profile_menu": profileMenu();break;' in deep
+assert 'private void openDeepFlow810(' in main
 
 menu = deep[deep.index("private void profileMenu()") : deep.index("private void dataCenter()")]
 for item in (
@@ -33,7 +23,7 @@ for item in (
 ):
     assert item in menu, f"missing All Me Options item: {item}"
 
-for route in ("data_center", "coin_mall", "web_diamond"):
+for route in ("data_center", "coin_mall", "web_diamond", "social_center", "settings", "help", "rules"):
     assert f'case "{route}"' in deep, f"missing nested route handler: {route}"
 assert "private void dataCenter()" in deep
 assert 'case "profile_center"' in deep
@@ -55,4 +45,4 @@ assert 'getPreferences(0).putString("report_history",' not in main
 assert 'private void taskCenter(){hero("✅ Tasks & Check-in"' in deep
 assert 'completion is not tracked in this TEST build' in deep
 assert '+" XP not yet verified"' not in deep
-print("PASS Me drawer parity: Bolo Hi menu shortcuts map into KING Plus pages; nested profile and data-center routes are present")
+print("PASS Me profile parity: More opens All Me Options; current profile entries, nested routes and safety checks are present")
