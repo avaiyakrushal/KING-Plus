@@ -1,7 +1,7 @@
-# KING Plus v10.0.71 — TEST source
+# KING Plus v10.0.72 — TEST source
 
 This source bundle is for `com.kingplus.social`, Android version code `350` and
-version name `10.0.71-global-party-search`.
+version name `10.0.72-party-reconnect-grace`.
 
 ## Latest change
 
@@ -9,8 +9,10 @@ The Android 16 crash report showed `ImageView` lazily opening a document URI
 without a current provider grant. App image views now use a bounded eager decoder
 that catches revoked/missing URI access and leaves a fallback instead of failing
 during layout. Party search now spans all room categories and keeps cursor paging
-for additional results. Party exit clears room listeners and membership before
-returning to the lobby. Details are in `RELEASE-NOTES-v10.0.71.md`.
+for additional results. Party member cleanup now waits five minutes before
+removing a silent presence, allowing slow mobile connections time to recover.
+Party exit clears room listeners and membership before returning to the lobby.
+Details are in `RELEASE-NOTES-v10.0.72.md`.
 
 ## Validation
 

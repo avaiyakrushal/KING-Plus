@@ -1667,7 +1667,9 @@ public class PartyActivity extends androidx.fragment.app.FragmentActivity implem
                     String uid967=m967.getId();
                     com.google.firebase.Timestamp last967=m967.getTimestamp("lastSeenAt");
                     boolean stale967=last967!=null
-                        && KingRoomPresence967.isStale(last967.toDate().getTime(),now967,180000L);
+                        // Keep transient mobile-network drops from removing a live
+                        // member before Firestore can reconnect and refresh presence.
+                        && KingRoomPresence967.isStale(last967.toDate().getTime(),now967,300000L);
                     if(stale967&&!uid967.equals(owner967)){
                         removedMembers967.delete(m967.getReference());
                         removed967++;

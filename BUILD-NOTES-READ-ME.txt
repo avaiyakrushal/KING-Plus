@@ -1,12 +1,13 @@
-KING Plus v10.0.71 — global Party search (TEST source).
+KING Plus v10.0.72 — Party reconnect grace (TEST source).
 
-Android metadata: versionCode 350; versionName 10.0.71-global-party-search.
+Android metadata: versionCode 351; versionName 10.0.72-party-reconnect-grace.
 This ZIP contains source only. It does not contain an APK or AAB.
 
 The reported MediaDocumentsProvider SecurityException is handled by eagerly
-opening and decoding local image URIs. Party-room search now includes all
-categories and uses cursor pages for more results. Two-device acceptance is pending.
+opening and decoding local image URIs. Party-room search includes all categories
+and uses cursor pages. Member cleanup allows five minutes for mobile network
+recovery before considering presence stale. Two-device acceptance is pending.
 
 The private production signing key is omitted. This is TEST source, not a final
-release; see RELEASE-NOTES-v10.0.71.md and
+release; see RELEASE-NOTES-v10.0.72.md and
 release/final-release-evidence.json.
