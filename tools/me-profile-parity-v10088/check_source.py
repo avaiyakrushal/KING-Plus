@@ -12,6 +12,8 @@ assert 'collectionGroup("likes")' in main and '.whereEqualTo("uid",account).limi
 assert 'addSnapshotListener((snapshot,error)->{' in main
 assert 'stopProfileLikes10088();' in main and 'profileLikesListener10088==null' in main
 assert 'openCommunityHub700(tab)' in main
+assert 'tap to copy' in main and 'ClipData.newPlainText("KING ID",issued)' in main
+assert 'if(!expectedScreen.equals(screen)||active==null||!account.equals(active.getUid()))return;' in main
 assert 'Upload, sync and manage your profile videos' in deep
 assert 'python3 tools/me-profile-parity-v10088/check_source.py' in workflow
 assert 'node tests/firestore/me-profile-likes-v10088.test.mjs' in workflow

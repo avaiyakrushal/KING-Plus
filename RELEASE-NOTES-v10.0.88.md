@@ -5,6 +5,7 @@
 - The count follows likes/unlikes from other signed-in devices and opens the existing Liked feed.
 - Kept listeners scoped to the current account and stopped them when Me is not visible.
 - Updated the Profile Center My Videos description to reflect cloud uploads and device-local videos.
+- Tapping the server-verified KING ID on Me/About copies it to the clipboard; stale-account and unissued IDs are not copied.
 
 ## Verification
 - Source checker verifies the count query, listener lifecycle and existing Liked feed route.

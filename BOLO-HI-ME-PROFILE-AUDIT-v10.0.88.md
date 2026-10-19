@@ -2,6 +2,7 @@
 
 | Me/Profile option | KING Plus route and behavior |
 | --- | --- |
+| Verified KING ID | Tap the Me/About ID to copy it; only a server-verified, currently signed-in account ID is copied. |
 | Liked Moments | Me now shows a live account-scoped count of Moments this account has liked; opening the chip leads to the existing Liked feed. The count refreshes across signed-in devices as likes change. |
 | My Videos | Opens both the cloud profile-video manager and the existing device-only archive. |
 | Visitors, Moments, Relationship, Collection | Keep their existing account-aware routes. |

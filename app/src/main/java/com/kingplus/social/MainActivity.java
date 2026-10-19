@@ -2445,6 +2445,22 @@ public class MainActivity extends Activity {
                 String suffix=issued==null?"Not issued":issued;
                 label.setText(frame==null?"KING ID: "+suffix:
                     KingCosmetics.frameEmoji(frame)+"  ID: "+suffix+"  "+KingCosmetics.frameEmoji(frame));
+                if(issued!=null){
+                    label.setContentDescription("KING ID "+issued+" • tap to copy");
+                    label.setOnClickListener(v->{
+                        FirebaseUser active=firebaseAuth==null?null:firebaseAuth.getCurrentUser();
+                        if(!expectedScreen.equals(screen)||active==null||!account.equals(active.getUid()))return;
+                        android.content.ClipboardManager clipboard=(android.content.ClipboardManager)
+                            getSystemService(CLIPBOARD_SERVICE);
+                        if(clipboard!=null){
+                            clipboard.setPrimaryClip(android.content.ClipData.newPlainText("KING ID",issued));
+                            Toast.makeText(this,"KING ID copied",Toast.LENGTH_SHORT).show();
+                        }
+                    });
+                }else{
+                    label.setContentDescription("KING ID not issued");
+                    label.setOnClickListener(v->loadVerifiedMeId10002(label,expectedScreen,frame));
+                }
                 KingVipIdentityStyle.load(this,account,null,label);
             }).addOnFailureListener(e->{
                 if(isFinishing()||isDestroyed()||!expectedScreen.equals(screen)
