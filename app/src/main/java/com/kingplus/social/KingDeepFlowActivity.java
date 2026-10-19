@@ -100,6 +100,13 @@ public class KingDeepFlowActivity extends Activity {
             case "detail_gift_ranking": openPartyPanel940("ranking");break;
             case "detail_friend_broadcast": openPartyPanel940("broadcast");break;
             case "detail_edit_profile":openMeAction9981("edit_profile");break;
+            case "detail_profile_about":openMeAction9981("profile_about");break;
+            case "detail_profile_gallery":openMeAction9981("profile_gallery");break;
+            case "detail_profile_videos":openMeAction9981("profile_videos");break;
+            case "detail_profile_share":openMeAction9981("share_profile");break;
+            case "detail_profile_notifications":openMeAction9981("notifications");break;
+            case "detail_profile_favorites":openMeAction9981("favorites");break;
+            case "detail_profile_recent":openMeAction9981("recent_rooms");break;
             case "detail_delete_account":openMeAction9981("account_delete");break;
             case "detail_profile_safety":openMeCloud9984("privacy");break;
             case "detail_help_safety":safetyHelp9981();break;
@@ -660,7 +667,32 @@ public class KingDeepFlowActivity extends Activity {
     private void taskCenter(){hero("✅ Tasks & Check-in","Activity shortcuts are available. This TEST build does not grant unverified XP or check-in rewards.");section("Open an activity");dailyTask("Join a Party room","task_party",0);dailyTask("Send a room message","task_chat",0);dailyTask("Play a game","task_game",0);dailyTask("Visit Gift Center","task_gift",0);dailyTask("Visit Community","task_social",0);section("Reward status");chip("No daily reward is claimable until a verified KING Plus server task/reward service is enabled.",()->{});}
     private void dailyTask(String name,String key,int ignoredReward){row("›",name,"Open the real activity • completion is not tracked in this TEST build",()->{if("task_party".equals(key)||"task_game".equals(key)){KingNav.openRoot(this,0);}else if("task_chat".equals(key)){KingNav.openRoot(this,3);}else if("task_gift".equals(key)){openGiftCenter();}else if("task_social".equals(key)){openCommunity("Moments");}});}
     private void eventCenter(){row("🎪","Room Activity","Templates and live room events","party_events");row("⚔","Audio PK","Party PK / score flow",()->KingNav.openRoot(this,0));row("🏆","Ranking Events","Discover rankings","discover_center");row("🎁","Gift Events","Lucky Gift, Wish and Wall","gift_center");row("💞","Relationship Events","CP and Family activities",()->openCommunity("Relationship"));}
-    private void profileCenter(){row("✏","Edit Profile","Name, bio, birthday and tags","detail_edit_profile");row("🖼","My Gallery","Photos and Moments",()->openCommunity("Moments"));row("⭐","Level & Achievements","Normal Level 1–99","level_center");row("💎","VIP","VIP 0–50","vip");row("🏅","Medals & Influence","Achievements and contribution","medal_center");row("👀","Visitors","Recent profile visitors",()->openCommunity("Visitors"));row("🎁","Profile Gift Wall","Gift collection","gift_wall");row("🛡","Safety Center","Block, report and privacy tools","detail_profile_safety");}
+    private void profileCenter(){
+        hero("👤 My Profile","Open your real KING account profile, media, social lists and saved activity.");
+        section("Profile & media");
+        row("✏","Edit Profile","Photo, nickname, bio, birthday, hometown and tags","detail_edit_profile");
+        row("ℹ","About Me","View your saved profile details and issued KING ID","detail_profile_about");
+        row("🖼","My Gallery","Open your account's published Moments and local archive","detail_profile_gallery");
+        row("🎬","My Videos","Manage videos saved on this device","detail_profile_videos");
+        row("↗","Share Profile","Share your verified KING ID and profile link","detail_profile_share");
+        section("Social & account");
+        row("👥","Followers","Open your live account follower list",()->openSocialTab10083("followers"));
+        row("➕","Following","Open accounts you follow",()->openSocialTab10083("following"));
+        row("💜","Friends","Open mutual followers",()->openSocialTab10083("friends"));
+        row("👀","Visitors","Review account visitor history",()->openCommunity("Visitors"));
+        row("🎁","Profile Gift Wall","Open gifts received and Gift Center",()->openGiftCenter());
+        row("🔔","Notifications","Open your account inbox","detail_profile_notifications");
+        row("🛡","Safety Center","Cloud block list, report receipts and privacy","detail_profile_safety");
+        section("Activity & saved rooms");
+        row("⭐","Level & Achievements","Device-only TEST level; unverified achievements stay locked","level_center");
+        row("💎","VIP","Verified Wallet entitlement and tier previews","vip");
+        row("🏅","Medals & Influence","Unverified milestones remain locked","medal_center");
+        row("📌","Favorite Party Rooms","Open your saved account rooms","detail_profile_favorites");
+        row("🕘","Recent Party Rooms","Open your recent room history","detail_profile_recent");
+        row("🏠","Family Square","Open family, members and activities",()->openCommunity("Family"));
+        row("💞","Relationship / CP","Open relationship profile and activity",()->openCommunity("Relationship"));
+        row("🎒","Backpack / Collection","Open your collection and saved gifts",()->openCommunity("Collection"));
+    }
     private void reportHistory9981(){
         String owner=me==null?"":me.getUid();
         hero("⚑ My Report History",owner.isEmpty()?"Sign in to view report receipts":"Your own submitted-report receipts sync to this KING account across devices");
@@ -739,6 +771,7 @@ public class KingDeepFlowActivity extends Activity {
     }
     private void openGiftCenter(){Intent i=new Intent(this,KingGiftCenterActivity.class);startActivity(i);}
     private void openCommunity(String tab){Intent i=new Intent(this,CommunityHubActivity.class);i.putExtra("tab",tab);startActivity(i);}
+    private void openSocialTab10083(String tab){Intent i=new Intent(this,SocialActivity.class);i.putExtra("initialSocialTab10018",tab);startActivity(i);}
     private void openNotifications9981(){Intent i=new Intent(this,InboxActivity.class);i.putExtra("openNotifications10010",true);startActivity(i);}
     private void shareInvite(){Intent i=new Intent(Intent.ACTION_SEND);i.setType("text/plain");i.putExtra(Intent.EXTRA_TEXT,"Join me on KING Plus • "+safe(mainPrefs.getString("name","KING User"),"KING User"));startActivity(Intent.createChooser(i,"Invite Friends"));}
 

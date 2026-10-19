@@ -1,13 +1,11 @@
 from pathlib import Path
 
 root = Path(__file__).resolve().parents[2]
-gradle = (root / 'app/build.gradle').read_text()
 level = (root / 'app/src/main/java/com/kingplus/social/LevelSystem.java').read_text()
 party = (root / 'app/src/main/java/com/kingplus/social/PartyActivity.java').read_text()
 flow = (root / 'app/src/main/java/com/kingplus/social/KingDeepFlowActivity.java').read_text()
 
-assert "versionCode 362" in gradle
-assert "10.0.83-profile-progress-integrity" in gradle
+assert "KING Plus v10.0.83 Profile Progress Integrity TEST" in (root / 'RELEASE-NOTES-v10.0.83.md').read_text()
 assert "return new Snapshot(levelFor(xp),xp,0,0);" in level
 assert "p.edit().putLong(\"xp\",xp).apply();" in level
 assert "return add(c,xp,0);" in level

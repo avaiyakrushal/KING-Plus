@@ -1506,6 +1506,11 @@ public class MainActivity extends Activity {
         if(action==null||firebaseAuth==null||firebaseAuth.getCurrentUser()==null)return false;
         switch(action){
             case "edit_profile":editProfile();return true;
+            case "profile_about":profile();profileAboutPage();return true;
+            case "profile_gallery":profile();galleryPage();return true;
+            case "profile_videos":profile();videoPage();return true;
+            case "share_profile":shareMyIssuedKingId9998();return true;
+            case "notifications":startActivity(new Intent(this,InboxActivity.class));return true;
             case "account_delete":profile();requestAccountDeletionFlow();return true;
             case "safety":privacySafetyPage();return true;
             case "profile_settings":settingsPage();return true;
@@ -1758,22 +1763,21 @@ public class MainActivity extends Activity {
 
     private void levelPage(){
         screen="level";
-        base("Level & Achievements","KING Plus normal activity levels • VIP is recharge-only");
+        base("Level & Achievements","TEST preview only • device activity is not server verified or reward eligible");
         LevelSystem.Snapshot p=LevelSystem.read(this);
         long next=p.nextLevelXp();
         long prev=LevelSystem.levelThreshold(p.level);
         long span=Math.max(1,next-prev);
         int percent=p.level>=LevelSystem.MAX_LEVEL?100:
             (int)Math.max(0,Math.min(100,(p.xp-prev)*100/span));
-        text("🏆 Normal Level "+p.level+" / 99",28,Color.WHITE,true);
-        text(LevelSystem.levelTier(p.level)+" • "+p.xp+" XP • "+percent+"% to next",15,MUTED,false);
+        text("🏆 TEST Activity Level "+p.level+" / 99",28,Color.WHITE,true);
+        text(LevelSystem.levelTier(p.level)+" • device-only "+p.xp+" XP • "+percent+"% preview to next",15,MUTED,false);
         button("👑 Verified Recharge VIP",PURPLE,
             ()->startActivity(new Intent(this,KingVipVisualActivity.class)));
         text("VIP cannot increase from free Gifts, offline coins, or local TEST activity.",
             13,MUTED,false);
-        text("Achievements",18,Color.WHITE,true);
-        text("🎤 Voice Explorer  "+(getMissionValue("mission_room")>0?"✓":"○"),16,Color.WHITE,false);
-        text("💬 Room messages today  "+getMissionValue("mission_chat"),16,MUTED,false);
+        text("Achievements • locked",18,Color.WHITE,true);
+        text("Voice, room and game activity are not verified for rewards yet.",14,MUTED,false);
         button("🎒 Collection & Frames",PURPLE,()->openCommunityHub700("Collection"));
         button("Back",CARD,this::profile);
     }
