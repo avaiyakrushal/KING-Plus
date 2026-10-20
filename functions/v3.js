@@ -98,6 +98,30 @@ async function sendUserNotification(uid, title, body, data = {}) {
   return { sent: response.successCount, failed: response.failureCount };
 }
 
+const {createDailyCheckinService}=require('./daily-checkin-service');
+const dailyCheckinService=createDailyCheckinService({db,timestamp:()=>FieldValue.serverTimestamp()});
+function permanentUser(request){
+  const uid=requireAuth(request);
+  if(request.auth.token?.firebase?.sign_in_provider==='anonymous')
+    throw new HttpsError('unauthenticated','Sign in to a permanent KING account first.');
+  return uid;
+}
+const getDailyCheckinStatus=onCall(async request=>{
+  const uid=permanentUser(request);await assertActiveUser(uid);
+  try{return await dailyCheckinService.status({uid});}
+  catch(error){throw new HttpsError('unavailable','Daily check-in status is temporarily unavailable.');}
+});
+const claimDailyCheckin=onCall(async request=>{
+  const uid=permanentUser(request);await assertActiveUser(uid);
+  try{return await dailyCheckinService.claim({uid});}
+  catch(error){
+    if(error instanceof HttpsError)throw error;
+    const codes=['unauthenticated','invalid-argument','failed-precondition'];
+    throw new HttpsError(codes.includes(error.code)?error.code:'unavailable',
+      codes.includes(error.code)?error.message:'Daily check-in could not be confirmed.');
+  }
+});
+
 const {createGiftService, GiftError} = require('./room-gift-service');
 const commitGift10064 = createGiftService({db, timestamp: () => FieldValue.serverTimestamp()});
 // VIP 000001 is reserved by a trusted function for a server-verified Super Admin.
@@ -357,6 +381,8 @@ module.exports = {
     db, FieldValue, HttpsError, requireAuth, isBanned
   }),
   claimOwnerVipNumber,
+  getDailyCheckinStatus,
+  claimDailyCheckin,
   sendDirectMessageNotification,
   sendFollowNotification,
   requestAccountDeletion,

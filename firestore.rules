@@ -1811,6 +1811,15 @@ service cloud.firestore {
       allow write: if false;
     }
 
+    match /king_daily_checkins/{uid} {
+      allow read: if owner(uid) && activeUser();
+      allow create, update, delete: if false;
+      match /events/{dayId} {
+        allow read: if owner(uid) && activeUser();
+        allow create, update, delete: if false;
+      }
+    }
+
     match /notifications/{uid}/items/{itemId} {
       allow read, delete: if owner(uid);
       allow update: if owner(uid)

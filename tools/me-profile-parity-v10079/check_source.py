@@ -41,7 +41,10 @@ assert 'putExtra("openNotifications10010",true)' in deep
 assert 'mainPrefs.getString("report_history_"+owner' in deep
 assert 'db.collection("user_report_history").document(owner)' in deep
 assert 'getPreferences(0).putString("report_history",' not in main
-assert 'private void taskCenter(){hero("✅ Tasks & Check-in"' in deep
-assert 'completion is not tracked in this TEST build' in deep
+assert 'private void taskCenter(){' in deep
+assert 'getHttpsCallable("claimDailyCheckin")' in deep
+assert 'getHttpsCallable("getDailyCheckinStatus")' in deep
+assert 'Activity XP is nonredeemable' in deep
+assert 'no task reward is claimed yet' in deep
 assert '+" XP not yet verified"' not in deep
 print("PASS Me profile parity: More opens All Me Options; current profile entries, nested routes and safety checks are present")

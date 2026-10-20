@@ -13,6 +13,7 @@ import android.view.Gravity;
 import android.view.View;
 import android.widget.Button;
 import android.widget.EditText;
+import android.widget.Button;
 import android.widget.LinearLayout;
 import android.widget.ProgressBar;
 import android.widget.ScrollView;
@@ -24,6 +25,7 @@ import com.google.firebase.auth.FirebaseUser;
 import com.google.firebase.firestore.DocumentSnapshot;
 import com.google.firebase.firestore.FieldValue;
 import com.google.firebase.firestore.FirebaseFirestore;
+import com.google.firebase.functions.FirebaseFunctions;
 
 import java.util.ArrayDeque;
 import java.util.ArrayList;
@@ -671,8 +673,51 @@ public class KingDeepFlowActivity extends Activity {
     private void musicCenter(){row("🎵","Music Library","Browse room music and songs","detail_music_library");row("🎤","Song Request","KTV request queue","detail_song_request");row("📋","KTV Queue","Requested / playing / completed","detail_ktv_queue");row("📻","Radio Mic Queue","Loop mic and radio queue","detail_radio_queue");row("🎚","Audio Settings","Mic, music and room audio","detail_audio_settings");}
     private void videoCenter(){hero("🎙 Voice & Video","Native Jitsi/WebRTC engine with fallback");row("🎙","Voice Room","Open native voice session",()->openMeet(false));row("📹","Multi Video","Open native video session",()->openMeet(true));row("🎚","Voice Filter","Original KING Plus filter presets","detail_voice_filter");row("✨","Beauty / Camera","Video camera and beauty controls","detail_beauty");row("🎛","Audio Focus & Reconnect","Fallback reconnect and permission recovery","detail_media_recovery");}
     private void openMeet(boolean video){String rid=roomId.isEmpty()?"king-public":roomId;NativeMeetBridge.launch(this,rid,roomName,safe(mainPrefs.getString("name","KING User"),"KING User"),video);}
-    private void taskCenter(){hero("✅ Tasks & Check-in","Activity shortcuts are available. This TEST build does not grant unverified XP or check-in rewards.");section("Open an activity");dailyTask("Join a Party room","task_party",0);dailyTask("Send a room message","task_chat",0);dailyTask("Play a game","task_game",0);dailyTask("Visit Gift Center","task_gift",0);dailyTask("Visit Community","task_social",0);section("Reward status");chip("No daily reward is claimable until a verified KING Plus server task/reward service is enabled.",()->{});}
-    private void dailyTask(String name,String key,int ignoredReward){row("›",name,"Open the real activity • completion is not tracked in this TEST build",()->{if("task_party".equals(key)||"task_game".equals(key)){KingNav.openRoot(this,0);}else if("task_chat".equals(key)){KingNav.openRoot(this,3);}else if("task_gift".equals(key)){openGiftCenter();}else if("task_social".equals(key)){openCommunity("Moments");}});}
+    private void taskCenter(){
+        hero("✅ Tasks & Check-in","Daily check-in syncs to your KING account. Activity XP is nonredeemable and never changes Diamonds, wallet balance or VIP.");
+        section("Daily Check-in");
+        TextView checkinState=tv("Checking your account check-in…",14,sub(),false);
+        body.addView(checkinState,new LinearLayout.LayoutParams(-1,dp(52)));
+        Button claim= new Button(this);claim.setAllCaps(false);claim.setText("Claim today's 10 Activity XP");claim.setTextColor(fg());claim.setBackground(bg(0xff6a55ce,14));
+        body.addView(claim,new LinearLayout.LayoutParams(-1,dp(52)));
+        claim.setOnClickListener(v->claimDailyCheckin9983(checkinState,claim));
+        loadDailyCheckin9983(checkinState,claim);
+        section("Open an activity");
+        dailyTask("Join a Party room","task_party");dailyTask("Send a room message","task_chat");
+        dailyTask("Play a game","task_game");dailyTask("Visit Gift Center","task_gift");dailyTask("Visit Community","task_social");
+        section("Activity rewards");chip("Only the daily check-in awards 10 server-confirmed, nonredeemable Activity XP. Other activity shortcuts do not claim rewards yet.",()->{});
+    }
+    private boolean currentCheckinPage(TextView state){return !isFinishing()&&!isDestroyed()&&"task_center".equals(route)&&state.getParent()==body;}
+    private void renderDailyCheckin9983(TextView state,Button claim,Object raw){
+        if(!currentCheckinPage(state))return;
+        if(!(raw instanceof Map)){state.setText("Server returned an unreadable check-in status.");claim.setEnabled(false);return;}
+        Map<?,?> data=(Map<?,?>)raw;boolean claimed=Boolean.TRUE.equals(data.get("claimedToday"));
+        int streak=data.get("streak") instanceof Number?((Number)data.get("streak")).intValue():0;
+        int total=data.get("totalClaims") instanceof Number?((Number)data.get("totalClaims")).intValue():0;
+        int xp=data.get("activityXp") instanceof Number?((Number)data.get("activityXp")).intValue():0;
+        state.setText("🔥 "+streak+" day streak  •  "+total+" check-ins  •  "+xp+" Activity XP"+(claimed?"\nToday's check-in is already claimed.":"\nClaim once today to keep your streak."));
+        claim.setText(claimed?"✓ Claimed today":"Claim today's 10 Activity XP");claim.setEnabled(!claimed);
+    }
+    private void loadDailyCheckin9983(TextView state,Button claim){
+        FirebaseUser user=FirebaseAuth.getInstance().getCurrentUser();
+        if(user==null||user.isAnonymous()){state.setText("Sign in to a permanent KING account to sync your check-in.");claim.setEnabled(false);return;}
+        claim.setEnabled(false);
+        FirebaseFunctions.getInstance().getHttpsCallable("getDailyCheckinStatus").call()
+            .addOnSuccessListener(result->renderDailyCheckin9983(state,claim,result.getData()))
+            .addOnFailureListener(error->{if(currentCheckinPage(state)){state.setText("Check-in status unavailable. No Activity XP was added.");claim.setText("Try again");claim.setEnabled(true);}});
+    }
+    private void claimDailyCheckin9983(TextView state,Button claim){
+        FirebaseUser user=FirebaseAuth.getInstance().getCurrentUser();if(user==null||user.isAnonymous()){state.setText("Sign in to a permanent KING account first.");claim.setEnabled(false);return;}
+        claim.setEnabled(false);claim.setText("Verifying with KING server…");
+        FirebaseFunctions.getInstance().getHttpsCallable("claimDailyCheckin").call()
+            .addOnSuccessListener(result->{if(!currentCheckinPage(state))return;Object raw=result.getData();
+                if(raw instanceof Map&&Boolean.TRUE.equals(((Map<?,?>)raw).get("claimed")))state.setText("Check-in confirmed • 10 nonredeemable Activity XP added to your account.");
+                else state.setText("Today's check-in was already claimed. Your XP was not added twice.");
+                loadDailyCheckin9983(state,claim);
+            })
+            .addOnFailureListener(error->{if(currentCheckinPage(state)){state.setText("Check-in was not confirmed. No Activity XP was added.");claim.setText("Try again");claim.setEnabled(true);}});
+    }
+    private void dailyTask(String name,String key){row("›",name,"Open activity • no task reward is claimed yet",()->{if("task_party".equals(key)||"task_game".equals(key)){KingNav.openRoot(this,0);}else if("task_chat".equals(key)){KingNav.openRoot(this,3);}else if("task_gift".equals(key)){openGiftCenter();}else if("task_social".equals(key)){openCommunity("Moments");}});}
     private void eventCenter(){row("🎪","Room Activity","Templates and live room events","party_events");row("⚔","Audio PK","Party PK / score flow",()->KingNav.openRoot(this,0));row("🏆","Ranking Events","Discover rankings","discover_center");row("🎁","Gift Events","Lucky Gift, Wish and Wall","gift_center");row("💞","Relationship Events","CP and Family activities",()->openCommunity("Relationship"));}
     private void profileCenter(){
         hero("👤 My Profile","Open your real KING account profile, media, social lists and saved activity.");
@@ -702,7 +747,7 @@ public class KingDeepFlowActivity extends Activity {
         row("💞","Relationship / CP","Open relationship profile and activity",()->openCommunity("Relationship"));
         row("🎒","Backpack / Collection","Open your collection and saved gifts",()->openCommunity("Collection"));
         section("Tasks & preferences");
-        row("✅","Daily Check-in & Missions","Open available activity shortcuts; unverified rewards stay disabled","task_center");
+        row("✅","Daily Check-in & Missions","Claim account-synced daily Activity XP; other task rewards stay disabled","task_center");
         row("⚙","Settings & Privacy","Account, privacy, notifications and network","settings");
         row("🔐","Account & Sign-in","Account recovery and sign-in options","settings_account");
     }

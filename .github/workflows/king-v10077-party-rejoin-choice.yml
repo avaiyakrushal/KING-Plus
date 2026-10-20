@@ -1,4 +1,4 @@
-name: KING Plus v10.0.93 Me Gift History TEST APK
+name: KING Plus v10.0.94 Daily Check-in TEST APK
 on:
   push:
     branches: [work/king-v10070-nongame-audit]
@@ -8,8 +8,8 @@ on:
       - 'tools/**'
       - 'README.md'
       - 'BUILD-NOTES-READ-ME.txt'
-      - 'RELEASE-NOTES-v10.0.93.md'
-      - 'BOLO-HI-ME-PROFILE-AUDIT-v10.0.93.md'
+      - 'RELEASE-NOTES-v10.0.94.md'
+      - 'BOLO-HI-ME-PROFILE-AUDIT-v10.0.94.md'
       - 'tests/firestore/privacy-block-dm-firestore.test.mjs'
       - 'tests/firestore/liked-moments-v10085.test.mjs'
       - 'firestore.rules'
@@ -60,16 +60,17 @@ jobs:
           python3 tools/me-agency-access-v10090/check_source.py
           python3 tools/owner-vip-hunt-v10091/check_source.py
           python3 tools/me-profile-gift-history-v10093/check_source.py
-          grep -q "versionCode 372" app/build.gradle
-          grep -q "versionName '10.0.93-me-gift-history'" app/build.gradle
+          python3 tools/daily-checkin-v10094/check_source.py
+          grep -q "versionCode 373" app/build.gradle
+          grep -q "versionName '10.0.94-daily-checkin'" app/build.gradle
           test -s app/kingplus-ci-debug.keystore
-      - name: Test trusted owner gift entitlement
-        run: node --test functions/room-gift-service.test.js functions/owner-entitlement-service.test.js
-      - name: Verify cloud Block List and report receipt Firestore rules
+      - name: Test gift and daily check-in transactions
+        run: node --test functions/room-gift-service.test.js functions/daily-checkin-service.test.js
+      - name: Verify privacy, report and check-in Firestore rules
         run: |
           set -euo pipefail
           npm ci --prefix tests/firestore
-          tests/firestore/node_modules/.bin/firebase emulators:exec --only firestore --project demo-king-me-privacy-9984 --config firebase-emulator.json "node tests/firestore/privacy-block-dm-firestore.test.mjs && node tests/firestore/user-report-history-v10081.test.mjs && node tests/firestore/liked-moments-v10085.test.mjs && node tests/firestore/me-profile-videos-v10087.test.mjs && node tests/firestore/me-profile-likes-v10088.test.mjs"
+          tests/firestore/node_modules/.bin/firebase emulators:exec --only firestore --project demo-king-me-privacy-9984 --config firebase-emulator.json "node tests/firestore/privacy-block-dm-firestore.test.mjs && node tests/firestore/user-report-history-v10081.test.mjs && node tests/firestore/liked-moments-v10085.test.mjs && node tests/firestore/me-profile-videos-v10087.test.mjs && node tests/firestore/me-profile-likes-v10088.test.mjs && node tests/firestore/me-profile-checkin-v10094.test.mjs"
       - name: Compile full Android app
         run: gradle :app:assembleDebug --no-daemon --max-workers=2
       - name: Verify TEST APK package, version, signature and RTC libraries
@@ -79,7 +80,7 @@ jobs:
           test -s "$apk"
           aapt="$(find "$ANDROID_HOME/build-tools" -name aapt -type f | sort -V | tail -1)"
           signer="$(find "$ANDROID_HOME/build-tools" -name apksigner -type f | sort -V | tail -1)"
-          "$aapt" dump badging "$apk" | grep '^package:' | grep "name='com.kingplus.social'" | grep "versionCode='372'"
+          "$aapt" dump badging "$apk" | grep '^package:' | grep "name='com.kingplus.social'" | grep "versionCode='373'"
           "$signer" verify --print-certs "$apk"
           test "$(stat -c%s "$apk")" -gt 60000000
           unzip -Z1 "$apk" | grep -q '^lib/arm64-v8a/libjingle_peerconnection_so.so$'
@@ -87,14 +88,14 @@ jobs:
       - name: Package TEST APK and source
         run: |
           set -euo pipefail
-          mkdir -p /tmp/king-v10093-out
-          cp app/build/outputs/apk/debug/app-debug.apk /tmp/king-v10093-out/KING-Plus-v10.0.93-Me-Gift-History-TEST.apk
-          zip -qr /tmp/king-v10093-out/KING-Plus-v10.0.93-Me-Gift-History-TEST-Source.zip . \
+          mkdir -p /tmp/king-v10094-out
+          cp app/build/outputs/apk/debug/app-debug.apk /tmp/king-v10094-out/KING-Plus-v10.0.94-Daily-Checkin-TEST.apk
+          zip -qr /tmp/king-v10094-out/KING-Plus-v10.0.94-Daily-Checkin-TEST-Source.zip . \
             -x '.git/*' '*/.git/*' '*/build/*' '.gradle/*' '*/.gradle/*' '*/node_modules/*' \
             '*.apk' '*.aab' '*.keystore' '*.jks' '*.zip' '*local.properties' '*.log'
       - uses: actions/upload-artifact@v4
         with:
-          name: KING-Plus-v10.0.93-Me-Gift-History-TEST-APK-and-Source
-          path: /tmp/king-v10093-out/*
+          name: KING-Plus-v10.0.94-Daily-Checkin-TEST-APK-and-Source
+          path: /tmp/king-v10094-out/*
           retention-days: 30
           if-no-files-found: error

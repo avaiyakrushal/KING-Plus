@@ -23,9 +23,10 @@ assert "incrementMission(" not in main
 assert "addXp(" not in main
 assert "private int getMissionValue(String key){return 0;}" in main
 
-# The profile Task Center must continue to be explicit that it is not a live reward service.
-assert 'private void taskCenter(){hero("✅ Tasks & Check-in"' in deep
-assert "completion is not tracked in this TEST build" in deep
-assert "No daily reward is claimable until a verified KING Plus server task/reward service is enabled." in deep
+# Activity task shortcuts remain unrewarded; only the new verified check-in claims XP.
+assert 'getHttpsCallable("claimDailyCheckin")' in deep
+assert 'getHttpsCallable("getDailyCheckinStatus")' in deep
+assert "other task rewards stay disabled" in deep
+assert "No mission can claim coins or XP here" in missions
 
 print("PASS check-in and missions cannot fabricate local coins, mission claims, or XP")
