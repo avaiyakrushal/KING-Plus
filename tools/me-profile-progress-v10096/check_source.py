@@ -8,12 +8,12 @@ service=(root/'functions/daily-checkin-service.js').read_text()
 notify=(root/'functions/notification-preferences.js').read_text()
 v3=(root/'functions/v3.js').read_text()
 workflow=(root/'.github/workflows/king-v10077-party-rejoin-choice.yml').read_text()
-assert 'versionCode 376' in gradle and '10.0.97-me-privacy-progress' in gradle
+assert 'versionCode 377' in gradle and '10.0.98-me-profile-privacy' in gradle
 assert 'loadServerActivityLevel10095(uid)' in main and 'Lv.…' in main and 'LevelSystem.read(this)' not in main[main.index('private void profileV600()'):main.index('private void loadHostedRoomsPage10015')]
 assert 'getDailyCheckinStatus' in deep and 'Account Activity Level' in deep and 'Account Medals' in deep
 assert 'activityLevel' in service and 'nextLevelXp' in service and 'levelFor' in service
 assert 'shouldDeliverNotification' in v3 and 'canReceiveRoomInvite' in v3
-assert 'notification-preferences.test.js' in workflow and 'KING-Plus-v10.0.97-Me-Profile-TEST.apk' in workflow
-assert 'applied to KING Plus discovery and search cards' in privacy
+assert 'notification-preferences.test.js' in workflow and 'KING-Plus-v10.0.98-Me-Profile-TEST.apk' in workflow
+assert 'Find-me hides you from KING Plus discovery and search cards' in privacy
 assert 'remember_login' not in deep and 'auto_reconnect' not in deep and 'low_data_voice' not in deep
 print('PASS: Me profile uses account-verified level/medals; settings avoid dead switches and enforce saved notification/invite choices')

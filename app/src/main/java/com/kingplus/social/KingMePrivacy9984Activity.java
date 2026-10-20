@@ -111,7 +111,7 @@ public final class KingMePrivacy9984Activity extends Activity {
  }
  private void renderPrivacy(){
    root.addView(label("🛡 Account Privacy — synced across signed-in devices",18));
-   root.addView(label("New private messages and Cloud Party invitations respect their saved permissions and your Block List. Find-me and online-status choices are applied to KING Plus discovery and search cards. Older app versions or direct links may still show a public profile.",13));
+   root.addView(label("New private messages and Cloud Party invitations respect their saved permissions and your Block List. Find-me hides you from KING Plus discovery and search cards; entrance effects are hidden when you join Party. The online-status choice is synced, but this app has no global online indicator yet, and Party members can see who joined their room. Older app versions or direct links may still show a public profile.",13));
    for(int i=0;i<KingMePrivacyPolicy9984.PRIVACY.length;i++)
       toggle(KingMePrivacyPolicy9984.PRIVACY[i],KingMePrivacyPolicy9984.PRIVACY_LABELS[i]);
    button("🚫 Review / unblock accounts",()->{page="blocked";render();});

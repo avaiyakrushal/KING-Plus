@@ -17,7 +17,7 @@ android {
     buildFeatures { buildConfig true }
     defaultConfig {
         applicationId 'com.kingplus.social'; minSdk 26; targetSdk 35
-        versionCode 376; versionName '10.0.97-me-privacy-progress'
+        versionCode 377; versionName '10.0.98-me-profile-privacy'
         // Account, backend deployment and a guaranteed zero-cost policy are still pending.
         buildConfigField 'boolean', 'CLOUDFLARE_VOICE_ENABLED', 'false'
     }
