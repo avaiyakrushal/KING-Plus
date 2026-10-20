@@ -16,6 +16,6 @@ assert 'const getDailyCheckinStatus=onCall' in functions and 'const claimDailyCh
 assert "request.auth.token?.firebase?.sign_in_provider==='anonymous'" in functions
 assert 'match /king_daily_checkins/{uid}' in rules and 'allow create, update, delete: if false;' in rules
 assert 'me-profile-checkin-v10094.test.mjs' in workflow and 'daily-checkin-service.test.js' in workflow
-assert 'versionCode 378' in gradle and "10.0.99-home-party-category-options" in gradle
-assert "versionCode='378'" in workflow and 'KING-Plus-v10.0.99-Home-Party-TEST.apk' in workflow
+assert 'versionCode 379' in gradle and "10.0.100-party-treasure-hunt-live" in gradle
+assert "versionCode='379'" in workflow and 'KING-Plus-v10.0.100-Party-Treasure-TEST.apk' in workflow
 print('PASS: daily check-in is account-scoped, Kolkata-day based, idempotent, and awards nonredeemable XP only')
