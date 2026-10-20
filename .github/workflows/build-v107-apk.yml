@@ -1,4 +1,4 @@
-name: KING Plus v10.0.107 Home Party TEST APK
+name: KING Plus v10.0.107 Home Party TEST APK (profile fix)
 on:
   push:
     branches: [codex/build-v107-apk]
