@@ -810,6 +810,12 @@ public class PartyActivity extends androidx.fragment.app.FragmentActivity implem
             t.setOnClickListener(v -> renderLobby(n));
         }
         root.addView(chipScroll,new LinearLayout.LayoutParams(-1,dp(46)));
+        TextView moreCategories10099=pill("▾  All room categories",0xff392354,()->showAllLobbyCategories10099(selected));
+        moreCategories10099.setTextSize(12);
+        moreCategories10099.setContentDescription("Show all Party room categories");
+        LinearLayout.LayoutParams moreCategoriesLp10099=new LinearLayout.LayoutParams(-1,dp(38));
+        moreCategoriesLp10099.setMargins(dp(12),0,dp(12),dp(4));
+        root.addView(moreCategories10099,moreCategoriesLp10099);
         TextView joinLink959=pill("🔗 Join by link / Room ID",0xff6244a0,this::joinRoomLinkDialog959);
         joinLink959.setBackground(royalNeon9924(0xffc437a3,0xff6630a7,0xaaffdf92,15));
         joinLink959.setTextSize(12);
@@ -1006,6 +1012,16 @@ public class PartyActivity extends androidx.fragment.app.FragmentActivity implem
         TextView retry=tv("↻ Retry",13,0xffffd893,true);retry.setGravity(Gravity.CENTER);
         retry.setBackground(bg(0xff53326b,16));retry.setOnClickListener(v->renderLobby(selected));LinearLayout.LayoutParams rp=new LinearLayout.LayoutParams(dp(120),dp(38));rp.gravity=Gravity.CENTER;box.addView(retry,rp);
         LinearLayout.LayoutParams p=new LinearLayout.LayoutParams(-1,dp(112));p.setMargins(dp(6),dp(12),dp(6),0);host.addView(box,p);
+    }
+
+    private void showAllLobbyCategories10099(String selected10099){
+        final String[] options10099={"All rooms","Hot","Event","Date","Music","KTV","Radio",
+            "Game","PK","Pick Me","Video","Family","Team Up"};
+        new AlertDialog.Builder(this).setTitle("Browse Party categories")
+            .setItems(options10099,(dialog10099,which10099)->{
+                String chosen10099=options10099[which10099];
+                renderLobby("All rooms".equals(chosen10099)?"All":chosen10099);
+            }).setNegativeButton("Cancel",null).show();
     }
 
     private void addPromoCard() {
@@ -6481,11 +6497,13 @@ public class PartyActivity extends androidx.fragment.app.FragmentActivity implem
     }
 
     private boolean categoryMatches(String selected,String category){
-        if(selected==null||"Hot".equalsIgnoreCase(selected))return true;
+        if(selected==null||"All".equalsIgnoreCase(selected)||"Hot".equalsIgnoreCase(selected))return true;
         if("Music".equalsIgnoreCase(selected))return "Music".equalsIgnoreCase(category)||"Sing".equalsIgnoreCase(category)||"KTV".equalsIgnoreCase(category)||"Radio".equalsIgnoreCase(category);
+        if("KTV".equalsIgnoreCase(selected)||"Radio".equalsIgnoreCase(selected)||"PK".equalsIgnoreCase(selected)||"Pick Me".equalsIgnoreCase(selected)||"Family".equalsIgnoreCase(selected))return selected.equalsIgnoreCase(category);
         if("Game".equalsIgnoreCase(selected))return "Game".equalsIgnoreCase(category)||"PK".equalsIgnoreCase(category)||"Pick Me".equalsIgnoreCase(category);
         if("Video".equalsIgnoreCase(selected))return "Multi Video".equalsIgnoreCase(category)||"Video".equalsIgnoreCase(category);
         if("Event".equalsIgnoreCase(selected))return "Event".equalsIgnoreCase(category)||"Birthday".equalsIgnoreCase(category)||"Wedding".equalsIgnoreCase(category)||"Family".equalsIgnoreCase(category);
+        if("Team Up".equalsIgnoreCase(selected))return "Team Up".equalsIgnoreCase(category)||"TeamUp".equalsIgnoreCase(category)||"Gang Up".equalsIgnoreCase(category);
         return selected.equalsIgnoreCase(category);
     }
     private int themeAccentFor954(String theme){if("KTV".equals(theme))return 0xff5ca7ff;if("PK".equals(theme))return 0xffff6c83;if("Love".equals(theme))return 0xffff70b2;if("Game".equals(theme))return 0xff55dda4;if("Royal".equals(theme))return 0xffffd76a;if("Neon".equals(theme))return 0xff35e8ff;if("Galaxy".equals(theme))return 0xffa887ff;if("Festival".equals(theme))return 0xffff946e;if("Ice".equals(theme))return 0xff7de8ff;return 0xff35e6b3;}
