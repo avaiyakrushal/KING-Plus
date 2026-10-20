@@ -4744,7 +4744,8 @@ public class PartyActivity extends androidx.fragment.app.FragmentActivity implem
                 }
                 for(String k:known)out.append(k).append("  •  ").append(counts.containsKey(k)?counts.get(k):0).append('\n');
                 out.append("\nTotal votes: ").append(total);
-                String resultTitle=question.startsWith("❓ Room Quiz:")?"❓ Room Quiz Results":"💌 Vote Results";\n                new AlertDialog.Builder(this).setTitle(resultTitle).setMessage(out.toString())
+                String resultTitle=question.startsWith("❓ Room Quiz:")?"❓ Room Quiz Results":"💌 Vote Results";
+                new AlertDialog.Builder(this).setTitle(resultTitle).setMessage(out.toString())
                     .setPositiveButton("Vote",(d,w)->{
                         if(currentVoteRoom10001(resultsRoom10002,resultsUid10002,resultsBinding10002))submitCurrentVote();
                     }).setNeutralButton(isModerator()?"Close vote":null,(d,w)->{
@@ -5155,7 +5156,10 @@ public class PartyActivity extends androidx.fragment.app.FragmentActivity implem
         }
         if("Coupling".equals(name)){relationshipEvent();return;}
         if("Draw & Guess".equals(name)){openRoomGames740("Draw & Guess");return;}
-        if("Bingo".equals(name)){openRoomGames740("Bingo");return;}\n        if(name.contains("Ludo")){openRoomGames740("Ludo");return;}\n        if(name.contains("Dominoes")){openRoomGames740("Domino Match");return;}\n        if(name.contains("SHEEP")){openRoomGames740("Live Sheep Sprint");return;}
+        if("Bingo".equals(name)){openRoomGames740("Bingo");return;}
+        if(name.contains("Ludo")){openRoomGames740("Ludo");return;}
+        if(name.contains("Dominoes")){openRoomGames740("Domino Match");return;}
+        if(name.contains("SHEEP")){openRoomGames740("Live Sheep Sprint");return;}
         if(name.contains("Mobile Legends")||name.contains("PUBG")||name.contains("Free Fire")){
             new AlertDialog.Builder(this).setTitle("Game not embedded")
                 .setMessage("This third-party title is not inside KING Plus. Choose one of the KING games that is actually playable in this Party Room.")
