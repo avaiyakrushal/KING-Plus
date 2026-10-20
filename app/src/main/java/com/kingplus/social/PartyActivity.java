@@ -4744,7 +4744,7 @@ public class PartyActivity extends androidx.fragment.app.FragmentActivity implem
                 }
                 for(String k:known)out.append(k).append("  •  ").append(counts.containsKey(k)?counts.get(k):0).append('\n');
                 out.append("\nTotal votes: ").append(total);
-                new AlertDialog.Builder(this).setTitle("💌 Vote Results").setMessage(out.toString())
+                String resultTitle=question.startsWith("❓ Room Quiz:")?"❓ Room Quiz Results":"💌 Vote Results";\n                new AlertDialog.Builder(this).setTitle(resultTitle).setMessage(out.toString())
                     .setPositiveButton("Vote",(d,w)->{
                         if(currentVoteRoom10001(resultsRoom10002,resultsUid10002,resultsBinding10002))submitCurrentVote();
                     }).setNeutralButton(isModerator()?"Close vote":null,(d,w)->{
@@ -5154,8 +5154,8 @@ public class PartyActivity extends androidx.fragment.app.FragmentActivity implem
             String picked=pool.get(new java.util.Random().nextInt(pool.size()));new AlertDialog.Builder(this).setTitle("💘 Pick Me!").setMessage("Selected: "+picked).setPositiveButton("Again",(d,w)->startRoomTemplate(name)).setNegativeButton("Close",null).show();return;
         }
         if("Coupling".equals(name)){relationshipEvent();return;}
-        if("Draw & Guess".equals(name)){guessItPanel();return;}
-        if("Bingo".equals(name)||name.contains("Ludo")||name.contains("Dominoes")||name.contains("SHEEP")){openRoomGames740();return;}
+        if("Draw & Guess".equals(name)){openRoomGames740("Draw & Guess");return;}
+        if("Bingo".equals(name)){openRoomGames740("Bingo");return;}\n        if(name.contains("Ludo")){openRoomGames740("Ludo");return;}\n        if(name.contains("Dominoes")){openRoomGames740("Domino Match");return;}\n        if(name.contains("SHEEP")){openRoomGames740("Live Sheep Sprint");return;}
         if(name.contains("Mobile Legends")||name.contains("PUBG")||name.contains("Free Fire")){
             new AlertDialog.Builder(this).setTitle("Game not embedded")
                 .setMessage("This third-party title is not inside KING Plus. Choose one of the KING games that is actually playable in this Party Room.")
@@ -5234,10 +5234,10 @@ public class PartyActivity extends androidx.fragment.app.FragmentActivity implem
     private void runRoomEvent(String name){
         if("PK Battle".equals(name)){pkBattle();return;}
         if("Relationship".equals(name)){relationshipEvent();return;}
-        if("Crazy Fruits".equals(name)){fruitEvent();return;}
-        if("Chicken Run".equals(name)){chickenRunEvent();return;}
-        if("Animal PK".equals(name)){animalPkEvent();return;}
-        if("Lucky Slot".equals(name)){luckySlotEvent();return;}
+        if("Crazy Fruits".equals(name)||"Lucky Slot".equals(name)){openRoomGames740("Slot Clash");return;}
+        if("Chicken Run".equals(name)){openRoomGames740("Live Sheep Sprint");return;}
+        if("Animal PK".equals(name)){openRoomGames740("Crazy Zoo");return;}
+        
         if("Treasure Hunt".equals(name)){openRoomGames740("Treasure Hunt");return;}
         if("Room Quiz".equals(name)){roomQuizEvent();return;}
         if("Magic Lamp".equals(name)){simplePrizeEvent("🪄 Magic Lamp",new String[]{"✨ Wish granted","💎 Treasure sparkle","👑 Royal challenge","🌹 Send a rose"});return;}
@@ -5254,12 +5254,27 @@ public class PartyActivity extends androidx.fragment.app.FragmentActivity implem
         if(labels.isEmpty()){toast("Another signed-in room member is required");return;}
         new AlertDialog.Builder(this).setTitle("💞 Relationship").setItems(labels.toArray(new String[0]),(d,w)->{String n=labels.get(w),uid=ids.get(w);addEvent("relationship",safeName()+" sent a relationship invite to "+n+" 💞");new AlertDialog.Builder(this).setTitle("Invite sent").setMessage("A room event was posted for "+n+". You can continue in private chat or send a gift.").setPositiveButton("Private chat",(x,y)->openPrivateChat(uid,n)).setNeutralButton("Send Gift",(x,y)->giftDialogFor(uid,n)).setNegativeButton("Close",null).show();}).setNegativeButton("Close",null).show();
     }
-    private void fruitEvent(){String[] f={"🍒","🍋","🍇","🍉","🍓"};java.util.Random r=new java.util.Random();String a=f[r.nextInt(f.length)],b=f[r.nextInt(f.length)],c=f[r.nextInt(f.length)];boolean win=a.equals(b)&&b.equals(c);String result=a+"   "+b+"   "+c+"\n\n"+(win?"🎉 JACKPOT":"Try again");addEvent("play",safeName()+" played Crazy Fruits • "+a+b+c);new AlertDialog.Builder(this).setTitle("🍒 Crazy Fruits").setMessage(result).setPositiveButton("Spin again",(d,w)->fruitEvent()).setNegativeButton("Close",null).show();}
-    private void chickenRunEvent(){String[] lanes={"Lane 1","Lane 2","Lane 3"};new AlertDialog.Builder(this).setTitle("🐔 Chicken Run").setItems(lanes,(d,w)->{int winner=new java.util.Random().nextInt(3);boolean ok=w==winner;String result=(ok?"🏆 Winner! ":"🐔 Winner was ")+lanes[winner];addEvent("play",safeName()+" played Chicken Run • "+result);new AlertDialog.Builder(this).setTitle("Chicken Run").setMessage(result).setPositiveButton("Again",(x,y)->chickenRunEvent()).setNegativeButton("Close",null).show();}).setNegativeButton("Close",null).show();}
-    private void animalPkEvent(){String[] animals={"🦁 Lion","🐯 Tiger","🐼 Panda","🦊 Fox"};new AlertDialog.Builder(this).setTitle("🐯 Animal PK").setItems(animals,(d,w)->{int me=30+new java.util.Random().nextInt(71),other=30+new java.util.Random().nextInt(71);String res=animals[w]+" "+me+"  vs  KING Bot "+other+"\n\n"+(me>=other?"🏆 You win":"Try again");addEvent("play",safeName()+" played Animal PK • "+me+":"+other);new AlertDialog.Builder(this).setTitle("Animal PK").setMessage(res).setPositiveButton("Again",(x,y)->animalPkEvent()).setNegativeButton("Close",null).show();}).setNegativeButton("Close",null).show();}
-    private void luckySlotEvent(){String[] x={"7️⃣","⭐","💎","👑","🍒"};java.util.Random r=new java.util.Random();String a=x[r.nextInt(x.length)],b=x[r.nextInt(x.length)],c=x[r.nextInt(x.length)];int score=(a.equals(b)&&b.equals(c))?100:(a.equals(b)||b.equals(c)||a.equals(c)?30:5);addEvent("play",safeName()+" spun Lucky Slot • score "+score);new AlertDialog.Builder(this).setTitle("🎰 Lucky Slot").setMessage(a+"   "+b+"   "+c+"\n\nScore: "+score).setPositiveButton("Spin again",(d,w)->luckySlotEvent()).setNegativeButton("Close",null).show();}
-    private void treasureHuntEvent(){String[] ch={"Chest 1","Chest 2","Chest 3"};new AlertDialog.Builder(this).setTitle("💎 Treasure Hunt").setItems(ch,(d,w)->{int treasure=new java.util.Random().nextInt(3);String res=w==treasure?"🎁 Treasure found!":"Empty chest • treasure was in "+ch[treasure];addEvent("play",safeName()+" played Treasure Hunt • "+res);new AlertDialog.Builder(this).setTitle("Treasure Hunt").setMessage(res).setPositiveButton("Again",(x,y)->treasureHuntEvent()).setNegativeButton("Close",null).show();}).setNegativeButton("Close",null).show();}
-    private void roomQuizEvent(){String q="Which feature opens the room tool sheet?";String[] a={"＋ button","Back button","Room name","Heart badge"};new AlertDialog.Builder(this).setTitle("❓ Room Quiz").setMessage(q).setItems(a,(d,w)->{boolean ok=w==0;String res=ok?"✅ Correct":"❌ Correct answer: ＋ button";addEvent("play",safeName()+" answered Room Quiz • "+(ok?"correct":"wrong"));new AlertDialog.Builder(this).setTitle("Room Quiz").setMessage(res).setPositiveButton("OK",null).show();}).setNegativeButton("Close",null).show();}
+    private void roomQuizEvent(){
+        if(!cloudRoom||db==null||user==null||!memberSeen){toast("Room Quiz needs a joined live Firebase Party");return;}
+        if(isModerator()){
+            if("vote".equals(activeGameType)&&activeGameRound>0){votePanel();return;}
+            startRoomQuizDialog10101();
+        }else submitCurrentVote();
+    }
+    private void startRoomQuizDialog10101(){
+        if(!canStartRoomGame("Room Quiz"))return;
+        LinearLayout form=new LinearLayout(this);form.setOrientation(LinearLayout.VERTICAL);form.setPadding(dp(8),0,dp(8),0);
+        EditText question=new EditText(this);question.setSingleLine(true);question.setText("Which control opens the room tools?");question.setHint("Quiz question");form.addView(question);
+        EditText[] answers=new EditText[4];String[] defaults={"＋ Tools button","Back button","Room title","Heart badge"};
+        for(int i=0;i<answers.length;i++){answers[i]=new EditText(this);answers[i].setSingleLine(true);answers[i].setHint("Answer "+(i+1));answers[i].setText(defaults[i]);form.addView(answers[i]);}
+        new AlertDialog.Builder(this).setTitle("❓ Start live Room Quiz").setMessage("Room members answer the same question. Results show a shared tally; no coins, XP or VIP are awarded.").setView(form).setPositiveButton("Start Quiz",(d,w)->{
+            if(!cloudRoom||!memberSeen||!isModerator()||db==null||user==null){toast("Host/co-host access changed; reopen Room Quiz");return;}
+            String q=question.getText().toString().trim();if(q.isEmpty()||q.length()>120){toast("Enter a question of 1–120 characters");return;}
+            ArrayList<String> options=new ArrayList<>();for(EditText answer:answers){String a=answer.getText().toString().trim();if(a.isEmpty()||a.length()>60||options.contains(a)){toast("Enter four different answers, up to 60 characters each");return;}options.add(a);}
+            Map<String,Object> extras=new HashMap<>();extras.put("options",options);extras.put("participantUids",new ArrayList<String>());
+            publishGameState("vote","❓ Room Quiz: "+q,"",extras);
+        }).setNegativeButton("Cancel",null).show();
+    }
 
     private void simplePrizeEvent(String title,String[] prizes){
         String result=prizes[new java.util.Random().nextInt(prizes.length)];addEvent("play",safeName()+" played "+title+" • "+result);

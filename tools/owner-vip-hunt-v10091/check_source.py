@@ -21,6 +21,6 @@ assert '"💎","Hunt"' in menu and 'if("hunt".equalsIgnoreCase(code))' in menu
 assert 'else if("hunt".equals(game))showHunt()' in game
 assert 'no wallet Diamonds' in game and 'never spends or awards Diamonds' in game
 assert 'token.getClaims().get("admin")' in wallet and 'Gift sending: ∞ • Owner entitlement' in wallet
-assert 'versionCode 379' in gradle and '10.0.100-party-treasure-hunt-live' in gradle
-assert "versionCode='379'" in workflow and 'KING-Plus-v10.0.100-Party-Treasure-TEST.apk' in workflow
+assert 'versionCode 380' in gradle and '10.0.101-party-events-live' in gradle
+assert "versionCode='380'" in workflow and 'KING-Plus-v10.0.101-Party-Events-TEST.apk' in workflow
 print('PASS: owner VIP and unlimited gift privileges require trusted admin claims; Hunt is local and wallet-free')
