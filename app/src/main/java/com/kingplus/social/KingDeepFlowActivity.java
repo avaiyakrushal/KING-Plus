@@ -188,7 +188,7 @@ public class KingDeepFlowActivity extends Activity {
         body.addView(h,new LinearLayout.LayoutParams(-1,dp(92)));
     }
     private void profileMenu(){hero("👤  "+safe(mainPrefs.getString("name","KING User"),"KING User"),
-    "Activity level is a device-only TEST preview • VIP is read from verified Wallet");
+    "Activity level is based on server-confirmed Check-ins • VIP is read from verified Wallet");
         section("Account & status");
         row("📊","Data Center","Profile activity, social counts, gifts and rooms","data_center");
         KingAgencyAccess9982.check(this,allowed->{
@@ -207,7 +207,7 @@ public class KingDeepFlowActivity extends Activity {
                     });
             });
         }
-        row("⭐","User Level Center","Normal level, XP and achievements","level_center");
+        row("⭐","User Level Center","Account-synced Check-in level and verified XP","level_center");
         row("💎","VIP Level","VIP 0–50 progression and privileges","vip");
         row("♛","Noble Center","Noble identity and room privileges","noble");
         row("💳","Wallet","Verified Diamonds, recharge and transaction history","wallet");
@@ -427,7 +427,7 @@ public class KingDeepFlowActivity extends Activity {
     private void settingsAccount(){
         com.google.firebase.auth.FirebaseUser u955=null;try{u955=com.google.firebase.auth.FirebaseAuth.getInstance().getCurrentUser();}catch(Exception ignored){}
         hero("🔐 Account & Security",u955==null?"Not signed in":"Signed in • "+(u955.getEmail()==null?"KING account":u955.getEmail()));
-        toggle("Remember login","remember_login",true);
+        chip("Your selected Google or phone session stays signed in until you sign out.",()->{});
         section("Identity");
         row("📱","Login devices & history","Current device • "+android.os.Build.MODEL,this::loginDevices940);
         row("🔑","Change / bind phone","Mobile identity flow","detail_bind_phone");
@@ -474,8 +474,7 @@ public class KingDeepFlowActivity extends Activity {
     private void settingsNetwork(){
         boolean online955=KingNetwork.online(this);
         hero("🌐 Network & Media",(online955?"● Online":"○ Offline")+" • "+android.os.Build.MODEL);
-        section("Reconnect & Data");toggle("Auto reconnect voice/video","auto_reconnect",true);toggle("Low-data voice mode","low_data_voice",false);
-        section("Visual Effects");toggle("Auto-play gift effects","autoplay_gifts",true);toggle("Auto-play entrance effects","autoplay_entrance",true);
+        section("Connection");chip("Room connectivity and reconnect follow Android network status and the active voice/video session.",()->{});
         section("Diagnostics");row("🎙","Voice diagnostics","Open voice room test","video_center");row("📹","Video diagnostics","Open video room test","video_center");
         row("↻","Connection status",online955?"Network available":"Offline • realtime features pause",()->toast(KingNetwork.online(this)?"KING Plus is online":"KING Plus is offline"));
     }
@@ -751,7 +750,7 @@ public class KingDeepFlowActivity extends Activity {
         row("🔔","Notifications","Open your account inbox","detail_profile_notifications");
         row("🛡","Safety Center","Cloud block list, report receipts and privacy","detail_profile_safety");
         section("Activity & saved rooms");
-        row("⭐","Level & Achievements","Device-only TEST level; unverified achievements stay locked","level_center");
+        row("⭐","Level & Achievements","Account-synced Check-in level and verified milestones","level_center");
         row("💎","VIP","Verified Wallet entitlement and tier previews","vip");
         row("🏅","Medals & Influence","Unverified milestones remain locked","medal_center");
         row("📌","Favorite Party Rooms","Open your saved account rooms","detail_profile_favorites");
@@ -831,8 +830,54 @@ public class KingDeepFlowActivity extends Activity {
         row("🔐","Privacy controls","Discoverability, room invites and private messages","settings_privacy");
         row("📜","Community rules","Safety and fair-play rules","rules");
     }
-    private void levelCenter(){LevelSystem.Snapshot s=LevelSystem.read(this);hero("🏆 TEST Activity Level "+s.level+" / "+LevelSystem.MAX_LEVEL,"Device-only preview • not account-synced or server-verified • XP has no reward value");row("🔒","Achievements","Locked until verified activity tracking is available","medal_center");row("🎮","Game Master","Game activity is not credited to a verified level","game_center");row("🎤","Voice Explorer","Party / voice participation is not credited to a verified level",()->KingNav.openRoot(this,0));row("👥","Friends","Community and followers","social_center");}
-    private void medalCenter(){hero("🏅 Medals & Influence","TEST catalog • no medal is granted from device-only XP or unverified VIP");String[] n={"Rising Star","Elite Voice","Game Master","VIP Supporter","Royal Patron","KING Supreme"};String[] req={"Verified activity tracking pending","Verified activity tracking pending","Verified game results pending","Verified Wallet entitlement pending","Verified Wallet entitlement pending","Verified Wallet entitlement pending"};for(int i=0;i<n.length;i++)row("🔒",n[i],req[i],()->{});}
+    private void levelCenter(){
+        hero("🏆 Account Activity Level","Account-synced level from verified Daily Check-ins only. XP is nonredeemable and never changes Diamonds, Wallet or VIP.");
+        TextView progress=tv("Loading verified account progress…",14,sub(),false);
+        progress.setBackground(bg(card(),14));body.addView(progress,new LinearLayout.LayoutParams(-1,dp(96)));
+        loadAccountProgress10095(progress,"level_center",false);
+        row("✅","Daily Check-in","Claim once per Kolkata day and build account XP","task_center");
+        row("🏅","Check-in Medals","Milestones earned only from server-confirmed check-ins","medal_center");
+        row("🎮","Game Master","Game results do not grant verified Activity XP yet","game_center");
+        row("🎤","Voice Explorer","Party and voice participation do not grant verified Activity XP yet",()->KingNav.openRoot(this,0));
+    }
+    private void medalCenter(){
+        hero("🏅 Account Medals","Only account-synced, server-confirmed Daily Check-in milestones appear here. Game and paid VIP medals are not granted from device activity.");
+        TextView milestones=tv("Loading verified medal progress…",14,sub(),false);
+        milestones.setBackground(bg(card(),14));body.addView(milestones,new LinearLayout.LayoutParams(-1,dp(154)));
+        loadAccountProgress10095(milestones,"medal_center",true);
+        row("✅","Daily Check-in","Open your server-synced streak and Activity XP","task_center");
+    }
+    private void loadAccountProgress10095(TextView view,String expectedRoute,boolean showMilestones){
+        FirebaseUser owner=FirebaseAuth.getInstance().getCurrentUser();
+        if(owner==null||owner.isAnonymous()){view.setText("Sign in to a permanent KING account to load verified progress.");return;}
+        final String uid=owner.getUid();
+        FirebaseFunctions.getInstance().getHttpsCallable("getDailyCheckinStatus").call()
+            .addOnSuccessListener(result->{
+                FirebaseUser now=FirebaseAuth.getInstance().getCurrentUser();
+                if(isFinishing()||isDestroyed()||!expectedRoute.equals(route)||view.getParent()!=body
+                    ||now==null||!uid.equals(now.getUid())||!(result.getData() instanceof Map))return;
+                Map<?,?> data=(Map<?,?>)result.getData();
+                int level=number10095(data.get("activityLevel"),1), streak=number10095(data.get("streak"),0);
+                int claims=number10095(data.get("totalClaims"),0), xp=number10095(data.get("activityXp"),0);
+        int next=number10095(data.get("nextLevelXp"),500), current=number10095(data.get("currentLevelXp"),0);
+                if(showMilestones){
+                    view.setText((claims>=1?"✅":"🔒")+" First check-in  •  "+claims+" total\n\n"+
+                        (claims>=7?"✅":"🔒")+" 7 check-ins  •  "+Math.min(claims,7)+" / 7\n\n"+
+                        (streak>=7?"✅":"🔒")+" 7-day streak  •  "+Math.min(streak,7)+" / 7\n\n"+
+                        (claims>=30?"✅":"🔒")+" 30 check-ins  •  "+Math.min(claims,30)+" / 30");
+                }else{
+                    String nextText=level>=99?"Maximum level reached":"Next level at "+next+" XP  •  "+Math.max(0,next-xp)+" XP to go";
+                    view.setText("KING Account Level "+level+" / 99\n"+xp+" verified Activity XP  •  "+
+                        (level>=99?"":"Level progress "+Math.max(0,xp-current)+" / "+Math.max(1,next-current)+" XP\n")+nextText+
+                        "\n🔥 "+streak+" day streak  •  "+claims+" total check-ins\nXP is nonredeemable; no local or game XP is counted.");
+                }
+            }).addOnFailureListener(error->{
+                FirebaseUser now=FirebaseAuth.getInstance().getCurrentUser();
+                if(!isFinishing()&&!isDestroyed()&&expectedRoute.equals(route)&&view.getParent()==body
+                    &&now!=null&&uid.equals(now.getUid()))view.setText("Verified account progress is unavailable right now. No device-only level or medal is shown; retry from Daily Check-in when online.");
+            });
+    }
+    private int number10095(Object value,int fallback){return value instanceof Number?Math.max(0,((Number)value).intValue()):fallback;}
     private void socialCenter(){row("▣","Square / Moments","Posts and activity",()->openCommunity("Moments"));row("👤","People Search","KING ID and profiles",()->openCommunity("Search"));row("👥","Friends / Followers","Follow and private chat",()->{Intent i=new Intent(this,SocialActivity.class);startActivity(i);});row("🏠","Family","Family square and members",()->openCommunity("Family"));row("💞","Relationship / CP","Pairing and gifts",()->openCommunity("Relationship"));row("💬","Messages","Chats and notifications",()->KingNav.openRoot(this,3));}
     private void discoverCenter(){row("🏆","Contribution Ranking","Discover room/user rankings",()->startActivity(new Intent(this,DiscoverActivity.class)));row("✨","Charisma Ranking","Profiles and contribution",()->startActivity(new Intent(this,DiscoverActivity.class)));row("🎪","Activity Recommendation","Rooms and events",()->startActivity(new Intent(this,DiscoverActivity.class)));row("🎮","Game Master","Game discovery","game_center");row("📍","Nearby / Recommended","People and rooms",()->openCommunity("Search"));}
 

@@ -23,8 +23,9 @@ import java.util.*;
  *
  * The 10 preferences are ACCOUNT-SYNCED, not a promise that every back-end
  * push producer respects them. Backend-enforced: new direct messages respect
- * recipient allowPrivateMessages and both account block directions.
- * Gift/mic/room permissions retain their existing independent rules.
+ * recipient allowPrivateMessages, Party invites respect allowRoomInvites, and
+ * both account block directions are checked. Discovery, presence and display
+ * toggles are synced preferences and may not be enforced by every legacy surface.
  */
 public final class KingMePrivacy9984Activity extends Activity {
  private FirebaseFirestore db;
@@ -106,14 +107,14 @@ public final class KingMePrivacy9984Activity extends Activity {
  }
  private void renderPrivacy(){
    root.addView(label("🛡 Account Privacy — synced across signed-in devices",18));
-   root.addView(label("New private messages respect Allow Private Messages and your Block List. Other privacy preferences are saved online, but not every Party/Discovery service enforces them yet.",13));
+   root.addView(label("New private messages and Cloud Party invitations respect their saved permissions and your Block List. Find-me, online-status and entrance-display preferences sync online but are not enforced on every legacy surface yet.",13));
    for(int i=0;i<KingMePrivacyPolicy9984.PRIVACY.length;i++)
       toggle(KingMePrivacyPolicy9984.PRIVACY[i],KingMePrivacyPolicy9984.PRIVACY_LABELS[i]);
    button("🚫 Review / unblock accounts",()->{page="blocked";render();});
  }
  private void renderNotifications(){
    root.addView(label("🔔 Notification preferences — saved to your Firebase account",18));
-   root.addView(label("Choices sync across phones. FCM delivery filtering by each setting still requires the production notification sender to check these preferences.",13));
+   root.addView(label("When Cloud Functions are deployed, message, follow, room-invite and gift alerts use these saved choices. Android notification permission is controlled separately below.",13));
    for(int i=0;i<KingMePrivacyPolicy9984.NOTIFY.length;i++)
       toggle(KingMePrivacyPolicy9984.NOTIFY[i],KingMePrivacyPolicy9984.NOTIFY_LABELS[i]);
    button("⚙ Android notification permission",()->{

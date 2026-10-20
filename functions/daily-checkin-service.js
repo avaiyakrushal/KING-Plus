@@ -1,6 +1,10 @@
 'use strict';
 const XP_PER_CHECKIN=10;
+const MAX_ACTIVITY_LEVEL=99;
 const DAY_RE=/^\d{4}-\d{2}-\d{2}$/;
+function levelThreshold(level){if(level<=1)return 0;const n=level-1;return 150*n*n+350*n;}
+function levelFor(xp){let level=1;while(level<MAX_ACTIVITY_LEVEL&&xp>=levelThreshold(level+1))level++;return level;}
+function progressFields(xp){const level=levelFor(xp);return{activityLevel:level,nextLevelXp:level>=MAX_ACTIVITY_LEVEL?xp:levelThreshold(level+1),currentLevelXp:levelThreshold(level)};}
 function dayOrdinal(day){
   if(typeof day!=='string'||!DAY_RE.test(day))return null;
   const ms=Date.parse(day+'T00:00:00.000Z');
@@ -21,8 +25,9 @@ function createDailyCheckinService({db,timestamp,today=todayInKolkata}){
     if(!userId(uid))throw Object.assign(new Error('Sign in required.'),{code:'unauthenticated'});
     const day=today();const root=db.collection('king_daily_checkins').doc(uid);
     const snap=await root.get();const data=snap.exists?(snap.data()||{}):{};
+    const activityXp=Number(data.activityXp)||0;
     return {ok:true,day,claimedToday:data.lastClaimDay===day,streak:Number(data.streak)||0,
-      totalClaims:Number(data.totalClaims)||0,activityXp:Number(data.activityXp)||0,
+      totalClaims:Number(data.totalClaims)||0,activityXp,...progressFields(activityXp),
       todayXp:data.lastClaimDay===day?Number(data.lastClaimXp)||XP_PER_CHECKIN:0};
   }
   async function claim({uid}){
@@ -35,8 +40,9 @@ function createDailyCheckinService({db,timestamp,today=todayInKolkata}){
       const old=account.exists?(account.data()||{}):{};
       if(old.lastClaimDay===day||receipt.exists){
         const eventData=receipt.exists?(receipt.data()||{}):{};
+        const activityXp=Number(old.activityXp)||0;
         return {ok:true,claimed:false,day,streak:Number(eventData.streak||old.streak)||0,
-          totalClaims:Number(old.totalClaims)||0,activityXp:Number(old.activityXp)||0,todayXp:Number(eventData.xp)||0};
+          totalClaims:Number(old.totalClaims)||0,activityXp,...progressFields(activityXp),todayXp:Number(eventData.xp)||0};
       }
       const previous=dayOrdinal(old.lastClaimDay);
       const streak=previous!==null&&ordinal-previous===1?(Number(old.streak)||0)+1:1;
@@ -46,9 +52,9 @@ function createDailyCheckinService({db,timestamp,today=todayInKolkata}){
       const next={uid,lastClaimDay:day,streak,totalClaims,activityXp,lastClaimXp:XP_PER_CHECKIN,updatedAt:at};
       tx.set(root,next,{merge:true});
       tx.set(event,{uid,day,streak,xp:XP_PER_CHECKIN,nonRedeemable:true,claimedAt:at});
-      return {ok:true,claimed:true,day,streak,totalClaims,activityXp,todayXp:XP_PER_CHECKIN};
+      return {ok:true,claimed:true,day,streak,totalClaims,activityXp,...progressFields(activityXp),todayXp:XP_PER_CHECKIN};
     });
   }
   return {status,claim};
 }
-module.exports={createDailyCheckinService,todayInKolkata,dayOrdinal,XP_PER_CHECKIN};
+module.exports={createDailyCheckinService,todayInKolkata,dayOrdinal,XP_PER_CHECKIN,levelFor,levelThreshold};

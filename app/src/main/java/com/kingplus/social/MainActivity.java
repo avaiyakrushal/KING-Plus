@@ -1846,7 +1846,7 @@ public class MainActivity extends Activity {
         startActivity(i);
     }
 
-    private TextView liveMeName10064, liveMeGift10064, liveMeVip10064;
+    private TextView liveMeName10064, liveMeGift10064, liveMeVip10064, liveMeLevel10095;
     private com.google.firebase.firestore.ListenerRegistration meIdentityListener10064;
     private void profile() { profileV600(); }
 
@@ -1854,7 +1854,6 @@ public class MainActivity extends Activity {
         screen="profile";stopMic();
         renderedProfileUid10030=firebaseAuth!=null&&firebaseAuth.getCurrentUser()!=null
             ?firebaseAuth.getCurrentUser().getUid():null;
-        final LevelSystem.Snapshot progress700=LevelSystem.read(this);final int level=progress700.level;
         // Never show a guessed hash-based public ID. Fetch the issued ID from Firestore.
         final String uid="Not issued";
         // An avatar stored for account A must never render on account B's Me page.
@@ -1894,7 +1893,7 @@ public class MainActivity extends Activity {
         LinearLayout mini=header.findViewById(R.id.me_badges_10064);
         TextView vip=smallBadge("VIP …",0xffffe57b,0xff5a4100);
         liveMeVip10064=vip;mini.addView(vip,new LinearLayout.LayoutParams(dp(65),dp(28)));
-        TextView lv=smallBadge("Lv."+level,0xff8865e8,Color.WHITE);
+        TextView lv=smallBadge("Lv.…",0xff8865e8,Color.WHITE);liveMeLevel10095=lv;
         mini.addView(lv,new LinearLayout.LayoutParams(dp(65),dp(28)));
         liveMeGift10064=header.findViewById(R.id.me_gifts_10064);
         liveMeGift10064.setOnClickListener(v->openDeepFlow810("gift_wall"));
@@ -2107,12 +2106,33 @@ public class MainActivity extends Activity {
             if(profileFriendsNumber!=null)profileFriendsNumber.setText("—");
             if(profileTopBalance!=null)profileTopBalance.setText("💎 —");
             if(profileWalletCoins!=null)profileWalletCoins.setText("💎 —");
+            if(liveMeLevel10095!=null)liveMeLevel10095.setText("Lv.—");
             return;
         }
         final String uid=firebaseAuth.getCurrentUser().getUid();
         startProfileFollowUpdates965(uid);
+        loadServerActivityLevel10095(uid);
         loadProfileVisitors940(uid);
         refreshServerWallet();
+    }
+
+    private void loadServerActivityLevel10095(String ownerUid){
+        final TextView badge=liveMeLevel10095;
+        if(badge==null||ownerUid==null||ownerUid.isEmpty())return;
+        badge.setText("Lv.…");
+        com.google.firebase.functions.FirebaseFunctions.getInstance().getHttpsCallable("getDailyCheckinStatus").call()
+            .addOnSuccessListener(result->{
+                FirebaseUser current=firebaseAuth==null?null:firebaseAuth.getCurrentUser();
+                if(isFinishing()||isDestroyed()||!"profile".equals(screen)||badge!=liveMeLevel10095
+                    ||badge.getParent()==null||current==null||!ownerUid.equals(current.getUid())
+                    ||!(result.getData() instanceof Map))return;
+                Object level=((Map<?,?>)result.getData()).get("activityLevel");
+                badge.setText(level instanceof Number?"Lv."+((Number)level).intValue():"Lv.—");
+            }).addOnFailureListener(error->{
+                FirebaseUser current=firebaseAuth==null?null:firebaseAuth.getCurrentUser();
+                if(!isFinishing()&&!isDestroyed()&&"profile".equals(screen)&&badge==liveMeLevel10095
+                    &&badge.getParent()!=null&&current!=null&&ownerUid.equals(current.getUid()))badge.setText("Lv.—");
+            });
     }
     private int profileFollowGeneration10008;
     private void stopProfileFollowUpdates965(){

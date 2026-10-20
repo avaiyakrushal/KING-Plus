@@ -8,12 +8,12 @@ main = (root / 'app/src/main/java/com/kingplus/social/MainActivity.java').read_t
 backend = (root / 'functions/index.js').read_text()
 tests = (root / '.github/workflows/king-v10077-party-rejoin-choice.yml').read_text()
 
-assert 'versionCode 374' in gradle and '10.0.95-owner-console' in gradle
+assert 'versionCode 375' in gradle and '10.0.96-me-profile-progress' in gradle
 assert 'getClaims().get("admin")' in flow and 'Owner Console' in flow
 assert 'getOwnerConsoleSnapshot' in admin and 'updateOwnerAppSettings' in admin
 assert 'accounts:' in backend and 'openReports:' in backend and 'agencies:' in backend
 assert 'getPublicAppNotice' in backend and 'loadOwnerAppNotice10095' in main
 assert "permission-denied" in backend and "request.auth.token.admin !== true" in backend
 assert 'owner-settings.test.js' in tests
-assert 'KING-Plus-v10.0.95-Owner-Console-TEST.apk' in tests
+assert 'KING-Plus-v10.0.96-Me-Profile-TEST.apk' in tests
 print('PASS: claim-gated owner console, server settings, public notice and release metadata')

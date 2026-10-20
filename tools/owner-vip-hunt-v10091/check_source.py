@@ -21,6 +21,6 @@ assert '"💎","Hunt"' in menu and 'if("hunt".equalsIgnoreCase(code))' in menu
 assert 'else if("hunt".equals(game))showHunt()' in game
 assert 'no wallet Diamonds' in game and 'never spends or awards Diamonds' in game
 assert 'token.getClaims().get("admin")' in wallet and 'Gift sending: ∞ • Owner entitlement' in wallet
-assert 'versionCode 374' in gradle and '10.0.95-owner-console' in gradle
-assert "versionCode='374'" in workflow and 'KING-Plus-v10.0.95-Owner-Console-TEST.apk' in workflow
+assert 'versionCode 375' in gradle and '10.0.96-me-profile-progress' in gradle
+assert "versionCode='375'" in workflow and 'KING-Plus-v10.0.96-Me-Profile-TEST.apk' in workflow
 print('PASS: owner VIP and unlimited gift privileges require trusted admin claims; Hunt is local and wallet-free')

@@ -13,11 +13,15 @@ assert 'putLong("vip_points"' not in level
 assert 'Local TEST preview only; no cloud profile, XP, VIP, Noble, or reward credit.' in party
 assert 'syncMyProgress700(after)' not in party
 assert 'm.put("xp",p.xp)' not in party
-assert 'TEST Activity Level' in flow
-assert 'Device-only preview • not account-synced or server-verified • XP has no reward value' in flow
-assert 'TEST catalog • no medal is granted from device-only XP or unverified VIP' in flow
-assert 'Verified Wallet entitlement pending' in flow
+assert 'Account Activity Level' in flow
+assert 'Account-synced level from verified Daily Check-ins only.' in flow
+assert 'Account Medals' in flow
+assert 'Only account-synced, server-confirmed Daily Check-in milestones appear here.' in flow
+assert 'loadAccountProgress10095' in flow
+assert 'getHttpsCallable(\"getDailyCheckinStatus\")' in flow
+assert 'nextLevelXp' in flow
+assert 'Paid VIP cosmetics require verified server entitlement' in flow
 assert 'Counts and records come from your signed-in account.' not in flow
 assert 'Account-scoped report receipts from the server' in flow
 
-print('PASS: device-only activity is labeled TEST, cannot mint VIP or cloud XP, and unverified medals stay locked')
+print('PASS: Activity Level and Medals use account-verified check-ins; local XP cannot mint VIP or wallet value')

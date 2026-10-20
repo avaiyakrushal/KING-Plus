@@ -1,7 +1,7 @@
 'use strict';
 const {test}=require('node:test');
 const assert=require('node:assert/strict');
-const {createDailyCheckinService,todayInKolkata,dayOrdinal}=require('./daily-checkin-service');
+const {createDailyCheckinService,todayInKolkata,dayOrdinal,levelFor,levelThreshold}=require('./daily-checkin-service');
 class Database{
  constructor(){this.data=new Map();this.tail=Promise.resolve();}
  collection(path){return{doc:name=>this.ref(path+'/'+name)};}
@@ -16,6 +16,7 @@ test('claim grants one nonredeemable activity XP receipt and current streak',asy
  const day={current:'2026-10-20'}, {db,service}=setup(day);const out=await service.claim({uid:'memberA'});
  assert.deepEqual([out.claimed,out.day,out.streak,out.totalClaims,out.todayXp],[true,'2026-10-20',1,1,10]);
  assert.equal(db.data.get('king_daily_checkins/memberA').activityXp,10);
+ assert.deepEqual([out.activityLevel,out.currentLevelXp,out.nextLevelXp],[1,0,500]);
  assert.equal(db.data.get('king_daily_checkins/memberA/events/2026-10-20').nonRedeemable,true);
 });
 test('duplicate same-day and concurrent claims never award twice',async()=>{
@@ -40,4 +41,8 @@ test('rejects missing identity and malformed dates',async()=>{
 });
 test('Kolkata date uses India local day boundary',()=>{
  assert.equal(todayInKolkata(new Date('2026-10-19T19:00:00Z')),'2026-10-20');
+});
+test('account level derives only from verified server Activity XP',()=>{
+ assert.equal(levelFor(0),1);assert.equal(levelFor(499),1);assert.equal(levelFor(500),2);
+ assert.equal(levelFor(levelThreshold(99)),99);
 });

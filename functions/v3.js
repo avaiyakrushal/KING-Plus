@@ -6,6 +6,7 @@ const { onDocumentCreated } = require('firebase-functions/v2/firestore');
 const { getFirestore, FieldValue } = require('firebase-admin/firestore');
 const { getMessaging } = require('firebase-admin/messaging');
 const { google } = require('googleapis');
+const { shouldDeliverNotification, canReceiveRoomInvite } = require('./notification-preferences');
 
 const db = getFirestore();
 const PACKAGE_NAME = 'com.kingplus.social';
@@ -73,6 +74,9 @@ async function tokensForUser(uid) {
 }
 
 async function sendUserNotification(uid, title, body, data = {}) {
+  const preferenceSnap = await db.collection('king_me_preferences').doc(uid).get();
+  const preferences = preferenceSnap.exists ? preferenceSnap.data() : null;
+  if (!shouldDeliverNotification(data, preferences)) return { sent: 0, failed: 0, suppressed: true };
   await db.collection('notifications').doc(uid).collection('items').add({
     title, body, data, read: false, createdAt: FieldValue.serverTimestamp()
   });
@@ -246,6 +250,10 @@ const secureSendRoomInvite = onCall(async request => {
   await assertActiveUser(senderUid);
   await assertReceivableUser(targetUid);
   await assertSocialAllowed(senderUid, targetUid);
+  const targetPrefs = await db.collection('king_me_preferences').doc(targetUid).get();
+  if (!canReceiveRoomInvite(targetPrefs.exists ? targetPrefs.data() : null)) {
+    throw new HttpsError('permission-denied', 'This account does not accept Party invitations.');
+  }
   const result = await sendUserNotification(targetUid, 'Room invitation', roomName, {
     type: 'room_invite', roomId, senderUid
   });
