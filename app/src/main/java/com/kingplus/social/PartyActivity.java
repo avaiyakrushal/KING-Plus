@@ -5238,7 +5238,7 @@ public class PartyActivity extends androidx.fragment.app.FragmentActivity implem
         if("Chicken Run".equals(name)){chickenRunEvent();return;}
         if("Animal PK".equals(name)){animalPkEvent();return;}
         if("Lucky Slot".equals(name)){luckySlotEvent();return;}
-        if("Treasure Hunt".equals(name)){treasureHuntEvent();return;}
+        if("Treasure Hunt".equals(name)){openRoomGames740();return;}
         if("Room Quiz".equals(name)){roomQuizEvent();return;}
         if("Magic Lamp".equals(name)){simplePrizeEvent("🪄 Magic Lamp",new String[]{"✨ Wish granted","💎 Treasure sparkle","👑 Royal challenge","🌹 Send a rose"});return;}
         if("KING Tap Sprint".equals(name)||"Forza Motorsport".equals(name)){simpleRaceEvent();return;}
