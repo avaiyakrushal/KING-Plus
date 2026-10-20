@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android" android:orientation="vertical" android:layout_width="match_parent" android:layout_height="wrap_content" android:padding="8dp" android:background="#592545" android:contentDescription="Level Center rose roster micro preview">
+<TextView android:id="@+id/king_catalog_title" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="🏆 Level Center · roster" android:textColor="#FFA3D9" android:textSize="14sp" android:gravity="center_vertical" android:ellipsize="end" android:maxLines="2"/>
+<TextView android:id="@+id/king_catalog_subtitle" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Tasks and achievement progress · rose · micro" android:textColor="#FFF0F7" android:textSize="11sp" android:gravity="center_vertical" android:ellipsize="end" android:maxLines="2"/>
+<LinearLayout android:orientation="horizontal" android:layout_width="match_parent" android:layout_height="wrap_content" android:paddingTop="5dp">
+<LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:orientation="vertical">
+<TextView android:id="@+id/king_catalog_primary" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="● Level Center" android:textColor="#FFA3D9" android:textSize="11sp" android:gravity="center_vertical" android:ellipsize="end" android:maxLines="2"/>
+</LinearLayout>
+<LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:orientation="vertical">
+<TextView android:id="@+id/king_catalog_secondary" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="◆ Rose" android:textColor="#FFF0F7" android:textSize="11sp" android:gravity="center_vertical" android:ellipsize="end" android:maxLines="2"/>
+</LinearLayout>
+</LinearLayout>
+<TextView android:id="@+id/king_catalog_action" android:layout_width="match_parent" android:layout_height="28dp" android:text="OPEN LEVEL CENTER  ›" android:textColor="#592545" android:textSize="12sp" android:background="#FFA3D9" android:gravity="center_vertical" android:ellipsize="end" android:maxLines="2"/>
+</LinearLayout>

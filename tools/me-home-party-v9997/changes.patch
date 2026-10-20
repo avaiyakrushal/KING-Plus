@@ -1,0 +1,202 @@
+--- a/app/src/main/java/com/kingplus/social/CommunityHubActivity.java
++++ b/app/src/main/java/com/kingplus/social/CommunityHubActivity.java
+@@ -103,7 +103,14 @@
+         int n=0;for(DocumentSnapshot d:docs){String uid=safe(d.getString("uid"),d.getId());if(me!=null&&uid.equals(me.getUid()))continue;String name=safe(d.getString("displayName"),"KING User");Long lv=d.getLong("level"),vv=d.getLong("vipLevel");String issuedId9996=KingPublicId9996.verified(d.getString("publicId"));TextView r=tv("👤  "+name+"   • ID "+(issuedId9996==null?"Not issued":issuedId9996)+"\n     Lv."+(lv==null?1:lv)+"  VIP "+(vv==null?0:vv),14,DARK,true);r.setBackground(bg(CARD,14));r.setOnClickListener(v->userActions(uid,name,issuedId9996));LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(-1,dp(66));lp.setMargins(0,dp(5),0,dp(5));host.addView(r,lp);n++;}if(n==0)host.addView(tv("No matching people.",14,MUTED,false));
+     }
+     private void userActions(String uid,String name,String issuedId9996){String[] a={"Follow / Unfollow","Private Chat","Relationship / CP","Gift in Chat","Share KING ID"};new AlertDialog.Builder(this).setTitle(name).setItems(a,(d,w)->{if(w==0)toggleFollow(uid,name);else if(w==1||w==3)openChat(uid,name);else if(w==2){targetUid=uid;targetName=name;render("Relationship");}else shareId(uid,name,issuedId9996);}).show();}
+-    private void toggleFollow(String uid,String name){String id=me.getUid()+"__"+uid;DocumentReference r=db.collection("follows").document(id);r.get().addOnSuccessListener(x->{if(x.exists())r.delete().addOnSuccessListener(v->toast("Unfollowed "+name));else{Map<String,Object>m=new HashMap<>();m.put("followerUid",me.getUid());m.put("targetUid",uid);m.put("createdAt",FieldValue.serverTimestamp());r.set(m).addOnSuccessListener(v->toast("Following "+name));}});}
++    private void toggleFollow(String uid,String name){
++        if(!cloud()){toast("Sign in required");return;}
++        KingFollowLive9997.toggle(db,me,uid,displayName,(following,error)->{
++            if(isFinishing()||isDestroyed())return;
++            if(error!=null){toast("Follow not changed • "+error.getMessage());return;}
++            toast(Boolean.TRUE.equals(following)?"Following "+name:"Unfollowed "+name);
++        });
++    }
+     private void openChat(String uid,String name){Intent i=new Intent(this,ChatActivity.class);i.putExtra("peerUid",uid);i.putExtra("peerName",name);startActivity(i);}
+     private void shareId(String uid,String name,String issuedId9996){
+         // The former hash(uid) generated unofficial ID numbers that could
+--- a/app/src/main/java/com/kingplus/social/PartyActivity.java
++++ b/app/src/main/java/com/kingplus/social/PartyActivity.java
+@@ -5587,10 +5587,13 @@
+         }).addOnFailureListener(e->toast("Fan Club unavailable: "+msg(e)));
+     }
+     private void toggleFanClub940(boolean joined){
+-        if(user==null||db==null||ownerUid==null)return;
+-        String id=user.getUid()+"__"+ownerUid;DocumentReference ref=db.collection("follows").document(id);
+-        if(joined)ref.delete().addOnSuccessListener(v->{toast("Left Fan Club");fanClubPanel940();}).addOnFailureListener(e->toast("Could not leave Fan Club"));
+-        else{Map<String,Object>x=new HashMap<>();x.put("followerUid",user.getUid());x.put("targetUid",ownerUid);x.put("followerName",safeName());x.put("createdAt",FieldValue.serverTimestamp());ref.set(x).addOnSuccessListener(v->{toast("Joined Fan Club 💜");fanClubPanel940();}).addOnFailureListener(e->toast("Could not join Fan Club: "+msg(e)));}
++        if(user==null||db==null||ownerUid==null){toast("Sign in to join Fan Club");return;}
++        KingFollowLive9997.toggle(db,user,ownerUid,safeName(),(following,error)->{
++            if(isFinishing()||isDestroyed())return;
++            if(error!=null){toast("Fan Club could not update: "+msg(error));return;}
++            toast(Boolean.TRUE.equals(following)?"Joined Fan Club 💜":"Left Fan Club");
++            if(cloudRoom&&roomId!=null)fanClubPanel940();
++        });
+     }
+ 
+     private void friendBroadcast610(){
+@@ -5845,7 +5848,12 @@
+ 
+         if(user!=null&&db!=null){
+             String relationId=user.getUid()+"__"+uid;
+-            db.collection("follows").document(relationId).get().addOnSuccessListener(d->follow.setText(d.exists()?"✓  Following":"👤  Follow"));
++            final ListenerRegistration[] followListener9997={null};
++            followListener9997[0]=db.collection("follows").document(relationId).addSnapshotListener((snap,error)->{
++                if(!dialog.isShowing()||isFinishing()||isDestroyed()||error!=null||snap==null)return;
++                follow.setText(snap.exists()?"✓  Following":"👤  Follow");
++            });
++            dialog.setOnDismissListener(d->{if(followListener9997[0]!=null){followListener9997[0].remove();followListener9997[0]=null;}});
+             db.collection("follows").whereEqualTo("targetUid",uid).get().addOnSuccessListener(q->identity.setText("▣  KING ID "+publicId(uid)+"   |   "+q.size()+" Followers"));
+             db.collection("live_rooms").document(roomId).collection("members").document(uid).get().addOnSuccessListener(m->{
+                 if(!m.exists())return;String mn=m.getString("name");if(mn!=null&&!mn.trim().isEmpty())n.setText((host?"👑 ":"")+mn.trim());String photo=m.getString("photoUrl");if(photo!=null&&!photo.trim().isEmpty())loadProfilePhoto(avatarImage,avatarInitial,photo.trim());
+@@ -6125,12 +6133,16 @@
+     }
+ 
+     private void toggleProfileFollow(String uid,String name,TextView button){
+-        if(user==null||db==null){toast("Google / Firebase sign-in required");return;}if(uid.equals(user.getUid())){toast("This is you");return;}
+-        String id=user.getUid()+"__"+uid;DocumentReference ref=db.collection("follows").document(id);
+-        ref.get().addOnSuccessListener(doc->{
+-            if(doc.exists())ref.delete().addOnSuccessListener(v->{button.setText("👤  Follow");toast("Disconnected from "+name);});
+-            else{Map<String,Object>d=new HashMap<>();d.put("followerUid",user.getUid());d.put("targetUid",uid);d.put("followerName",safeName());d.put("createdAt",FieldValue.serverTimestamp());ref.set(d).addOnSuccessListener(v->{button.setText("✓  Following");toast("Following "+name);});}
+-        }).addOnFailureListener(e->toast(msg(e)));
++        if(user==null||db==null){toast("Google / Firebase sign-in required");return;}
++        if(uid==null||uid.equals(user.getUid())){toast("This is you");return;}
++        button.setEnabled(false);
++        KingFollowLive9997.toggle(db,user,uid,safeName(),(following,error)->{
++            if(isFinishing()||isDestroyed())return;
++            button.setEnabled(true);
++            if(error!=null){toast("Follow not changed: "+msg(error));return;}
++            button.setText(Boolean.TRUE.equals(following)?"✓  Following":"👤  Follow");
++            toast(Boolean.TRUE.equals(following)?"Following "+name:"Unfollowed "+name);
++        });
+     }
+ 
+     private void showProfileMore(String uid,String name){
+@@ -6364,8 +6376,12 @@
+     }
+ 
+     private void followUser(String uid,String name){
+-        if(user==null||db==null||uid==null||uid.isEmpty()){toast("Live Firebase user required");return;} if(uid.equals(user.getUid())){toast("This is you");return;}
+-        String id=user.getUid()+"__"+uid;DocumentReference ref=db.collection("follows").document(id);Map<String,Object>d=new HashMap<>();d.put("followerUid",user.getUid());d.put("targetUid",uid);d.put("followerName",safeName());d.put("createdAt",FieldValue.serverTimestamp());ref.set(d).addOnSuccessListener(v->toast("Following "+name)).addOnFailureListener(e->toast(msg(e)));
++        if(user==null||db==null){toast("Sign in to follow");return;}
++        KingFollowLive9997.ensureFollowing(db,user,uid,safeName(),(following,error)->{
++            if(isFinishing()||isDestroyed())return;
++            if(error!=null)toast("Follow not saved: "+msg(error));
++            else toast("Following "+name);
++        });
+     }
+     private void reportUser(String uid,String name){String target=(uid==null||uid.isEmpty())?name:uid;CloudSync.submitReport(this,target,"Party room user report",(ok,m)->runOnUiThread(()->toast(m)));}
+     private void hostToggleSeat(int no){
+@@ -6457,7 +6473,14 @@
+     private void changeThemeDialog(){if(!isOwner())return;String[] labels={"Classic Emerald","Ocean KTV","PK Red vs Blue","Rose Love","Game Emerald","Royal Purple","Neon Night","Galaxy Stage","Festival Glow","Ice Crystal"};String[] themes={"Classic","KTV","PK","Love","Game","Royal","Neon","Galaxy","Festival","Ice"};new AlertDialog.Builder(this).setTitle("Room theme").setItems(labels,(d,w)->{roomTheme=themes[w];if(cloudRoom)setRoomValue("theme",roomTheme);else prefs.edit().putString("theme_"+roomName,roomTheme).apply();renderParty();}).show();}
+     private void changeSeatCount(){if(!isOwner())return;seatLayoutPanel();}
+ 
+-    private void toggleFollow(){if(user==null||ownerUid==null){toast("Firebase sign-in required to follow");return;}String id=user.getUid()+"__"+ownerUid;DocumentReference ref=db.collection("follows").document(id);ref.get().addOnSuccessListener(doc->{if(doc.exists()){ref.delete();followLabel.setText("＋ Follow");}else{Map<String,Object>d=new HashMap<>();d.put("followerUid",user.getUid());d.put("targetUid",ownerUid);d.put("followerName",safeName());d.put("createdAt",FieldValue.serverTimestamp());ref.set(d);followLabel.setText("✓ Following");}});}
++    private void toggleFollow(){
++        if(user==null||ownerUid==null||db==null){toast("Firebase sign-in required to follow");return;}
++        KingFollowLive9997.toggle(db,user,ownerUid,safeName(),(following,error)->{
++            if(isFinishing()||isDestroyed())return;
++            if(error!=null){toast("Follow not changed: "+msg(error));return;}
++            if(followLabel!=null)followLabel.setText(Boolean.TRUE.equals(following)?"✓ Following":"＋ Follow");
++        });
++    }
+ 
+     private void attachCloudRoom() {
+         attachV530RealtimeHelpers();
+--- a/app/build.gradle
++++ b/app/build.gradle
+@@ -14,7 +14,7 @@
+         }
+     }
+ 
+-    defaultConfig { applicationId 'com.kingplus.social'; minSdk 26; targetSdk 35; versionCode 275; versionName '9.9.96-me-gallery-id-room-music-test' }
++    defaultConfig { applicationId 'com.kingplus.social'; minSdk 26; targetSdk 35; versionCode 276; versionName '9.9.97-follow-live-me-home-party-test' }
+     buildTypes {
+         debug { signingConfig signingConfigs.debug }
+         release {
+--- /dev/null
++++ b/app/src/main/java/com/kingplus/social/KingFollowLive9997.java
+@@ -0,0 +1,67 @@
++package com.kingplus.social;
++
++import com.google.firebase.auth.FirebaseUser;
++import com.google.firebase.firestore.DocumentReference;
++import com.google.firebase.firestore.DocumentSnapshot;
++import com.google.firebase.firestore.FieldValue;
++import com.google.firebase.firestore.FirebaseFirestore;
++import java.util.HashMap;
++import java.util.HashSet;
++import java.util.Map;
++import java.util.Set;
++
++/** Real Firestore transaction for Follow/Unfollow on Home, Me and Party. No local fake success. */
++public final class KingFollowLive9997 {
++    private static final Set<String> IN_FLIGHT = new HashSet<>();
++    private KingFollowLive9997(){}
++    public interface Callback { void finished(Boolean following, Exception error); }
++    private static synchronized boolean enter(String key){return IN_FLIGHT.add(key);}
++    private static synchronized void exit(String key){IN_FLIGHT.remove(key);}
++
++    public static void toggle(FirebaseFirestore db, FirebaseUser me, String targetUid,
++                              String followerName, Callback callback){
++        change(db,me,targetUid,followerName,false,callback);
++    }
++    public static void ensureFollowing(FirebaseFirestore db, FirebaseUser me, String targetUid,
++                                       String followerName, Callback callback){
++        change(db,me,targetUid,followerName,true,callback);
++    }
++    private static void change(FirebaseFirestore db, FirebaseUser me, String targetUid,
++                               String followerName, boolean ensure, Callback callback){
++        final String follower=me==null?null:me.getUid();
++        final String key=KingFollowPolicy9997.key(follower,targetUid);
++        if(db==null||key==null){
++            if(callback!=null)callback.finished(null,new IllegalArgumentException("Sign in and choose another KING account"));
++            return;
++        }
++        if(!enter(key)){
++            if(callback!=null)callback.finished(null,new IllegalStateException("Please wait for the current Follow request"));
++            return;
++        }
++        final DocumentReference ref=db.collection("follows").document(key);
++        try{
++            db.runTransaction(tx->{
++                DocumentSnapshot previous=tx.get(ref);
++                boolean following=previous.exists();
++                if(ensure&&following)return true;
++                boolean next=ensure||KingFollowPolicy9997.nextFollowing(following);
++                if(next){
++                    Map<String,Object> record=new HashMap<>();
++                    record.put("followerUid",follower);
++                    record.put("targetUid",targetUid);
++                    record.put("followerName",followerName==null?"KING User":followerName);
++                    record.put("createdAt",FieldValue.serverTimestamp());
++                    tx.set(ref,record);
++                }else tx.delete(ref);
++                return next;
++            }).addOnCompleteListener(task->{
++                exit(key);
++                if(callback!=null){
++                    if(task.isSuccessful())callback.finished(task.getResult(),null);
++                    else callback.finished(null,task.getException()==null?
++                        new IllegalStateException("Follow request failed"):task.getException());
++                }
++            });
++        }catch(Exception e){exit(key);if(callback!=null)callback.finished(null,e);}
++    }
++}
+--- /dev/null
++++ b/app/src/main/java/com/kingplus/social/KingFollowPolicy9997.java
+@@ -0,0 +1,12 @@
++package com.kingplus.social;
++
++/** Pure input and state policy shared by Me, Home and Party follow flows. */
++public final class KingFollowPolicy9997 {
++    private KingFollowPolicy9997(){}
++    public static String key(String follower, String target) {
++        if (follower==null||target==null||follower.trim().isEmpty()||target.trim().isEmpty()
++            ||follower.contains("/")||target.contains("/")||follower.equals(target)) return null;
++        return follower+"__"+target;
++    }
++    public static boolean nextFollowing(boolean alreadyFollowing) {return !alreadyFollowing;}
++}

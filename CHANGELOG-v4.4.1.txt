@@ -1,0 +1,3 @@
+KING Plus v4.4.1 — Party Profile Fit + Working Actions
+
+Fixes the clipped room profile sheet with a 92% screen-height scrollable layout. Family, Relationship, Gift Wall, Medals and KING ID are now interactive. Contribution/Charisma/VIP progress use real current-room gift/event data. Existing Play Center, Tools, host/co-host, seats, queue, music, private chat, gifts and moderation remain available. No-billing and TEST OTP 123456 remain unchanged.

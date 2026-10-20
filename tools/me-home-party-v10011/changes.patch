@@ -1,0 +1,124 @@
+--- a/firestore.rules
++++ b/firestore.rules
+@@ -17,7 +17,11 @@
+       return activeUser() && roomData(roomId).ownerUid == request.auth.uid;
+     }
+     function roomCoHost(roomId) {
++      // A removed or banned co-host must not retain admin permissions merely
++      // because an older roles/{uid} document survived a client disconnect.
+       return activeUser()
++        && !roomBanned(roomId,request.auth.uid)
++        && exists(/databases/$(database)/documents/live_rooms/$(roomId)/members/$(request.auth.uid))
+         && exists(/databases/$(database)/documents/live_rooms/$(roomId)/roles/$(request.auth.uid))
+         && get(/databases/$(database)/documents/live_rooms/$(roomId)/roles/$(request.auth.uid)).data.role == 'cohost';
+     }
+@@ -122,7 +126,9 @@
+           && resource.data.uid == request.auth.uid
+           && request.resource.data.uid == request.auth.uid;
+         allow delete: if signedIn()
+-          && (memberUid == request.auth.uid || roomModerator(roomId));
++          && (memberUid == request.auth.uid || roomOwner(roomId)
++              || (roomCoHost(roomId)
++                  && !exists(/databases/$(database)/documents/live_rooms/$(roomId)/roles/$(memberUid))));
+       }
+ 
+       match /seats/{seatId} {
+@@ -243,6 +249,8 @@
+         allow read: if signedIn()
+           && (bannedUid == request.auth.uid || roomModerator(roomId));
+         allow create, update: if roomModerator(roomId)
++          && (roomOwner(roomId)
++              || !exists(/databases/$(database)/documents/live_rooms/$(roomId)/roles/$(bannedUid)))
+           && bannedUid != roomData(roomId).ownerUid
+           && request.resource.data.uid == bannedUid
+           && request.resource.data.active == true;
+--- a/app/src/main/java/com/kingplus/social/PartyActivity.java
++++ b/app/src/main/java/com/kingplus/social/PartyActivity.java
+@@ -6560,23 +6560,75 @@
+         String[] reasons={"Room rule violation","Spam / flooding","Abusive behavior","Mic disruption","Other"};
+         new AlertDialog.Builder(this).setTitle("🚪 Kick • "+name).setMessage("Choose a reason").setItems(reasons,(d,w)->performKick940(uid,name,reasons[w])).setNegativeButton("Cancel",null).show();
+     }
++    // Atomic moderation: when the member leaves, every occupied mic seat and
++    // their co-host role must be cleared in the same Firestore transaction.
++    // A failed write must not announce a successful kick/ban.
+     private void performKick940(String uid,String name,String reason){
+-        if(!isModerator()||uid==null||uid.isEmpty()||uid.equals(ownerUid)||!cloudRoom||db==null)return;
+-        for(Map.Entry<Integer,String> entry:new HashMap<>(seatUids).entrySet())if(uid.equals(entry.getValue()))db.collection("live_rooms").document(roomId).collection("seats").document(String.valueOf(entry.getKey())).delete();
+-        final String why=(reason==null||reason.trim().isEmpty())?"Moderator action":reason.trim();
+-        db.collection("live_rooms").document(roomId).collection("members").document(uid).delete()
+-            .addOnSuccessListener(v->{addEvent("kick",name+" was removed • "+why);toast(name+" kicked");})
+-            .addOnFailureListener(e->toast("Kick failed: "+msg(e)));
++        moderateMember10011(uid,name,reason,false);
++    }
++    private void moderateMember10011(String uid,String name,String reason,boolean ban10011){
++        if(!isModerator()||user==null||!cloudRoom||db==null||roomId==null
++            ||uid==null||uid.isEmpty()||uid.equals(ownerUid)||uid.equals(user.getUid())){
++            toast("Host/co-host and an eligible member required");return;
++        }
++        final String target10011=uid, room10011=roomId, actor10011=user.getUid();
++        final int binding10011=roomListenerGeneration982, visit10011=presenceGeneration967;
++        final String why10011=(reason==null||reason.trim().isEmpty())?"Moderator action":reason.trim();
++        final DocumentReference ref10011=db.collection("live_rooms").document(room10011);
++        db.runTransaction(tx->{
++            DocumentSnapshot live10011=tx.get(ref10011);
++            if(!live10011.exists()||Boolean.TRUE.equals(live10011.getBoolean("closed")))
++                throw new IllegalStateException("Room closed or no longer available");
++            boolean owner10011=actor10011.equals(live10011.getString("ownerUid"));
++            DocumentReference member10011=ref10011.collection("members").document(target10011);
++            DocumentReference role10011=ref10011.collection("roles").document(target10011);
++            DocumentSnapshot existing10011=tx.get(member10011);
++            DocumentSnapshot targetRole10011=tx.get(role10011);
++            if(!existing10011.exists())throw new IllegalStateException("Member already left");
++            boolean targetCoHost10011=targetRole10011.exists()
++                &&"cohost".equals(targetRole10011.getString("role"));
++            if(targetCoHost10011&&!owner10011)
++                throw new IllegalStateException("Only the host can moderate a co-host");
++            // Read all twelve possible stage seats before applying any writes.
++            // Firestore retries when a seat changed during this transaction.
++            java.util.List<DocumentReference> occupied10011=new java.util.ArrayList<>();
++            for(int seat10011=1;seat10011<=12;seat10011++){
++                DocumentReference seatRef10011=ref10011.collection("seats").document(String.valueOf(seat10011));
++                DocumentSnapshot seatDoc10011=tx.get(seatRef10011);
++                if(seatDoc10011.exists()&&target10011.equals(seatDoc10011.getString("uid")))
++                    occupied10011.add(seatRef10011);
++            }
++            tx.delete(member10011);
++            for(DocumentReference seatRef10011:occupied10011)tx.delete(seatRef10011);
++            if(targetCoHost10011)tx.delete(role10011);
++            if(ban10011){
++                java.util.Map<String,Object> banData10011=new java.util.HashMap<>();
++                banData10011.put("uid",target10011);banData10011.put("name",name);
++                banData10011.put("reason",why10011);banData10011.put("active",true);
++                banData10011.put("byUid",actor10011);banData10011.put("byName",safeName());
++                banData10011.put("createdAt",FieldValue.serverTimestamp());
++                tx.set(ref10011.collection("room_bans").document(target10011),banData10011);
++            }
++            return occupied10011.size();
++        }).addOnSuccessListener(cleared10011->{
++            if(!activeRoomCallback982(room10011,actor10011,visit10011,binding10011))return;
++            addEvent(ban10011?"ban":"kick",name+(ban10011?" banned":" removed")+" • "+why10011);
++            toast(name+(ban10011?" banned":" kicked")+" • "+cleared10011+" seats freed");
++        }).addOnFailureListener(error10011->{
++            if(activeRoomCallback982(room10011,actor10011,visit10011,binding10011))
++                toast((ban10011?"Ban":"Kick")+" failed: "+msg(error10011));
++        });
+     }
+     private void banUser(String uid,String name){
+-        if(!isModerator()||uid==null||uid.isEmpty()||uid.equals(ownerUid)){toast("Cannot ban this member");return;}
++        if(!isModerator()||uid==null||uid.isEmpty()||uid.equals(ownerUid)){
++            toast("Cannot ban this member");return;
++        }
+         if(!cloudRoom||db==null){toast("Live room required");return;}
+         String[] reasons={"Repeated rule violation","Spam / scam","Abusive behavior","Harassment","Other"};
+-        new AlertDialog.Builder(this).setTitle("🚫 Ban • "+name).setMessage("This user will not be able to re-enter this room until unbanned.").setItems(reasons,(d,w)->{
+-            String reason=reasons[w];Map<String,Object> ban=new HashMap<>();ban.put("uid",uid);ban.put("name",name);ban.put("reason",reason);ban.put("active",true);ban.put("byUid",user.getUid());ban.put("byName",safeName());ban.put("createdAt",FieldValue.serverTimestamp());
+-            db.collection("live_rooms").document(roomId).collection("room_bans").document(uid).set(ban)
+-                .addOnSuccessListener(v->performKick940(uid,name,"Banned: "+reason)).addOnFailureListener(e->toast("Ban failed: "+msg(e)));
+-        }).setNegativeButton("Cancel",null).show();
++        new AlertDialog.Builder(this).setTitle("🚫 Ban • "+name)
++            .setMessage("Remove from the live room and prevent re-entry until unbanned.")
++            .setItems(reasons,(d,w)->moderateMember10011(uid,name,reasons[w],true))
++            .setNegativeButton("Cancel",null).show();
+     }
+     private void coHostDialog(String uid,String name){
+         if(!isOwner()||uid==null||uid.isEmpty()||uid.equals(ownerUid)){toast("Host only");return;}

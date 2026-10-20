@@ -1,0 +1,203 @@
+--- a/app/src/main/java/com/kingplus/social/CommunityHubActivity.java
++++ b/app/src/main/java/com/kingplus/social/CommunityHubActivity.java
+@@ -44,6 +44,7 @@
+     private FirebaseUser me; private FirebaseFirestore db; private LinearLayout body; private String displayName="KING User";
+     private String selected="Search", targetUid="", targetName="";
+     private String selectedTopic940="All";
++    private int searchGeneration9994;
+ 
+     @Override public void onCreate(Bundle b){super.onCreate(b);try{me=FirebaseAuth.getInstance().getCurrentUser();db=FirebaseFirestore.getInstance();}catch(Exception ignored){}SharedPreferences p=getSharedPreferences("MainActivity",MODE_PRIVATE);displayName=safe(p.getString("name",me==null?"KING User":me.getDisplayName()),"KING User");String t=getIntent().getStringExtra("tab");if(t!=null&&!t.isEmpty())selected=t;targetUid=safe(getIntent().getStringExtra("targetUid"),"");targetName=safe(getIntent().getStringExtra("targetName"),"");render(selected);}
+     private com.google.firebase.firestore.ListenerRegistration familyMessages956;
+@@ -57,8 +58,8 @@
+         if(familyMessages956!=null){familyMessages956.remove();familyMessages956=null;}
+         if(familyMembers9986!=null){familyMembers9986.remove();familyMembers9986=null;}
+     }
+-    @Override protected void onStop(){stopMoments9990();familyStopped956=true;stopFamilyMessages956();super.onStop();}
+-    @Override protected void onStart(){super.onStart();if(me!=null&&!KingSavedRoomsCloud9990.account(me.getUid())){finish();return;}if(familyStopped956){familyStopped956=false;if("Family".equals(selected)||"Moments".equals(selected))render(selected);}}
++    @Override protected void onStop(){++searchGeneration9994;stopMoments9990();familyStopped956=true;stopFamilyMessages956();super.onStop();}
++    @Override protected void onStart(){super.onStart();if(me!=null&&!KingSavedRoomsCloud9990.account(me.getUid())){finish();return;}if(familyStopped956){familyStopped956=false;if("Family".equals(selected)||"Moments".equals(selected)||"Search".equals(selected))render(selected);}}
+     @Override protected void onDestroy(){stopMoments9990();stopFamilyMessages956();super.onDestroy();}
+     private boolean cloud(){return me!=null&&db!=null;}
+     private int dp(int n){return(int)(n*getResources().getDisplayMetrics().density+.5f);}
+@@ -69,17 +70,95 @@
+     private String safe(String s,String f){return s==null||s.trim().isEmpty()?f:s.trim();}
+     private String publicId(String uid){if(uid==null)return"000000";return String.valueOf(Integer.toUnsignedLong(uid.hashCode())%900000L+100000L);}
+ 
+-    private void render(String tab){stopMoments9990();stopFamilyMessages956();selected=tab;LinearLayout root=new LinearLayout(this);root.setOrientation(LinearLayout.VERTICAL);root.setBackgroundColor(BG);LinearLayout head=new LinearLayout(this);head.setGravity(Gravity.CENTER_VERTICAL);head.setPadding(dp(8),dp(8),dp(8),dp(5));TextView back=tv("‹",38,DARK,false);back.setGravity(Gravity.CENTER);back.setOnClickListener(v->finish());head.addView(back,new LinearLayout.LayoutParams(dp(48),dp(54)));TextView title=tv("KING Community",23,DARK,true);head.addView(title,new LinearLayout.LayoutParams(0,dp(54),1));root.addView(head);HorizontalScrollView hs=new HorizontalScrollView(this);hs.setHorizontalScrollBarEnabled(false);LinearLayout tabs=new LinearLayout(this);String[] ts={"Search","Moments","Topics","Family","Relationship","Collection","Visitors"};for(String x:ts){TextView t=tv(x,13,x.equals(tab)?Color.WHITE:DARK,true);t.setGravity(Gravity.CENTER);t.setBackground(bg(x.equals(tab)?PURPLE:0xffece9f2,14));t.setOnClickListener(v->render(x));LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(dp(104),dp(42));lp.setMargins(dp(4),0,dp(4),0);tabs.addView(t,lp);}hs.addView(tabs);root.addView(hs,new LinearLayout.LayoutParams(-1,dp(50)));ScrollView sv=new ScrollView(this);body=new LinearLayout(this);body.setOrientation(LinearLayout.VERTICAL);body.setPadding(dp(14),dp(12),dp(14),dp(30));sv.addView(body);root.addView(sv,new LinearLayout.LayoutParams(-1,0,1));setContentView(root);if("Moments".equals(tab))moments();else if("Topics".equals(tab))topics940();else if("Family".equals(tab))family();else if("Relationship".equals(tab))relationships();else if("Collection".equals(tab))collection();else if("Visitors".equals(tab))visitors750();else search();}
++    private void render(String tab){++searchGeneration9994;stopMoments9990();stopFamilyMessages956();selected=tab;LinearLayout root=new LinearLayout(this);root.setOrientation(LinearLayout.VERTICAL);root.setBackgroundColor(BG);LinearLayout head=new LinearLayout(this);head.setGravity(Gravity.CENTER_VERTICAL);head.setPadding(dp(8),dp(8),dp(8),dp(5));TextView back=tv("‹",38,DARK,false);back.setGravity(Gravity.CENTER);back.setOnClickListener(v->finish());head.addView(back,new LinearLayout.LayoutParams(dp(48),dp(54)));TextView title=tv("KING Community",23,DARK,true);head.addView(title,new LinearLayout.LayoutParams(0,dp(54),1));root.addView(head);HorizontalScrollView hs=new HorizontalScrollView(this);hs.setHorizontalScrollBarEnabled(false);LinearLayout tabs=new LinearLayout(this);String[] ts={"Search","Moments","Topics","Family","Relationship","Collection","Visitors"};for(String x:ts){TextView t=tv(x,13,x.equals(tab)?Color.WHITE:DARK,true);t.setGravity(Gravity.CENTER);t.setBackground(bg(x.equals(tab)?PURPLE:0xffece9f2,14));t.setOnClickListener(v->render(x));LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(dp(104),dp(42));lp.setMargins(dp(4),0,dp(4),0);tabs.addView(t,lp);}hs.addView(tabs);root.addView(hs,new LinearLayout.LayoutParams(-1,dp(50)));ScrollView sv=new ScrollView(this);body=new LinearLayout(this);body.setOrientation(LinearLayout.VERTICAL);body.setPadding(dp(14),dp(12),dp(14),dp(30));sv.addView(body);root.addView(sv,new LinearLayout.LayoutParams(-1,0,1));setContentView(root);if("Moments".equals(tab))moments();else if("Topics".equals(tab))topics940();else if("Family".equals(tab))family();else if("Relationship".equals(tab))relationships();else if("Collection".equals(tab))collection();else if("Visitors".equals(tab))visitors750();else search();}
+ 
+     private void search(){body.addView(tv("Find people & live rooms",21,DARK,true));EditText q=new EditText(this);q.setHint("Name, 6-digit KING ID or room");q.setSingleLine(true);q.setBackground(bg(CARD,14));q.setPadding(dp(12),0,dp(12),0);body.addView(q,new LinearLayout.LayoutParams(-1,dp(52)));LinearLayout row=new LinearLayout(this);TextView people=button("👤 People",()->searchPeople(q.getText().toString().trim()));TextView rooms=button("🎤 Rooms",()->searchRooms(q.getText().toString().trim()));LinearLayout.LayoutParams a=new LinearLayout.LayoutParams(0,dp(48),1);a.setMargins(0,dp(8),dp(4),0);row.addView(people,a);LinearLayout.LayoutParams c=new LinearLayout.LayoutParams(0,dp(48),1);c.setMargins(dp(4),dp(8),0,0);row.addView(rooms,c);body.addView(row);body.addView(tv("Search uses real signed-in KING Plus profiles and live rooms.",12,MUTED,false));}
+     private void clearResults(String title){while(body.getChildCount()>4)body.removeViewAt(4);body.addView(tv(title,17,DARK,true));}
+-    private void searchPeople(String raw){if(!cloud()){toast("Sign in required");return;}clearResults("People results");String q=raw.toLowerCase(Locale.US);if(raw.matches("[0-9]{6}")){db.collection("public_profiles").whereEqualTo("publicId",raw).limit(20).get(com.google.firebase.firestore.Source.SERVER).addOnSuccessListener(s->renderUsers(s.getDocuments())).addOnFailureListener(e->toast("Search unavailable"));return;}Query z=q.isEmpty()?db.collection("public_profiles").limit(30):db.collection("public_profiles").orderBy("searchName").startAt(q).endAt(q+"\uf8ff").limit(30);z.get(com.google.firebase.firestore.Source.SERVER).addOnSuccessListener(s->renderUsers(s.getDocuments())).addOnFailureListener(e->toast("Search unavailable"));}
+-    private void renderUsers(List<DocumentSnapshot> docs){int n=0;for(DocumentSnapshot d:docs){String uid=safe(d.getString("uid"),d.getId());if(me!=null&&uid.equals(me.getUid()))continue;String name=safe(d.getString("displayName"),"KING User");Long lv=d.getLong("level"),vv=d.getLong("vipLevel");TextView r=tv("👤  "+name+"   • ID "+safe(d.getString("publicId"),publicId(uid))+"\n     Lv."+(lv==null?1:lv)+"  VIP "+(vv==null?0:vv),14,DARK,true);r.setBackground(bg(CARD,14));r.setOnClickListener(v->userActions(uid,name));LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(-1,dp(66));lp.setMargins(0,dp(5),0,dp(5));body.addView(r,lp);n++;}if(n==0)body.addView(tv("No matching people.",14,MUTED,false));}
++    private boolean validSearch9994(int token,LinearLayout host,String account){
++        return token==searchGeneration9994 && "Search".equals(selected)
++            && body==host && !isFinishing() && !isDestroyed()
++            && account!=null && KingSavedRoomsCloud9990.account(account);
++    }
++    private void searchPeople(String raw){
++        if(!cloud()||!KingSavedRoomsCloud9990.account(me.getUid())){toast("Sign in required");return;}
++        final int token=++searchGeneration9994;
++        final LinearLayout host=body;final String account=me.getUid();
++        clearResults("People results");
++        final String q=raw.toLowerCase(Locale.US);
++        Query query=raw.matches("[0-9]{6}")
++            ? db.collection("public_profiles").whereEqualTo("publicId",raw).limit(20)
++            :q.isEmpty()?db.collection("public_profiles").limit(30)
++            :db.collection("public_profiles").orderBy("searchName").startAt(q).endAt(q+"\uf8ff").limit(30);
++        host.addView(tv("Searching people…",13,MUTED,false));
++        query.get(com.google.firebase.firestore.Source.SERVER)
++            .addOnSuccessListener(snap->{if(!validSearch9994(token,host,account))return;
++                host.removeViewAt(host.getChildCount()-1);renderUsers(snap.getDocuments(),host);})
++            .addOnFailureListener(error->{if(!validSearch9994(token,host,account))return;
++                host.addView(tv("Search unavailable • check connection and retry.",13,MUTED,false));});
++    }
++    private void renderUsers(List<DocumentSnapshot> docs,LinearLayout host){
++        int n=0;for(DocumentSnapshot d:docs){String uid=safe(d.getString("uid"),d.getId());if(me!=null&&uid.equals(me.getUid()))continue;String name=safe(d.getString("displayName"),"KING User");Long lv=d.getLong("level"),vv=d.getLong("vipLevel");TextView r=tv("👤  "+name+"   • ID "+safe(d.getString("publicId"),publicId(uid))+"\n     Lv."+(lv==null?1:lv)+"  VIP "+(vv==null?0:vv),14,DARK,true);r.setBackground(bg(CARD,14));r.setOnClickListener(v->userActions(uid,name));LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(-1,dp(66));lp.setMargins(0,dp(5),0,dp(5));host.addView(r,lp);n++;}if(n==0)host.addView(tv("No matching people.",14,MUTED,false));
++    }
+     private void userActions(String uid,String name){String[] a={"Follow / Unfollow","Private Chat","Relationship / CP","Gift in Chat","Share KING ID"};new AlertDialog.Builder(this).setTitle(name).setItems(a,(d,w)->{if(w==0)toggleFollow(uid,name);else if(w==1||w==3)openChat(uid,name);else if(w==2){targetUid=uid;targetName=name;render("Relationship");}else shareId(uid,name);}).show();}
+     private void toggleFollow(String uid,String name){String id=me.getUid()+"__"+uid;DocumentReference r=db.collection("follows").document(id);r.get().addOnSuccessListener(x->{if(x.exists())r.delete().addOnSuccessListener(v->toast("Unfollowed "+name));else{Map<String,Object>m=new HashMap<>();m.put("followerUid",me.getUid());m.put("targetUid",uid);m.put("createdAt",FieldValue.serverTimestamp());r.set(m).addOnSuccessListener(v->toast("Following "+name));}});}
+     private void openChat(String uid,String name){Intent i=new Intent(this,ChatActivity.class);i.putExtra("peerUid",uid);i.putExtra("peerName",name);startActivity(i);}
+     private void shareId(String uid,String name){Intent i=new Intent(Intent.ACTION_SEND);i.setType("text/plain");i.putExtra(Intent.EXTRA_TEXT,"Find "+name+" on KING Plus • KING ID "+publicId(uid));startActivity(Intent.createChooser(i,"Share KING ID"));}
+-    private void searchRooms(String raw){if(!cloud()){toast("Sign in required");return;}clearResults("Room results");String q=raw.toLowerCase(Locale.US);db.collection("live_rooms").orderBy("createdAt",Query.Direction.DESCENDING).limit(80).get(com.google.firebase.firestore.Source.SERVER).addOnSuccessListener(s->{int n=0;for(DocumentSnapshot d:s.getDocuments()){if(Boolean.TRUE.equals(d.getBoolean("closed")))continue;String name=safe(d.getString("name"),"Live Party"),cat=safe(d.getString("category"),"Chat"),owner=safe(d.getString("ownerName"),"KING Host");if(!q.isEmpty()&&!(name+" "+cat+" "+owner+" "+d.getId()).toLowerCase(Locale.US).contains(q))continue;TextView r=tv("🎤  "+name+"\n     "+cat+" • Host "+owner,14,DARK,true);r.setBackground(bg(CARD,14));String rid=d.getId();r.setOnClickListener(v->{Intent i=new Intent(this,PartyActivity.class);i.putExtra("directRoomId",rid);i.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP|Intent.FLAG_ACTIVITY_SINGLE_TOP);startActivity(i);});LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(-1,dp(68));lp.setMargins(0,dp(5),0,dp(5));body.addView(r,lp);if(++n>=30)break;}if(n==0)body.addView(tv("No matching live rooms.",14,MUTED,false));});}
++    private void searchRooms(String raw){
++        if(!cloud()||!KingSavedRoomsCloud9990.account(me.getUid())){toast("Sign in required");return;}
++        final int token=++searchGeneration9994;
++        final LinearLayout host=body;final String account=me.getUid();
++        final String q=raw.toLowerCase(Locale.US);
++        clearResults("Live room results");
++        loadOlderRooms9994(q,host,account,token,null);
++    }
++    /** Cursor pagination searches beyond the newest 80 rooms without mixing old requests. */
++    private void loadOlderRooms9994(String q,LinearLayout host,String account,int token,DocumentSnapshot after){
++        if(!validSearch9994(token,host,account))return;
++        final TextView progress=tv(after==null?"Searching live rooms…":"Loading older live rooms…",13,MUTED,false);
++        host.addView(progress);
++        Query query=db.collection("live_rooms").orderBy("createdAt",Query.Direction.DESCENDING).limit(80);
++        if(after!=null)query=query.startAfter(after);
++        query.get(com.google.firebase.firestore.Source.SERVER).addOnSuccessListener(snapshot->{
++            if(!validSearch9994(token,host,account))return;
++            host.removeView(progress);
++            List<DocumentSnapshot> docs=snapshot.getDocuments();
++            int shown=0,processed=0;
++            DocumentSnapshot last=after;
++            for(DocumentSnapshot d:docs){
++                last=d;processed++;
++                if(Boolean.TRUE.equals(d.getBoolean("closed")))continue;
++                String name=safe(d.getString("name"),"Live Party"),cat=safe(d.getString("category"),"Chat"),owner=safe(d.getString("ownerName"),"KING Host");
++                if(!q.isEmpty()&&!(name+" "+cat+" "+owner+" "+d.getId()).toLowerCase(Locale.US).contains(q))continue;
++                TextView item=tv("🎤  "+name+"\n     "+cat+" • Host "+owner,14,DARK,true);
++                item.setBackground(bg(CARD,14));
++                final String room=d.getId();
++                item.setOnClickListener(v->{if(!validSearch9994(token,host,account))return;
++                    Intent intent=new Intent(this,PartyActivity.class);
++                    intent.putExtra("directRoomId",room);
++                    intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP|Intent.FLAG_ACTIVITY_SINGLE_TOP);startActivity(intent);
++                });
++                LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(-1,dp(68));lp.setMargins(0,dp(5),0,dp(5));host.addView(item,lp);
++                if(++shown>=30)break;
++            }
++            if(shown==0)host.addView(tv("No matching rooms in this page.",13,MUTED,false));
++            if(last!=null && (processed<docs.size()||docs.size()==80)){
++                final DocumentSnapshot cursor=last;
++                TextView more=button("↓ Search older live rooms",()->{});
++                more.setOnClickListener(v->{if(!validSearch9994(token,host,account))return;
++                    host.removeView(more);loadOlderRooms9994(q,host,account,token,cursor);
++                });
++                host.addView(more,new LinearLayout.LayoutParams(-1,dp(46)));
++            } else if(after!=null){
++                host.addView(tv("End of live room search.",12,MUTED,false));
++            }
++        }).addOnFailureListener(error->{if(!validSearch9994(token,host,account))return;
++            progress.setText("Room search unavailable • check connection and retry.");
++            progress.setOnClickListener(v->{if(!validSearch9994(token,host,account))return;
++                host.removeView(progress);loadOlderRooms9994(q,host,account,token,after);
++            });
++        });
++    }
++
+ 
+     private void moments(){
+         body.addView(tv("Moments / Square",21,DARK,true));
+--- a/app/src/main/java/com/kingplus/social/MainActivity.java
++++ b/app/src/main/java/com/kingplus/social/MainActivity.java
+@@ -87,6 +87,7 @@
+     // Live social counters use two subscriptions only while Profile is visible.
+     private com.google.firebase.firestore.ListenerRegistration followingListener965,followersListener965;
+     private com.google.firebase.firestore.ListenerRegistration meGalleryListener9993;
++    private int meGalleryGeneration9994;
+     private LinearLayout meCloudGalleryHost9993;
+     private final java.util.Set<String> liveFollowing965=new java.util.HashSet<>();
+     private final java.util.Set<String> liveFollowers965=new java.util.HashSet<>();
+@@ -1928,8 +1929,10 @@
+                 ||!account.equals(firebaseAuth.getCurrentUser().getUid()))return;
+             status.setText("Loading your live Moments…");status.setOnClickListener(null);
+             stopMeGallery9993();
++            final int galleryTicket9994=meGalleryGeneration9994;
+             meGalleryListener9993=firestore.collection("moments").whereEqualTo("uid",account).limit(40)
+                 .addSnapshotListener(com.google.firebase.firestore.MetadataChanges.INCLUDE,(result,error)->{
++                    if(galleryTicket9994!=meGalleryGeneration9994)return;
+                     if(error!=null||result==null){
+                         if("profile_gallery".equals(screen)&&!isFinishing()&&!isDestroyed()
+                             &&firebaseAuth.getCurrentUser()!=null&&account.equals(firebaseAuth.getCurrentUser().getUid())){
+@@ -1966,7 +1969,8 @@
+                             entry.addView(preview,new LinearLayout.LayoutParams(-1,-2));
+                             try{FirebaseStorage.getInstance().getReferenceFromUrl(url).getBytes(6L*1024*1024)
+                                 .addOnSuccessListener(bytes->{
+-                                    if(!"profile_gallery".equals(screen)||isFinishing()||isDestroyed()
++                                    if(galleryTicket9994!=meGalleryGeneration9994
++                                        ||!"profile_gallery".equals(screen)||isFinishing()||isDestroyed()
+                                         ||preview.getParent()==null||firebaseAuth.getCurrentUser()==null
+                                         ||!account.equals(firebaseAuth.getCurrentUser().getUid()))return;
+                                     android.graphics.BitmapFactory.Options o=new android.graphics.BitmapFactory.Options();
+@@ -1989,6 +1993,7 @@
+     }
+ 
+     private void stopMeGallery9993(){
++        ++meGalleryGeneration9994;
+         if(meGalleryListener9993!=null){meGalleryListener9993.remove();meGalleryListener9993=null;}
+     }
+ 
+--- a/app/src/main/java/com/kingplus/social/KingSavedRooms9990Activity.java
++++ b/app/src/main/java/com/kingplus/social/KingSavedRooms9990Activity.java
+@@ -16,7 +16,7 @@
+ public final class KingSavedRooms9990Activity extends Activity {
+     private FirebaseFirestore db;private String uid;private ListenerRegistration listener;
+     private LinearLayout list;private TextView state,favTab,recentTab;private boolean favorites=true;
+-    private Object records;private int generation;private boolean loaded,cached;
++    private Object records;private int generation;private int roomOpenGeneration9994;private boolean loaded,cached;
+     private int dp(int n){return (int)(n*getResources().getDisplayMetrics().density+.5f);}
+     private TextView text(String label,int size){TextView t=new TextView(this);t.setText(label);t.setTextSize(size);t.setTextColor(0xfff5eaff);t.setPadding(dp(12),dp(10),dp(12),dp(10));return t;}
+     @Override public void onCreate(Bundle b){
+@@ -86,11 +86,12 @@
+         if(!KingSavedRoomsCloud9990.account(uid)){finish();return;}
+         if(!label.isEnabled())return;
+         label.setEnabled(false);
+-        final String account=uid;
++        final String account=uid;final int ticket=++roomOpenGeneration9994;
+         db.collection("live_rooms").document(room.id)
+             .get(com.google.firebase.firestore.Source.SERVER)
+             .addOnSuccessListener(doc->{
+-                if(isFinishing()||isDestroyed()||!KingSavedRoomsCloud9990.account(account))return;
++                if(ticket!=roomOpenGeneration9994||isFinishing()||isDestroyed()
++                    ||!hasWindowFocus()||!KingSavedRoomsCloud9990.account(account))return;
+                 label.setEnabled(true);
+                 if(!doc.exists()||Boolean.TRUE.equals(doc.getBoolean("closed"))){
+                     new AlertDialog.Builder(this).setTitle("Party room unavailable")
+@@ -105,7 +106,8 @@
+                 startActivity(i);
+             })
+             .addOnFailureListener(e->{
+-                if(isFinishing()||isDestroyed()||!KingSavedRoomsCloud9990.account(account))return;
++                if(ticket!=roomOpenGeneration9994||isFinishing()||isDestroyed()
++                    ||!hasWindowFocus()||!KingSavedRoomsCloud9990.account(account))return;
+                 label.setEnabled(true);
+                 new AlertDialog.Builder(this).setTitle("Cannot verify Party room")
+                     .setMessage("Connect to the internet and try again. Your saved room is kept.")
+@@ -113,5 +115,5 @@
+             });
+     }
+     @Override protected void onStart(){super.onStart();if(uid!=null)listen();}
+-    @Override protected void onStop(){stop();super.onStop();}
++    @Override protected void onStop(){++roomOpenGeneration9994;stop();super.onStop();}
+ }

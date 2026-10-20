@@ -1,0 +1,238 @@
+--- a/app/build.gradle
++++ b/app/build.gradle
+@@ -14,7 +14,7 @@
+         }
+     }
+ 
+-    defaultConfig { applicationId 'com.kingplus.social'; minSdk 26; targetSdk 35; versionCode 281; versionName '10.0.2-verified-id-and-room-votes-test' }
++    defaultConfig { applicationId 'com.kingplus.social'; minSdk 26; targetSdk 35; versionCode 282; versionName '10.0.3-visitors-and-vote-round-test' }
+     buildTypes {
+         debug { signingConfig signingConfigs.debug }
+         release {
+--- a/app/src/main/java/com/kingplus/social/MainActivity.java
++++ b/app/src/main/java/com/kingplus/social/MainActivity.java
+@@ -1768,19 +1768,64 @@
+     }
+ 
+     private void loadProfileVisitors940(String uid){
+-        if(profileVisitorsChip940!=null)profileVisitorsChip940.setText("👣 Visitors …");
+-        if(firestore==null||uid==null||uid.isEmpty())return;
+-        firestore.collection("public_profiles").document(uid).collection("visitors").limit(100).get().addOnSuccessListener(s->{if(profileVisitorsChip940!=null)profileVisitorsChip940.setText("👣 Visitors "+s.size());}).addOnFailureListener(e->{if(profileVisitorsChip940!=null)profileVisitorsChip940.setText("👣 Visitors —");});
++        final TextView chip10003=profileVisitorsChip940;
++        if(chip10003!=null)chip10003.setText("👣 Visitors …");
++        if(firestore==null||uid==null||uid.isEmpty()||chip10003==null)return;
++        // A 100-document query displayed "100" even when there were many more.
++        firestore.collection("public_profiles").document(uid).collection("visitors")
++            .count().get(com.google.firebase.firestore.AggregateSource.SERVER)
++            .addOnSuccessListener(total->{
++                if(isFinishing()||isDestroyed()||!"profile".equals(screen)||profileVisitorsChip940!=chip10003
++                    ||firebaseAuth==null||firebaseAuth.getCurrentUser()==null
++                    ||!uid.equals(firebaseAuth.getCurrentUser().getUid()))return;
++                chip10003.setText("👣 Visitors "+total.getCount());
++            }).addOnFailureListener(e->{
++                if(isFinishing()||isDestroyed()||!"profile".equals(screen)||profileVisitorsChip940!=chip10003
++                    ||firebaseAuth==null||firebaseAuth.getCurrentUser()==null
++                    ||!uid.equals(firebaseAuth.getCurrentUser().getUid()))return;
++                chip10003.setText("👣 Visitors —");
++            });
+     }
+     private void showProfileVisitors940(){
+-        if(firestore==null||firebaseAuth==null||firebaseAuth.getCurrentUser()==null){Toast.makeText(this,"Sign in to view visitors",Toast.LENGTH_SHORT).show();return;}
+-        String uid=firebaseAuth.getCurrentUser().getUid();
+-        firestore.collection("public_profiles").document(uid).collection("visitors").orderBy("visitedAt",com.google.firebase.firestore.Query.Direction.DESCENDING).limit(50).get().addOnSuccessListener(snap->{
+-            if(snap.isEmpty()){new AlertDialog.Builder(this).setTitle("👣 Profile Visitors").setMessage("No profile visitors yet.").setPositiveButton("OK",null).show();return;}
+-            java.util.List<String> rows=new java.util.ArrayList<>();java.util.List<String> ids=new java.util.ArrayList<>();
+-            for(DocumentSnapshot d:snap.getDocuments()){String n=d.getString("name");if(n==null||n.trim().isEmpty())n="KING User";com.google.firebase.Timestamp t=d.getTimestamp("visitedAt");String when=t==null?"":java.text.DateFormat.getDateTimeInstance(java.text.DateFormat.SHORT,java.text.DateFormat.SHORT).format(t.toDate());rows.add("👤 "+n+(when.isEmpty()?"":"  •  "+when));ids.add(d.getId());}
+-            new AlertDialog.Builder(this).setTitle("👣 Profile Visitors").setItems(rows.toArray(new String[0]),(dlg,w)->{Intent i=new Intent(this,KingPublicProfileActivity.class);i.putExtra("uid",ids.get(w));startActivity(i);}).setNegativeButton("Close",null).show();
+-        }).addOnFailureListener(e->new AlertDialog.Builder(this).setTitle("👣 Profile Visitors").setMessage("Visitors are unavailable right now.").setPositiveButton("Retry",(d,w)->showProfileVisitors940()).setNegativeButton("Close",null).show());
++        if(firestore==null||firebaseAuth==null||firebaseAuth.getCurrentUser()==null){
++            Toast.makeText(this,"Sign in to view visitors",Toast.LENGTH_SHORT).show();return;
++        }
++        final String account10003=firebaseAuth.getCurrentUser().getUid();
++        firestore.collection("public_profiles").document(account10003).collection("visitors")
++          .orderBy("visitedAt",com.google.firebase.firestore.Query.Direction.DESCENDING)
++          .limit(50).get(com.google.firebase.firestore.Source.SERVER).addOnSuccessListener(snap->{
++            if(isFinishing()||isDestroyed()||firebaseAuth.getCurrentUser()==null
++                ||!account10003.equals(firebaseAuth.getCurrentUser().getUid()))return;
++            if(snap.isEmpty()){
++                new AlertDialog.Builder(this).setTitle("👣 Profile Visitors")
++                    .setMessage("No profile visitors yet.").setPositiveButton("OK",null).show();return;
++            }
++            java.util.List<String> rows=new java.util.ArrayList<>();
++            java.util.List<String> ids=new java.util.ArrayList<>();
++            for(DocumentSnapshot d:snap.getDocuments()){
++                String uid10003=d.getString("uid");
++                if(uid10003==null||uid10003.trim().isEmpty())uid10003=d.getId();
++                if(account10003.equals(uid10003))continue;
++                String n=d.getString("name");if(n==null||n.trim().isEmpty())n="KING User";
++                com.google.firebase.Timestamp t=d.getTimestamp("visitedAt");
++                String when=t==null?"":java.text.DateFormat.getDateTimeInstance(
++                    java.text.DateFormat.SHORT,java.text.DateFormat.SHORT).format(t.toDate());
++                rows.add("👤 "+n+(when.isEmpty()?"":"  •  "+when));ids.add(uid10003);
++            }
++            new AlertDialog.Builder(this).setTitle("👣 Profile Visitors")
++                .setItems(rows.toArray(new String[0]),(dlg,w)->{
++                    if(firebaseAuth.getCurrentUser()==null||!account10003.equals(firebaseAuth.getCurrentUser().getUid()))return;
++                    Intent i=new Intent(this,KingPublicProfileActivity.class);
++                    i.putExtra("uid",ids.get(w));startActivity(i);
++                }).setNegativeButton("Close",null).show();
++        }).addOnFailureListener(e->{
++            if(isFinishing()||isDestroyed()||firebaseAuth.getCurrentUser()==null
++                ||!account10003.equals(firebaseAuth.getCurrentUser().getUid()))return;
++            new AlertDialog.Builder(this).setTitle("👣 Profile Visitors")
++                .setMessage("Visitors are unavailable right now.")
++                .setPositiveButton("Retry",(d,w)->showProfileVisitors940())
++                .setNegativeButton("Close",null).show();
++        });
+     }
+ 
+     private com.google.firebase.firestore.ListenerRegistration walletListener9989;
+--- a/app/src/main/java/com/kingplus/social/CommunityHubActivity.java
++++ b/app/src/main/java/com/kingplus/social/CommunityHubActivity.java
+@@ -81,6 +81,12 @@
+ 
+     private void search(){body.addView(tv("Find people & live rooms",21,DARK,true));EditText q=new EditText(this);q.setHint("Name, 6-digit KING ID or room");q.setSingleLine(true);q.setBackground(bg(CARD,14));q.setPadding(dp(12),0,dp(12),0);body.addView(q,new LinearLayout.LayoutParams(-1,dp(52)));LinearLayout row=new LinearLayout(this);TextView people=button("👤 People",()->searchPeople(q.getText().toString().trim()));TextView rooms=button("🎤 Rooms",()->searchRooms(q.getText().toString().trim()));LinearLayout.LayoutParams a=new LinearLayout.LayoutParams(0,dp(48),1);a.setMargins(0,dp(8),dp(4),0);row.addView(people,a);LinearLayout.LayoutParams c=new LinearLayout.LayoutParams(0,dp(48),1);c.setMargins(dp(4),dp(8),0,0);row.addView(rooms,c);body.addView(row);body.addView(tv("Search uses real signed-in KING Plus profiles and live rooms.",12,MUTED,false));}
+     private void clearResults(String title){while(body.getChildCount()>4)body.removeViewAt(4);body.addView(tv(title,17,DARK,true));}
++    /** A completed Firebase request must not paint onto a different Home tab or account. */
++    private boolean currentSection10003(String tab,int generation,LinearLayout host,String account){
++        return generation==searchGeneration9994 && tab.equals(selected) && body==host
++            && !isFinishing() && !isDestroyed()
++            && account!=null && KingSavedRoomsCloud9990.account(account);
++    }
+     private boolean validSearch9994(int token,LinearLayout host,String account){
+         return token==searchGeneration9994 && "Search".equals(selected)
+             && body==host && !isFinishing() && !isDestroyed()
+@@ -718,22 +724,52 @@
+         body.addView(tv("Profile Visitors",21,DARK,true));
+         body.addView(tv("People who recently opened your KING profile",12,MUTED,false));
+         if(!cloud()){body.addView(tv("Sign in to see profile visitors.",14,MUTED,false));return;}
+-        TextView loading952=tv("Loading recent visitors…",13,MUTED,true);loading952.setGravity(Gravity.CENTER);loading952.setBackground(bg(CARD,14));LinearLayout.LayoutParams llp952=new LinearLayout.LayoutParams(-1,dp(58));llp952.setMargins(0,dp(8),0,dp(8));body.addView(loading952,llp952);
+-        db.collection("public_profiles").document(me.getUid()).collection("visitors")
+-          .orderBy("updatedAt",Query.Direction.DESCENDING).limit(50).get()
++        final LinearLayout visitorHost10003=body;
++        final int visitorGeneration10003=searchGeneration9994;
++        final String visitorAccount10003=me.getUid();
++        TextView loading952=tv("Loading recent visitors…",13,MUTED,true);
++        loading952.setGravity(Gravity.CENTER);loading952.setBackground(bg(CARD,14));
++        LinearLayout.LayoutParams llp952=new LinearLayout.LayoutParams(-1,dp(58));
++        llp952.setMargins(0,dp(8),0,dp(8));visitorHost10003.addView(loading952,llp952);
++        // Profile visits are written with visitedAt by KingPublicProfileActivity.
++        // Sorting on updatedAt silently fails when that field is absent.
++        db.collection("public_profiles").document(visitorAccount10003).collection("visitors")
++          .orderBy("visitedAt",Query.Direction.DESCENDING).limit(50)
++          .get(com.google.firebase.firestore.Source.SERVER)
+           .addOnSuccessListener(q->{
++              if(!currentSection10003("Visitors",visitorGeneration10003,visitorHost10003,visitorAccount10003))return;
+               loading952.setText(q.isEmpty()?"No profile visitors yet.":"Recent visitors • "+q.size());
+               for(DocumentSnapshot d:q.getDocuments()){
+-                  String uid=safe(d.getString("uid"),d.getId()),name=safe(d.getString("name"),"KING User");
+-                  com.google.firebase.Timestamp at=d.getTimestamp("updatedAt");String when=at==null?"Recently":new java.text.SimpleDateFormat("dd MMM • HH:mm",java.util.Locale.US).format(at.toDate());
+-                  LinearLayout row=new LinearLayout(this);row.setGravity(Gravity.CENTER_VERTICAL);row.setPadding(dp(12),dp(7),dp(10),dp(7));row.setBackground(bg(CARD,14));
+-                  TextView icon=tv("👁",20,PURPLE,false);icon.setGravity(Gravity.CENTER);row.addView(icon,new LinearLayout.LayoutParams(dp(44),dp(50)));
+-                  LinearLayout info=new LinearLayout(this);info.setOrientation(LinearLayout.VERTICAL);info.addView(tv(name,14,DARK,true),new LinearLayout.LayoutParams(-1,dp(27)));info.addView(tv(when,11,MUTED,false),new LinearLayout.LayoutParams(-1,dp(22)));row.addView(info,new LinearLayout.LayoutParams(0,dp(50),1));
+-                  TextView open=tv("Profile ›",11,PURPLE,true);open.setGravity(Gravity.CENTER);row.addView(open,new LinearLayout.LayoutParams(dp(82),dp(50)));
+-                  row.setOnClickListener(v->{Intent i=new Intent(this,KingPublicProfileActivity.class);i.putExtra("uid",uid);i.putExtra("name",name);startActivity(i);});
+-                  LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(-1,dp(64));lp.setMargins(0,dp(4),0,dp(4));body.addView(row,lp);
++                  String uid=safe(d.getString("uid"),d.getId());
++                  if(uid.equals(visitorAccount10003))continue;
++                  String name=safe(d.getString("name"),"KING User");
++                  com.google.firebase.Timestamp at=d.getTimestamp("visitedAt");
++                  String when=at==null?"Recently":new java.text.SimpleDateFormat("dd MMM • HH:mm",java.util.Locale.US).format(at.toDate());
++                  LinearLayout row=new LinearLayout(this);row.setGravity(Gravity.CENTER_VERTICAL);
++                  row.setPadding(dp(12),dp(7),dp(10),dp(7));row.setBackground(bg(CARD,14));
++                  TextView icon=tv("👁",20,PURPLE,false);icon.setGravity(Gravity.CENTER);
++                  row.addView(icon,new LinearLayout.LayoutParams(dp(44),dp(50)));
++                  LinearLayout info=new LinearLayout(this);info.setOrientation(LinearLayout.VERTICAL);
++                  info.addView(tv(name,14,DARK,true),new LinearLayout.LayoutParams(-1,dp(27)));
++                  info.addView(tv(when,11,MUTED,false),new LinearLayout.LayoutParams(-1,dp(22)));
++                  row.addView(info,new LinearLayout.LayoutParams(0,dp(50),1));
++                  TextView open=tv("Profile ›",11,PURPLE,true);open.setGravity(Gravity.CENTER);
++                  row.addView(open,new LinearLayout.LayoutParams(dp(82),dp(50)));
++                  row.setOnClickListener(v->{
++                      if(!currentSection10003("Visitors",visitorGeneration10003,visitorHost10003,visitorAccount10003))return;
++                      Intent i=new Intent(this,KingPublicProfileActivity.class);
++                      i.putExtra("uid",uid);i.putExtra("name",name);startActivity(i);
++                  });
++                  LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(-1,dp(64));
++                  lp.setMargins(0,dp(4),0,dp(4));visitorHost10003.addView(row,lp);
+               }
+-          }).addOnFailureListener(e->loading952.setText("Visitors unavailable right now • try again later"));
++          }).addOnFailureListener(e->{
++              if(!currentSection10003("Visitors",visitorGeneration10003,visitorHost10003,visitorAccount10003))return;
++              loading952.setText("Visitors unavailable • tap to retry");
++              loading952.setOnClickListener(v->{
++                  if(currentSection10003("Visitors",visitorGeneration10003,visitorHost10003,visitorAccount10003))render("Visitors");
++              });
++          });
+     }
+ 
+     private void collection(){
+--- a/app/src/main/java/com/kingplus/social/PartyActivity.java
++++ b/app/src/main/java/com/kingplus/social/PartyActivity.java
+@@ -4225,6 +4225,35 @@
+             toast("Vote unavailable: "+msg(e));});
+     }
+ 
++    /** End only the vote round the host actually reviewed, never another game. */
++    private void closeVoteRound10003(String expectedRoom,String expectedUid,int binding,long round){
++        if(!currentVoteRoom10001(expectedRoom,expectedUid,binding)||!isModerator()){
++            toast("Room changed or host access lost. Vote was not closed.");return;
++        }
++        final DocumentReference ref10003=db.collection("live_rooms").document(expectedRoom)
++            .collection("game_state").document("current");
++        db.runTransaction(transaction->{
++            DocumentSnapshot latest=transaction.get(ref10003);
++            Long current=latest.getLong("roundId");
++            if(!latest.exists()||!"vote".equals(latest.getString("type"))
++                ||!"active".equals(latest.getString("status"))
++                ||current==null||current!=round)
++                throw new IllegalStateException("Vote round changed or closed");
++            Map<String,Object> updates=new HashMap<>();
++            updates.put("status","closed");updates.put("actorUid",expectedUid);
++            updates.put("updatedAt",FieldValue.serverTimestamp());
++            transaction.update(ref10003,updates);
++            return null;
++        }).addOnSuccessListener(done->{
++            if(currentVoteRoom10001(expectedRoom,expectedUid,binding)){
++                addEvent("game",safeName()+" closed the room vote");toast("Vote closed");
++            }
++        }).addOnFailureListener(e->{
++            if(currentVoteRoom10001(expectedRoom,expectedUid,binding))
++                toast("Vote was not closed • round changed or permission denied");
++        });
++    }
++
+     private void showVoteResults(){
+         if(!cloudRoom||db==null||user==null||roomId==null||!memberSeen){toast("Join a live room to see votes");return;}
+         final String resultsRoom10002=roomId,resultsUid10002=user.getUid();
+@@ -4238,6 +4267,16 @@
+             String question=str(state,"prompt","Room vote");
+             resultsRef10002.collection("game_votes").get(com.google.firebase.firestore.Source.SERVER).addOnSuccessListener(snap->{
+                 if(!currentVoteRoom10001(resultsRoom10002,resultsUid10002,resultsBinding10002))return;
++                // A second fetch prevents delayed vote results from showing an old
++                // round after a moderator has published a newer question.
++                resultsRef10002.collection("game_state").document("current")
++                    .get(com.google.firebase.firestore.Source.SERVER).addOnSuccessListener(latest10003->{
++                    if(!currentVoteRoom10001(resultsRoom10002,resultsUid10002,resultsBinding10002))return;
++                    Long latestRound10003=latest10003.getLong("roundId");
++                    if(!latest10003.exists()||!"vote".equals(latest10003.getString("type"))
++                        ||latestRound10003==null||latestRound10003!=round){
++                        toast("Vote changed. Open results again.");return;
++                    }
+                 Map<String,Integer>counts=new HashMap<>();int total=0;
+                 for(DocumentSnapshot v:snap.getDocuments()){
+                     Long r=v.getLong("roundId");if(r==null||r!=round)continue;
+@@ -4256,8 +4295,12 @@
+                     .setPositiveButton("Vote",(d,w)->{
+                         if(currentVoteRoom10001(resultsRoom10002,resultsUid10002,resultsBinding10002))submitCurrentVote();
+                     }).setNeutralButton(isModerator()?"Close vote":null,(d,w)->{
+-                        if(currentVoteRoom10001(resultsRoom10002,resultsUid10002,resultsBinding10002)&&isModerator())closeActiveGame();
++                        closeVoteRound10003(resultsRoom10002,resultsUid10002,resultsBinding10002,round);
+                     }).setNegativeButton("Close",null).show();
++                }).addOnFailureListener(e->{
++                    if(currentVoteRoom10001(resultsRoom10002,resultsUid10002,resultsBinding10002))
++                        toast("Unable to verify the current vote round");
++                });
+             }).addOnFailureListener(e->{if(currentVoteRoom10001(resultsRoom10002,resultsUid10002,resultsBinding10002))toast("Results unavailable: "+msg(e));});
+         }).addOnFailureListener(e->{if(currentVoteRoom10001(resultsRoom10002,resultsUid10002,resultsBinding10002))toast("Vote unavailable: "+msg(e));});
+     }

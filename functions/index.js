@@ -3,6 +3,7 @@ const { onDocumentCreated } = require('firebase-functions/v2/firestore');
 const { initializeApp } = require('firebase-admin/app');
 const { getFirestore, FieldValue } = require('firebase-admin/firestore');
 const { getMessaging } = require('firebase-admin/messaging');
+const { publicOwnerSettings, validateOwnerSettings } = require('./owner-settings');
 
 initializeApp();
 const db = getFirestore();
@@ -55,7 +56,7 @@ exports.sendGift = onCall(async request => {
   const giftName = cleanText(request.data && request.data.giftName, 60) || 'Gift';
   const cost = Number(request.data && request.data.cost);
   if (!targetUid || targetUid === senderUid) throw new HttpsError('invalid-argument', 'Choose another user.');
-  if (!Number.isInteger(cost) || cost < 1 || cost > 100000) throw new HttpsError('invalid-argument', 'Invalid gift cost.');
+  if (!Number.isInteger(cost) || cost < 1 || cost > 50000000) throw new HttpsError('invalid-argument', 'Invalid gift cost.');
 
   const senderRef = db.collection('wallets').doc(senderUid);
   const receiverRef = db.collection('wallets').doc(targetUid);
@@ -127,6 +128,53 @@ exports.adminAdjustWallet = onCall(async request => {
     tx.set(ledgerRef, { type: 'admin_adjustment', targetUid, delta, reason, adminUid, createdAt: FieldValue.serverTimestamp() });
   });
   return { ok: true, balance: newBalance, message: `Server wallet updated to ${newBalance} coins.` };
+});
+
+// App-wide settings are written only through this claim-checked callable.
+// The public callable deliberately returns only the announcement and notice flags.
+const ownerSettingsRef = () => db.collection('owner_app_settings').doc('global');
+exports.getOwnerConsoleSnapshot = onCall(async request => {
+  requireAdmin(request);
+  const [settings, accounts, profiles, rooms, reports, agencies, agents] = await Promise.all([
+    ownerSettingsRef().get(),
+    db.collection('users').count().get(),
+    db.collection('public_profiles').count().get(),
+    db.collection('live_rooms').count().get(),
+    db.collection('reports').where('status', 'in', ['new', 'reviewing']).count().get(),
+    db.collection('king_agencies').count().get(),
+    db.collection('king_agents').count().get(),
+  ]);
+  const data = settings.exists ? settings.data() : {};
+  return {
+    ok: true,
+    settings: publicOwnerSettings(data),
+    metrics: {
+      accounts: accounts.data().count, profiles: profiles.data().count,
+      rooms: rooms.data().count, openReports: reports.data().count,
+      agencies: agencies.data().count, agents: agents.data().count,
+    },
+  };
+});
+
+exports.updateOwnerAppSettings = onCall(async request => {
+  const adminUid = requireAdmin(request);
+  const input = validateOwnerSettings(request.data);
+  if (!input) {
+    throw new HttpsError('invalid-argument', 'Invalid owner app settings.');
+  }
+  await ownerSettingsRef().set({
+    ...input,
+    updatedBy: adminUid,
+    updatedAt: FieldValue.serverTimestamp(),
+  }, { merge: true });
+  return { ok: true, message: 'App-wide settings saved.' };
+});
+
+exports.getPublicAppNotice = onCall(async request => {
+  requireAuth(request);
+  const snap = await ownerSettingsRef().get();
+  const data = snap.exists ? snap.data() : {};
+  return { ok: true, ...publicOwnerSettings(data) };
 });
 
 exports.onRoomMessageCreated = onDocumentCreated('live_rooms/{roomId}/messages/{messageId}', async event => {

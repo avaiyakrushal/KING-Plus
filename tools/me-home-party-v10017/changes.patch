@@ -1,0 +1,122 @@
+--- a/app/src/main/java/com/kingplus/social/MainActivity.java
++++ b/app/src/main/java/com/kingplus/social/MainActivity.java
+@@ -1677,10 +1677,23 @@
+                 if(name==null||name.trim().isEmpty())name="KING Party";
+                 boolean closed=Boolean.TRUE.equals(doc.getBoolean("closed"));
+                 mePartyRecordV600(host,closed?"🔒":"🎤",name,
+-                    closed?"Closed room":"Hosted by your account",
++                    closed?"Closed room • long press to copy Room ID":"Hosted by you • long press to copy Room ID",
+                     closed?null:()->{
+                         if(hostedRoomsCurrent10015(host,account10015,generation10015))openVerifiedMeRoom9981(id);
+                     });
++                // A hosted room's real ID can be shared without disclosing its password.
++                // Never copy a stale room after account/profile navigation changes.
++                final android.view.View roomRow10017=host.getChildAt(host.getChildCount()-1);
++                roomRow10017.setOnLongClickListener(v->{
++                    if(!hostedRoomsCurrent10015(host,account10015,generation10015))return true;
++                    android.content.ClipboardManager clip10017=(android.content.ClipboardManager)
++                        getSystemService(CLIPBOARD_SERVICE);
++                    if(clip10017!=null){
++                        clip10017.setPrimaryClip(android.content.ClipData.newPlainText("KING Party Room ID",id));
++                        Toast.makeText(this,"Hosted Party Room ID copied",Toast.LENGTH_SHORT).show();
++                    }
++                    return true;
++                });
+                 count++;
+             }
+             if(page10015==0 && count==0)mePartyRecordV600(host,"🎤","No hosted Party rooms yet",
+--- a/app/src/main/java/com/kingplus/social/CommunityHubActivity.java
++++ b/app/src/main/java/com/kingplus/social/CommunityHubActivity.java
+@@ -853,6 +853,16 @@
+             TextView req952=button("Send Request",()->sendRelationship(targetUid,safe(targetName,"KING User")));selected952.addView(req952,new LinearLayout.LayoutParams(dp(126),dp(44)));LinearLayout.LayoutParams slp952=new LinearLayout.LayoutParams(-1,dp(58));slp952.setMargins(0,dp(6),0,dp(8));body.addView(selected952,slp952);
+         }
+ 
++        LinearLayout cpActions10017=new LinearLayout(this);
++        cpActions10017.setGravity(Gravity.CENTER_VERTICAL);
++        final String cpRefreshAccount10017=me.getUid();
++        TextView refreshCp10017=button("↻ Refresh CP & Requests",()->{
++            if(me!=null&&cpRefreshAccount10017.equals(me.getUid())
++                &&"Relationship".equals(selected)&&!isFinishing()&&!isDestroyed())
++                render("Relationship");
++        });
++        cpActions10017.addView(refreshCp10017,new LinearLayout.LayoutParams(-1,dp(46)));
++        body.addView(cpActions10017,new LinearLayout.LayoutParams(-1,dp(54)));
+         body.addView(tv("Your Relationship Status",16,DARK,true));
+         TextView loading952=tv("Loading requests and CP connections…",13,MUTED,true);loading952.setGravity(Gravity.CENTER);loading952.setBackground(bg(CARD,14));body.addView(loading952,new LinearLayout.LayoutParams(-1,dp(58)));
+         Set<String> seen10016=new HashSet<>();
+--- a/app/src/main/java/com/kingplus/social/PartyActivity.java
++++ b/app/src/main/java/com/kingplus/social/PartyActivity.java
+@@ -2250,9 +2250,14 @@
+             DocumentSnapshot targetDoc9913=seats9970.get(target9913-1);
+             if(targetDoc9913.exists()&&!uid9913.equals(targetDoc9913.getString("uid")))
+                 throw new IllegalStateException("Mic seat already belongs to another member");
+-            if(request9913!=null&&(!reqDoc9913.exists()
+-                ||!uid9913.equals(reqDoc9913.getString("uid"))))
+-                throw new IllegalStateException("Mic seat request expired");
++            if(request9913!=null){
++                Long requestedSeat10017=reqDoc9913.exists()?reqDoc9913.getLong("seatNo"):null;
++                if(!reqDoc9913.exists()||!uid9913.equals(reqDoc9913.getString("uid"))
++                    ||requestedSeat10017==null||requestedSeat10017.intValue()!=target9913)
++                    throw new IllegalStateException("Mic seat request changed. Reopen queue.");
++            }
++            if(Boolean.TRUE.equals(roomFresh9970.getBoolean("closed")))
++                throw new IllegalStateException("Party room is closed");
+             // Atomic cleanup includes any stale seat(s) from another phone.
+             for(int i9970=0;i9970<seats9970.size();i9970++)
+                 if(i9970!=target9913-1&&seats9970.get(i9970).exists()
+@@ -6559,7 +6564,43 @@
+     }
+ 
+     private int firstOpenSeat700(){for(int i=1;i<=maxSeats;i++)if(!seatUids.containsKey(i)&&!lockedSeats.contains(i))return i;return -1;}
+-    private void loopMicPanel700(){if(!cloudRoom||db==null){toast("Live room required");return;}if(!isModerator()){int seat=firstOpenSeat700();if(seat<1){toast("No open mic seat");return;}requestSeat(seat);return;}db.collection("live_rooms").document(roomId).collection("seat_requests").get().addOnSuccessListener(q->{if(q.isEmpty()){toast("Loop Mic queue is empty");return;}List<DocumentSnapshot>docs=q.getDocuments();List<String>rows=new ArrayList<>();for(DocumentSnapshot d:docs){Long n=d.getLong("seatNo");rows.add(str(d,"name","User")+" • Seat "+(n==null?"auto":n));}new AlertDialog.Builder(this).setTitle("🔁 Loop Mic Queue").setItems(rows.toArray(new String[0]),(x,w)->{DocumentSnapshot r=docs.get(w);int seat=firstOpenSeat700();Long req=r.getLong("seatNo");if(req!=null&&!seatUids.containsKey(req.intValue())&&!lockedSeats.contains(req.intValue()))seat=req.intValue();if(seat<1){toast("No open seat");return;}approveSeatRequest(r.getId(),r.getString("uid"),str(r,"name","User"),seat);}).setNegativeButton("Close",null).show();});}
++    // Loop Mic shares the same room-bound, server-read seat-request approval flow.
++    // It no longer silently redirects a user's requested mic to some other seat.
++    private void loopMicPanel700(){
++        if(!cloudRoom||db==null||roomId==null||user==null||!memberSeen){
++            toast("Join a real live Party to use Loop Mic");return;
++        }
++        if(!canModerateSeatsV530()){
++            int seat=firstOpenSeat700();
++            if(seat<1){toast("No open mic seat");return;}
++            requestSeat(seat);return;
++        }
++        final String room10017=roomId,actor10017=user.getUid();
++        final int generation10017=presenceGeneration967;
++        db.collection("live_rooms").document(room10017).collection("seat_requests")
++            .get(com.google.firebase.firestore.Source.SERVER).addOnSuccessListener(q->{
++                if(!seatRequestContext10016(room10017,actor10017,generation10017))return;
++                if(q.isEmpty()){toast("Loop Mic queue is empty");return;}
++                List<DocumentSnapshot> docs=q.getDocuments();List<String> rows=new ArrayList<>();
++                for(DocumentSnapshot d:docs){
++                    Long seat=d.getLong("seatNo");
++                    rows.add(str(d,"name","User")+" • Requested Seat "+(seat==null?"?":seat));
++                }
++                new AlertDialog.Builder(this).setTitle("🔁 Loop Mic requests")
++                    .setItems(rows.toArray(new String[0]),(x,w)->{
++                        if(!seatRequestContext10016(room10017,actor10017,generation10017)){
++                            toast("Party changed; reopen Loop Mic");return;
++                        }
++                        DocumentSnapshot request=docs.get(w);
++                        Long seat=request.getLong("seatNo");
++                        if(seat==null||seat<1||seat>maxSeats){toast("Invalid requested seat");return;}
++                        seatRequestDecision(request,seat.intValue(),room10017,actor10017,generation10017);
++                    }).setNegativeButton("Close",null).show();
++            }).addOnFailureListener(e->{
++                if(seatRequestContext10016(room10017,actor10017,generation10017))
++                    toast("Loop Mic queue unavailable: "+msg(e));
++            });
++    }
+ 
+     private String publicId(String uid){if(uid==null||uid.isEmpty())return "000000";long value=Integer.toUnsignedLong(uid.hashCode());return String.valueOf((value%900000L)+100000L);}
+ 
+--- a/app/build.gradle
++++ b/app/build.gradle
+@@ -14,7 +14,7 @@
+         }
+     }
+ 
+-    defaultConfig { applicationId 'com.kingplus.social'; minSdk 26; targetSdk 35; versionCode 295; versionName '10.0.15-me-home-room-pagination-test' }
++    defaultConfig { applicationId 'com.kingplus.social'; minSdk 26; targetSdk 35; versionCode 296; versionName '10.0.17-me-home-loopmic-real-test' }
+     buildTypes {
+         debug { signingConfig signingConfigs.debug }
+         release {

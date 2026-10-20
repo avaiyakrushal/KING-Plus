@@ -1,0 +1,8 @@
+https://o-static.ihago.net/ctest/367a68db8b7c4222fb2b2ddb9bdd72ef/im_emoji_full_heart.svga
+https://o-static.ihago.net/ctest/6e6064e26bf00780ec39ea727be214d1/im_interactive_emoji_heart.svga
+https://o-static.ihago.net/ctest/7470e772da37245b396fd17ac7ae3ea5/custom_emoji_empty.svga
+https://o-static.ihago.net/ctest/81f9fd3d2ea8cb7481d72ba18c3d8731/im_interactive_emoji_cry.svga
+https://o-static.ihago.net/ctest/945b996fdfe6e05845a9d4a62ea0d151/im_interactive_emoji_smile.svga
+https://o-static.ihago.net/ctest/9c9944cd1181784ed889637c2fbafd0e/im_emoji_full_cry.svga
+https://o-static.ihago.net/ctest/d2f24e73dd36925a59ce4abdb6ae6444/emoji_bubble.svga
+https://o-static.ihago.net/ctest/fde26b8b0e424de3b459634a4401cc52/im_emoji_full_smile.svga

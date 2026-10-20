@@ -1,0 +1,186 @@
+--- a/app/build.gradle
++++ b/app/build.gradle
+@@ -14,7 +14,7 @@
+         }
+     }
+ 
+-    defaultConfig { applicationId 'com.kingplus.social'; minSdk 26; targetSdk 35; versionCode 304; versionName '10.0.25-six-page-combined-test' }
++    defaultConfig { applicationId 'com.kingplus.social'; minSdk 26; targetSdk 35; versionCode 305; versionName '10.0.26-party-room-session-fixes-test' }
+     buildTypes {
+         debug { signingConfig signingConfigs.debug }
+         release {
+--- a/app/src/main/java/com/kingplus/social/PartyActivity.java
++++ b/app/src/main/java/com/kingplus/social/PartyActivity.java
+@@ -136,6 +136,12 @@
+     private LinearLayout feedBox;
+     private LinearLayout chatBox;
+     private ScrollView roomChatScroll;
++    // Only live events created during this visit appear in the live feed.
++    // Server history is preserved for the explicit History screen.
++    private long roomVisitStarted10026;
++    // Show a selected cover locally while its Firebase Storage upload completes.
++    private String localCoverRoom10026="";
++    private Uri localCoverUri10026;
+     private final Map<Integer,View> seatViews560=new HashMap<>();
+     private final Map<String,View> activeReactions560=new HashMap<>();
+     private TextView viewerLabel;
+@@ -545,7 +551,9 @@
+             Insets bars=insets.getInsets(WindowInsetsCompat.Type.systemBars());
+             Insets ime=insets.getInsets(WindowInsetsCompat.Type.ime());
+             boolean keyboard=insets.isVisible(WindowInsetsCompat.Type.ime());
+-            int bottom=keyboard?Math.max(bars.bottom,ime.bottom):bars.bottom;
++            // ADJUST_RESIZE already reduces the content height for the keyboard.
++            // Applying the entire IME inset again hid the composer on compact screens.
++            int bottom=bars.bottom;
+             v.setPadding(l,t+bars.top,r,b+bottom);
+             if(keyboard&&roomChatScroll!=null)roomChatScroll.post(()->roomChatScroll.fullScroll(View.FOCUS_DOWN));
+             return insets;
+@@ -708,7 +716,17 @@
+         // after Leaving or switching into the Home/Party lobby.
+         releaseMusicPlayer();sharedMusicUrl="";currentSong="";
+         currentSongIndex=-1;applyingSharedMusic=false;musicStatusLabel=null;
+-        unregisterMember(); roomId = null; cloudRoom = false; memberSeen=false;
++        unregisterMember(); // Capture old room + session for guarded server release first.
++        if(chatBox!=null)chatBox.removeAllViews();
++        if(feedBox!=null)feedBox.removeAllViews();
++        roomChatScroll=null; chatBox=null; feedBox=null; composerBox=null;
++        seatNames.clear();seatUids.clear();seatMics.clear();lockedSeats.clear();
++        memberNames.clear();memberUids.clear();memberPhotos540.clear();
++        memberVip720.clear();memberLevel720.clear();memberFrame730.clear();memberEffect730.clear();
++        mySeat=-1;micOn=false;liveMemberCount=0;pendingSeatRequests=0;
++        pendingReplyName620="";pendingReplyText620="";
++        roomVisitStarted10026=0L;
++        roomId = null; cloudRoom = false; memberSeen=false;
+         LinearLayout root = new LinearLayout(this); root.setOrientation(LinearLayout.VERTICAL);
+         root.setBackground(new GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM,
+             new int[]{0xff100824,0xff261344,0xff10091f}));
+@@ -919,7 +937,11 @@
+         KingRoomCoverView art940=new KingRoomCoverView(this,category,name);cover.addView(art940,new FrameLayout.LayoutParams(-1,-1));
+         ImageView img=new ImageView(this);img.setScaleType(ImageView.ScaleType.CENTER_CROP);cover.addView(img,new FrameLayout.LayoutParams(-1,-1));
+         TextView initial=tv("",1,Color.TRANSPARENT,false);initial.setVisibility(View.GONE);cover.addView(initial,new FrameLayout.LayoutParams(1,1));
+-        if(photoUrl!=null&&!photoUrl.trim().isEmpty())loadProfilePhoto(img,initial,photoUrl.trim());
++        if(id!=null&&id.equals(localCoverRoom10026)&&localCoverUri10026!=null){
++            try{img.setImageURI(localCoverUri10026);}catch(Exception ignored){}
++        }
++        if(img.getDrawable()==null&&photoUrl!=null&&!photoUrl.trim().isEmpty())
++            loadProfilePhoto(img,initial,photoUrl.trim());
+         TextView tag=tv(("Music".equalsIgnoreCase(category)?"Music":"● "+("Hot".equalsIgnoreCase(category)?"Chat":category)),10,Color.WHITE,true);tag.setGravity(Gravity.CENTER);tag.setBackground(royalNeon9924(0xfff34b97,0xff8b2ab9,0x88ffe2b0,8));FrameLayout.LayoutParams tp=new FrameLayout.LayoutParams(dp(58),dp(23),Gravity.BOTTOM|Gravity.LEFT);tp.setMargins(dp(7),0,0,dp(7));cover.addView(tag,tp);
+         TextView count=tv("LIVE",10,Color.WHITE,true);count.setGravity(Gravity.CENTER);count.setBackground(bg(0x99000000,10));FrameLayout.LayoutParams ctp=new FrameLayout.LayoutParams(dp(48),dp(23),Gravity.TOP|Gravity.RIGHT);ctp.setMargins(0,dp(7),dp(7),0);cover.addView(count,ctp);
+         if(db!=null&&id!=null&&!id.isEmpty()){
+@@ -1031,7 +1053,13 @@
+         ref.set(legacy).addOnSuccessListener(v->finishRoomCreate921(ref,name,seats,priv)).addOnFailureListener(last->{roomCreateInFlight921=false;KingStability.nonFatal(this,"room-create-full",first);KingStability.nonFatal(this,"room-create-compact",second);KingStability.nonFatal(this,"room-create-legacy",last);roomJoinError891("Room create failed",last);renderCreateRoomPage();});
+     }
+     private void finishRoomCreate921(DocumentReference ref,String name,int seats,boolean priv){
+-        roomCreateInFlight921=false;maxSeats=seats;if(pendingCreateCoverUri!=null&&storage!=null)uploadRoomCoverV600(ref,pendingCreateCoverUri);newlyCreatedServerRoom991=ref.getId();openCloudRoom(ref.getId(),name,user.getUid(),safeName(),priv,false);
++        roomCreateInFlight921=false;maxSeats=seats;
++        if(pendingCreateCoverUri!=null){
++            localCoverRoom10026=ref.getId();localCoverUri10026=pendingCreateCoverUri;
++            if(storage!=null)uploadRoomCoverV600(ref,pendingCreateCoverUri);
++            else toast("Room created, but photo upload needs Firebase Storage");
++        }
++        newlyCreatedServerRoom991=ref.getId();openCloudRoom(ref.getId(),name,user.getUid(),safeName(),priv,false);
+     }
+     private void uploadRoomCoverV600(DocumentReference room,Uri uri){
+         if(room==null||uri==null||storage==null||user==null)return;String path="chat_media/"+user.getUid()+"/room_covers/"+room.getId()+"_"+System.currentTimeMillis()+".jpg";StorageReference ref=storage.getReference().child(path);ref.putFile(uri).continueWithTask(t->{if(!t.isSuccessful()){Exception e=t.getException();if(e!=null)throw e;}return ref.getDownloadUrl();}).addOnSuccessListener(u->room.update("coverUrl",u.toString(),"updatedAt",FieldValue.serverTimestamp())).addOnFailureListener(e->toast("Room cover upload failed: "+msg(e)));
+@@ -1054,6 +1082,7 @@
+         ++partyReconnectGeneration979;
+         clearPartyReconnect979();
+         presenceSession967=java.util.UUID.randomUUID().toString();
++        roomVisitStarted10026=System.currentTimeMillis();
+         roomId=id.trim(); micTogglePending968=false; roomName=name; ownerUid=hostUid; ownerName=hostName; cloudRoom=true; mySeat=-1; micOn=false; coHost=false; roomPrivate=priv; roomHasPassword=password;roomEntranceMode9931="legacy";roomEntryEpoch9936=""; memberSeen=false; localRemovedSeats.clear(); lockedSeats.clear();
+         processedEventIds.clear(); eventSnapshotReady=false;
+         if(roomPrivate&&!isOwner()) tryPrivateEntry();
+@@ -1834,7 +1863,7 @@
+         roomRoot.setOrientation(LinearLayout.VERTICAL);
+         roomRoot.setPadding(0,0,0,0);
+         FrameLayout.LayoutParams roomRootLp = new FrameLayout.LayoutParams(-1,-1);
+-        roomRootLp.bottomMargin = dp(74);
++        roomRootLp.bottomMargin = dp(84);
+         shell.addView(roomRoot, roomRootLp);
+ 
+         // Top header: back, room title + online count, share, menu.
+@@ -1956,7 +1985,7 @@
+ 
+         // Bottom input panel, matching the supplied layout while preserving all room functions.
+         LinearLayout composer = new LinearLayout(this); composer.setGravity(Gravity.CENTER_VERTICAL); composer.setPadding(dp(6),dp(7),dp(6),dp(9)); composer.setBackground(royalNeon9924(0xff34164f,0xff17102f,0xaaffcf9a,12));
+-        composer.setMinimumHeight(dp(70));
++        composer.setMinimumHeight(dp(76));
+         TextView plus=pill("＋",0x00ffffff,this::toolsPanel); plus.setTextColor(0xffffd991); plus.setTextSize(24); composer.addView(plus,new LinearLayout.LayoutParams(dp(34),dp(48)));
+         composerBox=new EditText(this); composerBox.setHint("Type message..."); composerBox.setTextColor(Color.WHITE); composerBox.setHintTextColor(0xffbfaad6); composerBox.setSingleLine(true); composerBox.setTextSize(14); composerBox.setImeOptions(android.view.inputmethod.EditorInfo.IME_ACTION_SEND); composerBox.setOnEditorActionListener((v, actionId, event)->{ if(actionId==android.view.inputmethod.EditorInfo.IME_ACTION_SEND){sendMessage(composerBox);return true;}return false;}); composerBox.setBackground(royalNeon9924(0xff322053,0xff211438,0x88d2a5ea,20)); composerBox.setPadding(dp(10),0,dp(10),0);
+         composerBox.setOnFocusChangeListener((v,focused)->{if(focused){ViewCompat.requestApplyInsets(shell);if(roomChatScroll!=null)roomChatScroll.postDelayed(()->roomChatScroll.fullScroll(View.FOCUS_DOWN),120);}});
+@@ -1967,7 +1996,7 @@
+         TextView send=pill("➤",0x00ffffff,()->sendMessage(composerBox)); send.setTextColor(themeAccent954()); send.setTextSize(24); send.setGravity(Gravity.CENTER); composer.addView(send,new LinearLayout.LayoutParams(dp(40),dp(48)));
+         refreshMicControl();
+         plus.setContentDescription("Open Play Center"); emoji.setContentDescription("Emoji and reactions"); gift.setContentDescription("Send a gift"); send.setContentDescription("Send message");
+-        FrameLayout.LayoutParams composerLp=new FrameLayout.LayoutParams(-1,dp(74)); composerLp.gravity=Gravity.BOTTOM; shell.addView(composer,composerLp);
++        FrameLayout.LayoutParams composerLp=new FrameLayout.LayoutParams(-1,dp(82)); composerLp.gravity=Gravity.BOTTOM; shell.addView(composer,composerLp);
+ 
+         setSafeContentView(shell);
+         partyShell940=shell;
+@@ -2789,7 +2818,7 @@
+                 seenLiveEmojiEventsV530.add(docV530.getId()); Object tsV530=docV530.get("createdAt");
+                 if(!(tsV530 instanceof com.google.firebase.Timestamp))continue;
+                 long ageV530=System.currentTimeMillis()-((com.google.firebase.Timestamp)tsV530).toDate().getTime();
+-                if(ageV530>12000||ageV530 < -10000)continue;
++                if(ageV530>12000||ageV530 < -10000||!currentVisitDocument10026(docV530))continue;
+                 String actorV530=str(docV530,"actorName","User"); String emojiV530=str(docV530,"emoji",str(docV530,"text","😊"));
+                 if(!activeUserForEmoji960.equals(docV530.getString("actorUid"))) showLiveEmojiEffect560(emojiV530,actorV530,docV530.getString("actorUid"));
+             }
+@@ -7371,6 +7400,13 @@
+         });
+     }
+ 
++    private boolean currentVisitDocument10026(DocumentSnapshot item){
++        if(item==null||roomId==null||roomVisitStarted10026<=0)return false;
++        com.google.firebase.Timestamp stamp=item.getTimestamp("createdAt");
++        // Firestore SERVER timestamps are authoritative, not local cached rows.
++        return stamp!=null&&stamp.toDate().getTime()>=roomVisitStarted10026-1500L;
++    }
++
+     private void attachCloudRoom() {
+         attachV530RealtimeHelpers();
+         if(db==null||user==null||roomId==null||roomId.trim().isEmpty())return;
+@@ -7429,7 +7465,7 @@
+                 refreshRoomState();
+             });
+         }
+-        messagesListener=room.collection("messages").orderBy("createdAt",Query.Direction.ASCENDING).limitToLast(120).addSnapshotListener((snap,e)->{if(!activeRoomCallback982(expectedRoom982,expectedUid982,visit982,binding982)||e!=null||snap==null||chatBox==null)return;chatBox.removeAllViews();for(DocumentSnapshot d:snap.getDocuments()){String text=str(d,"text","");if("gift".equals(d.getString("type"))&&text.isEmpty()){Long q=d.getLong("giftQty"),v=d.getLong("giftValue");text=str(d,"senderName","User")+" sent "+str(d,"giftIcon","🎁")+" "+str(d,"giftName","Gift")+" to "+str(d,"targetName","User")+" 🎁 x"+(q==null?1:q)+" • 💎"+(v==null?0:v);}addChatRow(str(d,"senderName","User"),text);}});
++        messagesListener=room.collection("messages").orderBy("createdAt",Query.Direction.ASCENDING).limitToLast(120).addSnapshotListener((snap,e)->{if(!activeRoomCallback982(expectedRoom982,expectedUid982,visit982,binding982)||e!=null||snap==null||chatBox==null)return;chatBox.removeAllViews();for(DocumentSnapshot d:snap.getDocuments()){if(!currentVisitDocument10026(d))continue;String text=str(d,"text","");if("gift".equals(d.getString("type"))&&text.isEmpty()){Long q=d.getLong("giftQty"),v=d.getLong("giftValue");text=str(d,"senderName","User")+" sent "+str(d,"giftIcon","🎁")+" "+str(d,"giftName","Gift")+" to "+str(d,"targetName","User")+" 🎁 x"+(q==null?1:q)+" • 💎"+(v==null?0:v);}addChatRow(str(d,"senderName","User"),text);}});
+         // Watch recipient-confirmed deliveries, not just Firestore write ACK.
+         // A sender only sees receipts for Gifts their own account sent.
+         if(giftReceiptListener9941!=null)giftReceiptListener9941.remove();
+@@ -7462,7 +7498,7 @@
+             if(snap.getMetadata().isFromCache())return; // server must verify before Gift ID dedupe
+             feedBox.removeAllViews();refreshSupporters(snap);
+             for(DocumentSnapshot d:snap.getDocuments()){
+-                if(!"live_emoji".equals(d.getString("type")))addFeed(str(d,"text","Room activity"));
++                if(currentVisitDocument10026(d)&&!"live_emoji".equals(d.getString("type")))addFeed(str(d,"text","Room activity"));
+                 String id=d.getId();
+                 if(!eventSnapshotReady){
+                     processedEventIds.add(id);
+@@ -7725,7 +7761,13 @@
+             .setNeutralButton("Find another",(d,w)->{leaveRoom();new android.os.Handler(android.os.Looper.getMainLooper()).postDelayed(()->showLobbySearch("Hot"),120L);})
+             .setNegativeButton("Stay",null).show();
+     }
+-    private void leaveRoom(){clearVoiceRejoin9957();roomVoiceOptedIn957=false;partyShell940=null;stopInRoomVoice940(true);renderLobby("Hot");}
++    private void leaveRoom(){
++        clearVoiceRejoin9957();roomVoiceOptedIn957=false;
++        clearPartyVisuals995(); // Cancel floating emojis and stale gift banners immediately.
++        if(chatBox!=null)chatBox.removeAllViews();
++        if(feedBox!=null)feedBox.removeAllViews();
++        partyShell940=null;stopInRoomVoice940(true);renderLobby("Hot");
++    }
+     private void addBottomNav(LinearLayout root,int selected){
+         LinearLayout nav=new LinearLayout(this);
+         nav.setGravity(Gravity.CENTER_VERTICAL);
+--- a/app/src/main/java/com/kingplus/social/KingRoomCoverView.java
++++ b/app/src/main/java/com/kingplus/social/KingRoomCoverView.java
+@@ -18,7 +18,7 @@
+         p.setColor(0x30ffffff);c.drawCircle(w*.78f,h*.18f,w*.22f,p);c.drawCircle(w*.18f,h*.86f,w*.28f,p);
+         p.setColor(0x24ffffff);for(int i=0;i<5;i++)c.drawCircle(w*(.15f+i*.2f),h*(.20f+(i%2)*.18f),w*.06f,p);
+         p.setTextAlign(Paint.Align.CENTER);p.setTypeface(Typeface.DEFAULT_BOLD);p.setColor(Color.WHITE);
+-        String icon=k.contains("music")||k.contains("ktv")?"♪":k.contains("game")?"◆":k.contains("date")?"♥":k.contains("event")?"★":k.contains("family")?"♛":"K";
++        String icon=k.contains("music")||k.contains("ktv")?"♪":k.contains("game")?"◆":k.contains("date")?"♥":k.contains("event")?"★":k.contains("family")?"♛":"♛";
+         p.setTextSize(Math.min(w,h)*.42f);c.drawText(icon,w/2f,h*.58f,p);
+         p.setTextSize(Math.min(w,h)*.085f);p.setColor(0xddffffff);String n=roomName.length()>16?roomName.substring(0,16):roomName;c.drawText(n,w/2f,h*.82f,p);
+     }

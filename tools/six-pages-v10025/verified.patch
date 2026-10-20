@@ -1,0 +1,235 @@
+--- a/app/build.gradle
++++ b/app/build.gradle
+@@ -14,7 +14,7 @@
+         }
+     }
+ 
+-    defaultConfig { applicationId 'com.kingplus.social'; minSdk 26; targetSdk 35; versionCode 303; versionName '10.0.24-six-page-live-batch-test' }
++    defaultConfig { applicationId 'com.kingplus.social'; minSdk 26; targetSdk 35; versionCode 304; versionName '10.0.25-six-page-combined-test' }
+     buildTypes {
+         debug { signingConfig signingConfigs.debug }
+         release {
+--- a/app/src/main/java/com/kingplus/social/MainActivity.java
++++ b/app/src/main/java/com/kingplus/social/MainActivity.java
+@@ -1592,11 +1592,11 @@
+         String equippedFrame730=KingCosmetics.frame(this);View avatar=profileAvatarView931(photo,remotePhoto931);
+         FrameLayout avatarFrame730=new FrameLayout(this);avatarFrame730.setBackground(KingCosmetics.avatarFrame(this,equippedFrame730,false));avatarFrame730.setPadding(dp(4),dp(4),dp(4),dp(4));avatarFrame730.addView(avatar,new FrameLayout.LayoutParams(-1,-1));avatarFrame730.setOnClickListener(v->editProfile());header.addView(avatarFrame730,new LinearLayout.LayoutParams(dp(86),dp(86)));
+         LinearLayout info=new LinearLayout(this);info.setOrientation(LinearLayout.VERTICAL);info.setPadding(dp(12),0,0,0);
+-        TextView name=new TextView(this);name.setText(displayName+"  ›");name.setTextSize(18);name.setTypeface(null,Typeface.BOLD);name.setTextColor(0xff191919);name.setOnClickListener(v->editProfile());info.addView(name,new LinearLayout.LayoutParams(-1,dp(32)));
+-        TextView id=new TextView(this);id.setText(KingCosmetics.frameEmoji(equippedFrame730)+"  ID: "+uid+"  "+KingCosmetics.frameEmoji(equippedFrame730));id.setTextSize(11);id.setTextColor(0xff3d3348);id.setGravity(Gravity.CENTER_VERTICAL);id.setPadding(dp(10),0,dp(10),0);id.setBackground(KingCosmetics.idFrame(this,equippedFrame730));info.addView(id,new LinearLayout.LayoutParams(-1,dp(28)));
++        TextView name=new TextView(this);name.setText(displayName+"  ›");name.setTextSize(18);name.setTypeface(null,Typeface.BOLD);name.setTextColor(0xff191919);name.setOnClickListener(v->editProfile());name.setSingleLine(false);name.setMaxLines(2);info.addView(name,new LinearLayout.LayoutParams(-1,dp(48)));
++        TextView id=new TextView(this);id.setText(KingCosmetics.frameEmoji(equippedFrame730)+"  ID: "+uid+"  "+KingCosmetics.frameEmoji(equippedFrame730));id.setTextSize(11);id.setTextColor(0xff3d3348);id.setSingleLine(true);id.setEllipsize(android.text.TextUtils.TruncateAt.END);id.setGravity(Gravity.CENTER_VERTICAL);id.setPadding(dp(10),0,dp(10),0);id.setBackground(KingCosmetics.idFrame(this,equippedFrame730));info.addView(id,new LinearLayout.LayoutParams(-1,dp(28)));
+         loadVerifiedMeId10002(id,"profile",equippedFrame730);
+         LinearLayout mini=new LinearLayout(this);mini.setGravity(Gravity.CENTER_VERTICAL);TextView vip=smallBadge("VIP …",0xffffe57b,0xff5a4100);
+-        loadVerifiedMeVip9988(vip);mini.addView(vip,new LinearLayout.LayoutParams(dp(50),dp(25)));TextView lv=smallBadge("Lv."+level,0xff8865e8,Color.WHITE);LinearLayout.LayoutParams lvp=new LinearLayout.LayoutParams(dp(58),dp(25));lvp.setMargins(dp(5),0,0,0);mini.addView(lv,lvp);info.addView(mini,new LinearLayout.LayoutParams(-1,dp(28)));header.addView(info,new LinearLayout.LayoutParams(0,dp(86),1));content.addView(header,new LinearLayout.LayoutParams(-1,dp(94)));
++        loadVerifiedMeVip9988(vip);mini.addView(vip,new LinearLayout.LayoutParams(dp(50),dp(25)));TextView lv=smallBadge("Lv."+level,0xff8865e8,Color.WHITE);LinearLayout.LayoutParams lvp=new LinearLayout.LayoutParams(dp(58),dp(25));lvp.setMargins(dp(5),0,0,0);mini.addView(lv,lvp);info.addView(mini,new LinearLayout.LayoutParams(-1,dp(28)));header.addView(info,new LinearLayout.LayoutParams(0,dp(104),1));content.addView(header,new LinearLayout.LayoutParams(-1,dp(112)));
+ 
+         LinearLayout counts=new LinearLayout(this);counts.setGravity(Gravity.CENTER);profileFollowersNumber=addProfileStat(counts,"…","Followers",()->peoplePage("Followers"));profileFollowingNumber=addProfileStat(counts,"…","Following",()->peoplePage("Following"));profileFriendsNumber=addProfileStat(counts,"…","Friends",()->peoplePage("Friends"));TextView realCoupling9985=addProfileStat(counts,"…","Coupling",()->openCommunityHub700("Relationship"));loadRealCoupleCount9985(realCoupling9985);content.addView(counts,new LinearLayout.LayoutParams(-1,dp(66)));
+ 
+--- a/app/src/main/java/com/kingplus/social/CommunityHubActivity.java
++++ b/app/src/main/java/com/kingplus/social/CommunityHubActivity.java
+@@ -472,7 +472,20 @@
+             .setNegativeButton("Cancel",null).setPositiveButton("Delete",(dialog,w)->
+                 deleteOwnedMoment10019(d.getReference(),account)).show());
+         LinearLayout.LayoutParams op=new LinearLayout.LayoutParams(0,dp(42),1);op.setMargins(dp(6),0,0,0);
+-        actions.addView(other,op);card.addView(actions);
++        actions.addView(other,op);
++        TextView share10025=button("↗ Share",()->{
++            if(isFinishing()||isDestroyed()||!"Moments".equals(selected)
++                ||!KingSavedRoomsCloud9990.account(account))return;
++            Intent shareIntent10025=new Intent(Intent.ACTION_SEND);
++            shareIntent10025.setType("text/plain");
++            shareIntent10025.putExtra(Intent.EXTRA_TEXT,
++                "KING Plus Moment • "+name+" • #"+topic+"\n"+text+"\nShared from KING Plus");
++            try{startActivity(Intent.createChooser(shareIntent10025,"Share KING Moment"));}
++            catch(Exception err10025){toast("No sharing app available");}
++        });
++        LinearLayout.LayoutParams shareLp10025=new LinearLayout.LayoutParams(0,dp(42),1);
++        shareLp10025.setMargins(dp(5),0,0,0);
++        actions.addView(share10025,shareLp10025);card.addView(actions);
+         LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(-1,-2);lp.setMargins(0,dp(6),0,dp(6));feed.addView(card,lp);
+     }
+     // Delete only the same live post owned by the current signed-in account.
+--- a/app/src/main/java/com/kingplus/social/PartyActivity.java
++++ b/app/src/main/java/com/kingplus/social/PartyActivity.java
+@@ -7054,6 +7054,8 @@
+             if(!more10018)rows10018.add("✓ End of available room gift history");
+             new AlertDialog.Builder(this).setTitle("🎁 Room Gift History • Page "+page10018)
+                 .setItems(rows10018.toArray(new String[0]),(dialog,choice)->{
++                    if(!memberSeen||user==null||!room10018.equals(roomId)
++                        ||!actor10018.equals(user.getUid()))return;
+                     if(more10018&&choice==olderIndex10018)
+                         loadGiftHistoryPage10018(room10018,actor10018,next10018,page10018+1);
+                 }).setNegativeButton("Close",null).show();
+@@ -7068,12 +7070,19 @@
+         });
+     }
+     private void roomRankingDialog(){
+-        if(!cloudRoom||db==null){new AlertDialog.Builder(this).setTitle("🏆 Room ranking").setMessage("Live gift ranking is available in Firebase rooms.").setPositiveButton("OK",null).show();return;}
+-        final String rankRoom10018=roomId;
++        if(!cloudRoom||db==null||user==null||roomId==null||!memberSeen){
++            new AlertDialog.Builder(this).setTitle("🏆 Room ranking")
++                .setMessage("Join this live Party to view its verified paid-gift ranking.")
++                .setPositiveButton("OK",null).show();return;
++        }
++        final String rankRoom10018=roomId,rankUid10025=user.getUid();
++        final int rankGeneration10025=presenceGeneration967;
+         db.collection("live_rooms").document(rankRoom10018).collection("events")
+-            .orderBy("createdAt",Query.Direction.DESCENDING).limit(250).get()
++            .orderBy("createdAt",Query.Direction.DESCENDING).limit(250)
++            .get(com.google.firebase.firestore.Source.SERVER)
+             .addOnSuccessListener(snap->{
+-                if(isFinishing()||isDestroyed()||!rankRoom10018.equals(roomId))return;
++                if(!isActivePresence967(rankRoom10018,rankUid10025,rankGeneration10025)
++                    ||!memberSeen)return;
+                 Map<String,Long>score=new HashMap<>();Map<String,Integer>count=new HashMap<>();
+                 Map<String,String>displayNames10018=new HashMap<>();
+                 for(DocumentSnapshot d:snap.getDocuments())if("gift".equals(d.getString("type"))){
+@@ -7102,7 +7111,8 @@
+                 AlertDialog dlg951=new AlertDialog.Builder(this).setTitle("🏆 Room Gift Ranking").setView(root).setPositiveButton("Refresh",(d,w)->roomRankingDialog()).setNegativeButton("Close",null).create();dlg951.show();
+             })
+             .addOnFailureListener(e->{
+-                if(!isFinishing()&&!isDestroyed()&&rankRoom10018.equals(roomId))
++                if(isActivePresence967(rankRoom10018,rankUid10025,rankGeneration10025)
++                    &&memberSeen)
+                     new AlertDialog.Builder(this).setTitle("Ranking unavailable")
+                         .setMessage(msg(e)).setPositiveButton("Retry",(d,w)->roomRankingDialog())
+                         .setNegativeButton("Close",null).show();
+--- a/app/src/main/java/com/kingplus/social/GamePlayActivity.java
++++ b/app/src/main/java/com/kingplus/social/GamePlayActivity.java
+@@ -174,18 +174,30 @@
+ 
+     private void showWerewolf(){
+         base("Werewolf","Single-player deduction round");
+-        final String[] names={"Asha","Ravi","Mira","Kabir"};final int wolf=random.nextInt(names.length);final int[] turns={2};
++        final String[] names={"Asha","Ravi","Mira","Kabir"};final int wolf=random.nextInt(names.length);final int[] turns={2};final boolean[] voted10025={false};
+         status=label("A werewolf is hiding. You have 2 investigations.",18,0xffffd768,true);status.setGravity(Gravity.CENTER);page.addView(status,new LinearLayout.LayoutParams(-1,dp(90)));
+-        for(int i=0;i<names.length;i++){final int k=i;Button b=action("🔍 Investigate "+names[i]);LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(-1,dp(54));lp.setMargins(0,dp(5),0,0);b.setOnClickListener(v->{if(turns[0]<=0)return;turns[0]--;boolean suspicious=k==wolf||random.nextBoolean();status.setText(names[k]+(suspicious?" looks suspicious 🐺":" seems calm 🙂")+"\nInvestigations left: "+turns[0]);});page.addView(b,lp);}
+-        Button vote=action("🗳 Vote for Werewolf");LinearLayout.LayoutParams vp=new LinearLayout.LayoutParams(-1,dp(58));vp.setMargins(0,dp(10),0,0);vote.setOnClickListener(v->new android.app.AlertDialog.Builder(this).setTitle("Final Vote").setItems(names,(d,w)->{boolean win=w==wolf;status.setText((win?"🏆 Correct! ":"Wrong vote • ")+names[wolf]+" was the Werewolf");if(win)KingSoundFx.win(this);}).show());page.addView(vote,vp);
++        for(int i=0;i<names.length;i++){final int k=i;Button b=action("🔍 Investigate "+names[i]);LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(-1,dp(54));lp.setMargins(0,dp(5),0,0);b.setOnClickListener(v->{if(turns[0]<=0||voted10025[0])return;turns[0]--;boolean suspicious=k==wolf||random.nextBoolean();status.setText(names[k]+(suspicious?" looks suspicious 🐺":" seems calm 🙂")+"\nInvestigations left: "+turns[0]);});page.addView(b,lp);}
++        Button vote=action("🗳 Vote for Werewolf");LinearLayout.LayoutParams vp=new LinearLayout.LayoutParams(-1,dp(58));vp.setMargins(0,dp(10),0,0);vote.setOnClickListener(v->{if(voted10025[0])return;
++            new android.app.AlertDialog.Builder(this).setTitle("Final Vote")
++                .setItems(names,(d,w)->{if(voted10025[0])return;voted10025[0]=true;vote.setEnabled(false);
++                    boolean win=w==wolf;status.setText((win?"🏆 Correct! ":"Wrong vote • ")+names[wolf]+" was the Werewolf");
++                    if(win)KingSoundFx.win(this);}).show();});page.addView(vote,vp);
++        Button newRound10025=action("🔄 New Werewolf Round");newRound10025.setOnClickListener(v->showWerewolf());
++        page.addView(newRound10025,new LinearLayout.LayoutParams(-1,dp(54)));
+     }
+ 
+     private void showSpy(){
+         base("Spy Game","Find the spy from secret clues");
+-        final String[] people={"Player 1","Player 2","Player 3","Player 4"};final int spy=random.nextInt(4);final String[] locations={"Airport","Beach","School","Cinema","Market"};final String loc=locations[random.nextInt(locations.length)];
++        final String[] people={"Player 1","Player 2","Player 3","Player 4"};final int spy=random.nextInt(4);final boolean[] voted10025={false};final String[] locations={"Airport","Beach","School","Cinema","Market"};final String loc=locations[random.nextInt(locations.length)];
+         status=label("Location: "+loc+"\nOne player has no location clue.",18,0xffffd768,true);status.setGravity(Gravity.CENTER);page.addView(status,new LinearLayout.LayoutParams(-1,dp(100)));
+-        for(int i=0;i<4;i++){final int k=i;Button b=action("💬 Ask "+people[i]);b.setOnClickListener(v->{String clue=k==spy?new String[]{"Maybe crowded?","I saw people","Hard to say"}[random.nextInt(3)]:spyClue(loc);status.setText(people[k]+": \""+clue+"\"\nWho is the spy?");});LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(-1,dp(52));lp.setMargins(0,dp(5),0,0);page.addView(b,lp);}
+-        Button vote=action("🕵 Identify Spy");LinearLayout.LayoutParams vp=new LinearLayout.LayoutParams(-1,dp(58));vp.setMargins(0,dp(9),0,0);vote.setOnClickListener(v->new android.app.AlertDialog.Builder(this).setTitle("Choose Spy").setItems(people,(d,w)->{boolean win=w==spy;status.setText(win?"🏆 Spy found!":"Spy escaped • it was "+people[spy]);if(win)KingSoundFx.win(this);}).show());page.addView(vote,vp);
++        for(int i=0;i<4;i++){final int k=i;Button b=action("💬 Ask "+people[i]);b.setOnClickListener(v->{if(voted10025[0])return;String clue=k==spy?new String[]{"Maybe crowded?","I saw people","Hard to say"}[random.nextInt(3)]:spyClue(loc);status.setText(people[k]+": \""+clue+"\"\nWho is the spy?");});LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(-1,dp(52));lp.setMargins(0,dp(5),0,0);page.addView(b,lp);}
++        Button vote=action("🕵 Identify Spy");LinearLayout.LayoutParams vp=new LinearLayout.LayoutParams(-1,dp(58));vp.setMargins(0,dp(9),0,0);vote.setOnClickListener(v->{if(voted10025[0])return;
++            new android.app.AlertDialog.Builder(this).setTitle("Choose Spy")
++                .setItems(people,(d,w)->{if(voted10025[0])return;voted10025[0]=true;vote.setEnabled(false);
++                    boolean win=w==spy;status.setText(win?"🏆 Spy found!":"Spy escaped • it was "+people[spy]);
++                    if(win)KingSoundFx.win(this);}).show();});page.addView(vote,vp);
++        Button newRound10025=action("🔄 New Spy Round");newRound10025.setOnClickListener(v->showSpy());
++        page.addView(newRound10025,new LinearLayout.LayoutParams(-1,dp(54)));
+     }
+     private String spyClue(String loc){if("Airport".equals(loc))return "Flights and luggage";if("Beach".equals(loc))return "Sand and waves";if("School".equals(loc))return "Books and classes";if("Cinema".equals(loc))return "Big screen and popcorn";return "Shops and bargaining";}
+ 
+--- a/app/src/main/java/com/kingplus/social/DiscoverActivity.java
++++ b/app/src/main/java/com/kingplus/social/DiscoverActivity.java
+@@ -243,8 +243,58 @@
+                 if(more10022.getParent()!=grid10022)return;grid10022.removeView(more10022);
+                 showDiscoverProfiles10022(grid10022,docs10022,uid10022,tab10022,next10022);});
+             grid10022.addView(more10022,new LinearLayout.LayoutParams(-1,dp(52)));
+-        }
+-    }
++        }else if(!"Follow".equals(tab10022)){
++            nextPublicProfilePage10025(grid10022,docs10022,uid10022,tab10022);
++        }
++    }
++    // A first page of 60 profiles is not the whole Discover directory.
++    // Replace it with subsequent server pages without mixing accounts, tabs or cities.
++    private void nextPublicProfilePage10025(LinearLayout grid10025,List<DocumentSnapshot> docs10025,
++            String owner10025,String tab10025){
++        if("Follow".equals(tab10025)||docs10025.size()<60)return;
++        final DocumentSnapshot last10025=docs10025.get(docs10025.size()-1);
++        final String city10025=getSharedPreferences("discover_public",MODE_PRIVATE).getString("city","");
++        TextView next10025=tv("↓ Next 60 "+tab10025+" profiles",14,DARK,true);
++        next10025.setGravity(Gravity.CENTER);next10025.setBackground(KingRoyalTheme10021.card(this,14));
++        next10025.setOnClickListener(v->{
++            if(!discoverCurrent10022(grid10025,owner10025,tab10025)
++                ||next10025.getParent()!=grid10025)return;
++            next10025.setEnabled(false);next10025.setText("Loading next public profiles…");
++            Query page10025=db.collection("public_profiles").limit(60);
++            if("Nearby".equals(tab10025)&&!city10025.isEmpty())
++                page10025=db.collection("public_profiles").whereEqualTo("hometown",city10025).limit(60);
++            page10025.startAfter(last10025).get(com.google.firebase.firestore.Source.SERVER)
++                .addOnSuccessListener(snap10025->{
++                    if(!discoverCurrent10022(grid10025,owner10025,tab10025))return;
++                    if(snap10025.isEmpty()){
++                        next10025.setText("✓ No further profiles");return;
++                    }
++                    List<DocumentSnapshot> nextDocs10025=new ArrayList<>(snap10025.getDocuments());
++                    sortPublicProfiles10025(nextDocs10025,tab10025);
++                    showDiscoverProfiles10022(grid10025,nextDocs10025,owner10025,tab10025,0);
++                    TextView back10025=tv("↑ Back to the first profiles",13,DARK,true);
++                    back10025.setGravity(Gravity.CENTER);
++                    back10025.setOnClickListener(backView10025->{
++                        if(discoverCurrent10022(grid10025,owner10025,tab10025))loadProfileGrid940();});
++                    grid10025.addView(back10025,0,new LinearLayout.LayoutParams(-1,dp(44)));
++                }).addOnFailureListener(error10025->{
++                    if(!discoverCurrent10022(grid10025,owner10025,tab10025))return;
++                    next10025.setEnabled(true);next10025.setText("Retry loading next 60 profiles");
++                });
++        });
++        grid10025.addView(next10025,new LinearLayout.LayoutParams(-1,dp(52)));
++    }
++    private void sortPublicProfiles10025(List<DocumentSnapshot> docs10025,String tab10025){
++        if("New".equals(tab10025))docs10025.sort((a,b)->{
++            com.google.firebase.Timestamp at=a.getTimestamp("createdAt"),bt=b.getTimestamp("createdAt");
++            return Long.compare(bt==null?0:bt.toDate().getTime(),at==null?0:at.toDate().getTime());
++        });
++        else if("Hot".equals(tab10025))docs10025.sort((a,b)->{
++            Long av=a.getLong("level"),bv=b.getLong("level");
++            return Long.compare(bv==null?0:bv,av==null?0:av);
++        });
++    }
++
+     private void addProfileCard940(LinearLayout row,DocumentSnapshot p){
+         String uid=safe(p.getString("uid"),p.getId()),name=nameOf(p);LinearLayout card=new LinearLayout(this);card.setOrientation(LinearLayout.VERTICAL);card.setPadding(dp(5),dp(5),dp(5),dp(7));card.setBackground(KingRoyalTheme10021.card(this,16));
+         android.widget.FrameLayout hero=new android.widget.FrameLayout(this);TextView fallback=tv(initial(name),40,Color.WHITE,true);fallback.setGravity(Gravity.CENTER);fallback.setBackground(new GradientDrawable(GradientDrawable.Orientation.TL_BR,new int[]{0xffef9aa9,0xff7f5cf1}));hero.addView(fallback,new android.widget.FrameLayout.LayoutParams(-1,-1));String photo=p.getString("photoUrl");if(photo!=null&&!photo.trim().isEmpty()){android.widget.ImageView im=new android.widget.ImageView(this);im.setScaleType(android.widget.ImageView.ScaleType.CENTER_CROP);hero.addView(im,new android.widget.FrameLayout.LayoutParams(-1,-1));loadProfileImage940(im,fallback,photo);}card.addView(hero,new LinearLayout.LayoutParams(-1,dp(132)));
+--- a/app/src/main/java/com/kingplus/social/InboxActivity.java
++++ b/app/src/main/java/com/kingplus/social/InboxActivity.java
+@@ -321,11 +321,30 @@
+             String n=name.getText().toString().trim(),id10022=uid.getText().toString().trim();
+             if(id10022.isEmpty()){Toast.makeText(this,"Choose a real KING friend in Discover to start live chat",Toast.LENGTH_LONG).show();return;}
+             if(me!=null&&id10022.equals(me.getUid())){Toast.makeText(this,"You cannot message yourself",Toast.LENGTH_SHORT).show();return;}
+-            if(n.isEmpty())n="KING Friend";openChat(n,id10022);}).show();
++            if(n.isEmpty())n="KING Friend";
++            final String requestedName10025=n,requestedUid10025=id10022;
++            FirebaseUser requestOwner10025=FirebaseAuth.getInstance().getCurrentUser();
++            if(requestOwner10025==null||db==null){Toast.makeText(this,"Sign in to start a real chat",Toast.LENGTH_SHORT).show();return;}
++            final String requester10025=requestOwner10025.getUid();
++            db.collection("public_profiles").document(requestedUid10025)
++                .get(com.google.firebase.firestore.Source.SERVER).addOnSuccessListener(peer10025->{
++                    if(!inboxCurrent10023(requester10025))return;
++                    if(!peer10025.exists()){
++                        Toast.makeText(this,"No KING profile found for this UID",Toast.LENGTH_LONG).show();return;
++                    }
++                    String verifiedName10025=peer10025.getString("displayName");
++                    openChat(verifiedName10025==null||verifiedName10025.trim().isEmpty()
++                        ?requestedName10025:verifiedName10025,requestedUid10025);
++                }).addOnFailureListener(e->{
++                    if(inboxCurrent10023(requester10025))
++                        Toast.makeText(this,"Cannot verify this KING UID right now. Retry online.",Toast.LENGTH_LONG).show();
++                });}).show();
+     }
+     private void openChat(String name,String peerUid){
+-        if(me==null||peerUid==null||peerUid.trim().isEmpty()||peerUid.equals(me.getUid())){
+-            Toast.makeText(this,"Choose a real KING profile in Discover to start live chat",Toast.LENGTH_LONG).show();return;
++        FirebaseUser current10025=FirebaseAuth.getInstance().getCurrentUser();
++        if(me==null||current10025==null||!me.getUid().equals(current10025.getUid())
++            ||peerUid==null||peerUid.trim().isEmpty()||peerUid.equals(me.getUid())){
++            Toast.makeText(this,"Reopen Messages with your current KING account",Toast.LENGTH_LONG).show();return;
+         }
+         Intent i=new Intent(this,ChatActivity.class);i.putExtra("peerName",name);i.putExtra("peerUid",peerUid);startActivity(i);}
+ 

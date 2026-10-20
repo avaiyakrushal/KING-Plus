@@ -1,0 +1,190 @@
+--- a/app/build.gradle
++++ b/app/build.gradle
+@@ -14,7 +14,7 @@
+         }
+     }
+ 
+-    defaultConfig { applicationId 'com.kingplus.social'; minSdk 26; targetSdk 35; versionCode 310; versionName '10.0.31-six-pages-live-account-reliability-test' }
++    defaultConfig { applicationId 'com.kingplus.social'; minSdk 26; targetSdk 35; versionCode 311; versionName '10.0.32-six-pages-batched-stale-state-test' }
+     buildTypes {
+         debug { signingConfig signingConfigs.debug }
+         release {
+--- a/app/src/main/java/com/kingplus/social/MainActivity.java
++++ b/app/src/main/java/com/kingplus/social/MainActivity.java
+@@ -2446,8 +2446,36 @@
+         LinearLayout box940=new LinearLayout(this);box940.setOrientation(LinearLayout.VERTICAL);list.addView(box940,new LinearLayout.LayoutParams(-1,-2));
+         TextView loading940=new TextView(this);loading940.setText("Finding KING profiles…");loading940.setTextSize(12);loading940.setTextColor(0xff8a8391);loading940.setPadding(dp(10),dp(12),dp(10),dp(12));box940.addView(loading940,new LinearLayout.LayoutParams(-1,dp(48)));
+         if(firestore==null||firebaseAuth==null||firebaseAuth.getCurrentUser()==null){loading940.setText("Sign in to see recommendations");return;}
+-        String own=firebaseAuth.getCurrentUser().getUid();
+-        firestore.collection("public_profiles").limit(8).get().addOnSuccessListener(snap->{box940.removeAllViews();int shown=0;for(DocumentSnapshot d:snap.getDocuments()){String uid=d.getString("uid");if(uid==null||uid.isEmpty())uid=d.getId();if(uid.equals(own))continue;String n=d.getString("displayName");if(n==null||n.trim().isEmpty())n="KING User";Long vip=d.getLong("vipLevel"),lv=d.getLong("level");String verifiedRecommendedId10002=KingPublicId9996.verified(d.getString("publicId"));addProfileRecommendationRow940(box940,uid,n,vip==null?0:vip,lv==null?1:lv,verifiedRecommendedId10002);if(++shown>=5)break;}if(shown==0){TextView e=new TextView(this);e.setText("No recommendations yet");e.setTextSize(12);e.setTextColor(0xff8a8391);e.setPadding(dp(10),dp(12),dp(10),dp(12));box940.addView(e,new LinearLayout.LayoutParams(-1,dp(48)));}}).addOnFailureListener(e->{loading940.setText("Recommendations unavailable • tap Status or try again later");});
++        final String own=firebaseAuth.getCurrentUser().getUid();
++        // A delayed recommendation cannot paint the Me page of another Firebase account.
++        firestore.collection("public_profiles").limit(8)
++            .get(com.google.firebase.firestore.Source.SERVER).addOnSuccessListener(snap->{
++                if(!recommendationsCurrent10032(own,box940,list))return;
++                box940.removeAllViews();int shown=0;
++                for(DocumentSnapshot d:snap.getDocuments()){
++                    String uid=d.getString("uid");if(uid==null||uid.isEmpty())uid=d.getId();
++                    if(uid.equals(own))continue;
++                    String n=d.getString("displayName");if(n==null||n.trim().isEmpty())n="KING User";
++                    Long vip=d.getLong("vipLevel"),lv=d.getLong("level");
++                    String verifiedRecommendedId10002=KingPublicId9996.verified(d.getString("publicId"));
++                    addProfileRecommendationRow940(box940,uid,n,vip==null?0:vip,lv==null?1:lv,verifiedRecommendedId10002);
++                    if(++shown>=5)break;
++                }
++                if(shown==0){TextView e=new TextView(this);e.setText("No recommendations yet");
++                    e.setTextSize(12);e.setTextColor(0xff8a8391);e.setPadding(dp(10),dp(12),dp(10),dp(12));
++                    box940.addView(e,new LinearLayout.LayoutParams(-1,dp(48)));}
++            }).addOnFailureListener(error->{
++                if(recommendationsCurrent10032(own,box940,list)){
++                    loading940.setText("Recommendations unavailable • tap to retry");
++                    loading940.setOnClickListener(v->{if(recommendationsCurrent10032(own,box940,list)){
++                        list.removeView(title940);list.removeView(box940);addProfileRecommendations940(list);}});
++                }
++            });
++    }
++    private boolean recommendationsCurrent10032(String owner,LinearLayout box,LinearLayout list){
++        com.google.firebase.auth.FirebaseUser signed=firebaseAuth==null?null:firebaseAuth.getCurrentUser();
++        return !isFinishing()&&!isDestroyed()&&"profile".equals(screen)&&signed!=null
++            &&owner.equals(signed.getUid())&&box.getParent()==list&&list.isAttachedToWindow();
+     }
+     private void addProfileRecommendationRow940(LinearLayout box,String uid,String name,long vip,long level,String issuedKingId10002){
+         LinearLayout row=new LinearLayout(this);row.setGravity(Gravity.CENTER_VERTICAL);row.setPadding(dp(10),dp(8),dp(10),dp(8));row.setBackground(background(Color.WHITE,12));
+--- a/app/src/main/java/com/kingplus/social/CommunityHubActivity.java
++++ b/app/src/main/java/com/kingplus/social/CommunityHubActivity.java
+@@ -59,7 +59,13 @@
+     private LinearLayout activeMomentsFeed10004;
+     private final List<com.google.firebase.firestore.ListenerRegistration> momentLikes10000=new ArrayList<>();
+ 
+-    @Override public void onCreate(Bundle b){super.onCreate(b);try{me=FirebaseAuth.getInstance().getCurrentUser();db=FirebaseFirestore.getInstance();}catch(Exception ignored){}SharedPreferences p=getSharedPreferences("MainActivity",MODE_PRIVATE);displayName=safe(p.getString("name",me==null?"KING User":me.getDisplayName()),"KING User");String t=getIntent().getStringExtra("tab");if(t!=null&&!t.isEmpty())selected=t;targetUid=safe(getIntent().getStringExtra("targetUid"),"");targetName=safe(getIntent().getStringExtra("targetName"),"");render(selected);}
++    @Override public void onCreate(Bundle b){super.onCreate(b);try{me=FirebaseAuth.getInstance().getCurrentUser();db=FirebaseFirestore.getInstance();}catch(Exception ignored){}SharedPreferences p=getSharedPreferences("MainActivity",MODE_PRIVATE);
++        // Never display account A's locally cached Home name for signed-in account B.
++        String cachedUid10032=p.getString("firebase_uid","");
++        String signedUid10032=me==null?"":me.getUid();
++        displayName=me==null?"KING User":safe(me.getDisplayName(),
++            signedUid10032.equals(cachedUid10032)?p.getString("name","KING User"):"KING User");
++        String t=getIntent().getStringExtra("tab");if(t!=null&&!t.isEmpty())selected=t;targetUid=safe(getIntent().getStringExtra("targetUid"),"");targetName=safe(getIntent().getStringExtra("targetName"),"");render(selected);}
+     private com.google.firebase.firestore.ListenerRegistration familyMessages956;
+     private com.google.firebase.firestore.ListenerRegistration familyMembers9986;
+     private String realFamilyRole9987="member";
+--- a/app/src/main/java/com/kingplus/social/PartyActivity.java
++++ b/app/src/main/java/com/kingplus/social/PartyActivity.java
+@@ -820,9 +820,14 @@
+                         }
+                     }
+                     if (shown == 0) showEmptyLobby(cloudList,selected);
+-                    if(snap!=null&&snap.size()>=lobbyRoomLimit9989){
+-                        TextView more=pill(lobbyFilter.isEmpty()?"Load more active rooms":"Search more live rooms",0xff6244a0,()->{
+-                            lobbyRoomLimit9989+=50;renderLobby(selected);
++                    if(snap!=null&&snap.size()>=lobbyRoomLimit9989&&lobbyRoomLimit9989<300){
++                        TextView more=pill(lobbyFilter.isEmpty()?"Load more active rooms":"Search more live rooms",0xff6244a0,null);
++                        more.setOnClickListener(v->{
++                            if(!more.isEnabled()||partyUiDead()||generation9911!=lobbyRenderGeneration9911
++                                ||roomId!=null||more.getParent()!=cloudList)return;
++                            more.setEnabled(false);more.setText("Loading more live Party rooms…");
++                            lobbyRoomLimit9989=Math.min(300,lobbyRoomLimit9989+50);
++                            renderLobby(selected);
+                         });
+                         cloudList.addView(more,new LinearLayout.LayoutParams(-1,dp(48)));
+                     }
+--- a/app/src/main/java/com/kingplus/social/GamePlayActivity.java
++++ b/app/src/main/java/com/kingplus/social/GamePlayActivity.java
+@@ -263,8 +263,32 @@
+ 
+     private void showDomino(){
+         base("Domino Match","Match the left number to the chain");
+-        final int[] end={random.nextInt(7)};final int[] score={0};status=label("Chain end: "+end[0]+" • Score 0",21,0xffffd768,true);status.setGravity(Gravity.CENTER);page.addView(status,new LinearLayout.LayoutParams(-1,dp(90)));
+-        for(int i=0;i<3;i++){Button b=action("Draw Tile");b.setOnClickListener(v->{if(score[0]>=5)return;int a=random.nextInt(7),z=random.nextInt(7);new android.app.AlertDialog.Builder(this).setTitle("Tile "+a+" | "+z).setMessage("Chain end is "+end[0]).setPositiveButton("Play",(d,w)->{if(a==end[0]||z==end[0]){end[0]=a==end[0]?z:a;if(score[0]>=5)return;score[0]++;status.setText("Matched! • Chain end: "+end[0]+" • Score "+score[0]);if(score[0]==5){status.setText("🏆 DOMINO WIN • Score "+score[0]);KingSoundFx.win(this);}}else status.setText("No match • Chain end: "+end[0]+" • Score "+score[0]);}).setNegativeButton("Pass",null).show();});LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(-1,dp(56));lp.setMargins(0,dp(7),0,0);page.addView(b,lp);}
++        final int[] end={random.nextInt(7)};final int[] score={0};
++        status=label("Chain end: "+end[0]+" • Score 0",21,0xffffd768,true);
++        status.setGravity(Gravity.CENTER);page.addView(status,new LinearLayout.LayoutParams(-1,dp(90)));
++        final View dominoPage10032=page;final TextView dominoStatus10032=status;
++        // A single active draw control; an older dialog cannot change another game's score.
++        Button draw10032=action("🎲 Draw Domino Tile");
++        draw10032.setOnClickListener(v->{
++            if(page!=dominoPage10032||score[0]>=5||!draw10032.isEnabled())return;
++            int a=random.nextInt(7),z=random.nextInt(7);
++            draw10032.setEnabled(false);
++            new android.app.AlertDialog.Builder(this).setTitle("Tile "+a+" | "+z)
++                .setMessage("Chain end is "+end[0])
++                .setPositiveButton("Play",(d,w)->{
++                    if(page!=dominoPage10032||dominoStatus10032.getParent()!=dominoPage10032)return;
++                    if(score[0]>=5)return;
++                    if(a==end[0]||z==end[0]){
++                        end[0]=a==end[0]?z:a;score[0]++;
++                        dominoStatus10032.setText("Matched! • Chain end: "+end[0]+" • Score "+score[0]);
++                        if(score[0]==5){dominoStatus10032.setText("🏆 DOMINO WIN • Score "+score[0]);KingSoundFx.win(this);}
++                    }else dominoStatus10032.setText("No match • Chain end: "+end[0]+" • Score "+score[0]);
++                }).setNegativeButton("Pass",null)
++                .setOnDismissListener(d->{if(page==dominoPage10032&&score[0]<5)draw10032.setEnabled(true);})
++                .show();
++        });
++        LinearLayout.LayoutParams drawLp10032=new LinearLayout.LayoutParams(-1,dp(56));
++        drawLp10032.setMargins(0,dp(7),0,0);page.addView(draw10032,drawLp10032);
+         Button replayDomino10031=action("🔄 New Domino Chain");
+         replayDomino10031.setOnClickListener(v->showDomino());
+         page.addView(replayDomino10031,new LinearLayout.LayoutParams(-1,dp(54)));
+--- a/app/src/main/java/com/kingplus/social/DiscoverActivity.java
++++ b/app/src/main/java/com/kingplus/social/DiscoverActivity.java
+@@ -466,13 +466,36 @@
+     }
+     private TextView tab(String s,boolean active){TextView t=tv(s,19,active?DARK:0xff4f4c54,active);t.setGravity(Gravity.CENTER_VERTICAL);return t;}
+ 
++    private boolean nearbyResultsCurrent10032(LinearLayout list10032,String owner10032,boolean nearby10032){
++        FirebaseUser signed10032=FirebaseAuth.getInstance().getCurrentUser();
++        return !isFinishing()&&!isDestroyed()&&signed10032!=null&&me!=null
++            &&owner10032.equals(signed10032.getUid())&&owner10032.equals(me.getUid())
++            &&(nearby10032?"Nearby":"Recommended").equals(activePeopleTab)
++            &&content!=null&&list10032.getParent()==content;
++    }
+     private void loadRecommended(boolean nearby){
+         LinearLayout list=findOrCreatePeopleList();list.removeAllViews();
+         if(me==null||db==null){list.addView(emptyText("Sign in with Google / Firebase to discover real people"),new LinearLayout.LayoutParams(-1,dp(90)));return;}
++        final String owner10032=me.getUid();
+         String city=getSharedPreferences("discover_public",MODE_PRIVATE).getString("city","");
+         Query q=db.collection("public_profiles").limit(30);
+         if(nearby&&!city.isEmpty())q=db.collection("public_profiles").whereEqualTo("hometown",city).limit(30);
+-        q.get().addOnSuccessListener(s->{list.removeAllViews();int shown=0;for(DocumentSnapshot d:s.getDocuments()){String uid=safe(d.getString("uid"),d.getId());if(uid.equals(me.getUid()))continue;addPersonRow(list,d);shown++;if(shown>=12)break;}if(shown==0){String msg=nearby?(city.isEmpty()?"Set your hometown in Edit Profile to use Nearby":"No nearby profiles yet"):"No recommended profiles yet";list.addView(emptyText(msg),new LinearLayout.LayoutParams(-1,dp(90)));}}).addOnFailureListener(e->{list.removeAllViews();list.addView(emptyText("People directory unavailable"),new LinearLayout.LayoutParams(-1,dp(90)));});
++        q.get(com.google.firebase.firestore.Source.SERVER).addOnSuccessListener(s->{
++            if(!nearbyResultsCurrent10032(list,owner10032,nearby))return;
++            list.removeAllViews();int shown=0;
++            for(DocumentSnapshot d:s.getDocuments()){
++                String uid=safe(d.getString("uid"),d.getId());
++                if(uid.equals(owner10032))continue;
++                addPersonRow(list,d);shown++;if(shown>=12)break;
++            }
++            if(shown==0){String msg=nearby?(city.isEmpty()?"Set your hometown in Edit Profile to use Nearby":"No nearby profiles yet"):"No recommended profiles yet";
++                list.addView(emptyText(msg),new LinearLayout.LayoutParams(-1,dp(90)));}
++        }).addOnFailureListener(error->{
++            if(!nearbyResultsCurrent10032(list,owner10032,nearby))return;
++            list.removeAllViews();TextView retry10032=emptyText("People directory unavailable • tap to retry");
++            retry10032.setOnClickListener(v->{if(nearbyResultsCurrent10032(list,owner10032,nearby))loadRecommended(nearby);});
++            list.addView(retry10032,new LinearLayout.LayoutParams(-1,dp(90)));
++        });
+     }
+     private LinearLayout findOrCreatePeopleList(){
+         Object tag=content.findViewWithTag("people_list");if(tag instanceof LinearLayout)return (LinearLayout)tag;LinearLayout list=new LinearLayout(this);list.setTag("people_list");list.setOrientation(LinearLayout.VERTICAL);content.addView(list);return list;
+--- a/app/src/main/java/com/kingplus/social/InboxActivity.java
++++ b/app/src/main/java/com/kingplus/social/InboxActivity.java
+@@ -183,7 +183,9 @@
+                     renderCurrentInbox10029();
+                     return;
+                 }
+-                inboxState940="";
++                // Cached snapshots can be useful offline, but must not be labelled live.
++                inboxState940=snap!=null&&snap.getMetadata().isFromCache()
++                    ?"Offline • cached thread summaries only":"";
+                 renderCloudThreads(snap);
+             });
+     }
+@@ -212,7 +214,9 @@
+                 // Direct chat must contain exactly two unique real user IDs.
+                 // A group or malformed document cannot masquerade as a private thread.
+                 List<String> members = (List<String>) doc.get("members");
+-                if(members==null||members.size()!=2||!members.contains(me.getUid()))continue;
++                if(members==null||members.size()!=2||!members.contains(me.getUid())
++                    ||members.get(0)==null||members.get(1)==null
++                    ||members.get(0).equals(members.get(1)))continue;
+                 String peerUid=null;
+                 for(String uid:members)
+                     if(uid!=null&&!uid.trim().isEmpty()&&!me.getUid().equals(uid))peerUid=uid;

@@ -1,0 +1,249 @@
+--- a/app/build.gradle
++++ b/app/build.gradle
+@@ -14,7 +14,7 @@
+         }
+     }
+ 
+-    defaultConfig { applicationId 'com.kingplus.social'; minSdk 26; targetSdk 35; versionCode 307; versionName '10.0.28-six-pages-functional-test' }
++    defaultConfig { applicationId 'com.kingplus.social'; minSdk 26; targetSdk 35; versionCode 308; versionName '10.0.29-six-page-live-fixes-test' }
+     buildTypes {
+         debug { signingConfig signingConfigs.debug }
+         release {
+--- a/app/src/main/java/com/kingplus/social/MainActivity.java
++++ b/app/src/main/java/com/kingplus/social/MainActivity.java
+@@ -1483,12 +1483,32 @@
+         screen="wallet"; base("My Wallet","Server-authoritative KING Plus diamonds");
+         TextView bal=text("💎 Checking verified balance…",28,Color.WHITE,true); text("Only server-verified Diamonds can be spent on paid Gifts",14,MUTED,false);
+         if(firestore!=null&&firebaseAuth!=null&&firebaseAuth.getCurrentUser()!=null){
+-            firestore.collection("wallets").document(firebaseAuth.getCurrentUser().getUid()).get().addOnSuccessListener(doc->{Object raw=doc.get("coins");long c=raw instanceof Number?Math.max(0,Math.round(((Number)raw).doubleValue())):0;coinBalance=(int)Math.min(Integer.MAX_VALUE,c);bal.setText("💎 "+c+" Diamonds");});
++            final String walletOwner10029=firebaseAuth.getCurrentUser().getUid();
++            firestore.collection("wallets").document(walletOwner10029)
++                .get(com.google.firebase.firestore.Source.SERVER).addOnSuccessListener(doc->{
++                    if(!walletPageCurrent10029(walletOwner10029))return;
++                    Object raw=doc.get("coins");
++                    if(!(raw instanceof Number)||((Number)raw).longValue()<0){
++                        bal.setText("💎 No verified Diamond balance yet");return;
++                    }
++                    long c=Math.max(0,((Number)raw).longValue());
++                    coinBalance=(int)Math.min(Integer.MAX_VALUE,c);
++                    bal.setText("💎 "+c+" Diamonds");
++                }).addOnFailureListener(e->{if(walletPageCurrent10029(walletOwner10029)){
++                    bal.setText("↻ Wallet unavailable • tap to retry");
++                    bal.setOnClickListener(v->{if(walletPageCurrent10029(walletOwner10029))walletPage();});
++                }});
+         }
+         button("Open Gift Catalog",PURPLE,this::giftCatalogPage);
+         button("💎 Recharge Diamonds",CARD,this::rechargeCenterPage);
+         button("📜 Server transaction history",CARD,()->Toast.makeText(this,"Server wallet history is shown after verified gift/recharge ledger entries are available.",Toast.LENGTH_LONG).show());
+         button("Back",CARD,this::profile);
++    }
++
++    private boolean walletPageCurrent10029(String account10029){
++        return !isFinishing()&&!isDestroyed()&&"wallet".equals(screen)
++            &&firebaseAuth!=null&&firebaseAuth.getCurrentUser()!=null
++            &&account10029.equals(firebaseAuth.getCurrentUser().getUid());
+     }
+ 
+     private void giftCatalogPage(){
+--- a/app/src/main/java/com/kingplus/social/CommunityHubActivity.java
++++ b/app/src/main/java/com/kingplus/social/CommunityHubActivity.java
+@@ -298,7 +298,9 @@
+                     TextView more=button(moreVisible?"↓ Show more Moments ("+shown+" shown)":"↓ Search older Moments",()->{});
+                     more.setOnClickListener(v->{
+                         if(generation!=momentsGeneration9990 ||!"Moments".equals(selected)
+-                            ||!KingSavedRoomsCloud9990.account(account))return;
++                            ||!KingSavedRoomsCloud9990.account(account)||more.getParent()!=feed
++                            ||!more.isEnabled())return;
++                        more.setEnabled(false);
+                         if(moreVisible)momentsDisplayLimit10000=Math.min(320,momentsDisplayLimit10000+40);
+                         else momentsQueryLimit10000=Math.min(320,momentsQueryLimit10000+80);
+                         loadMoments();
+--- a/app/src/main/java/com/kingplus/social/PartyActivity.java
++++ b/app/src/main/java/com/kingplus/social/PartyActivity.java
+@@ -7817,6 +7817,8 @@
+                     // v10.0.28: Bottom navigation is a Leave, not background presence.
+                     if(roomId!=null)leaveRoom();
+                     KingNav.openRoot(this,tab);
++                    // A closed Party must not stay in the task back stack with old room state.
++                    finish();
+                 }
+             });
+             LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(0,dp(58),1);
+--- a/app/src/main/java/com/kingplus/social/GamePlayActivity.java
++++ b/app/src/main/java/com/kingplus/social/GamePlayActivity.java
+@@ -128,9 +128,28 @@
+ 
+     private void showGuess(){
+         base("Guess the Number","Real playable puzzle • 1 to 20");
+-        final int target=1+random.nextInt(20);final boolean[] solved={false};status=label("I picked a number from 1 to 20",18,0xffffd768,true);page.addView(status,new LinearLayout.LayoutParams(-1,dp(58)));
++        final int[] target={1+random.nextInt(20)};final boolean[] solved={false};
++        final int[] attempts10029={0};
++        status=label("Round 1 • Guess a number from 1 to 20",18,0xffffd768,true);
++        page.addView(status,new LinearLayout.LayoutParams(-1,dp(70)));
+         EditText input=new EditText(this);input.setHint("Enter guess");input.setTextColor(Color.WHITE);input.setHintTextColor(0xff998eaa);input.setSingleLine(true);input.setInputType(android.text.InputType.TYPE_CLASS_NUMBER);input.setBackground(bg(CARD,16));input.setPadding(dp(14),0,dp(14),0);page.addView(input,new LinearLayout.LayoutParams(-1,dp(54)));
+-        Button guess=action("Guess");guess.setOnClickListener(v->{try{if(solved[0])return;int g=Integer.parseInt(input.getText().toString().trim());if(g<1||g>20){Toast.makeText(this,"Enter a number 1–20",Toast.LENGTH_SHORT).show();return;}if(g==target){solved[0]=true;input.setEnabled(false);status.setText("Correct! 👑 Number was "+target);}else status.setText(g<target?"Too low • try higher":"Too high • try lower");}catch(Exception e){Toast.makeText(this,"Enter a number 1–20",Toast.LENGTH_SHORT).show();}});LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(-1,dp(56));lp.setMargins(0,dp(10),0,0);page.addView(guess,lp);
++        Button guess=action("Guess");guess.setOnClickListener(v->{try{
++            if(solved[0])return;
++            int g=Integer.parseInt(input.getText().toString().trim());
++            if(g<1||g>20){Toast.makeText(this,"Enter a number 1–20",Toast.LENGTH_SHORT).show();return;}
++            attempts10029[0]++;
++            if(g==target[0]){
++                solved[0]=true;guess.setEnabled(false);
++                status.setText("Correct! 👑 Number was "+target[0]+" • "+attempts10029[0]+" attempts");
++                KingSoundFx.win(this);
++            }else status.setText((g<target[0]?"Too low • try higher":"Too high • try lower")
++                +" • "+attempts10029[0]+" guesses");
++        }catch(Exception e){Toast.makeText(this,"Enter a number 1–20",Toast.LENGTH_SHORT).show();}});
++        LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(-1,dp(56));lp.setMargins(0,dp(10),0,0);page.addView(guess,lp);
++        Button again10029=action("🔄 New Number");
++        again10029.setOnClickListener(v->showGuess());
++        LinearLayout.LayoutParams next10029=new LinearLayout.LayoutParams(-1,dp(54));
++        next10029.topMargin=dp(10);page.addView(again10029,next10029);
+     }
+     private void showMemory(){
+         final int memoryTicket10028=++memoryRound10028;
+--- a/app/src/main/java/com/kingplus/social/DiscoverActivity.java
++++ b/app/src/main/java/com/kingplus/social/DiscoverActivity.java
+@@ -137,7 +137,13 @@
+         content.addView(tabs,new LinearLayout.LayoutParams(-1,dp(54)));
+     }
+     private void loadProfileGrid940(){
+-        Object old=content.findViewWithTag("profile_grid_940");LinearLayout grid;if(old instanceof LinearLayout){grid=(LinearLayout)old;grid.removeAllViews();}else{grid=new LinearLayout(this);grid.setTag("profile_grid_940");grid.setOrientation(LinearLayout.VERTICAL);content.addView(grid,new LinearLayout.LayoutParams(-1,-2));}
++        // Give every refresh its own grid identity. A slow earlier Firebase result
++        // must never overwrite the newer tab, even when the user goes Hot → New → Hot.
++        View old10029=content.findViewWithTag("profile_grid_940");
++        if(old10029!=null&&old10029.getParent()==content)content.removeView(old10029);
++        LinearLayout grid=new LinearLayout(this);grid.setTag("profile_grid_940");
++        grid.setOrientation(LinearLayout.VERTICAL);
++        content.addView(grid,new LinearLayout.LayoutParams(-1,-2));
+         if(me==null||db==null){TextView state=emptyText("Sign in to discover KING profiles");grid.addView(state,new LinearLayout.LayoutParams(-1,dp(90)));return;}
+         if(!KingNetwork.online(this)){TextView offline=emptyText("Offline • tap to retry Discover");offline.setOnClickListener(v->loadProfileGrid940());grid.addView(offline,new LinearLayout.LayoutParams(-1,dp(90)));return;}
+         TextView loading=emptyText("Loading KING profiles…");grid.addView(loading,new LinearLayout.LayoutParams(-1,dp(72)));
+@@ -292,7 +298,8 @@
+             Query page10025=db.collection("public_profiles").limit(60);
+             if("Nearby".equals(tab10025)&&!city10025.isEmpty())
+                 page10025=db.collection("public_profiles").whereEqualTo("hometown",city10025).limit(60);
+-            page10025.startAfter(last10025).get(com.google.firebase.firestore.Source.SERVER)
++            page10025=page10025.startAfter(last10025);
++            page10025.get(com.google.firebase.firestore.Source.SERVER)
+                 .addOnSuccessListener(snap10025->{
+                     if(!discoverCurrent10022(grid10025,owner10025,tab10025))return;
+                     if(snap10025.isEmpty()){
+@@ -477,9 +484,39 @@
+     private void addHonorPanel(LinearLayout b){LinearLayout p=new LinearLayout(this);p.setOrientation(LinearLayout.VERTICAL);p.setPadding(dp(14),dp(12),dp(14),dp(14));p.setBackground(bg(0xff2b244b,16));TextView h=tv("✦  Honor Display  ✦",20,Color.WHITE,true);h.setGravity(Gravity.CENTER);p.addView(h,new LinearLayout.LayoutParams(-1,dp(50)));TextView x=tv("Talent Honor Ranking      Talent in Spotlight\n\nGame Master • Chat Talent • Event Star",14,0xffddd4ff,false);x.setGravity(Gravity.CENTER);p.addView(x,new LinearLayout.LayoutParams(-1,dp(90)));b.addView(p,new LinearLayout.LayoutParams(-1,dp(150)));}
+     private int nextThreshold(int s){int[]x={25,1500,3000,6500};for(int v:x)if(s<v)return v;return 6500;}
+ 
+-    private void showDataRecord(){
+-        LinearLayout root=new LinearLayout(this);root.setOrientation(LinearLayout.VERTICAL);root.setBackgroundColor(0xfff7f8fb);LinearLayout h=new LinearLayout(this);h.setGravity(Gravity.CENTER_VERTICAL);h.setPadding(dp(12),0,dp(12),0);TextView back=tv("‹",40,DARK,false);back.setGravity(Gravity.CENTER);back.setOnClickListener(v->showInfluence("Chat Talent",chatScore));h.addView(back,new LinearLayout.LayoutParams(dp(52),dp(64)));h.addView(tv("Data Record",27,DARK,false),new LinearLayout.LayoutParams(0,dp(64),1));root.addView(h);
+-        LinearLayout tabs=new LinearLayout(this);tabs.setGravity(Gravity.CENTER);String[] n={"Game Master","Chat Talent","Event Star"};for(String s:n){TextView t=tv(s,15,DARK,"Chat Talent".equals(s));t.setGravity(Gravity.CENTER);tabs.addView(t,new LinearLayout.LayoutParams(0,dp(58),1));}root.addView(tabs);ScrollView sv=new ScrollView(this);LinearLayout list=new LinearLayout(this);list.setOrientation(LinearLayout.VERTICAL);list.setPadding(dp(18),dp(12),dp(18),dp(20));sv.addView(list);root.addView(sv,new LinearLayout.LayoutParams(-1,0,1));String today=new SimpleDateFormat("yyyy/MM/dd",Locale.US).format(new Date());list.addView(tv("Last 30 Days Record    •    "+today,13,0xffb7b4be,false),new LinearLayout.LayoutParams(-1,dp(56)));recordRow(list,"Game activity EXP",gameScore);recordRow(list,"Live chat / speaking EXP",chatScore);recordRow(list,"Room & event activity EXP",eventScore);recordRow(list,"Rank change",scoreDelta());setSafe(root);
++    private void showDataRecord(){showDataRecord10029("Chat Talent");}
++    private void showDataRecord10029(String selected10029){
++        LinearLayout root=new LinearLayout(this);root.setOrientation(LinearLayout.VERTICAL);
++        root.setBackgroundColor(0xfff7f8fb);
++        LinearLayout h=new LinearLayout(this);h.setGravity(Gravity.CENTER_VERTICAL);h.setPadding(dp(12),0,dp(12),0);
++        TextView back=tv("‹",40,DARK,false);back.setGravity(Gravity.CENTER);
++        back.setOnClickListener(v->showInfluence(selected10029,
++            "Game Master".equals(selected10029)?gameScore:
++                "Event Star".equals(selected10029)?eventScore:chatScore));
++        h.addView(back,new LinearLayout.LayoutParams(dp(52),dp(64)));
++        h.addView(tv("Data Record",27,DARK,false),new LinearLayout.LayoutParams(0,dp(64),1));root.addView(h);
++        LinearLayout tabs=new LinearLayout(this);tabs.setGravity(Gravity.CENTER);
++        String[] names10029={"Game Master","Chat Talent","Event Star"};
++        for(String name10029:names10029){
++            boolean active10029=selected10029.equals(name10029);
++            TextView t=tv(name10029,12,active10029?DARK:MUTED,active10029);
++            t.setGravity(Gravity.CENTER);t.setBackground(bg(active10029?0xffffe69c:0xfff1edf7,8));
++            t.setOnClickListener(v->showDataRecord10029(name10029));
++            LinearLayout.LayoutParams tp=new LinearLayout.LayoutParams(0,dp(58),1);
++            tp.setMargins(dp(3),dp(2),dp(3),dp(2));tabs.addView(t,tp);
++        }
++        root.addView(tabs);
++        ScrollView sv=new ScrollView(this);LinearLayout list=new LinearLayout(this);
++        list.setOrientation(LinearLayout.VERTICAL);list.setPadding(dp(18),dp(12),dp(18),dp(20));
++        sv.addView(list);root.addView(sv,new LinearLayout.LayoutParams(-1,0,1));
++        list.addView(tv("Current available activity totals • not a 30-day history",13,MUTED,false),
++            new LinearLayout.LayoutParams(-1,dp(56)));
++        if("Game Master".equals(selected10029))recordRow(list,"Game activity EXP",gameScore);
++        else if("Event Star".equals(selected10029))recordRow(list,"Room & event activity EXP",eventScore);
++        else recordRow(list,"Live chat / speaking EXP",chatScore);
++        list.addView(tv("Historical daily changes require server-side dated activity records.",12,MUTED,false),
++            new LinearLayout.LayoutParams(-1,dp(64)));
++        setSafe(root);
+     }
+     private void recordRow(LinearLayout host,String title,int value){LinearLayout r=new LinearLayout(this);r.setGravity(Gravity.CENTER_VERTICAL);r.setPadding(dp(2),dp(10),dp(2),dp(10));TextView t=tv(title,16,DARK,true);r.addView(t,new LinearLayout.LayoutParams(0,dp(58),1));TextView v=tv((value>=0?"+":"")+value,16,DARK,true);v.setGravity(Gravity.CENTER);r.addView(v,new LinearLayout.LayoutParams(dp(80),dp(58)));host.addView(r,new LinearLayout.LayoutParams(-1,dp(78)));}
+     private int scoreDelta(){int prev=getSharedPreferences("discover_public",MODE_PRIVATE).getInt("last_total",0),now=gameScore+chatScore+eventScore;getSharedPreferences("discover_public",MODE_PRIVATE).edit().putInt("last_total",now).apply();return now-prev;}
+--- a/app/src/main/java/com/kingplus/social/InboxActivity.java
++++ b/app/src/main/java/com/kingplus/social/InboxActivity.java
+@@ -48,6 +48,7 @@
+     private FirebaseFirestore db;
+     private final ArrayList<ThreadModel> models = new ArrayList<>();
+     private String inboxState940="";
++    private String activeSearch10029="";
+     private android.net.ConnectivityManager.NetworkCallback inboxNetworkCallback940;
+     private boolean inboxLastOnline940;
+ 
+@@ -71,7 +72,7 @@
+         inboxNetworkCallback940=KingNetwork.watch(this,online->runOnUiThread(()->{
+             boolean recovered=online&&!inboxLastOnline940;inboxLastOnline940=online;
+             if(recovered&&!isFinishing()&&!isDestroyed())loadInbox();
+-            else if(!online&&!isFinishing()&&!isDestroyed()){inboxState940="Offline • showing recent local conversations";renderModels(models);}
++            else if(!online&&!isFinishing()&&!isDestroyed()){inboxState940="Offline • cached thread summaries only";renderCurrentInbox10029();}
+         }));
+     }
+ 
+@@ -195,7 +196,7 @@
+         String uid10023=current10023==null?null:current10023.getUid();
+         if(me==null?uid10023!=null:!me.getUid().equals(uid10023)){
+             if(threadListener!=null){threadListener.remove();threadListener=null;}
+-            me=current10023;models.clear();loadInbox();
++            me=current10023;models.clear();activeSearch10029="";loadInbox();
+         }
+     }
+     private void renderCloudThreads(QuerySnapshot snap) {
+@@ -216,8 +217,20 @@
+             }
+         }
+         // Do not merge unverified name-only local threads into a real Firestore inbox.
+-        renderModels(models);
+-    }
++        renderCurrentInbox10029();
++    }
++
++    private List<ThreadModel> searchResults10029(){
++        if(activeSearch10029==null||activeSearch10029.isEmpty())return models;
++        ArrayList<ThreadModel> filtered10029=new ArrayList<>();
++        for(ThreadModel thread10029:models){
++            if((thread10029.name!=null&&thread10029.name.toLowerCase(Locale.ROOT).contains(activeSearch10029))
++                ||(thread10029.preview!=null&&thread10029.preview.toLowerCase(Locale.ROOT).contains(activeSearch10029)))
++                filtered10029.add(thread10029);
++        }
++        return filtered10029;
++    }
++    private void renderCurrentInbox10029(){renderModels(searchResults10029());}
+ 
+     private long timeOf(DocumentSnapshot d){Timestamp t=d.getTimestamp("updatedAt");return t==null?0:t.toDate().getTime();}
+     private String formatTime(Timestamp t){
+@@ -233,7 +246,8 @@
+         if(source==null||source.isEmpty()){
+             LinearLayout empty=new LinearLayout(this);empty.setOrientation(LinearLayout.VERTICAL);empty.setGravity(Gravity.CENTER);empty.setPadding(dp(24),dp(70),dp(24),dp(24));
+             TextView icon=label("💬",52,0xffbbb4c1,false);icon.setGravity(Gravity.CENTER);empty.addView(icon,new LinearLayout.LayoutParams(-1,dp(72)));
+-            TextView t=label("No messages yet",18,DARK,true);t.setGravity(Gravity.CENTER);empty.addView(t);
++            TextView t=label(activeSearch10029.isEmpty()?"No messages yet":"No matching messages",18,DARK,true);
++            t.setGravity(Gravity.CENTER);empty.addView(t);
+             TextView s=label(me==null?"Sign in to sync real conversations":"Start a chat from Discover or Friends",13,MUTED,false);s.setGravity(Gravity.CENTER);empty.addView(s);
+             list.addView(empty,new LinearLayout.LayoutParams(-1,dp(230)));return;
+         }
+@@ -264,10 +278,9 @@
+     private void showSearch(){
+         final EditText q=new EditText(this);q.setHint("Search messages");q.setSingleLine(true);
+         new AlertDialog.Builder(this).setTitle("Search").setView(q).setNegativeButton("Cancel",null).setPositiveButton("Search",(d,w)->{
+-            String s=q.getText().toString().trim().toLowerCase(Locale.getDefault());ArrayList<ThreadModel> filtered=new ArrayList<>();
+-            for(ThreadModel m:models)if(s.isEmpty()||m.name.toLowerCase(Locale.getDefault()).contains(s)||m.preview.toLowerCase(Locale.getDefault()).contains(s))filtered.add(m);
+-            renderModels(filtered);
+-        }).setNeutralButton("Show all",(d,w)->renderModels(models)).show();
++            activeSearch10029=q.getText().toString().trim().toLowerCase(Locale.ROOT);
++            renderCurrentInbox10029();
++        }).setNeutralButton("Show all",(d,w)->{activeSearch10029="";renderCurrentInbox10029();}).show();
+     }
+ 
+     private void showNotifications(){showCloudNotifications940("");}

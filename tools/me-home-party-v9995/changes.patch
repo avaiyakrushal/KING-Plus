@@ -1,0 +1,129 @@
+--- a/app/build.gradle
++++ b/app/build.gradle
+@@ -14,7 +14,7 @@
+         }
+     }
+ 
+-    defaultConfig { applicationId 'com.kingplus.social'; minSdk 26; targetSdk 35; versionCode 273; versionName '9.9.94-me-home-party-search-test' }
++    defaultConfig { applicationId 'com.kingplus.social'; minSdk 26; targetSdk 35; versionCode 274; versionName '9.9.95-me-home-party-live-fixes-test' }
+     buildTypes {
+         debug { signingConfig signingConfigs.debug }
+         release {
+--- a/app/src/main/java/com/kingplus/social/MainActivity.java
++++ b/app/src/main/java/com/kingplus/social/MainActivity.java
+@@ -1985,6 +1985,35 @@
+                         view.setTextSize(13);view.setTextColor(MUTED);
+                         view.setPadding(dp(4),dp(9),0,dp(3));
+                         view.setOnClickListener(v->momentsPage());entry.addView(view);
++                        // Me > Gallery must let the owner manage the SAME cloud Moment
++                        // that is displayed in Community; never delete local archives.
++                        TextView deleteMoment9995=new TextView(this);
++                        deleteMoment9995.setText("Delete published Moment  ×");
++                        deleteMoment9995.setTextSize(13);
++                        deleteMoment9995.setTextColor(0xffffb5b5);
++                        deleteMoment9995.setPadding(dp(4),dp(8),0,dp(9));
++                        deleteMoment9995.setOnClickListener(v->{
++                            FirebaseUser current=firebaseAuth==null?null:firebaseAuth.getCurrentUser();
++                            if(current==null||!account.equals(current.getUid())||
++                                !account.equals(doc.getString("uid"))||
++                                galleryTicket9994!=meGalleryGeneration9994)return;
++                            new AlertDialog.Builder(this).setTitle("Delete published Moment?")
++                                .setMessage("Remove this post from Me Gallery and the shared Moments feed on both phones?")
++                                .setNegativeButton("Cancel",null)
++                                .setPositiveButton("Delete",(dialog,which)->{
++                                    FirebaseUser signed=firebaseAuth==null?null:firebaseAuth.getCurrentUser();
++                                    if(signed==null||!account.equals(signed.getUid()))return;
++                                    deleteMoment9995.setEnabled(false);
++                                    deleteMoment9995.setText("Deleting Moment…");
++                                    doc.getReference().delete().addOnFailureListener(error->{
++                                        if(isFinishing()||isDestroyed()||deleteMoment9995.getParent()==null)return;
++                                        deleteMoment9995.setEnabled(true);
++                                        deleteMoment9995.setText("Delete published Moment  ×");
++                                        Toast.makeText(this,"Moment could not be deleted. Check connection.",Toast.LENGTH_LONG).show();
++                                    });
++                                }).show();
++                        });
++                        entry.addView(deleteMoment9995);
+                         host.addView(entry,new LinearLayout.LayoutParams(-1,-2));
+                     }
+                 });
+--- a/app/src/main/java/com/kingplus/social/CommunityHubActivity.java
++++ b/app/src/main/java/com/kingplus/social/CommunityHubActivity.java
+@@ -89,12 +89,15 @@
+             ? db.collection("public_profiles").whereEqualTo("publicId",raw).limit(20)
+             :q.isEmpty()?db.collection("public_profiles").limit(30)
+             :db.collection("public_profiles").orderBy("searchName").startAt(q).endAt(q+"\uf8ff").limit(30);
+-        host.addView(tv("Searching people…",13,MUTED,false));
++        final TextView waiting=tv("Searching people…",13,MUTED,false);
++        host.addView(waiting);
+         query.get(com.google.firebase.firestore.Source.SERVER)
+             .addOnSuccessListener(snap->{if(!validSearch9994(token,host,account))return;
+-                host.removeViewAt(host.getChildCount()-1);renderUsers(snap.getDocuments(),host);})
++                host.removeView(waiting);renderUsers(snap.getDocuments(),host);})
+             .addOnFailureListener(error->{if(!validSearch9994(token,host,account))return;
+-                host.addView(tv("Search unavailable • check connection and retry.",13,MUTED,false));});
++                waiting.setText("People search unavailable • tap to retry.");
++                waiting.setOnClickListener(v->{if(validSearch9994(token,host,account))searchPeople(raw);});
++            });
+     }
+     private void renderUsers(List<DocumentSnapshot> docs,LinearLayout host){
+         int n=0;for(DocumentSnapshot d:docs){String uid=safe(d.getString("uid"),d.getId());if(me!=null&&uid.equals(me.getUid()))continue;String name=safe(d.getString("displayName"),"KING User");Long lv=d.getLong("level"),vv=d.getLong("vipLevel");TextView r=tv("👤  "+name+"   • ID "+safe(d.getString("publicId"),publicId(uid))+"\n     Lv."+(lv==null?1:lv)+"  VIP "+(vv==null?0:vv),14,DARK,true);r.setBackground(bg(CARD,14));r.setOnClickListener(v->userActions(uid,name));LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(-1,dp(66));lp.setMargins(0,dp(5),0,dp(5));host.addView(r,lp);n++;}if(n==0)host.addView(tv("No matching people.",14,MUTED,false));
+@@ -109,10 +112,11 @@
+         final LinearLayout host=body;final String account=me.getUid();
+         final String q=raw.toLowerCase(Locale.US);
+         clearResults("Live room results");
+-        loadOlderRooms9994(q,host,account,token,null);
+-    }
+-    /** Cursor pagination searches beyond the newest 80 rooms without mixing old requests. */
+-    private void loadOlderRooms9994(String q,LinearLayout host,String account,int token,DocumentSnapshot after){
++        loadOlderRooms9995(q,host,account,token,null,3);
++    }
++    /** Search up to four pages automatically when a named room has no matches.
++     * Keep an explicit older-rooms button so long histories remain user-controlled. */
++    private void loadOlderRooms9995(String q,LinearLayout host,String account,int token,DocumentSnapshot after,int extraAutoPages){
+         if(!validSearch9994(token,host,account))return;
+         final TextView progress=tv(after==null?"Searching live rooms…":"Loading older live rooms…",13,MUTED,false);
+         host.addView(progress);
+@@ -140,12 +144,19 @@
+                 LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(-1,dp(68));lp.setMargins(0,dp(5),0,dp(5));host.addView(item,lp);
+                 if(++shown>=30)break;
+             }
++            boolean hasNext=last!=null && (processed<docs.size()||docs.size()==80);
++            if(shown==0 && hasNext && !q.isEmpty() && extraAutoPages>0){
++                // A named room can be older than the newest 80; scan the next
++                // page instead of incorrectly reporting no results yet.
++                loadOlderRooms9995(q,host,account,token,last,extraAutoPages-1);
++                return;
++            }
+             if(shown==0)host.addView(tv("No matching rooms in this page.",13,MUTED,false));
+-            if(last!=null && (processed<docs.size()||docs.size()==80)){
++            if(hasNext){
+                 final DocumentSnapshot cursor=last;
+                 TextView more=button("↓ Search older live rooms",()->{});
+                 more.setOnClickListener(v->{if(!validSearch9994(token,host,account))return;
+-                    host.removeView(more);loadOlderRooms9994(q,host,account,token,cursor);
++                    host.removeView(more);loadOlderRooms9995(q,host,account,token,cursor,0);
+                 });
+                 host.addView(more,new LinearLayout.LayoutParams(-1,dp(46)));
+             } else if(after!=null){
+@@ -154,7 +165,7 @@
+         }).addOnFailureListener(error->{if(!validSearch9994(token,host,account))return;
+             progress.setText("Room search unavailable • check connection and retry.");
+             progress.setOnClickListener(v->{if(!validSearch9994(token,host,account))return;
+-                host.removeView(progress);loadOlderRooms9994(q,host,account,token,after);
++                host.removeView(progress);loadOlderRooms9995(q,host,account,token,after,extraAutoPages);
+             });
+         });
+     }
+--- a/app/src/main/java/com/kingplus/social/PartyActivity.java
++++ b/app/src/main/java/com/kingplus/social/PartyActivity.java
+@@ -2979,6 +2979,9 @@
+     private void playSong(int index){
+         if(index<0||index>=musicUris.size())return;
+         if(cloudRoom&&isModerator()){shareSongAndPlay(index);return;}
++        // A listener is not allowed to start a private, out-of-sync copy
++        // of room music and mistake it for synchronized Party playback.
++        if(cloudRoom){toast("Only the host or co-host can control shared room music");return;}
+         playLocalSong(index);
+     }
+     private void playLocalSong(int index){

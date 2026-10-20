@@ -1,0 +1,3 @@
+KING Plus v4.7.0 — Persistent Multi-song Room Music
+
+Adds a reference-inspired Party room music experience: full Playlist screen, search, edit/remove, ADD MUSIC, Android multi-select audio picker, persistent per-user playlist using persistable document URIs, real song filenames, previous/play-pause/next controls, volume slider, automatic next-track playback and a now-playing strip. Songs remain in the playlist after app restart while the original local files remain accessible on the device. Existing KING Plus Party, Discover, Firebase, no-billing and TEST OTP 123456 behavior remains unchanged.

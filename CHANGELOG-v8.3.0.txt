@@ -1,0 +1,9 @@
+KING Plus v8.3.0 Production Hardening (login unchanged)
+
+- Voice/video compatibility mode now watches validated network state and automatically reconnects with capped backoff.
+- App-level crash diagnostics capture the last uncaught stack trace locally while preserving Android crash handling.
+- Social Cloud Functions reject gift/invite/message/follow interactions when either user has blocked the other.
+- Firestore rules enforce block relationships for direct threads/messages, follows and relationships.
+- Reports and block documents have stricter schemas.
+- Storage rules restrict chat uploads by media MIME type/size and add guarded room music/cover paths.
+- Login/test OTP behavior is intentionally unchanged.

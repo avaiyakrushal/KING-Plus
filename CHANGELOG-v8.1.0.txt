@@ -1,0 +1,8 @@
+KING Plus v8.1.0 — Deep Flow Parity
+- VIP max raised to 50 (Firestore + UI + progression engine)
+- Deep nested navigation activity for profile/party/gift/game/settings/social flows
+- Profile drawer routes Privilege Pack/Shop, VIP, Noble, Level, Wallet, Settings, Help and Rules into real nested pages
+- Party overflow redesigned as a scrollable drawer-style menu
+- Realtime room games expanded with Coin Pick, Lucky Wheel and Bingo Pick
+- Gift/VIP/cosmetics/community routes share persistent state and Firebase where available
+- Navigation/back remains consistent with v7.5 Complete Flow

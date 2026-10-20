@@ -4,3 +4,6 @@
 -keep class com.kingplus.social.KingMessagingService { *; }
 -keep class com.kingplus.social.CloudBackend { *; }
 -keep class com.kingplus.social.BillingManager { *; }
+
+-keep class com.squareup.wire.** { *; }
+-keep class com.opensource.svgaplayer.proto.** { *; }

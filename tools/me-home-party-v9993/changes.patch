@@ -1,0 +1,164 @@
+--- a/app/build.gradle
++++ b/app/build.gradle
+@@ -14,7 +14,7 @@
+         }
+     }
+ 
+-    defaultConfig { applicationId 'com.kingplus.social'; minSdk 26; targetSdk 35; versionCode 271; versionName '9.9.92-me-gallery-saved-room-guards-test' }
++    defaultConfig { applicationId 'com.kingplus.social'; minSdk 26; targetSdk 35; versionCode 272; versionName '9.9.93-me-gallery-party-invite-test' }
+     buildTypes {
+         debug { signingConfig signingConfigs.debug }
+         release {
+--- a/app/src/main/java/com/kingplus/social/MainActivity.java
++++ b/app/src/main/java/com/kingplus/social/MainActivity.java
+@@ -86,6 +86,8 @@
+     private TextView profileFollowersNumber, profileFollowingNumber, profileFriendsNumber, profileTopBalance, profileWalletCoins, profileVisitorsChip940;
+     // Live social counters use two subscriptions only while Profile is visible.
+     private com.google.firebase.firestore.ListenerRegistration followingListener965,followersListener965;
++    private com.google.firebase.firestore.ListenerRegistration meGalleryListener9993;
++    private LinearLayout meCloudGalleryHost9993;
+     private final java.util.Set<String> liveFollowing965=new java.util.HashSet<>();
+     private final java.util.Set<String> liveFollowers965=new java.util.HashSet<>();
+     private boolean followingLoaded965,followersLoaded965;
+@@ -1901,6 +1903,7 @@
+         LinearLayout myCloudGallery9992=new LinearLayout(this);
+         myCloudGallery9992.setOrientation(LinearLayout.VERTICAL);
+         page.addView(myCloudGallery9992,new LinearLayout.LayoutParams(-1,-2));
++        meCloudGalleryHost9993=myCloudGallery9992;
+         showMyCloudGallery9992(myCloudGallery9992);
+         text("આ ફોનની જૂની પોસ્ટ (Local Archive)",16,Color.WHITE,true); showPosts();
+         button("Back to Me",CARD,this::profile);
+@@ -1909,6 +1912,8 @@
+     /** Account-scoped shared Moments appear in Me > Gallery as well as Community.
+      * No synthetic profiles, local-only posts or auto-publishing old photos. */
+     private void showMyCloudGallery9992(LinearLayout host){
++        stopMeGallery9993();
++        host.removeAllViews();
+         if(firestore==null||firebaseAuth==null||firebaseAuth.getCurrentUser()==null){
+             TextView t=new TextView(this);t.setText("Sign in to view your published Moments.");
+             t.setTextColor(MUTED);host.addView(t);return;
+@@ -1922,9 +1927,17 @@
+                 ||firebaseAuth.getCurrentUser()==null
+                 ||!account.equals(firebaseAuth.getCurrentUser().getUid()))return;
+             status.setText("Loading your live Moments…");status.setOnClickListener(null);
+-            firestore.collection("moments").whereEqualTo("uid",account).limit(40)
+-                .get(com.google.firebase.firestore.Source.SERVER)
+-                .addOnSuccessListener(result->{
++            stopMeGallery9993();
++            meGalleryListener9993=firestore.collection("moments").whereEqualTo("uid",account).limit(40)
++                .addSnapshotListener(com.google.firebase.firestore.MetadataChanges.INCLUDE,(result,error)->{
++                    if(error!=null||result==null){
++                        if("profile_gallery".equals(screen)&&!isFinishing()&&!isDestroyed()
++                            &&firebaseAuth.getCurrentUser()!=null&&account.equals(firebaseAuth.getCurrentUser().getUid())){
++                            status.setText("Published Moments unavailable. Tap to retry.");
++                            status.setOnClickListener(v->refresh[0].run());
++                        }
++                        return;
++                    }
+                     if(!"profile_gallery".equals(screen)||isFinishing()||isDestroyed()
+                         ||firebaseAuth.getCurrentUser()==null
+                         ||!account.equals(firebaseAuth.getCurrentUser().getUid()))return;
+@@ -1934,8 +1947,10 @@
+                         com.google.firebase.Timestamp ta=a.getTimestamp("createdAt"),tb=b.getTimestamp("createdAt");
+                         return ta==null?(tb==null?0:1):tb==null?-1:tb.compareTo(ta);
+                     });
+-                    status.setText(docs.isEmpty()?"No published Moments yet. Create your first post above."
+-                        :docs.size()+" published Moments • tap to refresh");
++                    status.setText(result.getMetadata().isFromCache()
++                        ? "Offline Gallery • showing cached Moments • tap to retry"
++                        : (docs.isEmpty()?"No published Moments yet. Create your first post above."
++                            :docs.size()+" published Moments • live on both phones • tap to refresh"));
+                     status.setOnClickListener(v->refresh[0].run());
+                     int images=0;
+                     for(DocumentSnapshot doc:docs){
+@@ -1968,15 +1983,13 @@
+                         view.setOnClickListener(v->momentsPage());entry.addView(view);
+                         host.addView(entry,new LinearLayout.LayoutParams(-1,-2));
+                     }
+-                }).addOnFailureListener(error->{
+-                    if(!"profile_gallery".equals(screen)||isFinishing()||isDestroyed()
+-                        ||firebaseAuth.getCurrentUser()==null
+-                        ||!account.equals(firebaseAuth.getCurrentUser().getUid()))return;
+-                    status.setText("Published Moments unavailable. Tap to retry.");
+-                    status.setOnClickListener(v->refresh[0].run());
+                 });
+         };
+         refresh[0].run();
++    }
++
++    private void stopMeGallery9993(){
++        if(meGalleryListener9993!=null){meGalleryListener9993.remove();meGalleryListener9993=null;}
+     }
+ 
+     private void videoPage(){
+@@ -2256,9 +2269,11 @@
+                 && firestore!=null && firebaseAuth!=null && firebaseAuth.getCurrentUser()!=null)
+             startProfileFollowUpdates965(firebaseAuth.getCurrentUser().getUid());
+         if("profile".equals(screen))refreshServerWallet();
+-    }
+-    @Override protected void onPause() { stopWallet9989(); stopProfileFollowUpdates965(); super.onPause(); stopMic(); }
+-    @Override protected void onDestroy() { stopWallet9989(); stopProfileFollowUpdates965(); stopMic(); super.onDestroy(); }
++        if("profile_gallery".equals(screen)&&meCloudGalleryHost9993!=null&&meGalleryListener9993==null)
++            showMyCloudGallery9992(meCloudGalleryHost9993);
++    }
++    @Override protected void onPause() { stopMeGallery9993(); stopWallet9989(); stopProfileFollowUpdates965(); super.onPause(); stopMic(); }
++    @Override protected void onDestroy() { stopMeGallery9993(); stopWallet9989(); stopProfileFollowUpdates965(); stopMic(); super.onDestroy(); }
+     private void notificationsCenter(){
+         screen="notifications"; base("Notifications","Real activity from your KING Plus account");
+         String raw=getPreferences(0).getString("notifications_log","");
+--- a/app/src/main/java/com/kingplus/social/PartyActivity.java
++++ b/app/src/main/java/com/kingplus/social/PartyActivity.java
+@@ -636,8 +636,11 @@
+         incoming.removeExtra("directRoomId");
+         if(requested==null||requested.isEmpty())return;
+         if(!KingMeRoomHistory9981.validId(requested)){
++            ++inviteGeneration9989;
+             requestedPanel940="";toast("Invalid Party invite");return;
+         }
++        // Each new invite invalidates older in-flight server checks and switch dialogs.
++        final int intentGeneration9989=++inviteGeneration9989;
+         final String target=requested;
+         requestedPanel940=safe(incoming.getStringExtra("requestedPanel"),"");
+         incoming.removeExtra("requestedPanel");
+@@ -646,7 +649,8 @@
+         Runnable join=()->{
+             // Verify the destination BEFORE leaving the currently joined room.
+             // A stale/invalid favorite or invite must never throw users out.
+-            final int generation=++inviteGeneration9989;
++            if(intentGeneration9989!=inviteGeneration9989)return;
++            final int generation=intentGeneration9989;
+             final String account=user.getUid();
+             db.collection("live_rooms").document(target)
+                 .get(com.google.firebase.firestore.Source.SERVER).addOnSuccessListener(doc->{
+@@ -670,8 +674,9 @@
+         if(roomId==null)join.run();
+         else new AlertDialog.Builder(this).setTitle("Switch Party room?")
+             .setMessage("Leave this room and open the invited Party?")
+-            .setOnCancelListener(d->requestedPanel940="")
+-            .setNegativeButton("Stay",(d,w)->requestedPanel940="").setPositiveButton("Switch",(d,w)->join.run()).show();
++            .setOnCancelListener(d->{if(intentGeneration9989==inviteGeneration9989){++inviteGeneration9989;requestedPanel940="";}})
++            .setNegativeButton("Stay",(d,w)->{if(intentGeneration9989==inviteGeneration9989){++inviteGeneration9989;requestedPanel940="";}})
++            .setPositiveButton("Switch",(d,w)->join.run()).show();
+     }
+ 
+     private void renderLobby(String selected) {
+@@ -780,7 +785,7 @@
+                     }
+                     if (shown == 0) showEmptyLobby(cloudList,selected);
+                     if(snap!=null&&snap.size()>=lobbyRoomLimit9989){
+-                        TextView more=pill("Load more active rooms",0xff6244a0,()->{
++                        TextView more=pill(lobbyFilter.isEmpty()?"Load more active rooms":"Search more live rooms",0xff6244a0,()->{
+                             lobbyRoomLimit9989+=50;renderLobby(selected);
+                         });
+                         cloudList.addView(more,new LinearLayout.LayoutParams(-1,dp(48)));
+@@ -860,8 +865,8 @@
+     private void showEmptyLobby(LinearLayout host,String selected){
+         LinearLayout box=new LinearLayout(this);box.setOrientation(LinearLayout.VERTICAL);box.setGravity(Gravity.CENTER);box.setPadding(dp(18),dp(18),dp(18),dp(18));box.setBackground(royalNeon9924(0xff43235f,0xff211332,0x99e4ac8d,16));
+         TextView icon=tv("🎙",42,0xff8a49ed,true);icon.setGravity(Gravity.CENTER);box.addView(icon);
+-        TextView title=tv("No live rooms here yet",16,0xffffd998,true);title.setGravity(Gravity.CENTER);box.addView(title);
+-        TextView sub=tv("Create the first real "+selected+" Party room.",13,0xffe2d3ee,false);sub.setGravity(Gravity.CENTER);box.addView(sub);
++        TextView title=tv(lobbyFilter.isEmpty()?"No live rooms here yet":"No rooms match in loaded results",16,0xffffd998,true);title.setGravity(Gravity.CENTER);box.addView(title);
++        TextView sub=tv(lobbyFilter.isEmpty()?"Create the first real "+selected+" Party room.":"Try another term or tap Search more live rooms to check more results.",13,0xffe2d3ee,false);sub.setGravity(Gravity.CENTER);box.addView(sub);
+         TextView create=tv("＋ Create Party",14,Color.WHITE,true);create.setGravity(Gravity.CENTER);create.setBackground(bg(PURPLE,18));create.setOnClickListener(v->createRoomDialog());LinearLayout.LayoutParams cp=new LinearLayout.LayoutParams(dp(160),dp(44));cp.gravity=Gravity.CENTER_HORIZONTAL;cp.setMargins(0,dp(8),0,0);box.addView(create,cp);
+         TextView join=tv("🔗 Join by Room Code",13,0xffffd994,true);join.setGravity(Gravity.CENTER);join.setOnClickListener(v->joinRoomByCode891());LinearLayout.LayoutParams jp=new LinearLayout.LayoutParams(dp(180),dp(38));jp.gravity=Gravity.CENTER_HORIZONTAL;jp.setMargins(0,dp(4),0,0);box.addView(join,jp);
+         LinearLayout.LayoutParams bp=new LinearLayout.LayoutParams(-1,dp(250));bp.setMargins(dp(6),dp(12),dp(6),0);host.addView(box,bp);

@@ -1,0 +1,183 @@
+--- a/app/build.gradle
++++ b/app/build.gradle
+@@ -13,9 +13,9 @@
+             keyPassword 'android'
+         }
+     }
+ 
+-    defaultConfig { applicationId 'com.kingplus.social'; minSdk 26; targetSdk 35; versionCode 282; versionName '10.0.3-visitors-and-vote-round-test' }
++    defaultConfig { applicationId 'com.kingplus.social'; minSdk 26; targetSdk 35; versionCode 283; versionName '10.0.4-me-home-room-vote-test' }
+     buildTypes {
+         debug { signingConfig signingConfigs.debug }
+         release {
+             signingConfig signingConfigs.debug
+--- a/app/src/main/java/com/kingplus/social/MainActivity.java
++++ b/app/src/main/java/com/kingplus/social/MainActivity.java
+@@ -87,8 +87,9 @@
+     // Live social counters use two subscriptions only while Profile is visible.
+     private com.google.firebase.firestore.ListenerRegistration followingListener965,followersListener965;
+     private com.google.firebase.firestore.ListenerRegistration meGalleryListener9993;
+     private int meGalleryGeneration9994;
++    private int visitorDialogGeneration10004;
+     private int meGalleryLimit9996=40;
+     private LinearLayout meCloudGalleryHost9993;
+     private final java.util.Set<String> liveFollowing965=new java.util.HashSet<>();
+     private final java.util.Set<String> liveFollowers965=new java.util.HashSet<>();
+@@ -1790,12 +1791,16 @@
+         if(firestore==null||firebaseAuth==null||firebaseAuth.getCurrentUser()==null){
+             Toast.makeText(this,"Sign in to view visitors",Toast.LENGTH_SHORT).show();return;
+         }
+         final String account10003=firebaseAuth.getCurrentUser().getUid();
++        final int visitorTicket10004=++visitorDialogGeneration10004;
++        if(!"profile".equals(screen))return;
+         firestore.collection("public_profiles").document(account10003).collection("visitors")
+           .orderBy("visitedAt",com.google.firebase.firestore.Query.Direction.DESCENDING)
+           .limit(50).get(com.google.firebase.firestore.Source.SERVER).addOnSuccessListener(snap->{
+-            if(isFinishing()||isDestroyed()||firebaseAuth.getCurrentUser()==null
++            if(isFinishing()||isDestroyed()||!"profile".equals(screen)
++                ||visitorTicket10004!=visitorDialogGeneration10004
++                ||firebaseAuth.getCurrentUser()==null
+                 ||!account10003.equals(firebaseAuth.getCurrentUser().getUid()))return;
+             if(snap.isEmpty()){
+                 new AlertDialog.Builder(this).setTitle("👣 Profile Visitors")
+                     .setMessage("No profile visitors yet.").setPositiveButton("OK",null).show();return;
+@@ -1813,14 +1818,17 @@
+                 rows.add("👤 "+n+(when.isEmpty()?"":"  •  "+when));ids.add(uid10003);
+             }
+             new AlertDialog.Builder(this).setTitle("👣 Profile Visitors")
+                 .setItems(rows.toArray(new String[0]),(dlg,w)->{
+-                    if(firebaseAuth.getCurrentUser()==null||!account10003.equals(firebaseAuth.getCurrentUser().getUid()))return;
++                    if(!"profile".equals(screen)||visitorTicket10004!=visitorDialogGeneration10004
++                        ||firebaseAuth.getCurrentUser()==null||!account10003.equals(firebaseAuth.getCurrentUser().getUid()))return;
+                     Intent i=new Intent(this,KingPublicProfileActivity.class);
+                     i.putExtra("uid",ids.get(w));startActivity(i);
+                 }).setNegativeButton("Close",null).show();
+         }).addOnFailureListener(e->{
+-            if(isFinishing()||isDestroyed()||firebaseAuth.getCurrentUser()==null
++            if(isFinishing()||isDestroyed()||!"profile".equals(screen)
++                ||visitorTicket10004!=visitorDialogGeneration10004
++                ||firebaseAuth.getCurrentUser()==null
+                 ||!account10003.equals(firebaseAuth.getCurrentUser().getUid()))return;
+             new AlertDialog.Builder(this).setTitle("👣 Profile Visitors")
+                 .setMessage("Visitors are unavailable right now.")
+                 .setPositiveButton("Retry",(d,w)->showProfileVisitors940())
+--- a/app/src/main/java/com/kingplus/social/CommunityHubActivity.java
++++ b/app/src/main/java/com/kingplus/social/CommunityHubActivity.java
+@@ -50,8 +50,9 @@
+     private int momentsQueryLimit10000=80;
+     private int momentsDisplayLimit10000=40;
+     // Keep large feeds usable on phones: only first three photos auto-download.
+     private int autoMomentPhotos10001=3;
++    private LinearLayout activeMomentsFeed10004;
+     private final List<com.google.firebase.firestore.ListenerRegistration> momentLikes10000=new ArrayList<>();
+ 
+     @Override public void onCreate(Bundle b){super.onCreate(b);try{me=FirebaseAuth.getInstance().getCurrentUser();db=FirebaseFirestore.getInstance();}catch(Exception ignored){}SharedPreferences p=getSharedPreferences("MainActivity",MODE_PRIVATE);displayName=safe(p.getString("name",me==null?"KING User":me.getDisplayName()),"KING User");String t=getIntent().getStringExtra("tab");if(t!=null&&!t.isEmpty())selected=t;targetUid=safe(getIntent().getStringExtra("targetUid"),"");targetName=safe(getIntent().getStringExtra("targetName"),"");render(selected);}
+     private com.google.firebase.firestore.ListenerRegistration familyMessages956;
+@@ -234,9 +235,14 @@
+         if(momentsListener9990!=null){momentsListener9990.remove();momentsListener9990=null;}
+     }
+     private void loadMoments(){
+         stopMoments9990();final int generation=momentsGeneration9990;
+-        final LinearLayout feed=new LinearLayout(this);feed.setOrientation(LinearLayout.VERTICAL);body.addView(feed);
++        // Replacing a paged Moments subscription must also replace its old cards.
++        // Detached Firestore listeners alone do not remove their rendered Views.
++        if(activeMomentsFeed10004!=null && activeMomentsFeed10004.getParent()==body)
++            body.removeView(activeMomentsFeed10004);
++        final LinearLayout feed=new LinearLayout(this);feed.setOrientation(LinearLayout.VERTICAL);
++        activeMomentsFeed10004=feed;body.addView(feed);
+         final String account=me.getUid(),topicFilter=selectedTopic940;
+         feed.addView(tv("Loading live Moments…",14,MUTED,false));
+         momentsListener9990=db.collection("moments").orderBy("createdAt",Query.Direction.DESCENDING).limit(momentsQueryLimit10000)
+             .addSnapshotListener((snap,error)->{
+--- a/app/src/main/java/com/kingplus/social/PartyActivity.java
++++ b/app/src/main/java/com/kingplus/social/PartyActivity.java
+@@ -4201,24 +4201,29 @@
+                 Map<String,Object>vote=new HashMap<>();vote.put("uid",expectedUid10001);
+                 vote.put("name",safeName());vote.put("roundId",round);
+                 vote.put("choice",a[w]);vote.put("choiceIndex",w);
+                 vote.put("updatedAt",FieldValue.serverTimestamp());
+-                liveRoom10001.collection("game_state").document("current")
+-                    .get(com.google.firebase.firestore.Source.SERVER).addOnSuccessListener(latest->{
+-                        if(!currentVoteRoom10001(expectedRoom10001,expectedUid10001,binding10001))return;
+-                        Long latestRound10002=latest.getLong("roundId");
+-                        if(!latest.exists()||!"vote".equals(latest.getString("type"))
+-                            ||!"active".equals(latest.getString("status"))
+-                            ||latestRound10002==null||latestRound10002!=round){
+-                            toast("The vote changed. Open the current vote again.");return;
+-                        }
+-                        liveRoom10001.collection("game_votes").document(expectedUid10001).set(vote)
+-                            .addOnSuccessListener(v->{if(currentVoteRoom10001(expectedRoom10001,expectedUid10001,binding10001)){
+-                                addEvent("vote",safeName()+" voted "+a[w]);toast("Vote sent: "+a[w]);
+-                            }})
+-                            .addOnFailureListener(e->{if(currentVoteRoom10001(expectedRoom10001,expectedUid10001,binding10001))
+-                                toast("Vote failed: "+msg(e));});
+-                    }).addOnFailureListener(e->{if(currentVoteRoom10001(expectedRoom10001,expectedUid10001,binding10001))toast("Cannot verify current vote. Please retry.");});
++                // Atomic read+write: never commit an old ballot to a replaced round.
++                // Room rules also require current membership and a published option.
++                final DocumentReference stateRef10004=liveRoom10001.collection("game_state").document("current");
++                final DocumentReference ballotRef10004=liveRoom10001.collection("game_votes").document(expectedUid10001);
++                db.runTransaction(tx->{
++                    DocumentSnapshot latest=tx.get(stateRef10004);
++                    Long latestRound10004=latest.getLong("roundId");
++                    if(!latest.exists()||!"vote".equals(latest.getString("type"))
++                        ||!"active".equals(latest.getString("status"))
++                        ||latestRound10004==null||latestRound10004.longValue()!=round)
++                        throw new IllegalStateException("Vote round changed");
++                    tx.set(ballotRef10004,vote);
++                    return null;
++                }).addOnSuccessListener(done->{
++                    if(currentVoteRoom10001(expectedRoom10001,expectedUid10001,binding10001)){
++                        addEvent("vote",safeName()+" voted "+a[w]);toast("Vote sent: "+a[w]);
++                    }
++                }).addOnFailureListener(e->{
++                    if(currentVoteRoom10001(expectedRoom10001,expectedUid10001,binding10001))
++                        toast("Vote changed or permission denied • try again");
++                });
+             }).setNeutralButton(isModerator()?"Results":"Close",(d,w)->{
+                 if(currentVoteRoom10001(expectedRoom10001,expectedUid10001,binding10001)&&isModerator())showVoteResults();
+             }).setNegativeButton("Close",null).show();
+         }).addOnFailureListener(e->{if(currentVoteRoom10001(expectedRoom10001,expectedUid10001,binding10001))
+@@ -4376,12 +4381,42 @@
+         if(cloudRoom&&!isModerator()){if("wheel".equals(activeGameType))new AlertDialog.Builder(this).setTitle("🎡 "+title).setMessage(activeGameResult.isEmpty()?activeGamePrompt:activeGameResult).setPositiveButton("OK",null).show();else toast("Host/co-host starts the room wheel");return;}
+         String[] prizes={"🌹 Rose","⭐ 10 points","😂 Funny task","🎤 Take mic","💗 Heart","👑 Crown challenge","🎁 Gift challenge","🎉 Party shoutout"};String result=prizes[new java.util.Random().nextInt(prizes.length)];if(cloudRoom)publishGameState("wheel",title,result);else addEvent("play",safeName()+" spun "+title+" • "+result);new AlertDialog.Builder(this).setTitle("🎡 "+title).setMessage(result).setPositiveButton("Spin again",(d,w)->wheelPanel(title)).setNegativeButton("Close",null).show();
+     }
+ 
++    private void closeVoteFromPanel10004(String expectedRoom,String expectedUid,int binding){
++        if(!currentVoteRoom10001(expectedRoom,expectedUid,binding)||!isModerator()){
++            toast("Room changed or host access lost");return;
++        }
++        db.collection("live_rooms").document(expectedRoom).collection("game_state").document("current")
++            .get(com.google.firebase.firestore.Source.SERVER).addOnSuccessListener(state->{
++                if(!currentVoteRoom10001(expectedRoom,expectedUid,binding)||!isModerator())return;
++                Long round=state.getLong("roundId");
++                if(!state.exists()||!"vote".equals(state.getString("type"))
++                    ||!"active".equals(state.getString("status"))||round==null){
++                    toast("No active vote to close");return;
++                }
++                closeVoteRound10003(expectedRoom,expectedUid,binding,round.longValue());
++            }).addOnFailureListener(e->{
++                if(currentVoteRoom10001(expectedRoom,expectedUid,binding))toast("Cannot verify vote • try again");
++            });
++    }
++
+     private void votePanel(){
+         if(!cloudRoom||db==null||user==null){localVotePanel();return;}
+         if(!isModerator()){submitCurrentVote();return;}
+-        String current="vote".equals(activeGameType)&&activeGameRound>0?"Current: "+activeGamePrompt:"No active vote";new AlertDialog.Builder(this).setTitle("💌 Room Vote • "+current).setItems(new String[]{"Start new vote","Vote now","View results","Close active vote"},(d,w)->{if(w==0)startNewVoteDialog();else if(w==1)submitCurrentVote();else if(w==2)showVoteResults();else closeActiveGame();}).setNegativeButton("Close",null).show();
++        final String panelRoom10004=roomId,panelUid10004=user.getUid();
++        final int panelBinding10004=roomListenerGeneration982;
++        String current="vote".equals(activeGameType)&&activeGameRound>0?"Current: "+activeGamePrompt:"No active vote";
++        new AlertDialog.Builder(this).setTitle("💌 Room Vote • "+current)
++            .setItems(new String[]{"Start new vote","Vote now","View results","Close active vote"},(d,w)->{
++                if(!currentVoteRoom10001(panelRoom10004,panelUid10004,panelBinding10004)){
++                    toast("Room changed • open the vote menu again");return;
++                }
++                if(w==0)startNewVoteDialog();
++                else if(w==1)submitCurrentVote();
++                else if(w==2)showVoteResults();
++                else closeVoteFromPanel10004(panelRoom10004,panelUid10004,panelBinding10004);
++            }).setNegativeButton("Close",null).show();
+     }
+ 
+     private TextView toolTile(String icon,String label,Runnable action){
+         android.text.SpannableString title=new android.text.SpannableString(icon+"\n\n"+label);

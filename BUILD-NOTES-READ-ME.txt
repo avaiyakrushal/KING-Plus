@@ -1,0 +1,14 @@
+KING Plus v10.0.74 — Discover follow notification identity (TEST source).
+
+Android metadata: versionCode 353; versionName 10.0.74-discover-follow-name.
+This ZIP contains source only. It does not contain an APK or AAB.
+
+The reported MediaDocumentsProvider SecurityException is handled by eagerly
+opening and decoding local image URIs. Party-room search includes all categories
+and uses cursor pages. Stale-member removal rereads current membership and seats
+transactionally after the server scan. Discover follow records include the
+follower name for notification text. Two-device acceptance is pending.
+
+The private production signing key is omitted. This is TEST source, not a final
+release; see RELEASE-NOTES-v10.0.74.md and
+release/final-release-evidence.json.

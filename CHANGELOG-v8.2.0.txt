@@ -1,0 +1,7 @@
+KING Plus v8.2.0 — Final Function Audit
+- Full-screen public profile with Follow, Message, Gift, Report, Block and cloud gift history
+- Full-screen Gift Center with VIP 0–50 unlocks, quantities, secure wallet gifts and sent/received ledger
+- Discover and Party profile actions route to proper running pages instead of profile-only dialogs
+- High-value secure gifts supported by backend wallet transaction validation
+- Deep flow expanded with regular pages for safety, voice/video, cosmetics, tasks, events and social tools
+- Final navigation/session/network hardening carried forward from v7.5/v8.1

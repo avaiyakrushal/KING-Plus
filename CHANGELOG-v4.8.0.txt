@@ -1,0 +1,3 @@
+KING Plus v4.8.0 — Shared Room Music Sync
+
+Extends v4.7.0 persistent multi-song playlists with real cloud-room shared playback. Host/co-host selected local audio plays immediately on the host, uploads through the existing authenticated Firebase Storage media path when eligible, and publishes play/pause/next/previous/stop position state through the existing live-room event channel. Other signed-in room members automatically stream the same uploaded track and approximately seek to the shared room position. Guest volume stays local. Host/co-host controls remain authoritative. Songs over the current 12 MB media-rule limit or failed uploads continue locally without crashing the room. No billing flow was added; TEST OTP 123456 remains unchanged.

@@ -1,0 +1,125 @@
+--- a/app/build.gradle
++++ b/app/build.gradle
+@@ -14,7 +14,7 @@
+         }
+     }
+ 
+-    defaultConfig { applicationId 'com.kingplus.social'; minSdk 26; targetSdk 35; versionCode 274; versionName '9.9.95-me-home-party-live-fixes-test' }
++    defaultConfig { applicationId 'com.kingplus.social'; minSdk 26; targetSdk 35; versionCode 275; versionName '9.9.96-me-gallery-id-room-music-test' }
+     buildTypes {
+         debug { signingConfig signingConfigs.debug }
+         release {
+--- a/app/src/main/java/com/kingplus/social/MainActivity.java
++++ b/app/src/main/java/com/kingplus/social/MainActivity.java
+@@ -88,6 +88,7 @@
+     private com.google.firebase.firestore.ListenerRegistration followingListener965,followersListener965;
+     private com.google.firebase.firestore.ListenerRegistration meGalleryListener9993;
+     private int meGalleryGeneration9994;
++    private int meGalleryLimit9996=40;
+     private LinearLayout meCloudGalleryHost9993;
+     private final java.util.Set<String> liveFollowing965=new java.util.HashSet<>();
+     private final java.util.Set<String> liveFollowers965=new java.util.HashSet<>();
+@@ -1930,7 +1931,7 @@
+             status.setText("Loading your live Moments…");status.setOnClickListener(null);
+             stopMeGallery9993();
+             final int galleryTicket9994=meGalleryGeneration9994;
+-            meGalleryListener9993=firestore.collection("moments").whereEqualTo("uid",account).limit(40)
++            meGalleryListener9993=firestore.collection("moments").whereEqualTo("uid",account).limit(meGalleryLimit9996)
+                 .addSnapshotListener(com.google.firebase.firestore.MetadataChanges.INCLUDE,(result,error)->{
+                     if(galleryTicket9994!=meGalleryGeneration9994)return;
+                     if(error!=null||result==null){
+@@ -2016,6 +2017,22 @@
+                         entry.addView(deleteMoment9995);
+                         host.addView(entry,new LinearLayout.LayoutParams(-1,-2));
+                     }
++                    // The older implementation silently hid every published Moment
++                    // beyond 40. Expand the same owner-scoped live query on demand.
++                    if(docs.size()>=meGalleryLimit9996 && meGalleryLimit9996<320){
++                        TextView loadMore9996=new TextView(this);
++                        loadMore9996.setText("↓ Load more published Moments ("+docs.size()+" shown)");
++                        loadMore9996.setTextSize(15);loadMore9996.setTextColor(0xffffdc88);
++                        loadMore9996.setPadding(dp(12),dp(18),dp(12),dp(18));
++                        loadMore9996.setOnClickListener(v->{
++                            if(galleryTicket9994!=meGalleryGeneration9994 ||
++                                !"profile_gallery".equals(screen) || firebaseAuth.getCurrentUser()==null ||
++                                !account.equals(firebaseAuth.getCurrentUser().getUid()))return;
++                            meGalleryLimit9996=Math.min(320,meGalleryLimit9996+40);
++                            showMyCloudGallery9992(host);
++                        });
++                        host.addView(loadMore9996,new LinearLayout.LayoutParams(-1,-2));
++                    }
+                 });
+         };
+         refresh[0].run();
+--- a/app/src/main/java/com/kingplus/social/CommunityHubActivity.java
++++ b/app/src/main/java/com/kingplus/social/CommunityHubActivity.java
+@@ -100,12 +100,20 @@
+             });
+     }
+     private void renderUsers(List<DocumentSnapshot> docs,LinearLayout host){
+-        int n=0;for(DocumentSnapshot d:docs){String uid=safe(d.getString("uid"),d.getId());if(me!=null&&uid.equals(me.getUid()))continue;String name=safe(d.getString("displayName"),"KING User");Long lv=d.getLong("level"),vv=d.getLong("vipLevel");TextView r=tv("👤  "+name+"   • ID "+safe(d.getString("publicId"),publicId(uid))+"\n     Lv."+(lv==null?1:lv)+"  VIP "+(vv==null?0:vv),14,DARK,true);r.setBackground(bg(CARD,14));r.setOnClickListener(v->userActions(uid,name));LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(-1,dp(66));lp.setMargins(0,dp(5),0,dp(5));host.addView(r,lp);n++;}if(n==0)host.addView(tv("No matching people.",14,MUTED,false));
+-    }
+-    private void userActions(String uid,String name){String[] a={"Follow / Unfollow","Private Chat","Relationship / CP","Gift in Chat","Share KING ID"};new AlertDialog.Builder(this).setTitle(name).setItems(a,(d,w)->{if(w==0)toggleFollow(uid,name);else if(w==1||w==3)openChat(uid,name);else if(w==2){targetUid=uid;targetName=name;render("Relationship");}else shareId(uid,name);}).show();}
++        int n=0;for(DocumentSnapshot d:docs){String uid=safe(d.getString("uid"),d.getId());if(me!=null&&uid.equals(me.getUid()))continue;String name=safe(d.getString("displayName"),"KING User");Long lv=d.getLong("level"),vv=d.getLong("vipLevel");String issuedId9996=KingPublicId9996.verified(d.getString("publicId"));TextView r=tv("👤  "+name+"   • ID "+(issuedId9996==null?"Not issued":issuedId9996)+"\n     Lv."+(lv==null?1:lv)+"  VIP "+(vv==null?0:vv),14,DARK,true);r.setBackground(bg(CARD,14));r.setOnClickListener(v->userActions(uid,name,issuedId9996));LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(-1,dp(66));lp.setMargins(0,dp(5),0,dp(5));host.addView(r,lp);n++;}if(n==0)host.addView(tv("No matching people.",14,MUTED,false));
++    }
++    private void userActions(String uid,String name,String issuedId9996){String[] a={"Follow / Unfollow","Private Chat","Relationship / CP","Gift in Chat","Share KING ID"};new AlertDialog.Builder(this).setTitle(name).setItems(a,(d,w)->{if(w==0)toggleFollow(uid,name);else if(w==1||w==3)openChat(uid,name);else if(w==2){targetUid=uid;targetName=name;render("Relationship");}else shareId(uid,name,issuedId9996);}).show();}
+     private void toggleFollow(String uid,String name){String id=me.getUid()+"__"+uid;DocumentReference r=db.collection("follows").document(id);r.get().addOnSuccessListener(x->{if(x.exists())r.delete().addOnSuccessListener(v->toast("Unfollowed "+name));else{Map<String,Object>m=new HashMap<>();m.put("followerUid",me.getUid());m.put("targetUid",uid);m.put("createdAt",FieldValue.serverTimestamp());r.set(m).addOnSuccessListener(v->toast("Following "+name));}});}
+     private void openChat(String uid,String name){Intent i=new Intent(this,ChatActivity.class);i.putExtra("peerUid",uid);i.putExtra("peerName",name);startActivity(i);}
+-    private void shareId(String uid,String name){Intent i=new Intent(Intent.ACTION_SEND);i.setType("text/plain");i.putExtra(Intent.EXTRA_TEXT,"Find "+name+" on KING Plus • KING ID "+publicId(uid));startActivity(Intent.createChooser(i,"Share KING ID"));}
++    private void shareId(String uid,String name,String issuedId9996){
++        // The former hash(uid) generated unofficial ID numbers that could
++        // lead another phone to the wrong account. Share only issued IDs.
++        String id=KingPublicId9996.verified(issuedId9996);
++        if(id==null){toast("This profile has no verified KING ID yet");return;}
++        Intent i=new Intent(Intent.ACTION_SEND);i.setType("text/plain");
++        i.putExtra(Intent.EXTRA_TEXT,"Find "+name+" on KING Plus • KING ID "+id);
++        startActivity(Intent.createChooser(i,"Share KING ID"));
++    }
+     private void searchRooms(String raw){
+         if(!cloud()||!KingSavedRoomsCloud9990.account(me.getUid())){toast("Sign in required");return;}
+         final int token=++searchGeneration9994;
+--- a/app/src/main/java/com/kingplus/social/PartyActivity.java
++++ b/app/src/main/java/com/kingplus/social/PartyActivity.java
+@@ -690,6 +690,10 @@
+         revokeMicConsent9956();
+         ++presenceGeneration967; micTogglePending968=false; giftSendPending971=false; giftFxActive971=0; // Clear previous room visuals.
+         clearListeners(); clearDisplayedGiftReceipts9955();
++        // Do not let a previous Party keep playing its shared soundtrack
++        // after Leaving or switching into the Home/Party lobby.
++        releaseMusicPlayer();sharedMusicUrl="";currentSong="";
++        currentSongIndex=-1;applyingSharedMusic=false;musicStatusLabel=null;
+         unregisterMember(); roomId = null; cloudRoom = false; memberSeen=false;
+         LinearLayout root = new LinearLayout(this); root.setOrientation(LinearLayout.VERTICAL);
+         root.setBackground(new GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM,
+@@ -3024,9 +3028,17 @@
+         db.collection("live_rooms").document(roomId).collection("music_state").document("current").set(d).addOnFailureListener(e->toast("Music sync failed: "+msg(e)));
+     }
+     private void attachMusicSync(DocumentReference room){
++        final String expectedRoom9996=room.getId();
++        final String expectedAccount9996=user==null?null:user.getUid();
++        final int generation9996=roomListenerGeneration982;
+         musicStateListener=room.collection("music_state").document("current").addSnapshotListener((d,e)->{
++            // A late Firebase callback for an old room must not resume its
++            // audio in the new room, even if the observer was just removed.
++            if(!cloudRoom||roomId==null||!expectedRoom9996.equals(roomId)
++                ||generation9996!=roomListenerGeneration982||user==null
++                ||expectedAccount9996==null||!expectedAccount9996.equals(user.getUid()))return;
+             if(e!=null||d==null||!d.exists())return;
+-            String actor=d.getString("actorUid");if(user!=null&&user.getUid().equals(actor))return;
++            String actor=d.getString("actorUid");if(user.getUid().equals(actor))return;
+             applyMusicSync(d);
+         });
+     }
+--- /dev/null
++++ b/app/src/main/java/com/kingplus/social/KingPublicId9996.java
+@@ -0,0 +1,10 @@
++package com.kingplus.social;
++/** Use only a real six-digit KING ID supplied by public_profiles. */
++public final class KingPublicId9996 {
++    private KingPublicId9996(){}
++    public static String verified(String issued){
++        if(issued==null)return null;
++        String value=issued.trim();
++        return value.matches("[0-9]{6}")?value:null;
++    }
++}

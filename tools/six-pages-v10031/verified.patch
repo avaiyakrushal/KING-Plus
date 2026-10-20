@@ -1,0 +1,200 @@
+--- a/app/build.gradle
++++ b/app/build.gradle
+@@ -14,7 +14,7 @@
+         }
+     }
+ 
+-    defaultConfig { applicationId 'com.kingplus.social'; minSdk 26; targetSdk 35; versionCode 309; versionName '10.0.30-six-pages-session-integrity-test' }
++    defaultConfig { applicationId 'com.kingplus.social'; minSdk 26; targetSdk 35; versionCode 310; versionName '10.0.31-six-pages-live-account-reliability-test' }
+     buildTypes {
+         debug { signingConfig signingConfigs.debug }
+         release {
+--- a/app/src/main/java/com/kingplus/social/MainActivity.java
++++ b/app/src/main/java/com/kingplus/social/MainActivity.java
+@@ -1608,7 +1608,14 @@
+         final LevelSystem.Snapshot progress700=LevelSystem.read(this);final int level=progress700.level;
+         // Never show a guessed hash-based public ID. Fetch the issued ID from Firestore.
+         final String uid="Not issued";
+-        final String photo=getPreferences(0).getString("profile_photo","");final String remotePhoto931=getPreferences(0).getString("profile_photo_cloud",getPreferences(0).getString("google_photo_url",""));
++        // An avatar stored for account A must never render on account B's Me page.
++        final String currentProfileOwner10031=firebaseAuth!=null&&firebaseAuth.getCurrentUser()!=null
++            ?firebaseAuth.getCurrentUser().getUid():"";
++        final boolean ownProfileMedia10031=currentProfileOwner10031.equals(
++            getPreferences(0).getString("firebase_uid",""));
++        final String photo=ownProfileMedia10031?getPreferences(0).getString("profile_photo",""):"";
++        final String remotePhoto931=ownProfileMedia10031
++            ?getPreferences(0).getString("profile_photo_cloud",getPreferences(0).getString("google_photo_url","")):"";
+         LinearLayout root=new LinearLayout(this);root.setOrientation(LinearLayout.VERTICAL);root.setBackground(KingRoyalTheme10021.page());
+         LinearLayout top=new LinearLayout(this);top.setGravity(Gravity.CENTER_VERTICAL);top.setPadding(dp(12),dp(5),dp(8),0);top.setBackground(KingRoyalTheme10021.header(this));
+         TextView menu=new TextView(this);menu.setText("☰");menu.setTextSize(27);menu.setTextColor(0xff222222);menu.setGravity(Gravity.CENTER);menu.setOnClickListener(v->sideMenu());top.addView(menu,new LinearLayout.LayoutParams(dp(48),dp(50)));
+@@ -2619,6 +2626,12 @@
+         super.onResume();
+         String resumedUid10030=firebaseAuth!=null&&firebaseAuth.getCurrentUser()!=null
+             ?firebaseAuth.getCurrentUser().getUid():null;
++        if("profile".equals(screen)&&!java.util.Objects.equals(renderedProfileUid10030,resumedUid10030)){
++            com.google.firebase.auth.FirebaseUser signed10031=firebaseAuth==null?null:firebaseAuth.getCurrentUser();
++            displayName=signed10031==null||signed10031.getDisplayName()==null
++                ||signed10031.getDisplayName().trim().isEmpty()
++                ?"KING User":signed10031.getDisplayName().trim();
++        }
+         if("profile".equals(screen)
+             &&!java.util.Objects.equals(renderedProfileUid10030,resumedUid10030)){
+             stopWallet9989();stopProfileFollowUpdates965();profile();return;
+--- a/app/src/main/java/com/kingplus/social/CommunityHubActivity.java
++++ b/app/src/main/java/com/kingplus/social/CommunityHubActivity.java
+@@ -72,7 +72,21 @@
+         if(familyMembers9986!=null){familyMembers9986.remove();familyMembers9986=null;}
+     }
+     @Override protected void onStop(){++searchGeneration9994;stopMoments9990();familyStopped956=true;stopFamilyMessages956();super.onStop();}
+-    @Override protected void onStart(){super.onStart();if(me!=null&&!KingSavedRoomsCloud9990.account(me.getUid())){finish();return;}if(familyStopped956){familyStopped956=false;render(selected);}}
++    @Override protected void onStart(){
++        super.onStart();
++        FirebaseUser signed10031=FirebaseAuth.getInstance().getCurrentUser();
++        if(signed10031==null){stopMoments9990();stopFamilyMessages956();finish();return;}
++        if(me==null||!signed10031.getUid().equals(me.getUid())){
++            // A new signed-in account gets a new live Home session, never cached posts.
++            ++searchGeneration9994;stopMoments9990();stopFamilyMessages956();
++            me=signed10031;pendingMomentAccount10013=null;relationshipRequestInFlight10012=false;
++            searchDraft10007="";momentsQueryLimit10000=80;momentsDisplayLimit10000=40;
++            targetUid="";targetName="";
++            displayName=safe(signed10031.getDisplayName(),"KING User");
++            familyStopped956=false;render(selected);return;
++        }
++        if(familyStopped956){familyStopped956=false;render(selected);}
++    }
+     @Override protected void onDestroy(){stopMoments9990();stopFamilyMessages956();super.onDestroy();}
+     private boolean cloud(){return me!=null&&db!=null;}
+     private int dp(int n){return(int)(n*getResources().getDisplayMetrics().density+.5f);}
+--- a/app/src/main/java/com/kingplus/social/PartyActivity.java
++++ b/app/src/main/java/com/kingplus/social/PartyActivity.java
+@@ -7854,6 +7854,13 @@
+     }
+ 
+     @Override protected void onStop(){
++        // Explicitly finishing a Party Activity must free its membership before
++        // Android eventually invokes onDestroy (which can be delayed or skipped).
++        if(isFinishing()&&roomId!=null){
++            ++roomJoinGeneration966;++presenceGeneration967;
++            clearListeners();unregisterMember();stopInRoomVoice940(true);
++            roomId=null;cloudRoom=false;memberSeen=false;
++        }
+         stopSavedRooms9990();
+         partyVisualForeground995=false;
+         pauseVoiceRejoin9957();
+--- a/app/src/main/java/com/kingplus/social/GamePlayActivity.java
++++ b/app/src/main/java/com/kingplus/social/GamePlayActivity.java
+@@ -247,18 +247,27 @@
+         final java.util.HashSet<Integer> called=new java.util.HashSet<>();final boolean[] won={false};final boolean[] marked=new boolean[25];final Button[] bs=new Button[25];status=label("Press CALL to draw a number",17,0xffffd768,true);status.setGravity(Gravity.CENTER);page.addView(status,new LinearLayout.LayoutParams(-1,dp(55)));
+         LinearLayout grid=new LinearLayout(this);grid.setOrientation(LinearLayout.VERTICAL);for(int r=0;r<5;r++){LinearLayout row=new LinearLayout(this);for(int c=0;c<5;c++){int k=r*5+c;Button b=action(String.valueOf(nums[k]));b.setTextSize(12);bs[k]=b;b.setOnClickListener(v->{if(won[0]||!called.contains(nums[k]))return;marked[k]=!marked[k];b.setText(marked[k]?"✓"+nums[k]:String.valueOf(nums[k]));if(bingoWin(marked)){won[0]=true;status.setText("BINGO! 🏆");KingSoundFx.win(this);}});LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(0,dp(52),1);lp.setMargins(dp(2),dp(2),dp(2),dp(2));row.addView(b,lp);}grid.addView(row);}page.addView(grid);
+         final java.util.ArrayList<Integer> draws=new java.util.ArrayList<>();for(int n=1;n<=75;n++)draws.add(n);java.util.Collections.shuffle(draws);Button call=action("🎱 CALL NUMBER");LinearLayout.LayoutParams cp=new LinearLayout.LayoutParams(-1,dp(58));cp.setMargins(0,dp(8),0,0);call.setOnClickListener(v->{if(won[0]||draws.isEmpty()){call.setEnabled(false);return;}int n=draws.remove(draws.size()-1);called.add(n);for(int k=0;k<25;k++)if(nums[k]==n)bs[k].setBackground(bg(0xff775626,12));status.setText("CALLED: "+n+" • "+called.size()+"/75 • mark highlighted numbers");if(draws.isEmpty())call.setEnabled(false);});page.addView(call,cp);
++        Button nextBingo10031=action("🔄 New Bingo Card");
++        nextBingo10031.setOnClickListener(v->showBingo());
++        LinearLayout.LayoutParams nextBingoLp10031=new LinearLayout.LayoutParams(-1,dp(54));
++        nextBingoLp10031.setMargins(0,dp(10),0,0);page.addView(nextBingo10031,nextBingoLp10031);
+     }
+     private boolean bingoWin(boolean[] m){for(int r=0;r<5;r++){boolean ok=true;for(int c=0;c<5;c++)ok&=m[r*5+c];if(ok)return true;}for(int c=0;c<5;c++){boolean ok=true;for(int r=0;r<5;r++)ok&=m[r*5+c];if(ok)return true;}boolean a=true,b=true;for(int i=0;i<5;i++){a&=m[i*5+i];b&=m[i*5+4-i];}return a||b;}
+ 
+     private void showZoo(){
+         base("Crazy Zoo","Explore until you collect all animals");
+-        final String[] animals={"🦁 Lion","🐼 Panda","🐘 Elephant","🐯 Tiger","🦊 Fox","🦚 Peacock"};final java.util.HashSet<String> found=new java.util.HashSet<>();status=label("Collection 0/6",21,0xffffd768,true);status.setGravity(Gravity.CENTER);page.addView(status,new LinearLayout.LayoutParams(-1,dp(100)));Button explore=action("🌿 Explore Zoo");explore.setOnClickListener(v->{String a=animals[random.nextInt(animals.length)];boolean fresh=found.add(a);status.setText(a+(fresh?" collected!":" already found")+"\nCollection "+found.size()+"/6");if(found.size()==animals.length){status.setText("🏆 ZOO COMPLETE!\nAll 6 animals collected");KingSoundFx.win(this);}});page.addView(explore,new LinearLayout.LayoutParams(-1,dp(64)));
++        final String[] animals={"🦁 Lion","🐼 Panda","🐘 Elephant","🐯 Tiger","🦊 Fox","🦚 Peacock"};final java.util.HashSet<String> found=new java.util.HashSet<>();status=label("Collection 0/6",21,0xffffd768,true);status.setGravity(Gravity.CENTER);page.addView(status,new LinearLayout.LayoutParams(-1,dp(100)));Button explore=action("🌿 Explore Zoo");explore.setOnClickListener(v->{String a=animals[random.nextInt(animals.length)];boolean fresh=found.add(a);status.setText(a+(fresh?" collected!":" already found")+"\nCollection "+found.size()+"/6");if(found.size()==animals.length){status.setText("🏆 ZOO COMPLETE!\nAll 6 animals collected");explore.setEnabled(false);KingSoundFx.win(this);}});page.addView(explore,new LinearLayout.LayoutParams(-1,dp(64)));
++        Button newZoo10031=action("🔄 New Zoo Safari");newZoo10031.setOnClickListener(v->showZoo());
++        page.addView(newZoo10031,new LinearLayout.LayoutParams(-1,dp(54)));
+     }
+ 
+     private void showDomino(){
+         base("Domino Match","Match the left number to the chain");
+         final int[] end={random.nextInt(7)};final int[] score={0};status=label("Chain end: "+end[0]+" • Score 0",21,0xffffd768,true);status.setGravity(Gravity.CENTER);page.addView(status,new LinearLayout.LayoutParams(-1,dp(90)));
+-        for(int i=0;i<3;i++){Button b=action("Draw Tile");b.setOnClickListener(v->{int a=random.nextInt(7),z=random.nextInt(7);new android.app.AlertDialog.Builder(this).setTitle("Tile "+a+" | "+z).setMessage("Chain end is "+end[0]).setPositiveButton("Play",(d,w)->{if(a==end[0]||z==end[0]){end[0]=a==end[0]?z:a;score[0]++;status.setText("Matched! • Chain end: "+end[0]+" • Score "+score[0]);if(score[0]>=5){status.setText("🏆 DOMINO WIN • Score "+score[0]);KingSoundFx.win(this);}}else status.setText("No match • Chain end: "+end[0]+" • Score "+score[0]);}).setNegativeButton("Pass",null).show();});LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(-1,dp(56));lp.setMargins(0,dp(7),0,0);page.addView(b,lp);}
++        for(int i=0;i<3;i++){Button b=action("Draw Tile");b.setOnClickListener(v->{if(score[0]>=5)return;int a=random.nextInt(7),z=random.nextInt(7);new android.app.AlertDialog.Builder(this).setTitle("Tile "+a+" | "+z).setMessage("Chain end is "+end[0]).setPositiveButton("Play",(d,w)->{if(a==end[0]||z==end[0]){end[0]=a==end[0]?z:a;if(score[0]>=5)return;score[0]++;status.setText("Matched! • Chain end: "+end[0]+" • Score "+score[0]);if(score[0]==5){status.setText("🏆 DOMINO WIN • Score "+score[0]);KingSoundFx.win(this);}}else status.setText("No match • Chain end: "+end[0]+" • Score "+score[0]);}).setNegativeButton("Pass",null).show();});LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(-1,dp(56));lp.setMargins(0,dp(7),0,0);page.addView(b,lp);}
++        Button replayDomino10031=action("🔄 New Domino Chain");
++        replayDomino10031.setOnClickListener(v->showDomino());
++        page.addView(replayDomino10031,new LinearLayout.LayoutParams(-1,dp(54)));
+     }
+ 
+ }
+--- a/app/src/main/java/com/kingplus/social/DiscoverActivity.java
++++ b/app/src/main/java/com/kingplus/social/DiscoverActivity.java
+@@ -387,9 +387,34 @@
+         LinearLayout.LayoutParams p=new LinearLayout.LayoutParams(-1,dp(210));p.setMargins(0,dp(6),0,dp(12));content.addView(box,p);
+     }
+ 
++    private boolean rankingCurrent10031(String account10031,LinearLayout host10031){
++        FirebaseUser current10031=FirebaseAuth.getInstance().getCurrentUser();
++        return !isFinishing()&&!isDestroyed()&&current10031!=null&&me!=null
++            &&account10031.equals(current10031.getUid())
++            &&account10031.equals(me.getUid())&&host10031.getParent()!=null;
++    }
+     private void loadTopThree(LinearLayout host,String field){
+         if(me==null||db==null){for(int i=0;i<3;i++)host.addView(rankMini("—",i+1),new LinearLayout.LayoutParams(0,-1,1));return;}
+-        db.collection("discover_stats").orderBy(field,Query.Direction.DESCENDING).limit(3).get().addOnSuccessListener(q->{host.removeAllViews();List<DocumentSnapshot> docs=q.getDocuments();if(docs.isEmpty()){host.addView(emptyText("No ranking data yet"),new LinearLayout.LayoutParams(-1,-1));return;}int n=1;for(DocumentSnapshot d:docs){final TextView card=rankMini("KING "+publicId(d.getId()),n++);host.addView(card,new LinearLayout.LayoutParams(0,-1,1));db.collection("public_profiles").document(d.getId()).get().addOnSuccessListener(p->{if(p.exists())card.setText("👤\n"+shortName(nameOf(p))+"\n"+scoreOf(d,field));});}}).addOnFailureListener(e->{host.removeAllViews();host.addView(emptyText("Ranking unavailable"));});
++        final String rankOwner10031=me.getUid();
++        db.collection("discover_stats").orderBy(field,Query.Direction.DESCENDING).limit(3)
++            .get(com.google.firebase.firestore.Source.SERVER).addOnSuccessListener(q->{
++                if(!rankingCurrent10031(rankOwner10031,host))return;
++                host.removeAllViews();List<DocumentSnapshot> docs=q.getDocuments();
++                if(docs.isEmpty()){host.addView(emptyText("No ranking data yet"),new LinearLayout.LayoutParams(-1,-1));return;}
++                int n=1;
++                for(DocumentSnapshot d:docs){
++                    final TextView card=rankMini("KING "+publicId(d.getId()),n++);
++                    host.addView(card,new LinearLayout.LayoutParams(0,-1,1));
++                    db.collection("public_profiles").document(d.getId())
++                        .get(com.google.firebase.firestore.Source.SERVER).addOnSuccessListener(p->{
++                            if(rankingCurrent10031(rankOwner10031,host)&&card.getParent()==host&&p.exists())
++                                card.setText("👤\n"+shortName(nameOf(p))+"\n"+scoreOf(d,field));
++                        });
++                }
++            }).addOnFailureListener(e->{
++                if(!rankingCurrent10031(rankOwner10031,host))return;
++                host.removeAllViews();host.addView(emptyText("Ranking unavailable"));
++            });
+     }
+ 
+     private TextView rankMini(String name,int rank){TextView t=tv("👤\n"+shortName(name)+"\n#"+rank,12,0xff5c3b00,true);t.setGravity(Gravity.CENTER);return t;}
+--- a/app/src/main/java/com/kingplus/social/InboxActivity.java
++++ b/app/src/main/java/com/kingplus/social/InboxActivity.java
+@@ -209,8 +209,14 @@
+             Collections.sort(docs,(a,b)->Long.compare(timeOf(b),timeOf(a)));
+             Set<String> seen = new HashSet<>();
+             for (DocumentSnapshot doc : docs) {
+-                List<String> members = (List<String>) doc.get("members"); if (members == null) continue;
+-                String peerUid = null; for(String uid:members) if(!me.getUid().equals(uid)){peerUid=uid;break;} if(peerUid==null) continue;
++                // Direct chat must contain exactly two unique real user IDs.
++                // A group or malformed document cannot masquerade as a private thread.
++                List<String> members = (List<String>) doc.get("members");
++                if(members==null||members.size()!=2||!members.contains(me.getUid()))continue;
++                String peerUid=null;
++                for(String uid:members)
++                    if(uid!=null&&!uid.trim().isEmpty()&&!me.getUid().equals(uid))peerUid=uid;
++                if(peerUid==null)continue;
+                 String peerName=peerUid; Object namesObj=doc.get("memberNames");
+                 if(namesObj instanceof Map){Object n=((Map<?,?>)namesObj).get(peerUid);if(n!=null)peerName=String.valueOf(n);}
+                 if(!seen.add(peerUid))continue;
+@@ -374,5 +380,26 @@
+ 
+     @Override public void onBackPressed(){if(isTaskRoot())KingNav.confirmExit(this);else finish();}
+ 
+-    @Override protected void onDestroy(){KingNetwork.unwatch(this,inboxNetworkCallback940);inboxNetworkCallback940=null;if(threadListener!=null)threadListener.remove();super.onDestroy();}
++    @Override protected void onStop(){
++        // Release hidden page listeners; resume will subscribe with a fresh generation.
++        ++inboxListenerGeneration10030;
++        if(threadListener!=null){threadListener.remove();threadListener=null;}
++        super.onStop();
++    }
++    @Override protected void onStart(){
++        super.onStart();
++        FirebaseUser current10031=FirebaseAuth.getInstance().getCurrentUser();
++        if(me==null?(current10031!=null)
++            :current10031==null||!me.getUid().equals(current10031.getUid()))
++            activeSearch10029="";
++        if(inboxStartedOnce10031)loadInbox();
++        inboxStartedOnce10031=true;
++    }
++    private boolean inboxStartedOnce10031;
++    @Override protected void onDestroy(){
++        ++inboxListenerGeneration10030;
++        KingNetwork.unwatch(this,inboxNetworkCallback940);inboxNetworkCallback940=null;
++        if(threadListener!=null){threadListener.remove();threadListener=null;}
++        super.onDestroy();
++    }
+ }

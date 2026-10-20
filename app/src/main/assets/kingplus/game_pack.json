@@ -1,0 +1,15 @@
+{
+  "games": [
+    "ludo",
+    "tic_tac_toe",
+    "slot",
+    "coin",
+    "rps",
+    "dice",
+    "guess",
+    "memory",
+    "reaction",
+    "highlow",
+    "wheel"
+  ]
+}

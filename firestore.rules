@@ -17,7 +17,11 @@ service cloud.firestore {
       return activeUser() && roomData(roomId).ownerUid == request.auth.uid;
     }
     function roomCoHost(roomId) {
+      // A removed or banned co-host must not retain admin permissions merely
+      // because an older roles/{uid} document survived a client disconnect.
       return activeUser()
+        && !roomBanned(roomId,request.auth.uid)
+        && exists(/databases/$(database)/documents/live_rooms/$(roomId)/members/$(request.auth.uid))
         && exists(/databases/$(database)/documents/live_rooms/$(roomId)/roles/$(request.auth.uid))
         && get(/databases/$(database)/documents/live_rooms/$(roomId)/roles/$(request.auth.uid)).data.role == 'cohost';
     }
@@ -28,16 +32,48 @@ service cloud.firestore {
       return exists(/databases/$(database)/documents/live_rooms/$(roomId)/room_bans/$(uid))
         && get(/databases/$(database)/documents/live_rooms/$(roomId)/room_bans/$(uid)).data.active == true;
     }
+    function followConnection9931(roomId) {
+      let host = roomData(roomId).ownerUid;
+      let outgoing = /databases/$(database)/documents/follows/$(request.auth.uid + '__' + host);
+      let incoming = /databases/$(database)/documents/follows/$(host + '__' + request.auth.uid);
+      return (exists(outgoing) && get(outgoing).data.followerUid == request.auth.uid
+              && get(outgoing).data.targetUid == host)
+          || (exists(incoming) && get(incoming).data.followerUid == host
+              && get(incoming).data.targetUid == request.auth.uid);
+    }
     function roomAccess(roomId) {
-      return activeUser()
-        && !roomBanned(roomId, request.auth.uid)
-        && (roomData(roomId).isPrivate != true
-            || roomModerator(roomId)
-            || exists(/databases/$(database)/documents/live_rooms/$(roomId)/access/$(request.auth.uid)));
+      let room = roomData(roomId);
+      let mode = room.get('entranceMode','legacy');
+      let accessPath = /databases/$(database)/documents/live_rooms/$(roomId)/access/$(request.auth.uid);
+      let epoch = room.get('entryEpoch','');
+      // Backwards compatible old rooms (no entryEpoch) until host changes policy.
+      // Once a new policy is set, stale invitations never survive it.
+      let grant = exists(accessPath) && (epoch == ''
+        || get(accessPath).data.get('entryEpoch','__missing__') == epoch);
+      return activeUser() && !roomBanned(roomId, request.auth.uid)
+        && (roomModerator(roomId)
+            || (mode == 'legacy' && (room.isPrivate != true || grant))
+            || (mode == 'free' && room.isPrivate != true)
+            || (mode == 'invite' && grant)
+            || (mode == 'password' && grant)
+            || (mode == 'family' && room.get('familyCode','') is string
+                && room.get('familyCode','').size()>0 && familyMember(room.get('familyCode','')))
+            || (mode == 'follow' && followConnection9931(roomId)));
     }
     function roomMember(roomId) {
       return signedIn()
         && exists(/databases/$(database)/documents/live_rooms/$(roomId)/members/$(request.auth.uid));
+    }
+    // Mic seats must exist in the room's published 8, 10 or 12-stage
+    // layout. Forged seat documents for 13, 99 or seat 9 in an 8-seat
+    // Party cannot bypass the Android UI via direct Firestore writes.
+    function validStageSeat9970(roomId, seatId) {
+      let cap = roomData(roomId).get('maxSeats',8);
+      return cap in [8,10,12] && (
+        seatId in ['1','2','3','4','5','6','7','8']
+        || (cap >= 10 && seatId in ['9','10'])
+        || (cap >= 12 && seatId in ['11','12'])
+      );
     }
     function seatLocked(roomId, seatId) {
       return exists(/databases/$(database)/documents/live_rooms/$(roomId)/seat_locks/$(seatId))
@@ -90,12 +126,16 @@ service cloud.firestore {
           && resource.data.uid == request.auth.uid
           && request.resource.data.uid == request.auth.uid;
         allow delete: if signedIn()
-          && (memberUid == request.auth.uid || roomModerator(roomId));
+          && (memberUid == request.auth.uid || roomOwner(roomId)
+              || (roomCoHost(roomId)
+                  && !exists(/databases/$(database)/documents/live_rooms/$(roomId)/roles/$(memberUid))));
       }
 
       match /seats/{seatId} {
         allow read: if roomAccess(roomId);
-        allow create: if roomAccess(roomId) && request.resource.data.name is string && (
+        allow create: if roomAccess(roomId) && validStageSeat9970(roomId,seatId)
+          && request.resource.data.name is string
+          && request.resource.data.get('micOn',false) != true && (
           (roomMember(roomId)
             && request.resource.data.uid == request.auth.uid
             && roomData(roomId).locked != true
@@ -104,16 +144,25 @@ service cloud.firestore {
             && request.resource.data.uid is string
             && exists(/databases/$(database)/documents/live_rooms/$(roomId)/members/$(request.resource.data.uid)))
         );
-        allow update: if roomAccess(roomId) && (
+        allow update: if roomAccess(roomId) && validStageSeat9970(roomId,seatId) && (
           (resource.data.uid == request.auth.uid
             && request.resource.data.uid == request.auth.uid
-            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['micOn']))
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['micOn'])
+            && (request.resource.data.get('micOn',false) != true
+                || roomData(roomId).get('muteAll',false) != true
+                || roomModerator(roomId)))
           || (roomModerator(roomId)
             && request.resource.data.uid == resource.data.uid
+            && request.resource.data.get('micOn',false) == false
             && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['micOn']))
         );
-        allow delete: if roomAccess(roomId)
-          && (resource.data.uid == request.auth.uid || roomModerator(roomId));
+        // Co-hosts cannot indirectly moderate another co-host by deleting their seat.
+        allow delete: if roomAccess(roomId) && (
+          resource.data.uid == request.auth.uid
+          || roomOwner(roomId)
+          || (roomCoHost(roomId)
+            && !exists(/databases/$(database)/documents/live_rooms/$(roomId)/roles/$(resource.data.uid)))
+        );
       }
 
       match /messages/{messageId} {
@@ -123,7 +172,41 @@ service cloud.firestore {
           && request.resource.data.senderUid == request.auth.uid
           && request.resource.data.text is string
           && request.resource.data.text.size() > 0
-          && request.resource.data.text.size() <= 500;
+          && request.resource.data.text.size() <= 500
+          && (request.resource.data.get('type','') != 'gift'
+              || (request.resource.data.get('giftId','') == messageId
+                  && request.resource.data.get('giftValue',-1) == 0
+                  && !exists(/databases/$(database)/documents/live_rooms/$(roomId)/events/$(messageId))
+                  && getAfter(/databases/$(database)/documents/live_rooms/$(roomId)/events/$(messageId)).data.type == 'gift'
+                  && getAfter(/databases/$(database)/documents/live_rooms/$(roomId)/events/$(messageId)).data.actorUid == request.auth.uid
+                  && getAfter(/databases/$(database)/documents/live_rooms/$(roomId)/events/$(messageId)).data.giftId == messageId
+                  && getAfter(/databases/$(database)/documents/live_rooms/$(roomId)/events/$(messageId)).data.targetUid == request.resource.data.targetUid
+                  && getAfter(/databases/$(database)/documents/live_rooms/$(roomId)/events/$(messageId)).data.giftQty == request.resource.data.giftQty));
+        allow update, delete: if false;
+      }
+
+      // On-device Gift delivery is confirmed by the RECEIVING Party member,
+      // never by the sender or an unrelated listener. No diamonds/credits.
+      match /gift_receipts/{giftId} {
+        allow get, list: if roomAccess(roomId) && roomMember(roomId)
+          && (resource.data.senderUid == request.auth.uid
+              || resource.data.recipientUid == request.auth.uid);
+        allow create: if roomAccess(roomId) && roomMember(roomId)
+          && request.resource.data.keys().hasOnly([
+            'giftId','senderUid','recipientUid','giftName','createdAt'
+          ])
+          && request.resource.data.giftId == giftId
+          && request.resource.data.recipientUid == request.auth.uid
+          && request.resource.data.senderUid is string
+          && request.resource.data.giftName is string
+          && request.resource.data.giftName.size() <= 80
+          && request.resource.data.createdAt == request.time
+          && exists(/databases/$(database)/documents/live_rooms/$(roomId)/events/$(giftId))
+          && get(/databases/$(database)/documents/live_rooms/$(roomId)/events/$(giftId)).data.type == 'gift'
+          && get(/databases/$(database)/documents/live_rooms/$(roomId)/events/$(giftId)).data.get('giftValue',-1) >= 0
+          && get(/databases/$(database)/documents/live_rooms/$(roomId)/events/$(giftId)).data.actorUid == request.resource.data.senderUid
+          && get(/databases/$(database)/documents/live_rooms/$(roomId)/events/$(giftId)).data.targetUid == request.auth.uid
+          && get(/databases/$(database)/documents/live_rooms/$(roomId)/events/$(giftId)).data.giftName == request.resource.data.giftName;
         allow update, delete: if false;
       }
 
@@ -135,7 +218,28 @@ service cloud.firestore {
           && request.resource.data.type is string
           && request.resource.data.text is string
           && request.resource.data.text.size() > 0
-          && request.resource.data.text.size() <= 300;
+          && request.resource.data.text.size() <= 300
+          // Free gifting must target an actual live member, not any guessed UID.
+          && (request.resource.data.type != 'gift'
+              || (request.resource.data.get('freeGift',false) == true
+                  && request.resource.data.get('giftValue',-1) == 0
+                  && request.resource.data.get('giftUnitCost',-1) == 0
+                  && request.resource.data.get('giftQty',0) is int
+                  && request.resource.data.giftQty >= 1
+                  && request.resource.data.giftQty <= 9
+                  && request.resource.data.get('targetUid','') is string
+                  && exists(/databases/$(database)/documents/live_rooms/$(roomId)/members/$(request.resource.data.targetUid))
+                  && request.resource.data.get('giftId','') == eventId
+                  && !exists(/databases/$(database)/documents/live_rooms/$(roomId)/messages/$(eventId))
+                  && getAfter(/databases/$(database)/documents/live_rooms/$(roomId)/messages/$(eventId)).data.type == 'gift'
+                  && getAfter(/databases/$(database)/documents/live_rooms/$(roomId)/messages/$(eventId)).data.senderUid == request.auth.uid
+                  && getAfter(/databases/$(database)/documents/live_rooms/$(roomId)/messages/$(eventId)).data.giftId == eventId
+                  && getAfter(/databases/$(database)/documents/live_rooms/$(roomId)/messages/$(eventId)).data.targetUid == request.resource.data.targetUid
+                  && getAfter(/databases/$(database)/documents/live_rooms/$(roomId)/messages/$(eventId)).data.giftQty == request.resource.data.giftQty))
+          // A dice "result" cannot contain 9, 999, spoofed characters or paid value.
+          && (request.resource.data.type != 'dice_room_997'
+              || (request.resource.data.text.matches('^🎲 [1-6] / 6$')
+                  && request.resource.data.get('createdAt',null) == request.time));
         allow update, delete: if false;
       }
 
@@ -144,6 +248,8 @@ service cloud.firestore {
           && (roleUid == request.auth.uid || roomModerator(roomId));
         allow create, update: if roomOwner(roomId)
           && roleUid != roomData(roomId).ownerUid
+          && exists(/databases/$(database)/documents/live_rooms/$(roomId)/members/$(roleUid))
+          && !exists(/databases/$(database)/documents/live_rooms/$(roomId)/room_bans/$(roleUid))
           && request.resource.data.uid == roleUid
           && request.resource.data.role == 'cohost';
         allow delete: if roomOwner(roomId);
@@ -153,11 +259,15 @@ service cloud.firestore {
         allow read: if signedIn()
           && (bannedUid == request.auth.uid || roomModerator(roomId));
         allow create, update: if roomModerator(roomId)
+          && (roomOwner(roomId)
+              || !exists(/databases/$(database)/documents/live_rooms/$(roomId)/roles/$(bannedUid)))
           && bannedUid != roomData(roomId).ownerUid
           && request.resource.data.uid == bannedUid
           && request.resource.data.active == true;
         allow delete: if roomModerator(roomId)
-          && bannedUid != roomData(roomId).ownerUid;
+          && bannedUid != roomData(roomId).ownerUid
+          && (roomOwner(roomId)
+            || !exists(/databases/$(database)/documents/live_rooms/$(roomId)/roles/$(bannedUid)));
       }
 
       match /secrets/{secretId} {
@@ -190,25 +300,39 @@ service cloud.firestore {
           && (roomModerator(roomId) || resource.data.uid == request.auth.uid);
       }
 
+      // One authoritative video seat document per seat, plus one per-user
+      // seat registry. The mobile client claims both in ONE Firestore transaction.
       match /video_seats/{seatId} {
-        allow read: if roomAccess(roomId);
-        allow create: if roomAccess(roomId)
+        allow read: if roomAccess(roomId) && roomMember(roomId);
+        allow create: if roomAccess(roomId) && roomMember(roomId)
+          && seatId in ['1','2','3','4','5','6']
+          && request.resource.data.uid == request.auth.uid
           && request.resource.data.name is string
-          && (
-            request.resource.data.uid == request.auth.uid
-            || (roomModerator(roomId)
-                && request.resource.data.uid is string
-                && exists(/databases/$(database)/documents/live_rooms/$(roomId)/members/$(request.resource.data.uid)))
-          );
-        allow update: if roomAccess(roomId)
-          && resource.data.uid == request.resource.data.uid
-          && (
-            (resource.data.uid == request.auth.uid
-              && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['micOn','cameraOn']))
-            || roomModerator(roomId)
-          );
+          && request.resource.data.name.size() <= 100
+          && request.resource.data.micOn == false
+          && request.resource.data.cameraOn == false
+          && request.resource.data.updatedAt == request.time;
+        allow update: if roomAccess(roomId) && roomMember(roomId)
+          && resource.data.uid == request.auth.uid
+          && request.resource.data.uid == resource.data.uid
+          && request.resource.data.updatedAt == request.time
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+              'micOn','cameraOn','updatedAt']);
         allow delete: if roomAccess(roomId)
           && (resource.data.uid == request.auth.uid || roomModerator(roomId));
+      }
+      match /video_member_seats/{memberUid} {
+        allow read: if roomAccess(roomId) && roomMember(roomId);
+        allow create: if roomAccess(roomId) && roomMember(roomId)
+          && memberUid == request.auth.uid
+          && request.resource.data.uid == request.auth.uid
+          && request.resource.data.seatNo is int
+          && request.resource.data.seatNo >= 1
+          && request.resource.data.seatNo <= 6
+          && request.resource.data.updatedAt == request.time;
+        allow update: if false;
+        allow delete: if signedIn() &&
+          (memberUid == request.auth.uid || roomModerator(roomId));
       }
 
       match /video_seat_invites/{recipientUid} {
@@ -224,6 +348,71 @@ service cloud.firestore {
           && (recipientUid == request.auth.uid || roomModerator(roomId));
       }
 
+      // A video-seat match is an invitation, not a fabricated result.
+      // Only authenticated two-seat participants can propose and accept it.
+      match /video_match_requests/{recipientUid} {
+        allow read: if roomAccess(roomId) && roomMember(roomId)
+          && (recipientUid == request.auth.uid ||
+              resource.data.fromUid == request.auth.uid);
+        allow create: if roomAccess(roomId) && roomMember(roomId)
+          && recipientUid != request.auth.uid
+          && request.resource.data.recipientUid == recipientUid
+          && request.resource.data.fromUid == request.auth.uid
+          && request.resource.data.fromSeat is int
+          && request.resource.data.toSeat is int
+          && request.resource.data.fromSeat >= 1 && request.resource.data.fromSeat <= 6
+          && request.resource.data.toSeat >= 1 && request.resource.data.toSeat <= 6
+          && request.resource.data.fromSeat != request.resource.data.toSeat
+          && request.resource.data.fromName is string
+          && request.resource.data.recipientName is string
+          && request.resource.data.status == 'pending'
+          && request.resource.data.createdAt == request.time
+          && request.resource.data.updatedAt == request.time
+          && get(/databases/$(database)/documents/live_rooms/$(roomId)/video_seats/$(request.resource.data.fromSeat)).data.uid == request.auth.uid
+          && get(/databases/$(database)/documents/live_rooms/$(roomId)/video_seats/$(request.resource.data.toSeat)).data.uid == recipientUid;
+        allow update: if roomAccess(roomId) && roomMember(roomId)
+          && request.resource.data.updatedAt == request.time
+          && (
+            // Recipient can respond only to a fresh pending invitation.
+            (recipientUid == request.auth.uid
+              && resource.data.status == 'pending'
+              && request.resource.data.status in ['accepted','declined']
+              && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status','updatedAt'])
+              && request.time < resource.data.createdAt + duration.value(120,'s')
+              && get(/databases/$(database)/documents/live_rooms/$(roomId)/video_seats/$(resource.data.fromSeat)).data.uid == resource.data.fromUid
+              && get(/databases/$(database)/documents/live_rooms/$(roomId)/video_seats/$(resource.data.toSeat)).data.uid == recipientUid)
+            ||
+            // After a resolved/expired request the sender may start another.
+            (request.auth.uid == request.resource.data.fromUid
+              && resource.data.status != 'pending'
+              && request.resource.data.recipientUid == recipientUid
+              && request.resource.data.status == 'pending'
+              && request.resource.data.createdAt == request.time
+              && request.resource.data.fromSeat is int
+              && request.resource.data.toSeat is int
+              && request.resource.data.fromSeat >= 1 && request.resource.data.fromSeat <= 6
+              && request.resource.data.toSeat >= 1 && request.resource.data.toSeat <= 6
+              && get(/databases/$(database)/documents/live_rooms/$(roomId)/video_seats/$(request.resource.data.fromSeat)).data.uid == request.auth.uid
+              && get(/databases/$(database)/documents/live_rooms/$(roomId)/video_seats/$(request.resource.data.toSeat)).data.uid == recipientUid)
+            ||
+            // A timed-out pending request can be replaced with a new one.
+            (request.auth.uid == request.resource.data.fromUid
+              && resource.data.status == 'pending'
+              && request.time > resource.data.createdAt + duration.value(120,'s')
+              && request.resource.data.recipientUid == recipientUid
+              && request.resource.data.status == 'pending'
+              && request.resource.data.createdAt == request.time
+              && request.resource.data.fromSeat is int
+              && request.resource.data.toSeat is int
+              && request.resource.data.fromSeat >= 1 && request.resource.data.fromSeat <= 6
+              && request.resource.data.toSeat >= 1 && request.resource.data.toSeat <= 6
+              && get(/databases/$(database)/documents/live_rooms/$(roomId)/video_seats/$(request.resource.data.fromSeat)).data.uid == request.auth.uid
+              && get(/databases/$(database)/documents/live_rooms/$(roomId)/video_seats/$(request.resource.data.toSeat)).data.uid == recipientUid)
+          );
+        allow delete: if signedIn() &&
+          (recipientUid == request.auth.uid || resource.data.fromUid == request.auth.uid);
+      }
+
       // v9.x realtime room features. Keep writes scoped to the signed-in
       // member or the room moderator so UI-only features actually work multi-user.
       match /seat_invites/{targetUid} {
@@ -237,29 +426,557 @@ service cloud.firestore {
       }
 
       match /game_ready/{playerUid} {
-        allow read: if roomAccess(roomId);
+        allow read: if roomAccess(roomId) && roomMember(roomId);
         allow create, update: if roomAccess(roomId)
           && roomMember(roomId)
           && playerUid == request.auth.uid
           && request.resource.data.uid == request.auth.uid;
         allow delete: if signedIn()
           && (playerUid == request.auth.uid || roomModerator(roomId));
+      }
+
+      // Real KING Sheep Sprint: record a SERVER timestamp for the current
+      // active room round before any local eight-second race may begin.
+      match /sheep_starts/{playerUid} {
+        allow read: if roomAccess(roomId) && roomMember(roomId)
+          && playerUid == request.auth.uid;
+        function validSheepStart9940() {
+          return roomAccess(roomId) && roomMember(roomId)
+            && playerUid == request.auth.uid
+            && request.resource.data.keys().hasOnly(['uid','roundId','startedAt'])
+            && request.resource.data.uid == request.auth.uid
+            && request.resource.data.roundId is int
+            && request.resource.data.startedAt == request.time
+            && exists(/databases/$(database)/documents/live_rooms/$(roomId)/game_state/current)
+            && get(/databases/$(database)/documents/live_rooms/$(roomId)/game_state/current).data.type == 'sheep'
+            && get(/databases/$(database)/documents/live_rooms/$(roomId)/game_state/current).data.status == 'active'
+            && get(/databases/$(database)/documents/live_rooms/$(roomId)/game_state/current).data.roundId == request.resource.data.roundId;
+        }
+        allow create: if validSheepStart9940();
+        allow update: if validSheepStart9940()
+          && resource.data.uid == request.auth.uid
+          && resource.data.roundId != request.resource.data.roundId;
+        allow delete: if roomModerator(roomId);
+      }
+
+      // Real FREE 5x5 live Bingo — separate from legacy Pick 1..9 score game.
+      // Per-room game, real signed-in member cards; only a room moderator can
+      // begin or call balls. A Bingo claim must be a COMPLETE row/col/diagonal
+      // from the immutable card and the server's actual called ball history.
+      match /live_bingo9980/{bingoId} {
+        function bingoDoc9980() {
+          return /databases/$(database)/documents/live_rooms/$(roomId)/live_bingo9980/current;
+        }
+        function bingoCardDoc9980(playerUid) {
+          return /databases/$(database)/documents/live_rooms/$(roomId)/live_bingo9980/current/cards/$(playerUid);
+        }
+        function bingoKeys9980() {
+          return request.resource.data.keys().hasOnly(['roundId','status','called','participants','updatedAt'])
+            && request.resource.data.keys().hasAll(['roundId','status','called','participants','updatedAt']);
+        }
+        // Cards can be created only before Host starts calling numbers.
+        // Keeping validation single-pass stays below Firestore's 1000-expression budget.
+        function bingoCalls9980(called) {
+          return called is list && called.size() > 0 && called.size() <= 76
+            && called[0] == 0 && called.toSet().size() == called.size();
+        }
+        function bingoCard9980(board) {
+          return board is list && board.size() == 25
+            && board[12] == 0 && board.toSet().size() == 25
+            && board.toSet().hasOnly([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75]);
+        }
+        function bingoLine9980(board, called) {
+          return (
+          called.hasAll([board[0], board[1], board[2], board[3], board[4]]) ||
+          called.hasAll([board[5], board[6], board[7], board[8], board[9]]) ||
+          called.hasAll([board[10], board[11], board[12], board[13], board[14]]) ||
+          called.hasAll([board[15], board[16], board[17], board[18], board[19]]) ||
+          called.hasAll([board[20], board[21], board[22], board[23], board[24]]) ||
+          called.hasAll([board[0], board[5], board[10], board[15], board[20]]) ||
+          called.hasAll([board[1], board[6], board[11], board[16], board[21]]) ||
+          called.hasAll([board[2], board[7], board[12], board[17], board[22]]) ||
+          called.hasAll([board[3], board[8], board[13], board[18], board[23]]) ||
+          called.hasAll([board[4], board[9], board[14], board[19], board[24]]) ||
+          called.hasAll([board[0], board[6], board[12], board[18], board[24]]) ||
+          called.hasAll([board[4], board[8], board[12], board[16], board[20]])
+          );
+        }
+        function bingoActive9980() {
+          return exists(bingoDoc9980())
+            && get(bingoDoc9980()).data.status == 'active';
+        }
+        function bingoPart9980(uid) {
+          return bingoActive9980()
+            && uid in get(bingoDoc9980()).data.participants;
+        }
+        allow read: if roomAccess(roomId) && roomMember(roomId);
+        allow create: if bingoId == 'current'
+          && roomModerator(roomId) && bingoKeys9980()
+          && request.resource.data.roundId is int && request.resource.data.roundId > 0
+          && request.resource.data.status == 'waiting'
+          && request.resource.data.called == [0]
+          && request.resource.data.participants == []
+          && request.resource.data.updatedAt == request.time;
+        allow update: if bingoId == 'current'
+          && roomModerator(roomId) && bingoKeys9980()
+          && resource.data.roundId is int
+          && request.resource.data.roundId is int
+          && request.resource.data.updatedAt == request.time
+          && (
+            // Start the frozen 2–12-Ready-player real match.
+            (resource.data.status == 'waiting'
+              && request.resource.data.roundId == resource.data.roundId
+              && request.resource.data.status == 'active'
+              && request.resource.data.called == [0]
+              && request.resource.data.participants is list
+              && request.resource.data.participants.size() >= 2
+              && request.resource.data.participants.size() <= 12
+              && request.resource.data.participants.toSet().size()
+                   == request.resource.data.participants.size())
+            // Call exactly one new never-repeated 1..75 ball.
+            || (resource.data.status == 'active'
+              && request.resource.data.roundId == resource.data.roundId
+              && request.resource.data.status == 'active'
+              && request.resource.data.participants == resource.data.participants
+              && bingoCalls9980(request.resource.data.called)
+              && request.resource.data.called.size() == resource.data.called.size()+1
+              && request.resource.data.called.hasAll(resource.data.called)
+              && request.resource.data.called[request.resource.data.called.size()-1] is int
+              && request.resource.data.called[request.resource.data.called.size()-1] >= 1
+              && request.resource.data.called[request.resource.data.called.size()-1] <= 75)
+            // Moderator can end game without changing the called sequence.
+            || (resource.data.status == 'active'
+              && request.resource.data.roundId == resource.data.roundId
+              && request.resource.data.status == 'closed'
+              && request.resource.data.called == resource.data.called
+              && request.resource.data.participants == resource.data.participants)
+            // Create a new match only AFTER the previous one was closed.
+            || (resource.data.status != 'active'
+              && request.resource.data.roundId > resource.data.roundId
+              && request.resource.data.status == 'waiting'
+              && request.resource.data.called == [0]
+              && request.resource.data.participants == [])
+          );
+        allow delete: if false;
+
+        match /cards/{playerUid} {
+          function goodCard9980() {
+            return request.auth != null
+              && playerUid == request.auth.uid
+              && roomAccess(roomId) && roomMember(roomId)
+              && request.resource.data.keys().hasOnly(['uid','roundId','numbers','createdAt'])
+              && request.resource.data.keys().hasAll(['uid','roundId','numbers','createdAt'])
+              && request.resource.data.uid == playerUid
+              && bingoCard9980(request.resource.data.numbers)
+              && request.resource.data.createdAt == request.time
+              && exists(bingoDoc9980())
+              && get(bingoDoc9980()).data.status == 'waiting'
+              && request.resource.data.roundId == get(bingoDoc9980()).data.roundId;
+          }
+          allow read: if roomAccess(roomId) && roomMember(roomId);
+          allow create: if goodCard9980();
+          allow update: if goodCard9980()
+            && resource.data.uid == request.auth.uid
+            && resource.data.roundId != request.resource.data.roundId;
+          allow delete: if false;
+        }
+
+        match /claims/{playerUid} {
+          function realBingo9980() {
+            return request.auth != null && playerUid == request.auth.uid
+              && roomAccess(roomId) && roomMember(roomId)
+              && bingoPart9980(playerUid)
+              && request.resource.data.keys().hasOnly(['uid','roundId','createdAt'])
+              && request.resource.data.keys().hasAll(['uid','roundId','createdAt'])
+              && request.resource.data.uid == playerUid
+              && request.resource.data.createdAt == request.time
+              && request.resource.data.roundId == get(bingoDoc9980()).data.roundId
+              && exists(bingoCardDoc9980(playerUid))
+              && get(bingoCardDoc9980(playerUid)).data.roundId
+                   == request.resource.data.roundId
+              && bingoLine9980(get(bingoCardDoc9980(playerUid)).data.numbers,
+                               get(bingoDoc9980()).data.called);
+          }
+          allow read: if roomAccess(roomId) && roomMember(roomId);
+          allow create: if realBingo9980();
+          allow update: if realBingo9980()
+              && resource.data.uid == request.auth.uid
+              && request.resource.data.roundId != resource.data.roundId;
+          allow delete: if false;
+        }
       }
 
       match /game_moves/{playerUid} {
-        allow read: if roomAccess(roomId);
-        allow create, update: if roomAccess(roomId)
+        allow read: if roomAccess(roomId) && roomMember(roomId);
+        // Immutable move = a player cannot revise a Dice/RPS/etc. choice after
+        // seeing other participants' scores. Every move must match the one
+        // current active shared game and round, even non-Sheep/TTT games.
+        allow create: if roomAccess(roomId)
           && roomMember(roomId)
           && playerUid == request.auth.uid
-          && request.resource.data.uid == request.auth.uid;
-        allow delete: if signedIn()
-          && (playerUid == request.auth.uid || roomModerator(roomId));
+          && request.resource.data.uid == request.auth.uid
+          && exists(/databases/$(database)/documents/live_rooms/$(roomId)/game_state/current)
+          && get(/databases/$(database)/documents/live_rooms/$(roomId)/game_state/current).data.status == 'active'
+          && get(/databases/$(database)/documents/live_rooms/$(roomId)/game_state/current).data.roundId == request.resource.data.roundId
+          && get(/databases/$(database)/documents/live_rooms/$(roomId)/game_state/current).data.type == request.resource.data.type
+          && (request.resource.data.get('type','') != 'treasure'
+              || (request.resource.data.get('move','') in ['Chest 1','Chest 2','Chest 3']
+                  && request.resource.data.get('score',-1) is int
+                  && request.resource.data.score == 0))
+          // Every NEW Party game freezes real Ready participants at round
+          // creation, not only RPS/Dice/Coin. Spectators cannot forge a score.
+          // Legacy archived/current rounds with no roster stay compatible.
+          && (get(/databases/$(database)/documents/live_rooms/$(roomId)/game_state/current).data.get('participantUids',[]).size() == 0
+              || request.auth.uid in get(/databases/$(database)/documents/live_rooms/$(roomId)/game_state/current).data.get('participantUids',[]))
+          // Only actual RPS choices; no fake 'Dragon', negative value or
+          // forged scoring. Rock/Paper/Scissors are moves (score always zero).
+          && (request.resource.data.type != 'rps'
+              || (request.resource.data.get('move','') in ['Rock','Paper','Scissors']
+                  && request.resource.data.get('score',-1) is int
+                  && request.resource.data.score == 0))
+          // Dice client inputs must be bounded 1..6 AND match the visible
+          // roll label: no 7, 999, arbitrary string, or mismatched scoring.
+          && (request.resource.data.type != 'dice'
+              || (request.resource.data.get('score',-1) is int
+                  && ((request.resource.data.score == 1 && request.resource.data.get('move','') == 'Rolled 1')
+                   || (request.resource.data.score == 2 && request.resource.data.get('move','') == 'Rolled 2')
+                   || (request.resource.data.score == 3 && request.resource.data.get('move','') == 'Rolled 3')
+                   || (request.resource.data.score == 4 && request.resource.data.get('move','') == 'Rolled 4')
+                   || (request.resource.data.score == 5 && request.resource.data.get('move','') == 'Rolled 5')
+                   || (request.resource.data.score == 6 && request.resource.data.get('move','') == 'Rolled 6'))))
+          // Coin Flip result labels cannot be arbitrary or carry fake points.
+          && (request.resource.data.type != 'coin'
+              || (request.resource.data.get('score',-1) is int
+                  && ((request.resource.data.get('move','') == 'Heads' && request.resource.data.score == 1)
+                   || (request.resource.data.get('move','') == 'Tails' && request.resource.data.score == 0))))
+          // Generic Party games formerly accepted unbounded fabricated client
+          // scores (e.g. Wheel 999999999). These rules bind each game to
+          // possible values and the actual move-label format.
+          // IMPORTANT: This is input integrity, NOT trusted RNG/anti-cheat.
+          && (request.resource.data.type != 'wheel'
+              || (request.resource.data.get('score',-1) is int
+                  && request.resource.data.score >= 1
+                  && request.resource.data.score <= 100
+                  && request.resource.data.get('move','') is string
+                  && request.resource.data.move.matches('^Spin ([1-9]|[1-9][0-9]|100)$')
+                  && request.resource.data.move == 'Spin ' + string(request.resource.data.score)))
+          && (request.resource.data.type != 'number'
+              || (request.resource.data.get('score',-1) is int
+                  && request.resource.data.score >= 1
+                  && request.resource.data.score <= 30
+                  && request.resource.data.get('move','') is string
+                  && request.resource.data.move.matches('^([1-9]|[12][0-9]|30)$')
+                  && request.resource.data.move == string(request.resource.data.score)))
+          && (request.resource.data.type != 'bingo'
+              || (request.resource.data.get('score',-1) is int
+                  && request.resource.data.score >= 1
+                  && request.resource.data.score <= 9
+                  && request.resource.data.get('move','') is string
+                  && request.resource.data.move.matches('^Pick [1-9]$')
+                  && request.resource.data.move == 'Pick ' + string(request.resource.data.score)))
+          && (request.resource.data.type != 'highlow'
+              || ((request.resource.data.get('move','') == 'High'
+                     && request.resource.data.get('score',-1) == 1)
+                  || (request.resource.data.get('move','') == 'Low'
+                     && request.resource.data.get('score',-1) == 0)))
+          && (request.resource.data.type != 'slot'
+              || (request.resource.data.get('score',-1) is int
+                  && request.resource.data.score >= 0
+                  && request.resource.data.score <= 77
+                  && request.resource.data.get('move','') is string
+                  && request.resource.data.move.matches('^Spin [0-9]-[0-9]-[0-9]$')))
+          && (request.resource.data.type != 'zoo'
+              || (request.resource.data.get('score',-1) is int
+                  && request.resource.data.score >= 25
+                  && request.resource.data.score <= 100
+                  && request.resource.data.get('move','') is string
+                  && request.resource.data.move.matches('^.+ power ([2-9][0-9]|100)$')
+                  && request.resource.data.move.matches(
+                      '^(🦁 Lion|🐯 Tiger|🐼 Panda) power ' +
+                      string(request.resource.data.score) + '$')))
+          && (request.resource.data.type != 'reaction'
+              || ((request.resource.data.get('score',-1) == 0
+                     && request.resource.data.get('move','') in
+                         ['False start before GO','Reaction expired'])
+                  || (request.resource.data.get('score',-1) is int
+                      && request.resource.data.score >= 70000
+                      && request.resource.data.score <= 99999
+                      && request.resource.data.get('move','') is string
+                      && request.resource.data.move.matches('^Reaction [0-9]{1,5} ms$')
+                      && request.resource.data.move ==
+                         'Reaction ' + string(100000 - request.resource.data.score) + ' ms')))
+          // Sheep cannot disguise a move as Dice/RPS to bypass the round timer.
+          && (!exists(/databases/$(database)/documents/live_rooms/$(roomId)/game_state/current)
+              || get(/databases/$(database)/documents/live_rooms/$(roomId)/game_state/current).data.get('type','') != 'sheep'
+              || request.resource.data.get('type','') == 'sheep')
+          && (request.resource.data.get('type','') != 'sheep'
+              || (exists(/databases/$(database)/documents/live_rooms/$(roomId)/game_state/current)
+                  && get(/databases/$(database)/documents/live_rooms/$(roomId)/game_state/current).data.type == 'sheep'
+                  && get(/databases/$(database)/documents/live_rooms/$(roomId)/game_state/current).data.status == 'active'
+                  && get(/databases/$(database)/documents/live_rooms/$(roomId)/game_state/current).data.roundId == request.resource.data.roundId
+                  && request.resource.data.get('score',-1) is int
+                  && request.resource.data.score >= 0
+                  && request.resource.data.score <= 200
+                  && request.resource.data.get('move','').matches('^Sheep sprint [0-9]{1,3} taps in 8s$')
+                  && exists(/databases/$(database)/documents/live_rooms/$(roomId)/sheep_starts/$(playerUid))
+                  && get(/databases/$(database)/documents/live_rooms/$(roomId)/sheep_starts/$(playerUid)).data.roundId == request.resource.data.roundId
+                  && get(/databases/$(database)/documents/live_rooms/$(roomId)/sheep_starts/$(playerUid)).data.startedAt <= request.time - duration.value(8,'s')))
+          // For an active Tic Tac Toe match no user may sneak in a differently
+          // labeled game move to bypass the real TURN validation.
+          && (!exists(/databases/$(database)/documents/live_rooms/$(roomId)/game_state/current)
+              || get(/databases/$(database)/documents/live_rooms/$(roomId)/game_state/current).data.get('type','') != 'ttt'
+              || request.resource.data.get('type','') == 'ttt')
+          && (request.resource.data.get('type','') != 'ttt'
+              || (exists(/databases/$(database)/documents/live_rooms/$(roomId)/game_state/current)
+                  && get(/databases/$(database)/documents/live_rooms/$(roomId)/game_state/current).data.type == 'ttt'
+                  && get(/databases/$(database)/documents/live_rooms/$(roomId)/game_state/current).data.status == 'active'
+                  && get(/databases/$(database)/documents/live_rooms/$(roomId)/game_state/current).data.turnUid == playerUid
+                  && get(/databases/$(database)/documents/live_rooms/$(roomId)/game_state/current).data.roundId == request.resource.data.roundId
+                  && request.resource.data.move.matches('^cell:[0-8]$')
+                  && request.resource.data.score is int
+                  && request.resource.data.score >= 0
+                  && request.resource.data.score <= 8));
+        allow update: if false; // published game choices cannot be changed
+        allow delete: if roomModerator(roomId);
       }
 
       match /game_state/{stateId} {
-        allow read: if roomAccess(roomId);
-        allow create, update, delete: if roomModerator(roomId);
+        allow read: if roomAccess(roomId) && roomMember(roomId);
+        allow create: if roomModerator(roomId)
+          && request.resource.data.get('cancelled',false) == false
+          && request.resource.data.get('participantUids',[]) is list
+          && request.resource.data.get('participantUids',[]).size() <= 50
+          && (request.resource.data.get('type','') != 'treasure'
+              || (request.resource.data.get('status','') == 'active'
+                  && request.resource.data.get('treasureChest',0) is int
+                  && request.resource.data.treasureChest >= 1
+                  && request.resource.data.treasureChest <= 3));
+        allow update: if roomModerator(roomId)
+          && request.resource.data.get('participantUids',[]) is list
+          && request.resource.data.get('participantUids',[]).size() <= 50
+          && (request.resource.data.get('type','') != 'treasure'
+              || (request.resource.data.get('treasureChest',0) is int
+                  && request.resource.data.treasureChest >= 1
+                  && request.resource.data.treasureChest <= 3))
+          && (resource.data.get('type','') != 'treasure'
+              || resource.data.get('status','') != 'active'
+              || request.resource.data.get('treasureChest',0) == resource.data.get('treasureChest',0))
+          // Once a cancelled round is closed, it cannot be rewritten as a
+          // winner. Only a NEW higher-ID active round may replace its state.
+          && (resource.data.get('cancelled',false) != true
+              || (request.resource.data.get('cancelled',false) != true
+                  && request.resource.data.get('roundId',0) is int
+                  && resource.data.get('roundId',0) is int
+                  && request.resource.data.roundId > resource.data.roundId
+                  && request.resource.data.status == 'active'))
+          // A cancelled match must be a single narrow transition from a real
+          // active round. Host may not forge a winner or rewrite the roster
+          // while claiming cancellation.
+          && (request.resource.data.get('cancelled',false) != true
+              || (resource.data.get('status','') == 'active'
+                  && resource.data.get('cancelled',false) != true
+                  && request.resource.data.status == 'closed'
+                  && request.resource.data.result == '🚫 Round cancelled • no winner'
+                  && request.resource.data.actorUid == request.auth.uid
+                  && request.resource.data.updatedAt == request.time
+                  && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+                      'actorUid','status','result','cancelled','updatedAt'
+                  ])))
+          // During an active round no one may switch or shrink its roster
+          // to allow premature winner/score settlement.
+          && (resource.data.get('status','') != 'active'
+              || request.resource.data.get('participantUids',[])
+                 == resource.data.get('participantUids',[]))
+          // Sketch changes cannot be made by another cohost/moderator, or
+          // after this Draw round closes. A new round from a closed game
+          // may reset the old sketch while preserving the old game gates.
+          && (
+             !request.resource.data.diff(resource.data).affectedKeys()
+                 .hasAny(['sketch'])
+             || (
+                 resource.data.get('type','') == 'draw'
+                 && resource.data.get('status','') == 'active'
+                 && request.resource.data.get('type','') == 'draw'
+                 && request.resource.data.get('status','') == 'active'
+                 && request.resource.data.get('roundId',0) ==
+                    resource.data.get('roundId',0)
+                 && request.auth.uid == resource.data.get('drawerUid','')
+                 && request.resource.data.get('actorUid','') == request.auth.uid
+                 && request.resource.data.get('sketch','') is string
+                 && request.resource.data.get('sketch','').size() <= 12000
+                 && request.resource.data.diff(resource.data).affectedKeys()
+                      .hasOnly(['sketch','actorUid','updatedAt'])
+             )
+             || (
+                 resource.data.get('status','') == 'closed'
+                 && request.resource.data.get('status','') == 'active'
+                 && request.resource.data.get('roundId',0) is int
+                 && resource.data.get('roundId',0) is int
+                 && request.resource.data.roundId > resource.data.roundId
+             )
+          );
+        allow delete: if roomModerator(roomId);
       }
+
+      // Two actual signed-in Party members share a turn-based Chess board.
+      // Transactions and revision monotonicity reject overwrites and stale turns.
+      // Chess geometry is enforced by KingChessRules on the client; a production
+      // anti-cheat game requires a trusted Cloud Function as arbiter.
+      // Original interactive KING Flying Knife Arena: private account-owned
+      // high scores visible to authenticated live room members. Client reports
+      // skill results. Competitive anti-cheat would need a trusted game server.
+      // An authenticated PARTY MEMBER can publish only their own bounded avatar pose.
+      match /avatar_motion/{motionUid} {
+        allow read: if roomAccess(roomId) && roomMember(roomId);
+        allow create: if roomAccess(roomId) && roomMember(roomId)
+          && request.auth.uid == motionUid
+          && request.resource.data.keys().hasOnly(['uid','x','z','action','updatedAt'])
+          && request.resource.data.uid == motionUid
+          && request.resource.data.x is number
+          && request.resource.data.x >= -4.4 && request.resource.data.x <= 4.4
+          && request.resource.data.z is number
+          && request.resource.data.z >= -2.6 && request.resource.data.z <= 2.7
+          && request.resource.data.action in ['idle','walk','dance']
+          && request.resource.data.updatedAt == request.time;
+        allow update: if roomAccess(roomId) && roomMember(roomId)
+          && request.auth.uid == motionUid
+          && resource.data.uid == motionUid && request.resource.data.uid == motionUid
+          && request.resource.data.diff(resource.data).affectedKeys()
+               .hasOnly(['x','z','action','updatedAt'])
+          && request.resource.data.x is number
+          && request.resource.data.x >= -4.4 && request.resource.data.x <= 4.4
+          && request.resource.data.z is number
+          && request.resource.data.z >= -2.6 && request.resource.data.z <= 2.7
+          && request.resource.data.action in ['idle','walk','dance']
+          && request.resource.data.updatedAt == request.time;
+        allow delete: if roomAccess(roomId) && motionUid == request.auth.uid;
+      }
+
+      match /knife_duel_scores/{playerUid} {
+        allow read: if roomAccess(roomId) && roomMember(roomId);
+        allow create: if roomAccess(roomId) && roomMember(roomId)
+          && playerUid == request.auth.uid
+          && request.resource.data.keys().hasOnly([
+            'uid','name','bestScore','lastScore','plays','updatedAt'
+          ])
+          && request.resource.data.uid == playerUid
+          && request.resource.data.name is string
+          && request.resource.data.name.size() > 0
+          && request.resource.data.name.size() <= 40
+          && request.resource.data.bestScore is int
+          && request.resource.data.bestScore >= 0
+          && request.resource.data.bestScore <= 7
+          && request.resource.data.bestScore == request.resource.data.lastScore
+          && request.resource.data.plays == 1
+          && request.resource.data.updatedAt == request.time;
+        allow update: if roomAccess(roomId) && roomMember(roomId)
+          && playerUid == request.auth.uid
+          && resource.data.uid == playerUid
+          && request.resource.data.uid == resource.data.uid
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+            'name','bestScore','lastScore','plays','updatedAt'
+          ])
+          && request.resource.data.name is string
+          && request.resource.data.name.size() > 0
+          && request.resource.data.name.size() <= 40
+          && request.resource.data.lastScore is int
+          && request.resource.data.lastScore >= 0
+          && request.resource.data.lastScore <= 7
+          && request.resource.data.bestScore is int
+          && request.resource.data.bestScore ==
+            (request.resource.data.lastScore > resource.data.bestScore
+              ? request.resource.data.lastScore : resource.data.bestScore)
+          && request.resource.data.plays == resource.data.plays + 1
+          && request.resource.data.updatedAt == request.time;
+        allow delete: if false;
+      }
+
+      match /chess_games/{chessId} {
+        allow read: if chessId == 'main' && roomAccess(roomId) && roomMember(roomId);
+        allow create: if chessId == 'main' && roomAccess(roomId) && roomMember(roomId)
+          && roomData(roomId).closed != true
+          && request.resource.data.whiteUid == request.auth.uid
+          && request.resource.data.blackUid == ''
+          && request.resource.data.board == 'rnbqkbnrpppppppp................................PPPPPPPPRNBQKBNR'
+          && request.resource.data.whiteName is string
+          && request.resource.data.whiteName.size() <= 45
+          && request.resource.data.turn == 'w'
+          && request.resource.data.rights == 'KQkq'
+          && request.resource.data.enPassant == -1
+          && request.resource.data.revision == 0
+          && request.resource.data.status == 'waiting'
+          && request.resource.data.actorUid == request.auth.uid
+          && request.resource.data.updatedAt == request.time;
+        allow update: if chessId == 'main' && roomAccess(roomId) && roomMember(roomId)
+          && roomData(roomId).closed != true
+          && request.resource.data.whiteUid == resource.data.whiteUid
+          && request.resource.data.whiteName == resource.data.whiteName
+          && request.resource.data.actorUid == request.auth.uid
+          && request.resource.data.revision is int
+          && request.resource.data.revision == resource.data.revision + 1
+          && request.resource.data.updatedAt == request.time
+          && request.resource.data.board is string
+          && request.resource.data.board.size() == 64
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+            'blackUid','blackName','status','board','turn','rights','enPassant',
+            'revision','actorUid','updatedAt','lastMove','winnerUid'
+          ])
+          && (
+            // Black joins once and activates match; cannot replace white or a player.
+            (resource.data.status == 'waiting'
+              && resource.data.blackUid == ''
+              && request.auth.uid != resource.data.whiteUid
+              && request.resource.data.blackUid == request.auth.uid
+              && request.resource.data.blackName is string
+              && request.resource.data.blackName.size() <= 45
+              && request.resource.data.status == 'active'
+              && request.resource.data.board == resource.data.board
+              && request.resource.data.turn == resource.data.turn
+              && request.resource.data.rights == resource.data.rights
+              && request.resource.data.enPassant == resource.data.enPassant
+              && request.resource.data.lastMove == resource.data.lastMove)
+            ||
+            // Only the player whose turn it is can submit a board change.
+            (resource.data.status == 'active'
+              && request.resource.data.blackUid == resource.data.blackUid
+              && request.resource.data.blackName == resource.data.blackName
+              && request.auth.uid == (
+                 resource.data.turn == 'w'
+                 ? resource.data.whiteUid : resource.data.blackUid)
+              && request.resource.data.status in ['active','checkmate','stalemate']
+              && request.resource.data.turn != resource.data.turn
+              && request.resource.data.board != resource.data.board)
+            ||
+            // Either seated player can resign without changing the board.
+            (resource.data.status == 'active'
+              && request.auth.uid in [resource.data.whiteUid,resource.data.blackUid]
+              && request.resource.data.blackUid == resource.data.blackUid
+              && request.resource.data.blackName == resource.data.blackName
+              && request.resource.data.status == 'resigned'
+              && request.resource.data.board == resource.data.board
+              && request.resource.data.turn == resource.data.turn
+              && request.resource.data.rights == resource.data.rights
+              && request.resource.data.enPassant == resource.data.enPassant
+              && request.resource.data.lastMove == 'Resigned'
+              && request.resource.data.winnerUid == (
+                request.auth.uid == resource.data.whiteUid
+                ? resource.data.blackUid : resource.data.whiteUid))
+            ||
+            // Only White can reset an ended match with the same two player IDs.
+            (resource.data.status in ['checkmate','stalemate','resigned']
+              && request.auth.uid == resource.data.whiteUid
+              && request.resource.data.blackUid == resource.data.blackUid
+              && request.resource.data.blackName == resource.data.blackName
+              && request.resource.data.status == 'active'
+              && request.resource.data.board == 'rnbqkbnrpppppppp................................PPPPPPPPRNBQKBNR'
+              && request.resource.data.turn == 'w'
+              && request.resource.data.rights == 'KQkq'
+              && request.resource.data.enPassant == -1
+              && request.resource.data.winnerUid == '')
+          );
+        allow delete: if false;
+      }
+
 
       match /game_votes/{playerUid} {
         allow read: if roomAccess(roomId)
@@ -267,7 +984,21 @@ service cloud.firestore {
         allow create, update: if roomAccess(roomId)
           && roomMember(roomId)
           && playerUid == request.auth.uid
-          && request.resource.data.uid == request.auth.uid;
+          && request.resource.data.uid == request.auth.uid
+          && exists(/databases/$(database)/documents/live_rooms/$(roomId)/game_state/current)
+          && get(/databases/$(database)/documents/live_rooms/$(roomId)/game_state/current).data.status == 'active'
+          && get(/databases/$(database)/documents/live_rooms/$(roomId)/game_state/current).data.roundId == request.resource.data.roundId
+          // Open room votes accept all current room members, but ONLY published choices.
+          // Other social games retain strict enrolled-player roster restrictions.
+          && (get(/databases/$(database)/documents/live_rooms/$(roomId)/game_state/current).data.type == 'vote'
+            ? (get(/databases/$(database)/documents/live_rooms/$(roomId)/game_state/current).data.get('options',[]) is list
+               && get(/databases/$(database)/documents/live_rooms/$(roomId)/game_state/current).data.get('options',[]).size() >= 2
+               && request.resource.data.choice in get(/databases/$(database)/documents/live_rooms/$(roomId)/game_state/current).data.options)
+            : (get(/databases/$(database)/documents/live_rooms/$(roomId)/game_state/current).data.participantUids is list
+               && request.auth.uid in get(/databases/$(database)/documents/live_rooms/$(roomId)/game_state/current).data.participantUids
+               && (get(/databases/$(database)/documents/live_rooms/$(roomId)/game_state/current).data.type in ['werewolf','spy']
+                 ? request.resource.data.choice in get(/databases/$(database)/documents/live_rooms/$(roomId)/game_state/current).data.participantUids
+                 : request.resource.data.choice is string)));
         allow delete: if signedIn()
           && (playerUid == request.auth.uid || roomModerator(roomId));
       }
@@ -313,31 +1044,54 @@ service cloud.firestore {
       }
 
       match /access/{accessUid} {
-        // Access markers are intentionally not client-readable. roomAccess() only needs exists().
+        // Access markers are intentionally not client-readable.
         allow read: if false;
-        allow create: if (
-          roomModerator(roomId)
-          && request.resource.data.uid == accessUid
-        ) || (
-          activeUser()
-          && accessUid == request.auth.uid
-          && roomData(roomId).isPrivate == true
-          && roomData(roomId).hasPassword == true
-          && request.resource.data.uid == request.auth.uid
-          && request.resource.data.passwordHash is string
-          && request.resource.data.passwordHash
-             == get(/databases/$(database)/documents/live_rooms/$(roomId)/secrets/password).data.passwordHash
-        );
-        allow update: if roomModerator(roomId)
-          && request.resource.data.uid == accessUid;
+        function validCurrentPasswordProof9936() {
+          return activeUser()
+            && accessUid == request.auth.uid
+            && roomData(roomId).isPrivate == true
+            && roomData(roomId).hasPassword == true
+            && request.resource.data.uid == request.auth.uid
+            && (roomData(roomId).get('entryEpoch','') == ''
+               || request.resource.data.get('entryEpoch','__missing__')
+                  == roomData(roomId).get('entryEpoch',''))
+            && request.resource.data.passwordHash is string
+            && request.resource.data.passwordHash
+              == get(/databases/$(database)/documents/live_rooms/$(roomId)/secrets/password).data.passwordHash;
+        }
+        allow create: if (roomModerator(roomId)
+            && request.resource.data.uid == accessUid
+            && (roomData(roomId).get('entryEpoch','') == ''
+               || request.resource.data.get('entryEpoch','__missing__')
+                  == roomData(roomId).get('entryEpoch','')))
+          || validCurrentPasswordProof9936();
+        // Users with an old access document must be allowed to re-enter the
+        // CURRENT valid password to replace their stale approval. Never permit
+        // an arbitrary client to update or recreate a grant without proof.
+        allow update: if (roomModerator(roomId)
+            && request.resource.data.uid == accessUid
+            && (roomData(roomId).get('entryEpoch','') == ''
+               || request.resource.data.get('entryEpoch','__missing__')
+                  == roomData(roomId).get('entryEpoch','')))
+          || validCurrentPasswordProof9936();
         allow delete: if roomModerator(roomId);
       }
     }
 
     match /public_profiles/{uid} {
       allow read: if signedIn();
-      allow create, update: if owner(uid)
-        && request.resource.data.uid == uid;
+      allow create: if owner(uid)
+        && request.resource.data.uid == uid
+        && request.resource.data.get('vipLevel',0) == 0
+        && request.resource.data.get('vipPoints',0) == 0
+        && request.resource.data.get('nobleLevel',0) == 0;
+      // A legitimate server-granted VIP must still be able to edit their photo/name.
+      // Editing a profile cannot create, remove, increase or downgrade an entitlement.
+      allow update: if owner(uid)
+        && request.resource.data.uid == uid
+        && request.resource.data.get('vipLevel',0) == resource.data.get('vipLevel',0)
+        && request.resource.data.get('vipPoints',0) == resource.data.get('vipPoints',0)
+        && request.resource.data.get('nobleLevel',0) == resource.data.get('nobleLevel',0);
       allow delete: if owner(uid);
 
       match /visitors/{visitorUid} {
@@ -347,6 +1101,28 @@ service cloud.firestore {
           && request.resource.data.uid == request.auth.uid;
         allow delete: if signedIn()
           && (request.auth.uid == uid || request.auth.uid == visitorUid);
+      }
+
+      // Cloud videos are visible to signed-in viewers and writable only by their owner.
+      match /videos/{videoId} {
+        allow read: if signedIn();
+        allow create: if activeUser() && owner(uid)
+          && request.resource.data.keys().hasOnly(['uid','url','storagePath','fileName','contentType','sizeBytes','createdAt'])
+          && request.resource.data.keys().hasAll(['uid','url','storagePath','fileName','contentType','sizeBytes','createdAt'])
+          && request.resource.data.uid == uid
+          && request.resource.data.url is string
+          && request.resource.data.url.size() <= 2048
+          && request.resource.data.storagePath == 'chat_media/' + uid + '/profile_videos/' + videoId
+          && request.resource.data.fileName is string
+          && request.resource.data.fileName.size() <= 120
+          && request.resource.data.contentType is string
+          && request.resource.data.contentType.matches('video/[A-Za-z0-9.+-]+')
+          && request.resource.data.sizeBytes is int
+          && request.resource.data.sizeBytes > 0
+          && request.resource.data.sizeBytes <= 10485760
+          && request.resource.data.createdAt == request.time;
+        allow update: if false;
+        allow delete: if owner(uid) && resource.data.uid == uid;
       }
     }
 
@@ -362,75 +1138,204 @@ service cloud.firestore {
       allow create: if activeUser()
         && request.resource.data.ownerUid == request.auth.uid
         && request.resource.data.targetUid is string
-        && request.resource.data.targetUid != request.auth.uid;
+        && request.resource.data.targetUid != request.auth.uid
+        && request.resource.data.targetUid.size() >= 4
+        && request.resource.data.targetUid.size() <= 128
+        && blockId == request.auth.uid + '_' + request.resource.data.targetUid
+        && request.resource.data.keys().hasOnly(['ownerUid','targetUid','createdAt'])
+        && request.resource.data.keys().hasAll(['ownerUid','targetUid','createdAt'])
+        && request.resource.data.createdAt == request.time;
       allow update: if false;
       allow delete: if signedIn()
         && resource.data.ownerUid == request.auth.uid;
     }
 
     match /ludo_matches/{matchCode} {
-      // Room-code discovery requires signed-in players to read before joining.
-      allow read: if activeUser();
-      allow create: if activeUser()
-        && request.resource.data.code == matchCode
-        && request.resource.data.ownerUid == request.auth.uid
-        && request.resource.data.actorUid == request.auth.uid
-        && request.resource.data.players is list
-        && request.resource.data.players.size() == 4
-        && request.resource.data.players[0] == request.auth.uid
-        && request.resource.data.capacity in [2, 4];
-      // v9.6.2: reject premature idle-turn skip and unauthorized match resets.
-      // Transactional clients use FieldValue.serverTimestamp for updatedAt.
-      allow update: if activeUser()
+      // Every transition is checked by Firestore; clients cannot select a die,
+      // teleport pieces, change another player's readiness or invent a winner.
+      function shape(m) {
+        return m.keys().hasOnly(['schema','code','ownerUid','players','names','ready','capacity','pieces','turn','dice','sixes','winner','phase','revision','action','actorUid','selected','updatedAt','rollAt','partyRoomKey','partyRoomName'])
+          && m.schema == 1 && m.code == matchCode && m.ownerUid is string
+          && m.players is list && m.players.size() == 4
+          && m.names is list && m.names.size() == 4
+          && m.ready is list && m.ready.size() == 4
+          && m.players[0] is string && m.names[0] is string && m.names[0].size() <= 80 && m.ready[0] is bool && m.players[1] is string && m.names[1] is string && m.names[1].size() <= 80 && m.ready[1] is bool && m.players[2] is string && m.names[2] is string && m.names[2].size() <= 80 && m.ready[2] is bool && m.players[3] is string && m.names[3] is string && m.names[3].size() <= 80 && m.ready[3] is bool
+          && m.capacity in [2,4]
+          && m.pieces is list && m.pieces.size() == 16
+          && m.turn is int && m.turn >= 0 && m.turn < 4
+          && m.dice is int && m.dice >= 0 && m.dice <= 6
+          && m.sixes is int && m.sixes >= 0 && m.sixes <= 2
+          && m.winner is int && m.winner >= -1 && m.winner < 4
+          && m.selected is int && m.selected >= -1 && m.selected < 4
+          && m.phase in ['lobby','roll','resolve','move','finished','cancelled']
+          && m.revision is int && m.actorUid == request.auth.uid
+          && m.updatedAt == request.time && m.rollAt is timestamp;
+      }
+      function party(m) {
+        let id=m.get('partyRoomKey','');
+        return id == '' || (roomMember(id) && roomAccess(id));
+      }
+      function changedOnly(fields) {
+        return request.resource.data.diff(resource.data).affectedKeys()
+          .hasOnly(fields.concat(['revision','updatedAt','actorUid','action','selected']));
+      }
+      function freshBoard(m) {
+        return m.pieces == [-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1]
+          && m.ready == [false,false,false,false] && m.turn == 0
+          && m.dice == 0 && m.sixes == 0 && m.winner == -1;
+      }
+      function next(o) { return o.capacity == 2 ? (o.turn == 0 ? 2 : 0) : (o.turn+1)%4; }
+      function sameSlot(o,n,k,selected) {
+        return k == selected || (n.players[k] == o.players[k] && n.names[k] == o.names[k] && n.ready[k] == o.ready[k]);
+      }
+      function lobbySlot(o,n,leaving) {
+        let k=n.selected;
+        let uid=request.auth.uid;
+        let successor=n.players[0] != '' ? n.players[0] : n.players[1] != '' ? n.players[1] : n.players[2] != '' ? n.players[2] : n.players[3];
+        return o.phase == 'lobby' && k >= 0 && k < 4
+          && n.players is list && n.players.size() == 4 && n.names is list && n.names.size() == 4
+          && n.ready is list && n.ready.size() == 4 && n.names[k] is string && n.names[k].size() <= 80
+          && (o.capacity == 4 || k in [0,2])
+          && sameSlot(o,n,0,k) && sameSlot(o,n,1,k) && sameSlot(o,n,2,k) && sameSlot(o,n,3,k)
+          && n.ready[k] == false
+          && (leaving ? (o.players[k] == uid && n.players[k] == '' && n.names[k] == ''
+              && n.ownerUid == (o.ownerUid == uid ? successor : o.ownerUid))
+            : (o.players[k] == '' && !(uid in o.players) && n.players[k] == uid
+              && n.names[k].size() > 0 && n.ownerUid == o.ownerUid))
+          && changedOnly(['players','names','ready','ownerUid']);
+      }
+      function ready(o,n) {
+        let k=n.selected;
+        return o.phase == 'lobby' && k >= 0 && k < 4 && o.players[k] == request.auth.uid
+          && n.ready is list && n.ready.size() == 4
+          && n.ready[k] == !o.ready[k]
+          && (k == 0 || n.ready[0] == o.ready[0]) && (k == 1 || n.ready[1] == o.ready[1])
+          && (k == 2 || n.ready[2] == o.ready[2]) && (k == 3 || n.ready[3] == o.ready[3])
+          && changedOnly(['ready']);
+      }
+      function start(o,n) {
+        return o.ownerUid == request.auth.uid && o.phase == 'lobby' && n.phase == 'roll'
+          && n.selected == -1 && o.players[0] != '' && o.players[2] != ''
+          && o.ready[0] && o.ready[2]
+          && (o.capacity == 2 || (o.players[1] != '' && o.players[3] != '' && o.ready[1] && o.ready[3]))
+          && changedOnly(['phase']);
+      }
+      function roll(o,n) {
+        return o.phase == 'roll' && o.players[o.turn] == request.auth.uid
+          && n.phase == 'resolve' && n.dice == 0 && n.rollAt == request.time && n.selected == -1
+          && changedOnly(['phase','dice','rollAt']);
+      }
+      function validDie(o,n) {
+        let h=hashing.sha256('KING-PLUS-LUDO-FAIR-V2|' + string(int(o.rollAt.toMillis() / 1000)) + '|'
+          + string(o.rollAt.nanos()) + '|' + o.code + '|' + string(o.revision)).toHexString().lower();
+        return n.dice == 1 ? h.matches('^[cdef]*[06].*') : n.dice == 2 ? h.matches('^[cdef]*[17].*')
+          : n.dice == 3 ? h.matches('^[cdef]*[28].*') : n.dice == 4 ? h.matches('^[cdef]*[39].*')
+          : n.dice == 5 ? h.matches('^[cdef]*[4a].*') : n.dice == 6 && h.matches('^[cdef]*[5b].*');
+      }
+      function canPiece(pos,d) { return pos == -1 ? d == 6 : pos < 56 && pos+d <= 56; }
+      function resolve(o,n) {
+        let d=n.dice;
+        let offset=o.turn*4;
+        let third=o.sixes == 2 && d == 6;
+        let can=!third && (canPiece(o.pieces[offset],d) || canPiece(o.pieces[offset+1],d)
+          || canPiece(o.pieces[offset+2],d) || canPiece(o.pieces[offset+3],d));
+        let pass=third || (!can && d != 6);
+        return o.phase == 'resolve' && d >= 1 && d <= 6 && validDie(o,n) && n.selected == -1
+          && n.phase == (can ? 'move' : 'roll') && n.turn == (pass ? next(o) : o.turn)
+          && n.sixes == (pass ? 0 : d == 6 ? o.sixes+1 : 0)
+          && changedOnly(['phase','dice','turn','sixes']);
+      }
+      function boardGroup(o,color,selected,target) {
+        let i=color*4;
+        let p=o.pieces;
+        let victim=(o.turn*13+target-color*13+52)%52;
+        let hit=target <= 50 && target%13 != 0 && target%13 != 8 && victim <= 50;
+        return color == o.turn
+          ? [selected == 0 ? target : p[i], selected == 1 ? target : p[i+1],
+             selected == 2 ? target : p[i+2], selected == 3 ? target : p[i+3]]
+          : [hit && p[i] == victim ? -1 : p[i], hit && p[i+1] == victim ? -1 : p[i+1],
+             hit && p[i+2] == victim ? -1 : p[i+2], hit && p[i+3] == victim ? -1 : p[i+3]];
+      }
+      function captured(o,n) {
+        return n.pieces.removeAll([-1]).size() < o.pieces.removeAll([-1]).size();
+      }
+      function move(o,n) {
+        let own=o.turn*4+n.selected;
+        let target=n.pieces[own];
+        let offset=o.turn*4;
+        let won=n.pieces[offset] == 56 && n.pieces[offset+1] == 56 && n.pieces[offset+2] == 56 && n.pieces[offset+3] == 56;
+        let bonus=o.dice == 6 || target == 56 || captured(o,n);
+        let nt=won || bonus ? o.turn : next(o);
+        return o.phase == 'move' && n.selected >= 0 && n.selected < 4
+          && n.pieces is list && n.pieces.size() == 16
+          && o.players[o.turn] == request.auth.uid && o.dice >= 1 && o.dice <= 6
+          && canPiece(o.pieces[own],o.dice)
+          && target == (o.pieces[own] == -1 ? 0 : o.pieces[own]+o.dice)
+          && n.pieces == boardGroup(o,0,n.selected,target)
+            .concat(boardGroup(o,1,n.selected,target))
+            .concat(boardGroup(o,2,n.selected,target))
+            .concat(boardGroup(o,3,n.selected,target))
+          && n.turn == nt && n.sixes == (nt == o.turn ? o.sixes : 0)
+          && n.winner == (won ? o.turn : -1) && n.phase == (won ? 'finished' : 'roll')
+          && changedOnly(['pieces','turn','sixes','winner','phase']);
+      }
+      function timeout(o,n) {
+        return o.phase in ['roll','move','resolve'] && o.updatedAt is timestamp
+          && request.time >= o.updatedAt + duration.value(60,'s')
+          && request.auth.uid != o.players[o.turn] && n.phase == 'roll' && n.turn == next(o)
+          && n.dice == 0 && n.sixes == 0 && n.selected == -1
+          && changedOnly(['phase','turn','dice','sixes']);
+      }
+      function action(o,n) {
+        return n.action == 'join' ? lobbySlot(o,n,false)
+          : n.action == 'leave' ? lobbySlot(o,n,true)
+          : n.action == 'ready' ? ready(o,n)
+          : n.action == 'start' ? start(o,n)
+          : n.action == 'roll' ? roll(o,n)
+          : n.action == 'resolve' ? resolve(o,n)
+          : n.action == 'move' ? move(o,n)
+          : n.action == 'timeout' ? timeout(o,n)
+          : n.action == 'cancel' ? (o.ownerUid == request.auth.uid && o.phase in ['roll','move','resolve']
+              && n.phase == 'cancelled' && n.selected == -1 && changedOnly(['phase']))
+          : n.action == 'rematch' && o.ownerUid == request.auth.uid && o.phase in ['finished','cancelled']
+              && n.phase == 'lobby' && n.selected == -1 && freshBoard(n)
+              && changedOnly(['pieces','ready','turn','dice','sixes','winner','phase']);
+      }
+      allow get: if activeUser() && (resource == null || (party(resource.data)
+        && (resource.data.phase == 'lobby' || request.auth.uid in resource.data.players)));
+      allow list: if false;
+      allow create: if resource == null && request.resource.data.revision == 0
+        && activeUser() && shape(request.resource.data) && party(request.resource.data)
+        && (request.resource.data.get('partyRoomKey','') == '' || roomModerator(request.resource.data.partyRoomKey))
+        && request.resource.data.players == [request.auth.uid,'','','']
+        && request.resource.data.ownerUid == request.auth.uid && request.resource.data.names[0].size() > 0
+        && request.resource.data.names[1] == '' && request.resource.data.names[2] == '' && request.resource.data.names[3] == ''
+        && request.resource.data.phase == 'lobby'
+        && request.resource.data.revision == 0 && request.resource.data.action == 'create'
+        && request.resource.data.selected == -1 && request.resource.data.rollAt == request.time && freshBoard(request.resource.data);
+      // Fresh boards are exact constants; transitions validate only fields they change.
+      // Rechecking all 16 unchanged cells on every action exceeds Firestore's 1000-expression budget.
+      allow update: if activeUser() && party(resource.data)
         && request.resource.data.code == resource.data.code
-        && request.resource.data.players is list
-        && request.resource.data.players.size() == 4
         && request.resource.data.actorUid == request.auth.uid
         && request.resource.data.revision is int
-        && resource.data.revision is int
-        && request.resource.data.revision == resource.data.revision + 1
+        && request.resource.data.selected is int && request.resource.data.selected >= -1 && request.resource.data.selected < 4
         && request.resource.data.updatedAt == request.time
-        && (
-          request.auth.uid in resource.data.players
-          || (resource.data.phase == 'lobby'
-              && request.auth.uid in request.resource.data.players)
-        )
-        && (
-          !(request.resource.data.action in ['start','cancel','rematch'])
-          || request.auth.uid == resource.data.ownerUid
-        )
-        && (
-          request.resource.data.action != 'start'
-          || (
-            resource.data.phase == 'lobby'
-            && resource.data.players.size() == 4
-            && resource.data.ready.size() == 4
-            && resource.data.players[0] != ''
-            && resource.data.players[2] != ''
-            && resource.data.ready[0] == true
-            && resource.data.ready[2] == true
-            && (resource.data.capacity == 2
-                || (resource.data.capacity == 4
-                    && resource.data.players[1] != ''
-                    && resource.data.players[3] != ''
-                    && resource.data.ready[1] == true
-                    && resource.data.ready[3] == true))
-          )
-        )
-        && (
-          request.resource.data.action != 'timeout'
-          || (
-            resource.data.phase in ['roll','move','resolve']
-            && resource.data.turn is int
-            && resource.data.turn >= 0 && resource.data.turn < 4
-            && resource.data.updatedAt is timestamp
-            && request.time >= resource.data.updatedAt + duration.value(60,'s')
-            && request.auth.uid != resource.data.players[resource.data.turn]
-            && request.resource.data.phase == 'roll'
-          )
-        );
-      allow delete: if activeUser()
-        && resource.data.ownerUid == request.auth.uid;
+        && request.resource.data.get('partyRoomKey','') == resource.data.get('partyRoomKey','')
+        && request.resource.data.schema == resource.data.schema && request.resource.data.capacity == resource.data.capacity
+        && request.resource.data.revision == resource.data.revision+1
+        && (request.auth.uid in resource.data.players || request.resource.data.action == 'join')
+        && action(resource.data,request.resource.data);
+      allow delete: if activeUser() && party(resource.data) && resource.data.ownerUid == request.auth.uid
+        && (resource.data.phase in ['finished','cancelled'] || (resource.data.phase == 'lobby'
+          && resource.data.players.removeAll(['',request.auth.uid]).size() == 0));
+    }
+
+    // Collection-group reads power Me → Liked Moments. Restrict the broad
+    // collection-group query to like receipts owned by the signed-in user.
+    // The nested Moments rule below continues to serve public post like state.
+    match /{path=**}/likes/{likeId} {
+      allow read: if signedIn() && resource.data.uid == request.auth.uid;
     }
 
     match /moments/{momentId} {
@@ -455,29 +1360,66 @@ service cloud.firestore {
       }
     }
 
+    // Full KING Relationship/CP acceptance must be reciprocal.
+    // Request initiator can only make a PENDING invitation; only the other
+    // participant may ACCEPT/DECLINE. Never grant VIP or Diamonds from CP.
     match /relationships/{relationshipId} {
+      function relationshipValid9985() {
+        return request.resource.data.keys().hasOnly([
+            'uidA','uidB','nameA','nameB','initiatorUid','status','createdAt'
+          ])
+          && request.resource.data.keys().hasAll([
+            'uidA','uidB','nameA','nameB','initiatorUid','status','createdAt'
+          ])
+          && request.resource.data.uidA is string
+          && request.resource.data.uidB is string
+          && request.resource.data.uidA.size() >= 4
+          && request.resource.data.uidB.size() >= 4
+          && request.resource.data.uidA.size() <= 128
+          && request.resource.data.uidB.size() <= 128
+          && request.resource.data.uidA < request.resource.data.uidB
+          && relationshipId == request.resource.data.uidA + '__' + request.resource.data.uidB
+          && request.resource.data.nameA is string
+          && request.resource.data.nameB is string
+          && request.resource.data.nameA.size() <= 80
+          && request.resource.data.nameB.size() <= 80
+          && request.resource.data.initiatorUid == request.auth.uid
+          && request.auth.uid in [
+              request.resource.data.uidA,request.resource.data.uidB
+          ]
+          && request.resource.data.status == 'pending'
+          && request.resource.data.createdAt == request.time;
+      }
       allow read: if signedIn()
-        && (resource.data.uidA == request.auth.uid
-            || resource.data.uidB == request.auth.uid);
+        && request.auth.uid in [resource.data.uidA,resource.data.uidB];
       allow create: if activeUser()
-        && request.resource.data.uidA is string
-        && request.resource.data.uidB is string
-        && request.resource.data.uidA != request.resource.data.uidB
-        && (request.resource.data.uidA == request.auth.uid
-            || request.resource.data.uidB == request.auth.uid)
-        && request.resource.data.initiatorUid == request.auth.uid
-        && request.resource.data.status == 'pending';
+        && relationshipValid9985()
+        && !exists(/databases/$(database)/documents/blocks/$(request.resource.data.uidA + '_' + request.resource.data.uidB))
+        && !exists(/databases/$(database)/documents/blocks/$(request.resource.data.uidB + '_' + request.resource.data.uidA));
       allow update: if activeUser()
-        && (resource.data.uidA == request.auth.uid
-            || resource.data.uidB == request.auth.uid)
-        && request.resource.data.uidA == resource.data.uidA
-        && request.resource.data.uidB == resource.data.uidB
-        && request.resource.data.initiatorUid == resource.data.initiatorUid
+        && resource.data.status == 'pending'
+        && request.auth.uid in [resource.data.uidA,resource.data.uidB]
+        && request.auth.uid != resource.data.initiatorUid
         && request.resource.data.diff(resource.data).affectedKeys()
-             .hasOnly(['status', 'updatedAt']);
+             .hasOnly(['status','updatedAt'])
+        && request.resource.data.status in ['accepted','declined']
+        && request.resource.data.updatedAt == request.time;
       allow delete: if signedIn()
-        && (resource.data.uidA == request.auth.uid
-            || resource.data.uidB == request.auth.uid);
+        && request.auth.uid in [resource.data.uidA,resource.data.uidB];
+    }
+
+    // Family Admin may kick only a regular member; moderator moderates Chat.
+    // Admin/Moderator cannot give themselves roles, mint treasury or impersonate.
+    function familyRole9987(code) {
+      return get(/databases/$(database)/documents/families/$(code)/members/$(request.auth.uid)).data.role;
+    }
+    function familyChatModerator9987(code) {
+      return familyOwner(code)
+        || (familyMember(code) &&
+          familyRole9987(code) in ['admin','moderator']);
+    }
+    function familyAdminCanRemove9987(code) {
+      return familyMember(code) && familyRole9987(code) == 'admin';
     }
 
     match /families/{familyCode} {
@@ -487,48 +1429,91 @@ service cloud.firestore {
         && request.resource.data.code == familyCode
         && request.resource.data.name is string
         && request.resource.data.name.size() > 0
-        && request.resource.data.name.size() <= 120;
-      allow update, delete: if familyOwner(familyCode);
+        && request.resource.data.name.size() <= 120
+        && request.resource.data.level == 1
+        && request.resource.data.treasury == 0
+        && request.resource.data.memberCount == 1
+        && request.resource.data.createdAt == request.time
+        && request.resource.data.updatedAt == request.time;
+      allow update: if familyOwner(familyCode)
+        && request.resource.data.ownerUid == resource.data.ownerUid
+        && request.resource.data.code == resource.data.code
+        && request.resource.data.createdAt == resource.data.createdAt
+        && request.resource.data.level == resource.data.level
+        && request.resource.data.treasury == resource.data.treasury
+        && request.resource.data.memberCount == resource.data.memberCount;
+      allow delete: if familyOwner(familyCode);
 
       match /members/{memberUid} {
+        // Only existing family members and the true Family owner see member UIDs.
         allow read: if familyMember(familyCode) || familyOwner(familyCode);
+        function legalFamilyMember9986() {
+          return request.resource.data.keys().hasOnly(['uid','name','role','joinedAt'])
+            && request.resource.data.keys().hasAll(['uid','name','role','joinedAt'])
+            && request.resource.data.uid == memberUid
+            && request.resource.data.name is string
+            && request.resource.data.name.size() > 0
+            && request.resource.data.name.size() <= 80
+            && request.resource.data.joinedAt == request.time;
+        }
+        // Join by code, or owner initializes only their own owner record.
+        // Firebase role can never be given by typing a fabricated role locally.
         allow create: if activeUser()
           && memberUid == request.auth.uid
-          && request.resource.data.uid == request.auth.uid
+          && legalFamilyMember9986()
           && (
-            request.resource.data.role == 'member'
-            || (request.resource.data.role == 'owner' && familyOwner(familyCode))
+            (request.resource.data.role == 'member'
+              && exists(/databases/$(database)/documents/families/$(familyCode))
+              && familyData(familyCode).ownerUid != request.auth.uid)
+            || (request.resource.data.role == 'owner'
+              // A first-time Family+owner-member write is one atomic
+              // transaction; the parent is only visible in post-commit state.
+              && existsAfter(/databases/$(database)/documents/families/$(familyCode))
+              && getAfter(/databases/$(database)/documents/families/$(familyCode)).data.ownerUid == request.auth.uid)
           );
-        allow update: if activeUser()
-          && (memberUid == request.auth.uid || familyOwner(familyCode))
+        // Exactly the true owner can change another user's role.
+        // No edits to name, UID, join time or owner record.
+        allow update: if familyOwner(familyCode)
+          && memberUid != request.auth.uid
+          && memberUid != familyData(familyCode).ownerUid
           && resource.data.uid == memberUid
-          && request.resource.data.uid == memberUid
-          // A member can edit a profile, but cannot elevate own family role.
-          && (familyOwner(familyCode)
-              || request.resource.data.role == resource.data.role);
+          && resource.data.role in ['member','moderator','admin']
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['role'])
+          && request.resource.data.role in ['member','moderator','admin'];
+        // A member may leave; Family owner cannot abandon their own record.
+        // Owner can remove any ordinary, moderator or admin member.
         allow delete: if signedIn()
-          && (memberUid == request.auth.uid || familyOwner(familyCode));
+          && memberUid != familyData(familyCode).ownerUid
+          && (memberUid == request.auth.uid || familyOwner(familyCode)
+            || (familyAdminCanRemove9987(familyCode)
+              && memberUid != request.auth.uid
+              && resource.data.role == 'member'));
       }
 
       match /messages/{messageId} {
         allow read: if familyMember(familyCode);
+        // Membership and real server timestamp required. Prevent arbitrary
+        // status/reward metadata injected through Family Chat.
         allow create: if familyMember(familyCode)
+          && request.resource.data.keys().hasOnly(['uid','name','text','createdAt'])
+          && request.resource.data.keys().hasAll(['uid','name','text','createdAt'])
           && request.resource.data.uid == request.auth.uid
+          && request.resource.data.name is string
+          && request.resource.data.name.size() > 0
+          && request.resource.data.name.size() <= 80
           && request.resource.data.text is string
           && request.resource.data.text.size() > 0
-          && request.resource.data.text.size() <= 1000;
+          && request.resource.data.text.size() <= 1000
+          && request.resource.data.createdAt == request.time;
         allow update: if false;
-        allow delete: if signedIn()
-          && (resource.data.uid == request.auth.uid || familyOwner(familyCode));
+        allow delete: if signedIn() && (
+          resource.data.uid == request.auth.uid
+          || familyChatModerator9987(familyCode));
       }
 
       match /treasury/{entryId} {
         allow read: if familyMember(familyCode);
-        allow create: if familyMember(familyCode)
-          && request.resource.data.uid == request.auth.uid
-          && request.resource.data.amount is int
-          && request.resource.data.amount > 0
-          && request.resource.data.amount <= 10000;
+        allow create: if false; // NO real currency without trusted backend
         allow update: if false;
         allow delete: if familyOwner(familyCode);
       }
@@ -560,6 +1545,13 @@ service cloud.firestore {
           && request.auth.uid in get(/databases/$(database)/documents/direct_threads/$(threadId)).data.members
           && request.resource.data.senderUid == request.auth.uid
           && request.resource.data.recipientUid is string
+          && request.resource.data.recipientUid != request.auth.uid
+          && request.resource.data.recipientUid in
+             get(/databases/$(database)/documents/direct_threads/$(threadId)).data.members
+          && !exists(/databases/$(database)/documents/blocks/$(request.auth.uid + '_' + request.resource.data.recipientUid))
+          && !exists(/databases/$(database)/documents/blocks/$(request.resource.data.recipientUid + '_' + request.auth.uid))
+          && (!exists(/databases/$(database)/documents/king_me_preferences/$(request.resource.data.recipientUid))
+              || get(/databases/$(database)/documents/king_me_preferences/$(request.resource.data.recipientUid)).data.allowPrivateMessages == true)
           && request.resource.data.text is string
           && request.resource.data.text.size() > 0
           && request.resource.data.text.size() <= 1000;
@@ -572,7 +1564,8 @@ service cloud.firestore {
       allow create: if activeUser()
         && request.resource.data.followerUid == request.auth.uid
         && request.resource.data.targetUid is string
-        && request.resource.data.targetUid != request.auth.uid;
+        && request.resource.data.targetUid != request.auth.uid
+        && followId == request.auth.uid + '__' + request.resource.data.targetUid;
       allow delete: if signedIn()
         && (resource.data.followerUid == request.auth.uid
             || resource.data.targetUid == request.auth.uid);
@@ -583,6 +1576,191 @@ service cloud.firestore {
       allow read, create, update: if owner(uid);
       allow delete: if false;
     }
+
+    // KING Agency/Agent governance. No client-side actual recharge, payment,
+    // credit, VIP, or balance write, even by a Super Admin.
+    function kingAgencyActive9982(agencyUid) {
+      return signedIn() && agencyUid is string
+        && exists(/databases/$(database)/documents/king_agencies/$(agencyUid))
+        && get(/databases/$(database)/documents/king_agencies/$(agencyUid)).data.active == true;
+    }
+    function kingAgentActive9982(agentUid, agencyUid) {
+      return signedIn() && agentUid is string
+        && exists(/databases/$(database)/documents/king_agents/$(agentUid))
+        && get(/databases/$(database)/documents/king_agents/$(agentUid)).data.active == true
+        && get(/databases/$(database)/documents/king_agents/$(agentUid)).data.agencyUid == agencyUid;
+    }
+    function kingPack9982(value) {
+      return value in [100, 600, 1300];
+    }
+    match /king_agencies/{agencyUid} {
+      allow get, list: if admin() || owner(agencyUid);
+      allow create: if admin()
+        && request.resource.data.keys().hasOnly(['uid','name','active','approvedByUid','createdAt','updatedAt'])
+        && request.resource.data.keys().hasAll(['uid','name','active','approvedByUid','createdAt','updatedAt'])
+        && request.resource.data.uid == agencyUid
+        && request.resource.data.name is string
+        && request.resource.data.name.size() > 0 && request.resource.data.name.size() <= 80
+        && request.resource.data.active == true
+        && request.resource.data.approvedByUid == request.auth.uid
+        && request.resource.data.createdAt == request.time
+        && request.resource.data.updatedAt == request.time;
+      allow update: if admin()
+        && request.resource.data.keys().hasOnly(['uid','name','active','approvedByUid','createdAt','updatedAt'])
+        && request.resource.data.uid == resource.data.uid
+        && request.resource.data.createdAt == resource.data.createdAt
+        && request.resource.data.approvedByUid is string
+        && request.resource.data.approvedByUid == request.auth.uid
+        && request.resource.data.name is string
+        && request.resource.data.name.size() > 0 && request.resource.data.name.size() <= 80
+        && request.resource.data.active is bool
+        && request.resource.data.updatedAt == request.time;
+      allow delete: if false;
+    }
+    match /king_agents/{agentUid} {
+      allow get: if admin() || owner(agentUid)
+        || (signedIn() && resource.data.agencyUid == request.auth.uid
+            && kingAgencyActive9982(request.auth.uid));
+      allow list: if admin() || (signedIn()
+        && resource.data.agencyUid == request.auth.uid
+        && kingAgencyActive9982(request.auth.uid));
+      allow create: if signedIn()
+        && kingAgencyActive9982(request.auth.uid)
+        && agentUid != request.auth.uid
+        && request.resource.data.keys().hasOnly(['uid','agencyUid','active','createdAt','updatedAt'])
+        && request.resource.data.keys().hasAll(['uid','agencyUid','active','createdAt','updatedAt'])
+        && request.resource.data.uid == agentUid
+        && request.resource.data.agencyUid == request.auth.uid
+        && request.resource.data.active == true
+        && request.resource.data.createdAt == request.time
+        && request.resource.data.updatedAt == request.time;
+      allow update: if signedIn()
+        && kingAgencyActive9982(request.auth.uid)
+        && resource.data.agencyUid == request.auth.uid
+        && resource.data.uid == agentUid
+        && request.resource.data.keys().hasOnly(['uid','agencyUid','active','createdAt','updatedAt'])
+        && request.resource.data.uid == resource.data.uid
+        && request.resource.data.agencyUid == resource.data.agencyUid
+        && request.resource.data.createdAt == resource.data.createdAt
+        && request.resource.data.active is bool
+        && request.resource.data.updatedAt == request.time;
+      allow delete: if false;
+    }
+    match /king_agent_recharge_requests/{orderId} {
+      allow read: if signedIn() && (admin()
+        || resource.data.agentUid == request.auth.uid
+        || (resource.data.agencyUid == request.auth.uid
+            && kingAgencyActive9982(request.auth.uid)));
+      // A request is only a pending order, not a verified money movement.
+      allow create: if activeUser()
+        && request.resource.data.keys().hasOnly([
+          'agentUid','agencyUid','targetUid','diamonds','status','createdAt'])
+        && request.resource.data.keys().hasAll([
+          'agentUid','agencyUid','targetUid','diamonds','status','createdAt'])
+        && request.resource.data.agentUid == request.auth.uid
+        && request.resource.data.agencyUid is string
+        && request.resource.data.targetUid is string
+        && request.resource.data.targetUid.size() >= 4
+        && request.resource.data.targetUid.size() <= 128
+        && request.resource.data.status == 'pending'
+        && kingPack9982(request.resource.data.diamonds)
+        && request.resource.data.createdAt == request.time
+        && kingAgencyActive9982(request.resource.data.agencyUid)
+        && (request.resource.data.agencyUid == request.auth.uid
+          || kingAgentActive9982(request.auth.uid, request.resource.data.agencyUid));
+      // Even Super Admin cannot mark fake payment "approved" through client.
+      // Actual credits may only be performed by verified trusted backend
+      // with idempotent merchant receipt and append-only wallet ledger.
+      allow update, delete: if false;
+    }
+
+    // Public gift WISH is a profile preference, NOT wallet credit or paid
+    // entitlement. Only the account owner can create/change a fixed wish.
+    match /king_me_wishes/{uid} {
+      allow read: if signedIn();
+      allow create: if activeUser() && owner(uid)
+        && request.resource.data.keys().hasOnly(['uid','wish','updatedAt'])
+        && request.resource.data.keys().hasAll(['uid','wish','updatedAt'])
+        && request.resource.data.uid == uid
+        && request.resource.data.wish in [
+          'Royal Castle','Galaxy Ship','King Dragon','VIP Crown','Diamond Rain']
+        && request.resource.data.updatedAt == request.time;
+      allow update: if activeUser() && owner(uid)
+        && resource.data.uid == uid
+        && request.resource.data.keys().hasOnly(['uid','wish','updatedAt'])
+        && request.resource.data.keys().hasAll(['uid','wish','updatedAt'])
+        && request.resource.data.uid == resource.data.uid
+        && request.resource.data.wish in [
+          'Royal Castle','Galaxy Ship','King Dragon','VIP Crown','Diamond Rain']
+        && request.resource.data.updatedAt == request.time;
+      allow delete: if owner(uid);
+    }
+
+    // Account-owned Me Privacy and Notifications. Choices are synced, not
+    // server-issued privileges or a false promise of FCM delivery filtering.
+    match /king_me_preferences/{uid} {
+      function validMe9984() {
+        return request.resource.data.keys().hasOnly([
+            'uid','findMe','showOnlineStatus','allowRoomInvites',
+            'allowPrivateMessages','showEntranceEffects','notifyMessages',
+            'notifySocial','notifyRoomInvites','notifyGifts','notifyGames',
+            'updatedAt'
+          ])
+          && request.resource.data.keys().hasAll([
+            'uid','findMe','showOnlineStatus','allowRoomInvites',
+            'allowPrivateMessages','showEntranceEffects','notifyMessages',
+            'notifySocial','notifyRoomInvites','notifyGifts','notifyGames',
+            'updatedAt'
+          ])
+          && request.resource.data.uid == uid
+          && request.resource.data.findMe is bool
+          && request.resource.data.showOnlineStatus is bool
+          && request.resource.data.allowRoomInvites is bool
+          && request.resource.data.allowPrivateMessages is bool
+          && request.resource.data.showEntranceEffects is bool
+          && request.resource.data.notifyMessages is bool
+          && request.resource.data.notifySocial is bool
+          && request.resource.data.notifyRoomInvites is bool
+          && request.resource.data.notifyGifts is bool
+          && request.resource.data.notifyGames is bool
+          && request.resource.data.updatedAt == request.time;
+      }
+      allow read: if owner(uid);
+      allow create: if activeUser() && owner(uid) && validMe9984();
+      allow update: if activeUser() && owner(uid) && validMe9984()
+        && request.resource.data.uid == resource.data.uid;
+      allow delete: if false;
+    }
+
+    // Public VIP/Noble is never minted by a client's public profile metadata.
+    // The trusted Wallet Server is authoritative for this user's paid VIP;
+    // signed-in viewers use this *separate* server-only public grant doc.
+    // Purchasable premium cosmetics: no client can fabricate paid ownership,
+    // reserve another member's number, set prices, or deduct a wallet balance.
+    match /king_vip_style_catalog/{docId} {
+      allow read: if signedIn() && docId == 'current';
+      allow write: if false;
+    }
+    match /king_vip_identity_grants/{uid} {
+      allow read: if signedIn();
+      allow write: if false;
+    }
+    match /king_vip_number_registry/{number} {
+      allow get: if signedIn();
+      allow list, create, update, delete: if false;
+    }
+
+    match /king_public_prestige/{uid} {
+      allow read: if signedIn();
+      allow create, update, delete: if false;
+    }
+
+    // Cashfree pricing, order-to-account mapping and paid receipts are admin-only.
+    // No client can self-set a price, fabricate a paid receipt or mint Diamonds.
+    match /cashfree_recharge_catalog/{sku} { allow read, write: if false; }
+    match /cashfree_recharge_orders/{orderId} { allow read, write: if false; }
+    match /cashfree_recharge_active/{slotId} { allow read, write: if false; }
+    match /cashfree_recharge_receipts/{receiptId} { allow read, write: if false; }
 
     match /wallets/{uid} {
       allow read: if owner(uid) || admin();
@@ -612,6 +1790,33 @@ service cloud.firestore {
       allow delete: if false;
     }
 
+    // A submitter may read only their own immutable receipt copies. These
+    // receipts contain no moderation decision or other users' report data.
+    match /user_report_history/{uid}/items/{reportId} {
+      allow read: if owner(uid);
+      allow create: if owner(uid)
+        && request.resource.data.keys().hasOnly([
+          'reporterUid','reportId','target','reason','submittedAt'
+        ])
+        && request.resource.data.keys().hasAll([
+          'reporterUid','reportId','target','reason','submittedAt'
+        ])
+        && request.resource.data.reporterUid == uid
+        && request.resource.data.reportId == reportId
+        && request.resource.data.target is string
+        && request.resource.data.target.size() > 0
+        && request.resource.data.target.size() <= 160
+        && request.resource.data.reason is string
+        && request.resource.data.reason.size() > 0
+        && request.resource.data.reason.size() <= 240
+        && request.resource.data.submittedAt == request.time
+        && existsAfter(/databases/$(database)/documents/reports/$(reportId))
+        && getAfter(/databases/$(database)/documents/reports/$(reportId)).data.reporterUid == uid
+        && getAfter(/databases/$(database)/documents/reports/$(reportId)).data.target == request.resource.data.target
+        && getAfter(/databases/$(database)/documents/reports/$(reportId)).data.reason == request.resource.data.reason;
+      allow update, delete: if false;
+    }
+
     match /bans/{uid} {
       allow read: if owner(uid) || admin();
       allow write: if false;
@@ -620,6 +1825,15 @@ service cloud.firestore {
     match /account_deletion_requests/{uid} {
       allow read: if owner(uid) || admin();
       allow write: if false;
+    }
+
+    match /king_daily_checkins/{uid} {
+      allow read: if owner(uid) && activeUser();
+      allow create, update, delete: if false;
+      match /events/{dayId} {
+        allow read: if owner(uid) && activeUser();
+        allow create, update, delete: if false;
+      }
     }
 
     match /notifications/{uid}/items/{itemId} {

@@ -1,30 +1,38 @@
-# KING Plus v2.5
+# KING Plus v10.0.77 — TEST source
 
-This version advances the v2.1 Family & Agency prototype and replaces the fake mobile test PIN flow with Firebase-ready authentication.
+This source bundle is for `com.kingplus.social`, Android version code `356` and
+version name `10.0.77-party-rejoin-choice`.
 
-## Changes
-- Real Firebase Phone Authentication flow (SMS OTP)
-- Google sign-in wired to Firebase Authentication
-- Test PIN `123456` removed
-- Firebase setup checks with clear in-app messages when config is missing
-- Family & Agency screens from v2.1 retained
-- Existing Party, room, profile, wallet, missions and local demo features retained
+## Latest change
 
-## Firebase status / remaining setup
-- The previously supplied `google-services.json` is included in `app/google-services.json`.
-- Its Android package matches `com.kingplus.social`.
-- Enable **Phone** in Firebase Authentication and allow the required SMS region(s) for real OTP.
-- Add SHA-1 and SHA-256 fingerprints for Android app verification.
-- The supplied config currently has no OAuth client entry, so Google sign-in still needs Google provider/SHA configuration and then a refreshed `google-services.json`.
+The Android 16 crash report showed `ImageView` lazily opening a document URI
+without a current provider grant. App image views now use a bounded eager decoder
+that catches revoked/missing URI access and leaves a fallback instead of failing
+during layout. Party search now spans all room categories and keeps cursor paging
+for additional results. Party cleanup now rechecks member presence and removes
+stale membership and seats in a transaction, so a reconnect racing with cleanup
+is not ejected based on an old snapshot. Discover and People/Social Follow records now include the follower's display name so the notification can identify who followed. The Discover Hot list now sorts and pages by server level rank. Party no longer exits on the first missing-member snapshot; it verifies current membership and offers Rejoin or Leave. Details are in `RELEASE-NOTES-v10.0.77.md`.
 
-The Gradle project uses Firebase Android BoM 34.19.0, Firebase Auth, Google Play services Auth 22.0.0 and Google services Gradle plugin 4.5.0.
+## Validation
 
-## Facebook
-The Facebook button no longer performs a fake local login. It displays a setup notice until Meta App credentials and Firebase Facebook provider configuration are added.
+Run the source-level checks from the project root:
 
-## Note
-Family/agency and most social data are still local prototype data. A production backend, moderation, account storage, live rooms and server-side permissions are still required for a production social app.
+```sh
+python3 tools/android16-media-uri-v10070/check_source.py
+python3 tools/four-pages-v10048/check_source.py
+python3 tools/party-gifts-me-v10064/check_source.py
+python3 tools/home-me-party-v10067/check_source.py
+python3 tools/discover-follow-name-v10074/check_source.py
+python3 tools/social-follow-name-v10075/check_source.py
+python3 tools/discover-hot-pages-v10076/check_source.py
+python3 tools/party-rejoin-choice-v10077/check_source.py
+```
 
+Source checks do not establish Android rendering, signature validity, or
+crash-free behavior on a physical device. The release gate state is recorded in
+`release/final-release-evidence.json`.
 
-## v2.5 full feature pass
-See `CHANGELOG-v2.5.txt` and `FEATURE_STATUS.md` for the expanded UI, local feature behavior, and the production backend work that still requires external services.
+## Build status
+
+This is TEST source. Physical-device rendering, live service behavior and
+two-device acceptance remain unverified.

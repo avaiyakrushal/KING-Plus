@@ -1,0 +1,116 @@
+name: KING Plus v10.0.101 Party Live Events TEST APK
+on:
+  push:
+    branches: [work/king-v10070-nongame-audit]
+    paths:
+      - 'app/**'
+      - 'functions/**'
+      - 'tools/**'
+      - 'README.md'
+      - 'BUILD-NOTES-READ-ME.txt'
+      - 'RELEASE-NOTES-v10.0.96.md'
+      - 'RELEASE-NOTES-v10.0.97.md'
+      - 'RELEASE-NOTES-v10.0.99.md'
+      - 'RELEASE-NOTES-v10.0.100.md'
+      - 'RELEASE-NOTES-v10.0.101.md'
+      - 'tools/me-profile-progress-v10096/**'
+      - 'tools/me-profile-privacy-v10097/**'
+      - 'tools/owner-console-v10095/**'
+      - 'BOLO-HI-ME-PROFILE-AUDIT-v10.0.94.md'
+      - 'tests/firestore/privacy-block-dm-firestore.test.mjs'
+      - 'tests/firestore/liked-moments-v10085.test.mjs'
+      - 'firestore.rules'
+      - 'tests/firestore/**'
+      - 'firebase-emulator.json'
+      - '.github/workflows/king-v10077-party-rejoin-choice.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 55
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+      - name: Verify Bolo Hi audit and source regression checks
+        run: |
+          set -euo pipefail
+          python3 tools/four-pages-v10048/check_source.py
+          python3 tools/party-gifts-me-v10064/check_source.py
+          python3 tools/home-me-party-v10067/check_source.py
+          python3 tools/party-treasure-hunt-v10100/check_source.py
+          python3 tools/party-live-events-v10101/check_source.py
+          python3 tools/android16-media-uri-v10070/check_source.py
+          python3 tools/party-presence-v10072/check_source.py
+          python3 tools/party-presence-v10073/check_source.py
+          python3 tools/discover-follow-name-v10074/check_source.py
+          python3 tools/social-follow-name-v10075/check_source.py
+          python3 tools/discover-hot-pages-v10076/check_source.py
+          python3 tools/party-rejoin-choice-v10077/check_source.py
+          python3 tools/me-profile-parity-v10079/check_source.py
+          python3 tools/me-profile-parity-v10080/check_source.py
+          python3 tools/me-profile-parity-v10081/check_source.py
+          python3 tools/me-profile-parity-v10082/check_source.py
+          python3 tools/me-profile-parity-v10083/check_source.py
+          python3 tools/me-profile-parity-v10084/check_source.py
+          python3 tools/me-profile-parity-v10085/check_source.py
+          python3 tools/me-profile-parity-v10086/check_source.py
+          python3 tools/me-profile-parity-v10087/check_source.py
+          python3 tools/me-profile-parity-v10088/check_source.py
+          python3 tools/me-profile-parity-v10089/check_source.py
+          python3 tools/me-agency-access-v10090/check_source.py
+          python3 tools/owner-vip-hunt-v10091/check_source.py
+          python3 tools/me-profile-gift-history-v10093/check_source.py
+          python3 tools/daily-checkin-v10094/check_source.py
+          python3 tools/owner-console-v10095/check_source.py
+          python3 tools/me-profile-progress-v10096/check_source.py
+          python3 tools/me-profile-privacy-v10097/check_source.py
+          mkdir -p /tmp/king-treasure-test
+          javac -d /tmp/king-treasure-test app/src/main/java/com/kingplus/social/KingTreasureHuntRules10100.java tools/party-treasure-hunt-v10100/KingTreasureHuntRules10100Test.java
+          java -cp /tmp/king-treasure-test com.kingplus.social.KingTreasureHuntRules10100Test
+          grep -q "versionCode 380" app/build.gradle
+          grep -q "versionName '10.0.101-party-events-live'" app/build.gradle
+          test -s app/kingplus-ci-debug.keystore
+      - name: Test gift and daily check-in transactions
+        run: node --test functions/room-gift-service.test.js functions/daily-checkin-service.test.js functions/owner-settings.test.js functions/notification-preferences.test.js
+      - name: Verify privacy, report and check-in Firestore rules
+        run: |
+          set -euo pipefail
+          npm ci --prefix tests/firestore
+          tests/firestore/node_modules/.bin/firebase emulators:exec --only firestore --project demo-king-me-privacy-9984 --config firebase-emulator.json "node tests/firestore/real-all-games-participants-firestore.test.mjs && node tests/firestore/privacy-block-dm-firestore.test.mjs && node tests/firestore/user-report-history-v10081.test.mjs && node tests/firestore/liked-moments-v10085.test.mjs && node tests/firestore/me-profile-videos-v10087.test.mjs && node tests/firestore/me-profile-likes-v10088.test.mjs && node tests/firestore/me-profile-checkin-v10094.test.mjs"
+      - name: Compile full Android app
+        run: gradle :app:assembleDebug --no-daemon --max-workers=2
+      - name: Verify TEST APK package, version, signature and RTC libraries
+        run: |
+          set -euo pipefail
+          apk=app/build/outputs/apk/debug/app-debug.apk
+          test -s "$apk"
+          aapt="$(find "$ANDROID_HOME/build-tools" -name aapt -type f | sort -V | tail -1)"
+          signer="$(find "$ANDROID_HOME/build-tools" -name apksigner -type f | sort -V | tail -1)"
+          "$aapt" dump badging "$apk" | grep '^package:' | grep "name='com.kingplus.social'" | grep "versionCode='380'"
+          "$signer" verify --print-certs "$apk"
+          test "$(stat -c%s "$apk")" -gt 60000000
+          unzip -Z1 "$apk" | grep -q '^lib/arm64-v8a/libjingle_peerconnection_so.so$'
+          unzip -Z1 "$apk" | grep -q '^lib/arm64-v8a/libreactnative.so$'
+      - name: Package TEST APK and source
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/king-v10101-out
+          cp app/build/outputs/apk/debug/app-debug.apk /tmp/king-v10101-out/KING-Plus-v10.0.101-Party-Events-TEST.apk
+          zip -qr /tmp/king-v10101-out/KING-Plus-v10.0.101-Party-Events-TEST-Source.zip . \
+            -x '.git/*' '*/.git/*' '*/build/*' '.gradle/*' '*/.gradle/*' '*/node_modules/*' \
+            '*.apk' '*.aab' '*.keystore' '*.jks' '*.zip' '*local.properties' '*.log'
+      - uses: actions/upload-artifact@v4
+        with:
+          name: KING-Plus-v10.0.101-Party-Events-TEST-APK-and-Source
+          path: /tmp/king-v10101-out/*
+          retention-days: 30
+          if-no-files-found: error

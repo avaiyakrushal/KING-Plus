@@ -1,0 +1,210 @@
+--- a/app/build.gradle
++++ b/app/build.gradle
+@@ -14,7 +14,7 @@
+         }
+     }
+ 
+-    defaultConfig { applicationId 'com.kingplus.social'; minSdk 26; targetSdk 35; versionCode 306; versionName '10.0.27-party-presence-fast-join-test' }
++    defaultConfig { applicationId 'com.kingplus.social'; minSdk 26; targetSdk 35; versionCode 307; versionName '10.0.28-six-pages-functional-test' }
+     buildTypes {
+         debug { signingConfig signingConfigs.debug }
+         release {
+--- a/app/src/main/java/com/kingplus/social/MainActivity.java
++++ b/app/src/main/java/com/kingplus/social/MainActivity.java
+@@ -1720,7 +1720,9 @@
+                 more10015.setPadding(dp(12),dp(13),dp(12),dp(13));
+                 more10015.setBackground(background(0xffffedbb,12));
+                 more10015.setOnClickListener(v->{
+-                    if(!hostedRoomsCurrent10015(host,account10015,generation10015))return;
++                    if(!hostedRoomsCurrent10015(host,account10015,generation10015)
++                        ||more10015.getParent()!=host)return;
++                    more10015.setEnabled(false);
+                     host.removeView(more10015);
+                     loadHostedRoomsPage10015(host,account10015,generation10015,next10015,page10015+1);
+                 });
+@@ -1732,7 +1734,9 @@
+             if(!hostedRoomsCurrent10015(host,account10015,generation10015))return;
+             progress10015.setText("↻ Hosted rooms unavailable • tap to retry");
+             progress10015.setOnClickListener(v->{
+-                if(!hostedRoomsCurrent10015(host,account10015,generation10015))return;
++                if(!hostedRoomsCurrent10015(host,account10015,generation10015)
++                    ||progress10015.getParent()!=host)return;
++                progress10015.setEnabled(false);
+                 host.removeView(progress10015);
+                 loadHostedRoomsPage10015(host,account10015,generation10015,cursor10015,page10015);
+             });
+--- a/app/src/main/java/com/kingplus/social/CommunityHubActivity.java
++++ b/app/src/main/java/com/kingplus/social/CommunityHubActivity.java
+@@ -312,7 +312,9 @@
+                     TextView older10018=button("↓ Load Moments older than the latest 320",()->{});
+                     older10018.setOnClickListener(v->{
+                         if(generation!=momentsGeneration9990 || !"Moments".equals(selected)
+-                            || !KingSavedRoomsCloud9990.account(account) || history10018.getParent()!=feed)return;
++                            || !KingSavedRoomsCloud9990.account(account) || history10018.getParent()!=feed
++                            ||older10018.getParent()!=feed)return;
++                        older10018.setEnabled(false);
+                         feed.removeView(older10018);
+                         loadOlderMoments10018(history10018,last10018,generation,account,topicFilter);
+                     });
+--- a/app/src/main/java/com/kingplus/social/PartyActivity.java
++++ b/app/src/main/java/com/kingplus/social/PartyActivity.java
+@@ -7813,7 +7813,11 @@
+             item.setContentDescription(names[i]+(active?" selected":""));
+             item.setOnClickListener(v->{
+                 if(tab==0){if(roomId!=null)confirmLeave940();else renderLobby("Hot");}
+-                else KingNav.openRoot(this,tab);
++                else {
++                    // v10.0.28: Bottom navigation is a Leave, not background presence.
++                    if(roomId!=null)leaveRoom();
++                    KingNav.openRoot(this,tab);
++                }
+             });
+             LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(0,dp(58),1);
+             lp.setMargins(dp(2),0,dp(2),0);nav.addView(item,lp);
+--- a/app/src/main/java/com/kingplus/social/GamePlayActivity.java
++++ b/app/src/main/java/com/kingplus/social/GamePlayActivity.java
+@@ -26,6 +26,7 @@
+     private final Button[] cells=new Button[9];
+     private final char[] board=new char[9];
+     private boolean finished;
++    private int memoryRound10028;
+     private TextView status;
+     private int ludoYou=0,ludoBot=0;
+ 
+@@ -132,11 +133,12 @@
+         Button guess=action("Guess");guess.setOnClickListener(v->{try{if(solved[0])return;int g=Integer.parseInt(input.getText().toString().trim());if(g<1||g>20){Toast.makeText(this,"Enter a number 1–20",Toast.LENGTH_SHORT).show();return;}if(g==target){solved[0]=true;input.setEnabled(false);status.setText("Correct! 👑 Number was "+target);}else status.setText(g<target?"Too low • try higher":"Too high • try lower");}catch(Exception e){Toast.makeText(this,"Enter a number 1–20",Toast.LENGTH_SHORT).show();}});LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(-1,dp(56));lp.setMargins(0,dp(10),0,0);page.addView(guess,lp);
+     }
+     private void showMemory(){
++        final int memoryTicket10028=++memoryRound10028;
+         base("Memory Match","Find all four pairs");
+         String[] vals={"👑","💎","🦁","🌹","👑","💎","🦁","🌹"};
+         for(int i=vals.length-1;i>0;i--){int j=random.nextInt(i+1);String q=vals[i];vals[i]=vals[j];vals[j]=q;}
+         LinearLayout grid=new LinearLayout(this);grid.setOrientation(LinearLayout.VERTICAL);final int[] first={-1};final boolean[] done=new boolean[8];final Button[] bs=new Button[8];final int[] pairs={0};final boolean[] comparing={false};
+-        for(int r=0;r<2;r++){LinearLayout row=new LinearLayout(this);for(int c=0;c<4;c++){int k=r*4+c;Button b=action("?");b.setTextSize(26);bs[k]=b;b.setOnClickListener(v->{if(done[k]||comparing[0])return;b.setText(vals[k]);if(first[0]<0){first[0]=k;return;}int f=first[0];if(f==k)return;if(vals[f].equals(vals[k])){done[f]=done[k]=true;pairs[0]++;first[0]=-1;if(pairs[0]==4){Toast.makeText(this,"Memory cleared 👑",Toast.LENGTH_SHORT).show();KingSoundFx.win(this);}}else{comparing[0]=true;b.postDelayed(()->{bs[f].setText("?");bs[k].setText("?");first[0]=-1;comparing[0]=false;},650);}});LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(0,dp(74),1);lp.setMargins(dp(3),dp(3),dp(3),dp(3));row.addView(b,lp);}grid.addView(row);}page.addView(grid);
++        for(int r=0;r<2;r++){LinearLayout row=new LinearLayout(this);for(int c=0;c<4;c++){int k=r*4+c;Button b=action("?");b.setTextSize(26);bs[k]=b;b.setOnClickListener(v->{if(done[k]||comparing[0])return;b.setText(vals[k]);if(first[0]<0){first[0]=k;return;}int f=first[0];if(f==k)return;if(vals[f].equals(vals[k])){done[f]=done[k]=true;pairs[0]++;first[0]=-1;if(pairs[0]==4){Toast.makeText(this,"Memory cleared 👑",Toast.LENGTH_SHORT).show();KingSoundFx.win(this);}}else{comparing[0]=true;b.postDelayed(()->{if(memoryTicket10028!=memoryRound10028||isFinishing()||isDestroyed())return;bs[f].setText("?");bs[k].setText("?");first[0]=-1;comparing[0]=false;},650);}});LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(0,dp(74),1);lp.setMargins(dp(3),dp(3),dp(3),dp(3));row.addView(b,lp);}grid.addView(row);}page.addView(grid);
+         Button restart10024=action("🔄 New Memory Game");
+         restart10024.setOnClickListener(v->showMemory());
+         LinearLayout.LayoutParams lp10024=new LinearLayout.LayoutParams(-1,dp(54));
+--- a/app/src/main/java/com/kingplus/social/DiscoverActivity.java
++++ b/app/src/main/java/com/kingplus/social/DiscoverActivity.java
+@@ -150,6 +150,7 @@
+         q.get().addOnSuccessListener(snap->{
+             if(!discoverCurrent10022(grid,owner10022,tab10022))return;
+             List<DocumentSnapshot> docs10022=new ArrayList<>(snap.getDocuments());
++            if(!docs10022.isEmpty())publicCursors10028.put(grid,docs10022.get(docs10022.size()-1));
+             if("New".equals(tab10022))docs10022.sort((a,b)->{
+                 com.google.firebase.Timestamp at=a.getTimestamp("createdAt"),bt=b.getTimestamp("createdAt");
+                 return Long.compare(bt==null?0:bt.toDate().getTime(),at==null?0:at.toDate().getTime());
+@@ -162,6 +163,10 @@
+             showDiscoverProfiles10022(grid,docs10022,owner10022,tab10022,0);
+         }).addOnFailureListener(e->{if(!discoverCurrent10022(grid,owner10022,tab10022))return;grid.removeAllViews();TextView retry=emptyText("Discover unavailable • tap to retry");retry.setOnClickListener(v->loadProfileGrid940());grid.addView(retry,new LinearLayout.LayoutParams(-1,dp(90)));});
+     }
++    // Preserve the Firestore server cursor BEFORE client-side Hot/New sorting.
++    // Weak keys avoid retaining discarded grids after navigating to another tab.
++    private final java.util.Map<LinearLayout,DocumentSnapshot> publicCursors10028=
++        new java.util.WeakHashMap<>();
+     private final ArrayList<DocumentSnapshot> followedPeople10023=new ArrayList<>();
+     private final Set<String> followedUids10023=new HashSet<>();
+     private void loadFollowedProfiles10022(LinearLayout grid10022,String owner10022){
+@@ -249,10 +254,34 @@
+     }
+     // A first page of 60 profiles is not the whole Discover directory.
+     // Replace it with subsequent server pages without mixing accounts, tabs or cities.
++    // v10.0.28: Append profiles from each server cursor, preserving previous profile cards.
++    private void showDiscoverProfiles10028(LinearLayout grid10028,List<DocumentSnapshot> docs10028,
++            String owner10028,String tab10028,int index10028){
++        if(!discoverCurrent10022(grid10028,owner10028,tab10028))return;
++        int shown10028=0;LinearLayout row10028=null;int i10028=index10028;
++        for(;i10028<docs10028.size()&&shown10028<8;i10028++){
++            DocumentSnapshot p10028=docs10028.get(i10028);
++            if(owner10028.equals(safe(p10028.getString("uid"),p10028.getId())))continue;
++            if(shown10028%2==0){row10028=new LinearLayout(this);row10028.setGravity(Gravity.TOP);
++                grid10028.addView(row10028,new LinearLayout.LayoutParams(-1,dp(264)));}
++            addProfileCard940(row10028,p10028);shown10028++;
++        }
++        if(i10028<docs10028.size()){
++            final int next10028=i10028;
++            TextView more10028=tv("↓ See more "+tab10028+" profiles",14,DARK,true);
++            more10028.setGravity(Gravity.CENTER);more10028.setBackground(KingRoyalTheme10021.card(this,14));
++            more10028.setOnClickListener(v->{if(!discoverCurrent10022(grid10028,owner10028,tab10028)
++                ||more10028.getParent()!=grid10028)return;
++                more10028.setEnabled(false);grid10028.removeView(more10028);
++                showDiscoverProfiles10028(grid10028,docs10028,owner10028,tab10028,next10028);});
++            grid10028.addView(more10028,new LinearLayout.LayoutParams(-1,dp(52)));
++        } else nextPublicProfilePage10025(grid10028,docs10028,owner10028,tab10028);
++    }
+     private void nextPublicProfilePage10025(LinearLayout grid10025,List<DocumentSnapshot> docs10025,
+             String owner10025,String tab10025){
+         if("Follow".equals(tab10025)||docs10025.size()<60)return;
+-        final DocumentSnapshot last10025=docs10025.get(docs10025.size()-1);
++        final DocumentSnapshot last10025=publicCursors10028.get(grid10025);
++        if(last10025==null)return;
+         final String city10025=getSharedPreferences("discover_public",MODE_PRIVATE).getString("city","");
+         TextView next10025=tv("↓ Next 60 "+tab10025+" profiles",14,DARK,true);
+         next10025.setGravity(Gravity.CENTER);next10025.setBackground(KingRoyalTheme10021.card(this,14));
+@@ -270,8 +299,12 @@
+                         next10025.setText("✓ No further profiles");return;
+                     }
+                     List<DocumentSnapshot> nextDocs10025=new ArrayList<>(snap10025.getDocuments());
++                    publicCursors10028.put(grid10025,nextDocs10025.get(nextDocs10025.size()-1));
+                     sortPublicProfiles10025(nextDocs10025,tab10025);
+-                    showDiscoverProfiles10022(grid10025,nextDocs10025,owner10025,tab10025,0);
++                    if(next10025.getParent()!=grid10025)return;
++                    grid10025.removeView(next10025);
++                    // Append this server page; do not erase the profiles the user just browsed.
++                    showDiscoverProfiles10028(grid10025,nextDocs10025,owner10025,tab10025,0);
+                     TextView back10025=tv("↑ Back to the first profiles",13,DARK,true);
+                     back10025.setGravity(Gravity.CENTER);
+                     back10025.setOnClickListener(backView10025->{
+@@ -396,8 +429,28 @@
+         TextView follow=tv("Follow",14,0xff111111,true);follow.setGravity(Gravity.CENTER);follow.setBackground(bg(YELLOW,10));row.addView(follow,new LinearLayout.LayoutParams(dp(104),dp(48)));bindFollow(uid,follow);row.setOnClickListener(v->openProfile(uid));
+         host.addView(row,new LinearLayout.LayoutParams(-1,dp(92)));View line=new View(this);line.setBackgroundColor(0xffe8e7eb);host.addView(line,new LinearLayout.LayoutParams(-1,1));
+     }
+-    private void bindFollow(String uid,TextView b){if(me==null||db==null)return;String id=followId(me.getUid(),uid);db.collection("follows").document(id).get().addOnSuccessListener(d->{boolean yes=d.exists();b.setText(yes?"Following":"Follow");b.setOnClickListener(v->toggleFollow(uid,b,yes));});}
+-    private void toggleFollow(String uid,TextView b,boolean following){if(me==null||db==null)return;String id=followId(me.getUid(),uid);if(following){db.collection("follows").document(id).delete().addOnSuccessListener(v->{b.setText("Follow");bindFollow(uid,b);});}else{Map<String,Object>x=new HashMap<>();x.put("followerUid",me.getUid());x.put("targetUid",uid);x.put("createdAt",FieldValue.serverTimestamp());db.collection("follows").document(id).set(x).addOnSuccessListener(v->{b.setText("Following");bindFollow(uid,b);});}}
++    private boolean followAccountCurrent10028(String account){FirebaseUser now=FirebaseAuth.getInstance().getCurrentUser();
++        return !isFinishing()&&!isDestroyed()&&now!=null&&account.equals(now.getUid())&&me!=null&&account.equals(me.getUid());}
++    private void bindFollow(String uid,TextView b){if(me==null||db==null)return;
++        final String owner=me.getUid(),id=followId(owner,uid);
++        b.setEnabled(false);b.setText("Checking…");
++        db.collection("follows").document(id).get().addOnSuccessListener(d->{
++            if(!followAccountCurrent10028(owner))return;
++            boolean yes=d.exists();b.setText(yes?"Following":"Follow");b.setEnabled(true);
++            b.setOnClickListener(v->toggleFollow(uid,b,yes));
++        }).addOnFailureListener(e->{if(!followAccountCurrent10028(owner))return;
++            b.setText("↻ Retry");b.setEnabled(true);b.setOnClickListener(v->bindFollow(uid,b));});}
++    private void toggleFollow(String uid,TextView b,boolean following){if(me==null||db==null)return;
++        final String owner=me.getUid();if(owner.equals(uid))return;
++        final String id=followId(owner,uid);
++        if(!followAccountCurrent10028(owner)||!b.isEnabled())return;
++        b.setEnabled(false);b.setText("Saving…");
++        com.google.android.gms.tasks.Task<?> change10028;
++        if(following)change10028=db.collection("follows").document(id).delete();
++        else{Map<String,Object>x=new HashMap<>();x.put("followerUid",owner);x.put("targetUid",uid);
++            x.put("createdAt",FieldValue.serverTimestamp());change10028=db.collection("follows").document(id).set(x);}
++        change10028.addOnCompleteListener(result->{if(followAccountCurrent10028(owner))bindFollow(uid,b);});
++    }
+ 
+     private void openProfile(String uid){
+         if(uid==null||uid.trim().isEmpty())return;
+--- a/app/src/main/java/com/kingplus/social/InboxActivity.java
++++ b/app/src/main/java/com/kingplus/social/InboxActivity.java
+@@ -144,6 +144,9 @@
+         TextView state=label(inboxState940,12,inboxState940.startsWith("Syncing")?0xff675d76:0xff8b5b12,true);
+         state.setGravity(Gravity.CENTER_VERTICAL);state.setPadding(dp(16),0,dp(16),0);
+         state.setBackground(bg(inboxState940.startsWith("Syncing")?0xfff3eefb:0xfffff4d6,10));
++        if(inboxState940.contains("retry"))state.setOnClickListener(v->{
++            FirebaseUser actual=FirebaseAuth.getInstance().getCurrentUser();
++            if(actual!=null&&me!=null&&actual.getUid().equals(me.getUid()))loadInbox();});
+         LinearLayout.LayoutParams p=new LinearLayout.LayoutParams(-1,dp(42));p.setMargins(dp(12),dp(7),dp(12),dp(7));list.addView(state,p);
+     }
+     private void addSystemRows940(){addSystemRow940("🔔","Interactive notifications","Follows, gifts and room activity",()->showCloudNotifications940(""));addSystemRow940("👑","KING Official","Safety, events and app notices",()->showCloudNotifications940(""));addSystemRow940("🎤","Room invitations","Party and game invitations",()->showCloudNotifications940("room_invite"));}
+@@ -172,7 +175,7 @@
+             .addSnapshotListener((snap,error)->{
+                 if(!inboxCurrent10023(sessionUid10023))return;
+                 if(error!=null){
+-                    inboxState940="Offline / sync unavailable • showing recent local conversations";
++                    inboxState940="Cloud sync unavailable • tap to retry";
+                     renderModels(models);
+                     return;
+                 }

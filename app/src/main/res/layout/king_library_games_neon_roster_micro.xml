@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android" android:orientation="vertical" android:layout_width="match_parent" android:layout_height="wrap_content" android:padding="8dp" android:background="#152B52" android:contentDescription="Room Games neon roster micro preview">
+<TextView android:id="@+id/king_catalog_title" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="🎮 Room Games · roster" android:textColor="#7CFFDE" android:textSize="14sp" android:gravity="center_vertical" android:ellipsize="end" android:maxLines="2"/>
+<TextView android:id="@+id/king_catalog_subtitle" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Playable KING games and results · neon · micro" android:textColor="#E5FAFF" android:textSize="11sp" android:gravity="center_vertical" android:ellipsize="end" android:maxLines="2"/>
+<LinearLayout android:orientation="horizontal" android:layout_width="match_parent" android:layout_height="wrap_content" android:paddingTop="5dp">
+<LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:orientation="vertical">
+<TextView android:id="@+id/king_catalog_primary" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="● Room Games" android:textColor="#7CFFDE" android:textSize="11sp" android:gravity="center_vertical" android:ellipsize="end" android:maxLines="2"/>
+</LinearLayout>
+<LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:orientation="vertical">
+<TextView android:id="@+id/king_catalog_secondary" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="◆ Neon" android:textColor="#E5FAFF" android:textSize="11sp" android:gravity="center_vertical" android:ellipsize="end" android:maxLines="2"/>
+</LinearLayout>
+</LinearLayout>
+<TextView android:id="@+id/king_catalog_action" android:layout_width="match_parent" android:layout_height="28dp" android:text="OPEN ROOM GAMES  ›" android:textColor="#152B52" android:textSize="12sp" android:background="#7CFFDE" android:gravity="center_vertical" android:ellipsize="end" android:maxLines="2"/>
+</LinearLayout>

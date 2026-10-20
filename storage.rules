@@ -7,7 +7,8 @@ service firebase.storage {
       allow read: if signedIn();
       allow create, update: if signedIn()
         && request.auth.uid == ownerUid
-        && request.resource.size < 12 * 1024 * 1024;
+        && request.resource.size < 12 * 1024 * 1024
+        && (threadId != 'profile_videos' || request.resource.contentType.matches('video/.*'));
       allow delete: if signedIn() && request.auth.uid == ownerUid;
     }
   }

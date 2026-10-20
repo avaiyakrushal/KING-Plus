@@ -1,0 +1,179 @@
+--- a/app/src/main/java/com/kingplus/social/MainActivity.java
++++ b/app/src/main/java/com/kingplus/social/MainActivity.java
+@@ -90,6 +90,8 @@
+     private int meGalleryGeneration9994;
+     private int visitorDialogGeneration10004;
+     private int visitorCountGeneration10007;
++    // The latest Me hosted-room request alone may update the visible list.
++    private int hostedRoomsGeneration10014;
+     private int meGalleryLimit9996=40;
+     private LinearLayout meCloudGalleryHost9993;
+     private final java.util.Set<String> liveFollowing965=new java.util.HashSet<>();
+@@ -1625,6 +1627,7 @@
+     }
+ 
+     private void loadPartyRecordsV600(LinearLayout host){
++        final int hostedTicket10014=++hostedRoomsGeneration10014;
+         host.removeAllViews();
+         if(firestore==null||firebaseAuth==null||firebaseAuth.getCurrentUser()==null){
+             mePartyRecordV600(host,"🎤","Sign in for hosted rooms","Only your real rooms appear here",null);return;
+@@ -1634,6 +1637,7 @@
+         firestore.collection("live_rooms").whereEqualTo("ownerUid",currentUid9981).limit(30).get()
+             .addOnSuccessListener(q->{
+                 if(isFinishing()||isDestroyed()||!"profile".equals(screen)
++                        ||hostedTicket10014!=hostedRoomsGeneration10014
+                         ||host.getParent()==null||firebaseAuth==null||firebaseAuth.getCurrentUser()==null
+                         ||!currentUid9981.equals(firebaseAuth.getCurrentUser().getUid()))return;
+                 host.removeAllViews();
+@@ -1658,6 +1662,7 @@
+             }).addOnFailureListener(e->{
+                 // An older account's request must not overwrite a newly opened Me page.
+                 if(isFinishing()||isDestroyed()||!"profile".equals(screen)
++                    ||hostedTicket10014!=hostedRoomsGeneration10014
+                     ||host.getParent()==null||firebaseAuth==null||firebaseAuth.getCurrentUser()==null
+                     ||!currentUid9981.equals(firebaseAuth.getCurrentUser().getUid()))return;
+                 host.removeAllViews();
+--- a/app/src/main/java/com/kingplus/social/CommunityHubActivity.java
++++ b/app/src/main/java/com/kingplus/social/CommunityHubActivity.java
+@@ -941,12 +941,29 @@
+                             .addOnFailureListener(error->toast("Could not remove CP: "+safe(error.getMessage(),"Permission denied"))))
+                         .show();return;
+                 }
+-                Map<String,Object> update=new HashMap<>();
+-                update.put("status","Accept".equals(op)?"accepted":"declined");
+-                update.put("updatedAt",FieldValue.serverTimestamp());
+-                d.getReference().update(update)
+-                    .addOnSuccessListener(done->refreshRelationship10012(account10012))
+-                    .addOnFailureListener(error->toast("CP action failed: "+safe(error.getMessage(),"Permission denied")));
++                // The list is a snapshot. A second phone may have already accepted,
++                // declined or deleted this request; never act on stale row state.
++                if(me==null||!account10012.equals(me.getUid())||!"Relationship".equals(selected))return;
++                final DocumentReference cpRef10014=d.getReference();
++                final String requestedState10014="Accept".equals(op)?"accepted":"declined";
++                db.runTransaction(transaction10014->{
++                    DocumentSnapshot latest10014=transaction10014.get(cpRef10014);
++                    if(!latest10014.exists()
++                        ||!"pending".equals(latest10014.getString("status"))
++                        ||account10012.equals(latest10014.getString("initiatorUid"))
++                        ||(!account10012.equals(latest10014.getString("uidA"))
++                            && !account10012.equals(latest10014.getString("uidB"))))
++                        throw new IllegalStateException("CP request was already changed. Refresh Home.");
++                    transaction10014.update(cpRef10014,"status",requestedState10014,
++                        "updatedAt",FieldValue.serverTimestamp());
++                    return null;
++                }).addOnSuccessListener(done->{
++                    if(!isFinishing()&&!isDestroyed()&&me!=null&&account10012.equals(me.getUid()))
++                        refreshRelationship10012(account10012);
++                }).addOnFailureListener(error->{
++                    if(!isFinishing()&&!isDestroyed()&&me!=null&&account10012.equals(me.getUid()))
++                        toast("CP request not changed: "+safe(error.getMessage(),"Refresh and try again"));
++                });
+             }).show();
+         });
+         LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(-1,dp(52));
+--- a/app/src/main/java/com/kingplus/social/PartyActivity.java
++++ b/app/src/main/java/com/kingplus/social/PartyActivity.java
+@@ -2570,28 +2570,49 @@
+         new AlertDialog.Builder(this).setTitle(nameV530+" • Seat "+seatNoV530).setItems(actionsV530,(d,w)->{
+             if(w==0){memberProfileDialog(uidV530,nameV530);return;}
+             if(w==1){
+-                if(micV530)setSeatMicV530(seatNoV530,false);
++                if(micV530)setSeatMicV530(seatNoV530,false,uidV530);
+                 else if(user!=null&&uidV530.equals(user.getUid()))toggleMic();
+                 else toast("Only that member can turn ON their own Mic");
+                 return;
+             }
+             if(protectV9912||!canModerateSeatsV530()){toast("Host / co-host permission required");return;}
+-            if(w==2)kickSeatV530(seatNoV530,false);
++            if(w==2)kickSeatV530(seatNoV530,false,uidV530);
+             else confirmKickRoomV530(seatNoV530,uidV530,nameV530);
+         }).setNegativeButton("Cancel",null).show();
+     }
+ 
+-        private void setSeatMicV530(int seatNoV530, boolean onV530) {
+-        if(!canModerateSeatsV530() || db==null || roomId==null) { toast("Host / co-host only"); return; }
++    private void setSeatMicV530(int seatNoV530,boolean onV530,String expectedUid10014){
++        if(!canModerateSeatsV530()||db==null||roomId==null){toast("Host / co-host only");return;}
+         if(onV530){toast("Only member may enable own Mic");return;}
+-        db.collection("live_rooms").document(roomId).collection("seats").document(String.valueOf(seatNoV530)).update("micOn",false)
+-            .addOnSuccessListener(v -> addEvent("seat_mic",(seatNames.get(seatNoV530)==null?"Member":seatNames.get(seatNoV530))+(onV530?" was unmuted":" was muted")))
+-            .addOnFailureListener(e -> toast("Seat update failed: "+msg(e)));
+-    }
+-
+-    private void kickSeatV530(int seatNoV530, boolean silentV530) {
+-        if(!canModerateSeatsV530() || db==null || roomId==null){toast("Host / co-host only");return;}
+-        final String expectedUid10012=seatUids.get(seatNoV530);
++        if(expectedUid10014==null||!expectedUid10014.equals(seatUids.get(seatNoV530))){
++            toast("Seat changed; reopen its menu");return;
++        }
++        final String boundRoom10014=roomId;
++        DocumentReference seatRef10014=db.collection("live_rooms").document(boundRoom10014)
++            .collection("seats").document(String.valueOf(seatNoV530));
++        db.runTransaction(tx10014->{
++            DocumentSnapshot liveSeat10014=tx10014.get(seatRef10014);
++            if(!liveSeat10014.exists()||!expectedUid10014.equals(liveSeat10014.getString("uid")))
++                throw new IllegalStateException("Seat changed; reopen its menu");
++            if(!Boolean.TRUE.equals(liveSeat10014.getBoolean("micOn")))return false;
++            tx10014.update(seatRef10014,"micOn",false);
++            return true;
++        }).addOnSuccessListener(changed->{
++            if(boundRoom10014.equals(roomId)&&Boolean.TRUE.equals(changed))
++                addEvent("seat_mic","Host muted seat "+seatNoV530);
++        }).addOnFailureListener(error->{
++            if(boundRoom10014.equals(roomId))toast("Seat mute failed: "+msg(error));
++        });
++    }
++
++    private void kickSeatV530(int seatNoV530,boolean silentV530){
++        kickSeatV530(seatNoV530,silentV530,seatUids.get(seatNoV530));
++    }
++    private void kickSeatV530(int seatNoV530,boolean silentV530,String expectedUid10012){
++        if(!canModerateSeatsV530()||db==null||roomId==null){toast("Host / co-host only");return;}
++        if(expectedUid10012==null||!expectedUid10012.equals(seatUids.get(seatNoV530))){
++            toast("Seat changed; reopen its menu");return;
++        }
+         if(expectedUid10012==null||expectedUid10012.isEmpty()){toast("Seat is already empty");return;}
+         final String currentRoom10012=roomId;
+         final String name10012=seatNames.get(seatNoV530)==null?"Member":seatNames.get(seatNoV530);
+@@ -6807,8 +6828,11 @@
+         }).addOnFailureListener(e->toast(msg(e)));
+     }
+     private void banListDialog(){
+-        if(!isModerator()||!cloudRoom||db==null){toast("Host/co-host only");return;}
+-        db.collection("live_rooms").document(roomId).collection("room_bans").get().addOnSuccessListener(snap->{
++        if(!isModerator()||!cloudRoom||db==null||roomId==null||user==null){toast("Host/co-host only");return;}
++        final String banRoom10014=roomId,banActor10014=user.getUid();
++        db.collection("live_rooms").document(banRoom10014).collection("room_bans").get().addOnSuccessListener(snap->{
++            if(isFinishing()||isDestroyed()||!banRoom10014.equals(roomId)
++                ||user==null||!banActor10014.equals(user.getUid())||!isModerator())return;
+             List<DocumentSnapshot>docs=new ArrayList<>();List<String>rows=new ArrayList<>();
+             for(DocumentSnapshot d:snap.getDocuments())if(Boolean.TRUE.equals(d.getBoolean("active"))){
+                 docs.add(d);String name=str(d,"name",memberNameForUid(d.getId()));String reason=str(d,"reason","No reason saved");com.google.firebase.Timestamp at=d.getTimestamp("createdAt");String when=at==null?"":new java.text.SimpleDateFormat("dd MMM • HH:mm",java.util.Locale.US).format(at.toDate());
+@@ -6817,7 +6841,15 @@
+             if(rows.isEmpty()){new AlertDialog.Builder(this).setTitle("🚫 Banned users").setMessage("No banned users in this room.").setPositiveButton("OK",null).show();return;}
+             new AlertDialog.Builder(this).setTitle("🚫 Banned users • "+rows.size()).setItems(rows.toArray(new String[0]),(x,w)->{
+                 DocumentSnapshot d=docs.get(w);String name=str(d,"name",memberNameForUid(d.getId()));String reason=str(d,"reason","No reason saved");
+-                new AlertDialog.Builder(this).setTitle(name).setMessage("Reason: "+reason+"\n\nAllow this user to join again?").setPositiveButton("Unban",(a,b)->d.getReference().delete().addOnSuccessListener(v->{addEvent("unban",safeName()+" unbanned "+name);toast(name+" unbanned");}).addOnFailureListener(e->toast(msg(e)))).setNegativeButton("Cancel",null).show();
++                new AlertDialog.Builder(this).setTitle(name).setMessage("Reason: "+reason+"\n\nAllow this user to join again?").setPositiveButton("Unban",(a,b)->{
++                    if(isFinishing()||isDestroyed()||!banRoom10014.equals(roomId)
++                        ||user==null||!banActor10014.equals(user.getUid())||!isModerator()){
++                        toast("Room or moderation role changed. Reopen ban list.");return;
++                    }
++                    d.getReference().delete().addOnSuccessListener(v->{
++                        if(banRoom10014.equals(roomId)){addEvent("unban",safeName()+" unbanned "+name);toast(name+" unbanned");}
++                    }).addOnFailureListener(e->{if(banRoom10014.equals(roomId))toast(msg(e));});
++                }).setNegativeButton("Cancel",null).show();
+             }).setNegativeButton("Close",null).show();
+         }).addOnFailureListener(e->toast(msg(e)));
+     }
+--- a/app/build.gradle
++++ b/app/build.gradle
+@@ -14,7 +14,7 @@
+         }
+     }
+ 
+-    defaultConfig { applicationId 'com.kingplus.social'; minSdk 26; targetSdk 35; versionCode 292; versionName '10.0.13-me-home-party-moderation-test' }
++    defaultConfig { applicationId 'com.kingplus.social'; minSdk 26; targetSdk 35; versionCode 293; versionName '10.0.14-me-home-party-live-guards-test' }
+     buildTypes {
+         debug { signingConfig signingConfigs.debug }
+         release {

@@ -1,0 +1,19 @@
+KING Plus v7.0.0 — Full Social/Party Parity Stage
+
+Added
+- Community Center: people/room search, Moments/Square, Family, Relationship/CP and Collection.
+- Real Normal Level 1–99 and VIP 0–12 progression shared by profile, room and direct gifting.
+- Public profile sync for searchable KING ID, levels, VIP and safe profile fields.
+- Backpack with daily free gifts and room sending.
+- Party tools: Audio PK score panel and Loop Mic queue.
+- Expanded games with playable Ludo Race, Lucky Slot and Coin Toss alongside existing RPS, Dice, Guess and Tic Tac Toe.
+- Family create/join/share/member list/family chat.
+- Relationship request/accept/decline/private-chat/unpair flow.
+- Moments create/feed/like/delete/message flow.
+- Firestore rules for the new community data with owner/member/participant checks.
+
+Kept
+- Existing v6.2 Gift Chat, room gift wall/ranking/history, replies/mentions, live emoji, seats/moderation, KTV/music, private/password rooms and no-billing TEST wallet behavior.
+
+Reference boundary
+- Does not embed Bolo Hi proprietary assets/code, Unity/IL2CPP game binaries, paid-room/payment systems or proprietary RTC/beauty engines.

@@ -10,6 +10,7 @@ import android.widget.LinearLayout;
 import android.widget.ScrollView;
 import android.widget.TextView;
 import android.widget.Toast;
+import android.widget.Switch;
 
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
@@ -24,16 +25,19 @@ public class AdminActivity extends Activity {
     private final int PURPLE = 0xff7146ec;
     private LinearLayout page;
     private ListenerRegistration reportsListener;
+    private EditText announcementInput;
+    private Switch announcementEnabled, maintenanceMode;
+    private TextView overviewText;
 
     @Override public void onCreate(Bundle state) {
         super.onCreate(state);
         FirebaseUser user = FirebaseAuth.getInstance().getCurrentUser();
         if (user == null) { base("Admin Dashboard", "Firebase sign-in required"); text("Sign in with a real Firebase account first.", Color.WHITE); return; }
-        base("Admin Dashboard", "Checking privileged admin claim…");
+        base("Owner Console", "Checking trusted owner claim…");
         user.getIdToken(true).addOnSuccessListener(token -> {
             boolean admin = Boolean.TRUE.equals(token.getClaims().get("admin"));
             if (!admin) {
-                base("Admin Dashboard", "Access denied");
+                base("Owner Console", "Access denied");
                 text("This account does not have the Firebase custom claim admin=true. Normal users cannot read moderation reports or alter server wallets.", Color.WHITE);
                 button("Close", CARD, v -> finish());
                 return;
@@ -55,8 +59,20 @@ public class AdminActivity extends Activity {
     private EditText input(String hint) { EditText e=new EditText(this); e.setHint(hint); e.setSingleLine(true); e.setTextColor(Color.WHITE); e.setHintTextColor(0xffaaa3bc); e.setBackgroundColor(CARD); e.setPadding(dp(12),0,dp(12),0); LinearLayout.LayoutParams p=new LinearLayout.LayoutParams(-1,dp(52)); p.setMargins(0,dp(4),0,dp(4)); page.addView(e,p); return e; }
 
     private void renderAdmin() {
-        base("Admin Dashboard", "Cloud moderation + bans + server wallet controls");
-        text("Admin tools are protected by Firebase custom claim admin=true and trusted Cloud Functions.", 0xffffd768);
+        base("Owner Console", "App-wide controls • operations • moderation");
+        text("Only a Firebase account with the trusted admin=true claim can open this console. Settings are saved by Cloud Functions; private messages and credentials are never exposed here.", 0xffffd768);
+        text("App settings", Color.WHITE).setTextSize(20);
+        announcementEnabled = new Switch(this); announcementEnabled.setText("Show app-wide announcement"); announcementEnabled.setTextColor(Color.WHITE); page.addView(announcementEnabled);
+        maintenanceMode = new Switch(this); maintenanceMode.setText("Show maintenance notice at app launch"); maintenanceMode.setTextColor(Color.WHITE); page.addView(maintenanceMode);
+        announcementInput = input("Announcement shown to signed-in users (max 300 chars)");
+        button("Load saved app settings", CARD, v -> loadOwnerSettings());
+        button("Save app settings", PURPLE, v -> saveOwnerSettings());
+        text("Operations overview", Color.WHITE).setTextSize(20);
+        overviewText=text("Loading operations overview…",0xffc5bfd8);
+        button("Refresh owner overview", CARD, v -> loadOwnerOverview());
+        text("Agency, Agent and recharge requests are available in Agency & Agent Recharge on Me/Profile.", 0xffc5bfd8);
+        loadOwnerSettings(); loadOwnerOverview();
+        text("Moderation and account controls", Color.WHITE).setTextSize(20);
         EditText banUid = input("User UID to ban");
         EditText banReason = input("Ban reason");
         button("Ban user", PURPLE, v -> {
@@ -84,6 +100,43 @@ public class AdminActivity extends Activity {
                 for(DocumentSnapshot doc:snap.getDocuments()) addReportCard(list,doc);
             });
         button("Close dashboard", CARD, v -> finish());
+    }
+
+    private void loadOwnerSettings() {
+        com.google.firebase.functions.FirebaseFunctions.getInstance().getHttpsCallable("getOwnerConsoleSnapshot").call()
+            .addOnSuccessListener(result -> {
+                if (isFinishing() || !(result.getData() instanceof java.util.Map)) return;
+                Object settings=((java.util.Map<?,?>)result.getData()).get("settings");
+                if (!(settings instanceof java.util.Map)) return;
+                java.util.Map<?,?> values=(java.util.Map<?,?>)settings;
+                announcementEnabled.setChecked(Boolean.TRUE.equals(values.get("announcementEnabled")));
+                maintenanceMode.setChecked(Boolean.TRUE.equals(values.get("maintenanceMode")));
+                Object message=values.get("announcement");
+                announcementInput.setText(message instanceof String?(String)message:"");
+            }).addOnFailureListener(e -> toast("Settings load failed: "+safe(e.getLocalizedMessage())));
+    }
+
+    private void saveOwnerSettings() {
+        java.util.Map<String,Object> values=new java.util.HashMap<>();
+        values.put("announcementEnabled",announcementEnabled.isChecked());
+        values.put("maintenanceMode",maintenanceMode.isChecked());
+        values.put("announcement",announcementInput.getText().toString().trim());
+        com.google.firebase.functions.FirebaseFunctions.getInstance().getHttpsCallable("updateOwnerAppSettings").call(values)
+            .addOnSuccessListener(result -> { toast("App settings saved"); loadOwnerSettings(); })
+            .addOnFailureListener(e -> toast("Settings save failed: "+safe(e.getLocalizedMessage())));
+    }
+
+    private void loadOwnerOverview() {
+        com.google.firebase.functions.FirebaseFunctions.getInstance().getHttpsCallable("getOwnerConsoleSnapshot").call()
+            .addOnSuccessListener(result -> {
+                if (isFinishing() || !(result.getData() instanceof java.util.Map)) return;
+                Object metrics=((java.util.Map<?,?>)result.getData()).get("metrics");
+                if (!(metrics instanceof java.util.Map)) return;
+                java.util.Map<?,?> m=(java.util.Map<?,?>)metrics;
+                overviewText.setText("Accounts: "+m.get("accounts")+"  •  Public profiles: "+m.get("profiles")+
+                    "\nLive rooms: "+m.get("rooms")+"  •  Open reports: "+m.get("openReports")+
+                    "\nAgencies: "+m.get("agencies")+"  •  Agents: "+m.get("agents"));
+            }).addOnFailureListener(e -> toast("Overview load failed: "+safe(e.getLocalizedMessage())));
     }
 
     private void addReportCard(LinearLayout list, DocumentSnapshot doc) {

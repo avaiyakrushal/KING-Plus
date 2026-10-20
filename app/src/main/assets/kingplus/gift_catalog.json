@@ -1,0 +1,66 @@
+{
+  "version": 1,
+  "brand": "KING Plus",
+  "gifts": [
+    {
+      "id": "rose",
+      "icon": "🌹",
+      "tier": "free"
+    },
+    {
+      "id": "heart",
+      "icon": "💗",
+      "tier": "free"
+    },
+    {
+      "id": "crown",
+      "icon": "👑",
+      "tier": "vip"
+    },
+    {
+      "id": "diamond",
+      "icon": "💎",
+      "tier": "vip"
+    },
+    {
+      "id": "firework",
+      "icon": "🎆",
+      "tier": "party"
+    },
+    {
+      "id": "lion",
+      "icon": "🦁",
+      "tier": "royal"
+    },
+    {
+      "id": "star",
+      "icon": "🌟",
+      "tier": "party"
+    },
+    {
+      "id": "wings",
+      "icon": "🪽",
+      "tier": "vip"
+    },
+    {
+      "id": "castle",
+      "icon": "🏰",
+      "tier": "royal"
+    },
+    {
+      "id": "rocket",
+      "icon": "🚀",
+      "tier": "party"
+    },
+    {
+      "id": "dragon",
+      "icon": "🐉",
+      "tier": "royal"
+    },
+    {
+      "id": "party",
+      "icon": "🎉",
+      "tier": "free"
+    }
+  ]
+}
