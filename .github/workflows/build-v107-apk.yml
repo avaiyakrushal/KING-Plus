@@ -1,0 +1,45 @@
+name: KING Plus v10.0.107 Home Party TEST APK
+on:
+  push:
+    branches: [codex/build-v107-apk]
+    paths:
+      - .github/workflows/build-v107-apk.yml
+permissions:
+  contents: read
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+      - name: Restore v10.0.107 source bundle
+        run: |
+          set -euo pipefail
+          cat .codex-build/v107-part-* > /tmp/king-v107-source.zip
+          mkdir -p /tmp/king-v107-source
+          unzip -q /tmp/king-v107-source.zip -d /tmp/king-v107-source
+          cp app/kingplus-ci-debug.keystore /tmp/king-v107-source/app/
+      - name: Build Android debug APK
+        run: gradle -p /tmp/king-v107-source :app:assembleDebug --no-daemon --max-workers=2
+      - name: Verify app package and version
+        run: |
+          set -euo pipefail
+          aapt="$(find "$ANDROID_HOME/build-tools" -name aapt -type f | sort -V | tail -1)"
+          apk=/tmp/king-v107-source/app/build/outputs/apk/debug/app-debug.apk
+          "$aapt" dump badging "$apk" | grep "^package:" | grep "name='com.kingplus.social'" | grep "versionCode='385'" | grep "versionName='10.0.107-home-party-visual-polish'"
+          mkdir -p /tmp/king-v107-output
+          cp "$apk" /tmp/king-v107-output/KING-Plus-v10.0.107-Home-Party-Visual-Polish.apk
+          sha256sum /tmp/king-v107-output/*.apk
+      - uses: actions/upload-artifact@v4
+        with:
+          name: KING-Plus-v10.0.107-Home-Party-Visual-Polish-APK
+          path: /tmp/king-v107-output/*.apk
+          retention-days: 14
+          if-no-files-found: error
