@@ -5,7 +5,7 @@ public final class KingPartyRoundRoster9972 {
  private KingPartyRoundRoster9972(){}
  private static final Set<String> GAMES=new HashSet<>(Arrays.asList(
    "rps","dice","number","coin","wheel","bingo","slot",
-   "reaction","highlow","sheep","zoo","memory","domino"));
+   "reaction","highlow","sheep","zoo","memory","domino","treasure"));
  public static boolean isOrdinaryGame(String game){return GAMES.contains(game);}
  public static boolean realReady(String doc,String claimed,Boolean ready,boolean member){
    return doc!=null&&!doc.isEmpty()&&doc.equals(claimed)&&Boolean.TRUE.equals(ready)&&member;
