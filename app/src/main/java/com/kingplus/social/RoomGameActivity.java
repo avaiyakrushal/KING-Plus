@@ -45,7 +45,7 @@ public class RoomGameActivity extends Activity {
     private FirebaseFirestore db; private FirebaseUser me;
     private String roomId="",roomName="Live Room",displayName="KING User",requestedGame="";
     private boolean moderator;
-    private long roundId; private String type="",prompt="",result="",status="closed"; private String tttBoard864=".........",tttTurnUid864="",tttXUid864="",tttOUid864="",tttXName864="X",tttOName864="O"; private boolean tttProcessing864; private String memoryLayout865=""; private long memoryRound865; private int memoryFirst865=-1,memoryPairs865,memoryAttempts865,dominoTarget865; private boolean memoryComparing865; private boolean[] memoryDone865=new boolean[8]; private Button[] memoryButtons865=new Button[8]; private long memoryStart865;
+    private long roundId; private String type="",prompt="",result="",status="closed"; private String tttBoard864=".........",tttTurnUid864="",tttXUid864="",tttOUid864="",tttXName864="X",tttOName864="O"; private boolean tttProcessing864; private String memoryLayout865=""; private long memoryRound865; private int memoryFirst865=-1,memoryPairs865,memoryAttempts865,dominoTarget865,treasureChest10100; private boolean memoryComparing865; private boolean[] memoryDone865=new boolean[8]; private Button[] memoryButtons865=new Button[8]; private long memoryStart865;
     private ListenerRegistration stateListener,movesListener,readyListener,moderatorRoleListener;
     // A state metadata update is NOT a new round. Re-subscribing game_moves
     // on every snapshot drops live score state and can restart result checks.
@@ -212,7 +212,7 @@ public class RoomGameActivity extends Activity {
                         frozenRoster9947.add((String)participant9947);
         }
         final long priorRound9954=roundId;
-        if(!d.exists()){roundId=0;type="";prompt="";result="";status="closed";resetTttState864();resetMemoryState865("",0);dominoTarget865=0;resetSocialState866();}else{Long r=d.getLong("roundId");roundId=r==null?0:r;type=s(d.getString("type"));prompt=s(d.getString("prompt"));result=s(d.getString("result"));status=s(d.getString("status"));if("ttt".equals(type)){tttBoard864=s(d.getString("board"));if(tttBoard864.length()!=9)tttBoard864=".........";tttTurnUid864=s(d.getString("turnUid"));tttXUid864=s(d.getString("xUid"));tttOUid864=s(d.getString("oUid"));tttXName864=s(d.getString("xName"));tttOName864=s(d.getString("oName"));}else resetTttState864();if("memory".equals(type)){String ml=s(d.getString("memoryLayout"));if(roundId!=memoryRound865||!ml.equals(memoryLayout865))resetMemoryState865(ml,roundId);}else resetMemoryState865("",0);Long dt=d.getLong("dominoTarget");dominoTarget865=dt==null?0:Math.max(0,Math.min(6,dt.intValue()));if("draw".equals(type)){drawerUid866=s(d.getString("drawerUid"));drawerName866=s(d.getString("drawerName"));drawSketch866=s(d.getString("sketch"));if(privateRoleRound866!=roundId){privateRoleRound866=roundId;privateRole866="";privateSecret866="";}}else if("werewolf".equals(type)||"spy".equals(type)){drawerUid866="";drawerName866="";drawSketch866="";if(privateRoleRound866!=roundId){privateRoleRound866=roundId;privateRole866="";privateSecret866="";fetchPrivateRole866();} }else resetSocialState866();}
+        if(!d.exists()){roundId=0;type="";prompt="";result="";status="closed";resetTttState864();resetMemoryState865("",0);dominoTarget865=0;treasureChest10100=0;resetSocialState866();}else{Long r=d.getLong("roundId");roundId=r==null?0:r;type=s(d.getString("type"));prompt=s(d.getString("prompt"));result=s(d.getString("result"));status=s(d.getString("status"));if("ttt".equals(type)){tttBoard864=s(d.getString("board"));if(tttBoard864.length()!=9)tttBoard864=".........";tttTurnUid864=s(d.getString("turnUid"));tttXUid864=s(d.getString("xUid"));tttOUid864=s(d.getString("oUid"));tttXName864=s(d.getString("xName"));tttOName864=s(d.getString("oName"));}else resetTttState864();if("memory".equals(type)){String ml=s(d.getString("memoryLayout"));if(roundId!=memoryRound865||!ml.equals(memoryLayout865))resetMemoryState865(ml,roundId);}else resetMemoryState865("",0);Long dt=d.getLong("dominoTarget");dominoTarget865=dt==null?0:Math.max(0,Math.min(6,dt.intValue()));Long tc=d.getLong("treasureChest");treasureChest10100=tc==null?0:Math.max(0,Math.min(3,tc.intValue()));if("draw".equals(type)){drawerUid866=s(d.getString("drawerUid"));drawerName866=s(d.getString("drawerName"));drawSketch866=s(d.getString("sketch"));if(privateRoleRound866!=roundId){privateRoleRound866=roundId;privateRole866="";privateSecret866="";}}else if("werewolf".equals(type)||"spy".equals(type)){drawerUid866="";drawerName866="";drawSketch866="";if(privateRoleRound866!=roundId){privateRoleRound866=roundId;privateRole866="";privateSecret866="";fetchPrivateRole866();} }else resetSocialState866();}
         if(priorRound9954!=roundId||!"active".equals(status)){
             clearScheduledSettlement9954();
             autoSettlementInFlight9954=false;
@@ -306,7 +306,7 @@ public class RoomGameActivity extends Activity {
             return;
         }
         if(roundId==0||!"active".equals(status)){stateText.setText(result.isEmpty()?"No active multiplayer round":"Last result\n"+result);return;}if("ttt".equals(type)){String turn=tttTurnUid864.equals(tttXUid864)?tttXName864:tttTurnUid864.equals(tttOUid864)?tttOName864:"Player";stateText.setText("❌⭕  "+tttXName864+" vs "+tttOName864+"\nTurn: "+turn+"\n"+tttBoardText864());return;}stateText.setText(gameIcon(type)+"  "+prompt+(result.isEmpty()?"":"\n"+result));}
-    private String gameIcon(String t){if("rps".equals(t))return "✊";if("dice".equals(t))return "🎲";if("number".equals(t))return "🔢";if("coin".equals(t))return "🪙";if("wheel".equals(t))return "🎡";if("bingo".equals(t))return "🎯";if("slot".equals(t))return "🎰";if("reaction".equals(t))return "⚡";if("highlow".equals(t))return "🃏";if("sheep".equals(t))return "🐑";if("zoo".equals(t))return "🦁";if("memory".equals(t))return "🧠";if("domino".equals(t))return "🁣";if("werewolf".equals(t))return "🐺";if("spy".equals(t))return "🕵";if("draw".equals(t))return "🎨";if("ttt".equals(t))return "❌⭕";return "🎮";}
+    private String gameIcon(String t){if("rps".equals(t))return "✊";if("dice".equals(t))return "🎲";if("number".equals(t))return "🔢";if("coin".equals(t))return "🪙";if("wheel".equals(t))return "🎡";if("bingo".equals(t))return "🎯";if("slot".equals(t))return "🎰";if("reaction".equals(t))return "⚡";if("highlow".equals(t))return "🃏";if("sheep".equals(t))return "🐑";if("zoo".equals(t))return "🦁";if("memory".equals(t))return "🧠";if("domino".equals(t))return "🁣";if("treasure".equals(t))return "💎";if("werewolf".equals(t))return "🐺";if("spy".equals(t))return "🕵";if("draw".equals(t))return "🎨";if("ttt".equals(t))return "❌⭕";return "🎮";}
 
     private boolean hasMyMove(){if(me==null)return false;for(DocumentSnapshot d:currentMoves)if(me.getUid().equals(d.getString("uid")))return true;return false;}
 
@@ -354,8 +354,8 @@ public class RoomGameActivity extends Activity {
         LinearLayout.LayoutParams flp9923=new LinearLayout.LayoutParams(-1,dp(52));
         flp9923.setMargins(0,dp(4),0,dp(4));controls.addView(flying9923,flp9923);
         TextView allGames=tv("All playable Party games",15,Color.WHITE,true);allGames.setPadding(dp(2),dp(10),0,dp(5));controls.addView(allGames);
-        String[] localCodes={"tic_tac_toe","rps","dice","guess","slot","coin","memory","reaction","highlow","wheel","sheep","werewolf","spy","draw","bingo","zoo","domino"};
-        String[] localNames={"❌⭕ Tic Tac Toe","✊ RPS","🎲 Dice","🔢 Guess","🎰 Slot","🪙 Coin","🧠 Memory","⚡ Reaction","🃏 High/Low","🎡 Wheel","🐑 Sheep","🐺 Werewolf","🕵 Spy","🎨 Draw & Guess","🎯 Pick 1–9","🦁 Crazy Zoo","🁣 Domino"};
+        String[] localCodes={"tic_tac_toe","rps","dice","guess","slot","coin","memory","reaction","highlow","wheel","sheep","werewolf","spy","draw","bingo","zoo","domino","treasure"};
+        String[] localNames={"❌⭕ Tic Tac Toe","✊ RPS","🎲 Dice","🔢 Guess","🎰 Slot","🪙 Coin","🧠 Memory","⚡ Reaction","🃏 High/Low","🎡 Wheel","🐑 Sheep","🐺 Werewolf","🕵 Spy","🎨 Draw & Guess","🎯 Pick 1–9","🦁 Crazy Zoo","🁣 Domino","💎 Treasure Hunt"};
         for(int base=0;base<localCodes.length;base+=3){
             LinearLayout row=new LinearLayout(this);
             for(int j=0;j<3&&base+j<localCodes.length;j++){int k=base+j;final String code=localCodes[k];Button g=button(localNames[k]);g.setTextSize(11);g.setOnClickListener(v->openPlayableRoomGame(code));LinearLayout.LayoutParams gp=new LinearLayout.LayoutParams(0,dp(50),1);gp.setMargins(dp(2),dp(3),dp(2),dp(3));row.addView(g,gp);}
@@ -363,7 +363,7 @@ public class RoomGameActivity extends Activity {
         }
         if(moderator){
             TextView h=tv("Start a synchronized room round",15,Color.WHITE,true);controls.addView(h);
-            String[] n={"❌⭕ Tic Tac Toe","✊ RPS","🎲 Dice Duel","🔢 Pick Number","🪙 Coin Pick","🎡 Lucky Wheel","🎯 Pick 1–9","🎰 Slot Clash","⚡ Reaction Tap","🃏 High / Low","🐑 Live Sheep Sprint","🦁 Crazy Zoo","🧠 Memory Duel","🁣 Domino Match","🐺 Werewolf","🕵 Spy Game","🎨 Draw & Guess"};String[] t={"ttt","rps","dice","number","coin","wheel","bingo","slot","reaction","highlow","sheep","zoo","memory","domino","werewolf","spy","draw"};
+            String[] n={"❌⭕ Tic Tac Toe","✊ RPS","🎲 Dice Duel","🔢 Pick Number","🪙 Coin Pick","🎡 Lucky Wheel","🎯 Pick 1–9","🎰 Slot Clash","⚡ Reaction Tap","🃏 High / Low","🐑 Live Sheep Sprint","🦁 Crazy Zoo","🧠 Memory Duel","🁣 Domino Match","🐺 Werewolf","🕵 Spy Game","🎨 Draw & Guess","💎 Treasure Hunt"};String[] t={"ttt","rps","dice","number","coin","wheel","bingo","slot","reaction","highlow","sheep","zoo","memory","domino","werewolf","spy","draw","treasure"};
             for(int base=0;base<n.length;base+=3){LinearLayout row=new LinearLayout(this);for(int j=0;j<3&&base+j<n.length;j++){int i=base+j;final String gt=t[i];Button b=button(n[i]);b.setEnabled(!"active".equals(status));b.setOnClickListener(v->startRound(gt));LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(0,dp(52),1);lp.setMargins(dp(2),dp(3),dp(2),dp(3));row.addView(b,lp);}controls.addView(row);}
             if(roundId>0&&!"active".equals(status)){LinearLayout rr=new LinearLayout(this);Button rem=button("↻ Rematch");rem.setOnClickListener(v->rematch750());rr.addView(rem,new LinearLayout.LayoutParams(0,dp(50),1));Button reset=button("Clear Ready");reset.setOnClickListener(v->clearReady750());LinearLayout.LayoutParams rp=new LinearLayout.LayoutParams(0,dp(50),1);rp.setMargins(dp(6),0,0,0);rr.addView(reset,rp);controls.addView(rr);}
         }
@@ -377,7 +377,7 @@ public class RoomGameActivity extends Activity {
                     &&KingPartyRoundRoster9972.valid(frozenRoster9947)
                     &&(me==null||!frozenRoster9947.contains(me.getUid()))){
                     controls.addView(tv("👀 Spectating this round • tap Ready for the next match",13,MUTED,false));
-                }else if(!hasMyMove()){if("rps".equals(type))rpsControls();else if("dice".equals(type))diceControls();else if("number".equals(type))numberControls();else if("coin".equals(type))coinControls();else if("wheel".equals(type))wheelControls();else if("bingo".equals(type))bingoControls();else if("slot".equals(type))slotControls863();else if("reaction".equals(type))reactionControls863();else if("highlow".equals(type))highLowControls863();else if("sheep".equals(type))sheepControls863();else if("zoo".equals(type))zooControls863();else if("memory".equals(type))memoryControls865();else if("domino".equals(type))dominoControls865();}
+                }else if(!hasMyMove()){if("treasure".equals(type))treasureControls10100();else if("rps".equals(type))rpsControls();else if("dice".equals(type))diceControls();else if("number".equals(type))numberControls();else if("coin".equals(type))coinControls();else if("wheel".equals(type))wheelControls();else if("bingo".equals(type))bingoControls();else if("slot".equals(type))slotControls863();else if("reaction".equals(type))reactionControls863();else if("highlow".equals(type))highLowControls863();else if("sheep".equals(type))sheepControls863();else if("zoo".equals(type))zooControls863();else if("memory".equals(type))memoryControls865();else if("domino".equals(type))dominoControls865();}
                 else controls.addView(tv("Submitted for this round • wait for the host/co-host to finish",13,MUTED,false));
                 if(moderator){
                     java.util.ArrayList<String> verifiedMoves9973=new java.util.ArrayList<>();
@@ -410,6 +410,7 @@ public class RoomGameActivity extends Activity {
         if("tic_tac_toe".equals(g)||"tic tac toe".equals(g))return "ttt";
         if("guess".equals(g)||"guess number".equals(g))return "number";
         if(g.contains("ludo"))return "ludo";
+        if(g.contains("treasure")||g.contains("hunt"))return "treasure";
         if(g.contains("werewolf"))return "werewolf";
         if(g.contains("spy"))return "spy";
         if(g.contains("draw"))return "draw";
@@ -581,6 +582,7 @@ public class RoomGameActivity extends Activity {
         });
     }
 
+    private void treasureControls10100(){TextView hint=tv("💎 Find the hidden chest • one pick per Ready player • no paid reward",13,MUTED,true);controls.addView(hint);LinearLayout row=new LinearLayout(this);for(int chest=1;chest<=3;chest++){final int pick=chest;Button b=button("🧰 Chest "+chest);b.setOnClickListener(v->submit("Chest "+pick,0));LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(0,dp(54),1);lp.setMargins(dp(3),0,dp(3),0);row.addView(b,lp);}controls.addView(row);}
     private void rpsControls(){LinearLayout row=new LinearLayout(this);String[] m={"Rock","Paper","Scissors"},e={"✊","✋","✌"};for(int i=0;i<3;i++){final String x=m[i];Button b=button(e[i]+" "+x);b.setOnClickListener(v->submit(x,0));LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(0,dp(52),1);lp.setMargins(dp(2),0,dp(2),0);row.addView(b,lp);}controls.addView(row);}
     private void diceControls(){Button b=button("🎲 Roll my dice");b.setOnClickListener(v->{int n=KingPartyGameFairPlay9949.dice();submit("Rolled "+n,n);});controls.addView(b,new LinearLayout.LayoutParams(-1,dp(54)));}
     private void numberControls(){LinearLayout row=new LinearLayout(this);EditText in=new EditText(this);in.setHint("1–30");in.setTextColor(Color.WHITE);in.setHintTextColor(0xff9e94ad);in.setInputType(android.text.InputType.TYPE_CLASS_NUMBER);in.setSingleLine(true);in.setBackground(bg(CARD,14));in.setPadding(dp(14),0,dp(14),0);row.addView(in,new LinearLayout.LayoutParams(0,dp(52),1));Button b=button("Submit");b.setOnClickListener(v->{try{int n=Integer.parseInt(in.getText().toString().trim());if(n<1||n>30){toast("Choose 1–30");return;}submit(String.valueOf(n),n);}catch(Exception e){toast("Choose 1–30");}});LinearLayout.LayoutParams bp=new LinearLayout.LayoutParams(dp(100),dp(52));bp.setMargins(dp(8),0,0,0);row.addView(b,bp);controls.addView(row);}
@@ -1333,12 +1335,12 @@ public class RoomGameActivity extends Activity {
         // Only the verified Ready roster needs previous per-UID moves cleared.
         {
             long next=Math.max(System.currentTimeMillis(),previous+1);
-            String p="rps".equals(game)?"Choose Rock, Paper or Scissors":"dice".equals(game)?"Roll once • highest roll wins":"number".equals(game)?"Pick 1–30 • closest to a shared draw wins":"coin".equals(game)?"Pick Heads or Tails":"wheel".equals(game)?"Spin once • highest score wins":"bingo".equals(game)?"Pick 1–9 • closest to a shared draw wins":"slot".equals(game)?"Spin once • best reel score wins":"reaction".equals(game)?"Tap as fast as you can when the control appears":"highlow".equals(game)?"Pick High 51–100 or Low 1–50":"sheep".equals(game)?"Run once • highest sheep speed wins":"memory".equals(game)?"Memory Duel • clear the same 4-pair board":"domino".equals(game)?"Domino Match • match the shared chain end":"Release one animal • highest power wins";
+            String p="treasure".equals(game)?"Choose one of three chests • no paid prize":"rps".equals(game)?"Choose Rock, Paper or Scissors":"dice".equals(game)?"Roll once • highest roll wins":"number".equals(game)?"Pick 1–30 • closest to a shared draw wins":"coin".equals(game)?"Pick Heads or Tails":"wheel".equals(game)?"Spin once • highest score wins":"bingo".equals(game)?"Pick 1–9 • closest to a shared draw wins":"slot".equals(game)?"Spin once • best reel score wins":"reaction".equals(game)?"Tap as fast as you can when the control appears":"highlow".equals(game)?"Pick High 51–100 or Low 1–50":"sheep".equals(game)?"Run once • highest sheep speed wins":"memory".equals(game)?"Memory Duel • clear the same 4-pair board":"domino".equals(game)?"Domino Match • match the shared chain end":"Release one animal • highest power wins";
             Map<String,Object> value=new HashMap<>();
             value.put("actorUid",me.getUid());value.put("actorName",displayName);value.put("type",game);value.put("prompt",p);value.put("result","");value.put("status","active");value.put("roundId",next);
             if(KingPartyRoundRoster9972.isOrdinaryGame(game))
                 value.put("participantUids",new java.util.ArrayList<>(frozenPlayers9946));
-            if("memory".equals(game))value.put("memoryLayout",memoryLayoutForRound865(next));if("domino".equals(game))value.put("dominoTarget",new java.security.SecureRandom().nextInt(7));value.put("updatedAt",FieldValue.serverTimestamp());
+            if("memory".equals(game))value.put("memoryLayout",memoryLayoutForRound865(next));if("domino".equals(game))value.put("dominoTarget",new java.security.SecureRandom().nextInt(7));if("treasure".equals(game))value.put("treasureChest",1+new java.security.SecureRandom().nextInt(3));value.put("updatedAt",FieldValue.serverTimestamp());
             db.runTransaction(tx->{
                 DocumentSnapshot current=tx.get(state());
                 if(current.exists()){
@@ -1803,6 +1805,7 @@ public class RoomGameActivity extends Activity {
             });
     }
     private String resultFor(List<DocumentSnapshot>a){
+        if("treasure".equals(type)){List<String>w=new ArrayList<>();for(DocumentSnapshot d:a)if(KingTreasureHuntRules10100.hit(s(d.getString("move")),treasureChest10100))w.add(s(d.getString("name")));return "💎 Treasure Hunt • Chest "+treasureChest10100+"\n"+(w.isEmpty()?"No one found the treasure this round.":"🎉 Found by: "+join(w))+"\nNo diamonds or VIP rewards were granted.";}
         if("rps".equals(type)){
             java.util.List<String> names9945=new java.util.ArrayList<>();
             java.util.List<String> choices9945=new java.util.ArrayList<>();
