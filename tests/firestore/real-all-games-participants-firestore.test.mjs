@@ -41,7 +41,7 @@ try {
  const actualReady=readySet.docs.filter(d=>membersSet.has(d.id)&&d.data().uid===d.id).map(d=>d.id).sort();
  if(JSON.stringify(actualReady)!==JSON.stringify(['alice','bob']))
    throw Error('55 false Ready and stale ghost must not block two real Party players');
- const games=[['wheel','Spin 3',3],['slot','Spin 1-1-1',3],['number','15',15],['highlow','High',1]];
+ const games=[['wheel','Spin 3',3],['slot','Spin 1-1-1',3],['number','15',15],['highlow','High',1],['treasure','Chest 2',0]];
  for(let i=0;i<games.length;i++){
    const [kind,label,score]=games[i];const round=7200+i;
    if(i>0){
@@ -49,12 +49,19 @@ try {
      await assertSucceeds(deleteDoc(move(H,'alice')));
      await assertSucceeds(deleteDoc(move(H,'bob')));
    }
-   await assertSucceeds(setDoc(state(H),gameState(kind,round)));
+   const roundState=gameState(kind,round);
+   if(kind==='treasure')roundState.treasureChest=2;
+   await assertSucceeds(setDoc(state(H),roundState));
+   if(kind==='treasure'){
+     await assertFails(updateDoc(state(H),{treasureChest:3}));
+     await assertFails(setDoc(move(A,'alice'),choice('alice',kind,round,'Chest 4',0)));
+     await assertFails(setDoc(move(A,'alice'),choice('alice',kind,round,'Chest 2',1)));
+   }
    await assertFails(setDoc(move(E,'eve'),choice('eve',kind,round,label,score)));
    await assertFails(setDoc(move(H,'host'),choice('host',kind,round,label,score)));
    await assertSucceeds(setDoc(move(A,'alice'),choice('alice',kind,round,label,score)));
    await assertSucceeds(setDoc(move(B,'bob'),choice('bob',kind,round,label,score)));
    await assertFails(updateDoc(move(A,'alice'),{score:999999}));
  }
- console.log('PASS 13-game frozen Ready roster: 55 false and ghost ignored; real Wheel/Slot/Number/HighLow participants can move; host/spectator cannot forge moves');
+ console.log('PASS frozen Ready roster; real Wheel/Slot/Number/HighLow/Treasure participants can move; invalid chest, edited active chest, host and spectator are denied');
 } finally { await env.cleanup(); }
