@@ -165,6 +165,7 @@ public class MainActivity extends Activity {
             restoredIdentity.apply();
             try{PushNotifications.refreshToken();}catch(Throwable pushToken940){KingStability.nonFatal(this,"push-token",pushToken940);}
             try{restoreCanonicalGoogleProfile931(signedInUser,displayName,false);}catch(Throwable identity940){KingStability.nonFatal(this,"identity-restore",identity940);}
+            loadOwnerAppNotice10095();
         }
         String previousCrash940=getPreferences(0).getString("last_crash","");
         boolean forceLogin = getIntent() != null && getIntent().getBooleanExtra("forceLogin", false);
@@ -197,6 +198,25 @@ public class MainActivity extends Activity {
                     .setMessage(crash940).setPositiveButton("OK",null).show();
             });
         }
+    }
+
+    private void loadOwnerAppNotice10095(){
+        if(firebaseAuth==null||firebaseAuth.getCurrentUser()==null)return;
+        final String uid=firebaseAuth.getCurrentUser().getUid();
+        com.google.firebase.functions.FirebaseFunctions.getInstance().getHttpsCallable("getPublicAppNotice").call()
+            .addOnSuccessListener(result->{
+                if(isFinishing()||isDestroyed()||firebaseAuth.getCurrentUser()==null||!uid.equals(firebaseAuth.getCurrentUser().getUid()))return;
+                Object payload=result.getData();if(!(payload instanceof Map))return;
+                Map<?,?> data=(Map<?,?>)payload;
+                boolean maintenance=Boolean.TRUE.equals(data.get("maintenanceMode"));
+                boolean announce=Boolean.TRUE.equals(data.get("announcementEnabled"));
+                Object raw=data.get("announcement");String message=raw instanceof String?((String)raw).trim():"";
+                if(!maintenance&&(!announce||message.isEmpty()))return;
+                String shown=maintenance?"KING Plus is currently in maintenance mode. Some features may be unavailable.":message;
+                if(maintenance&&announce&&!message.isEmpty())shown+="\n\n"+message;
+                new AlertDialog.Builder(this).setTitle(maintenance?"Maintenance notice":"KING Plus announcement")
+                    .setMessage(shown).setPositiveButton("OK",null).show();
+            }).addOnFailureListener(error->KingStability.nonFatal(this,"owner-app-notice",error));
     }
     @Override protected void onNewIntent(Intent intent) {
         super.onNewIntent(intent);

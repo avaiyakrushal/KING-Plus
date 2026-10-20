@@ -1,4 +1,4 @@
-name: KING Plus v10.0.94 Daily Check-in TEST APK
+name: KING Plus v10.0.95 Owner Console TEST APK
 on:
   push:
     branches: [work/king-v10070-nongame-audit]
@@ -8,7 +8,8 @@ on:
       - 'tools/**'
       - 'README.md'
       - 'BUILD-NOTES-READ-ME.txt'
-      - 'RELEASE-NOTES-v10.0.94.md'
+      - 'RELEASE-NOTES-v10.0.95.md'
+      - 'tools/owner-console-v10095/**'
       - 'BOLO-HI-ME-PROFILE-AUDIT-v10.0.94.md'
       - 'tests/firestore/privacy-block-dm-firestore.test.mjs'
       - 'tests/firestore/liked-moments-v10085.test.mjs'
@@ -61,11 +62,12 @@ jobs:
           python3 tools/owner-vip-hunt-v10091/check_source.py
           python3 tools/me-profile-gift-history-v10093/check_source.py
           python3 tools/daily-checkin-v10094/check_source.py
-          grep -q "versionCode 373" app/build.gradle
-          grep -q "versionName '10.0.94-daily-checkin'" app/build.gradle
+          python3 tools/owner-console-v10095/check_source.py
+          grep -q "versionCode 374" app/build.gradle
+          grep -q "versionName '10.0.95-owner-console'" app/build.gradle
           test -s app/kingplus-ci-debug.keystore
       - name: Test gift and daily check-in transactions
-        run: node --test functions/room-gift-service.test.js functions/daily-checkin-service.test.js
+        run: node --test functions/room-gift-service.test.js functions/daily-checkin-service.test.js functions/owner-settings.test.js
       - name: Verify privacy, report and check-in Firestore rules
         run: |
           set -euo pipefail
@@ -80,7 +82,7 @@ jobs:
           test -s "$apk"
           aapt="$(find "$ANDROID_HOME/build-tools" -name aapt -type f | sort -V | tail -1)"
           signer="$(find "$ANDROID_HOME/build-tools" -name apksigner -type f | sort -V | tail -1)"
-          "$aapt" dump badging "$apk" | grep '^package:' | grep "name='com.kingplus.social'" | grep "versionCode='373'"
+          "$aapt" dump badging "$apk" | grep '^package:' | grep "name='com.kingplus.social'" | grep "versionCode='374'"
           "$signer" verify --print-certs "$apk"
           test "$(stat -c%s "$apk")" -gt 60000000
           unzip -Z1 "$apk" | grep -q '^lib/arm64-v8a/libjingle_peerconnection_so.so$'
@@ -88,14 +90,14 @@ jobs:
       - name: Package TEST APK and source
         run: |
           set -euo pipefail
-          mkdir -p /tmp/king-v10094-out
-          cp app/build/outputs/apk/debug/app-debug.apk /tmp/king-v10094-out/KING-Plus-v10.0.94-Daily-Checkin-TEST.apk
-          zip -qr /tmp/king-v10094-out/KING-Plus-v10.0.94-Daily-Checkin-TEST-Source.zip . \
+          mkdir -p /tmp/king-v10095-out
+          cp app/build/outputs/apk/debug/app-debug.apk /tmp/king-v10095-out/KING-Plus-v10.0.95-Owner-Console-TEST.apk
+          zip -qr /tmp/king-v10095-out/KING-Plus-v10.0.95-Owner-Console-TEST-Source.zip . \
             -x '.git/*' '*/.git/*' '*/build/*' '.gradle/*' '*/.gradle/*' '*/node_modules/*' \
             '*.apk' '*.aab' '*.keystore' '*.jks' '*.zip' '*local.properties' '*.log'
       - uses: actions/upload-artifact@v4
         with:
-          name: KING-Plus-v10.0.94-Daily-Checkin-TEST-APK-and-Source
-          path: /tmp/king-v10094-out/*
+          name: KING-Plus-v10.0.95-Owner-Console-TEST-APK-and-Source
+          path: /tmp/king-v10095-out/*
           retention-days: 30
           if-no-files-found: error

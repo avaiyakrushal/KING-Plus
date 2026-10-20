@@ -194,6 +194,19 @@ public class KingDeepFlowActivity extends Activity {
         KingAgencyAccess9982.check(this,allowed->{
             if(allowed&&!isFinishing())row("🏢","Agency & Agent Recharge","Approved Agency management and Agent requests","agency");
         });
+        if(me!=null){
+            final String ownerUid=me.getUid();
+            me.getIdToken(false).addOnSuccessListener(token->{
+                FirebaseUser current=FirebaseAuth.getInstance().getCurrentUser();
+                if(!isFinishing()&&!isDestroyed()&&current!=null&&ownerUid.equals(current.getUid())
+                    &&Boolean.TRUE.equals(token.getClaims().get("admin")))
+                    row("👑","Owner Console","App settings, operations and moderation",()->{
+                        FirebaseUser now=FirebaseAuth.getInstance().getCurrentUser();
+                        if(now==null||!ownerUid.equals(now.getUid()))return;
+                        startActivity(new Intent(this,AdminActivity.class));
+                    });
+            });
+        }
         row("⭐","User Level Center","Normal level, XP and achievements","level_center");
         row("💎","VIP Level","VIP 0–50 progression and privileges","vip");
         row("♛","Noble Center","Noble identity and room privileges","noble");
