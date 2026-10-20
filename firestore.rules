@@ -619,6 +619,10 @@ service cloud.firestore {
           && get(/databases/$(database)/documents/live_rooms/$(roomId)/game_state/current).data.status == 'active'
           && get(/databases/$(database)/documents/live_rooms/$(roomId)/game_state/current).data.roundId == request.resource.data.roundId
           && get(/databases/$(database)/documents/live_rooms/$(roomId)/game_state/current).data.type == request.resource.data.type
+          && (request.resource.data.get('type','') != 'treasure'
+              || (request.resource.data.get('move','') in ['Chest 1','Chest 2','Chest 3']
+                  && request.resource.data.get('score',-1) is int
+                  && request.resource.data.score == 0))
           // Every NEW Party game freezes real Ready participants at round
           // creation, not only RPS/Dice/Coin. Spectators cannot forge a score.
           // Legacy archived/current rounds with no roster stay compatible.
@@ -741,10 +745,22 @@ service cloud.firestore {
         allow create: if roomModerator(roomId)
           && request.resource.data.get('cancelled',false) == false
           && request.resource.data.get('participantUids',[]) is list
-          && request.resource.data.get('participantUids',[]).size() <= 50;
+          && request.resource.data.get('participantUids',[]).size() <= 50
+          && (request.resource.data.get('type','') != 'treasure'
+              || (request.resource.data.get('status','') == 'active'
+                  && request.resource.data.get('treasureChest',0) is int
+                  && request.resource.data.treasureChest >= 1
+                  && request.resource.data.treasureChest <= 3));
         allow update: if roomModerator(roomId)
           && request.resource.data.get('participantUids',[]) is list
           && request.resource.data.get('participantUids',[]).size() <= 50
+          && (request.resource.data.get('type','') != 'treasure'
+              || (request.resource.data.get('treasureChest',0) is int
+                  && request.resource.data.treasureChest >= 1
+                  && request.resource.data.treasureChest <= 3))
+          && (resource.data.get('type','') != 'treasure'
+              || resource.data.get('status','') != 'active'
+              || request.resource.data.get('treasureChest',0) == resource.data.get('treasureChest',0))
           // Once a cancelled round is closed, it cannot be rewritten as a
           // winner. Only a NEW higher-ID active round may replace its state.
           && (resource.data.get('cancelled',false) != true
