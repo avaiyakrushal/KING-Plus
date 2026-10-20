@@ -5,7 +5,8 @@ party=(java/'PartyActivity.java').read_text()
 game=(java/'RoomGameActivity.java').read_text()
 roster=(java/'KingPartyRoundRoster9972.java').read_text()
 rules=(root/'firestore.rules').read_text()
-assert 'if("Treasure Hunt".equals(name)){openRoomGames740();return;}' in party
+assert 'if("Treasure Hunt".equals(name)){openRoomGames740("Treasure Hunt");return;}' in party
+assert 'i.putExtra("requestedGame",requestedGame10100)' in party
 assert 'treasureChest10100' in game and 'treasureControls10100()' in game
 assert 'KingTreasureHuntRules10100.hit' in game
 assert '"treasure"' in roster
