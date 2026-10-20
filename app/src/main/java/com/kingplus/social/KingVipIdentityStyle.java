@@ -11,7 +11,7 @@ import com.google.firebase.firestore.Source;
 /** Trusted grant rendering only. User-owned profile fields never award paid cosmetics. */
 public final class KingVipIdentityStyle {
     private KingVipIdentityStyle(){}
-    public static boolean validNumber(String v){return v!=null&&v.matches("[1-9][0-9]{5}");}
+    public static boolean validNumber(String v){return v!=null&&(v.equals("000001")||v.matches("[1-9][0-9]{5}"));}
     public static int color(String key){
         if("gold".equals(key))return 0xffffd54f;
         if("royal_blue".equals(key))return 0xff448aff;

@@ -1,15 +1,15 @@
-name: KING Plus v10.0.90 Agency Visibility TEST APK
+name: KING Plus v10.0.91 Owner VIP and Hunt TEST APK
 on:
   push:
     branches: [work/king-v10070-nongame-audit]
     paths:
       - 'app/**'
+      - 'functions/**'
       - 'tools/**'
       - 'README.md'
       - 'BUILD-NOTES-READ-ME.txt'
-      - 'RELEASE-NOTES-v10.0.90.md'
-      - 'BOLO-HI-ME-PROFILE-AUDIT-v10.0.90.md'
-      - 'RELEASE-NOTES-v10.0.90.md'
+      - 'RELEASE-NOTES-v10.0.91.md'
+      - 'BOLO-HI-ME-PROFILE-AUDIT-v10.0.91.md'
       - 'tests/firestore/privacy-block-dm-firestore.test.mjs'
       - 'tests/firestore/liked-moments-v10085.test.mjs'
       - 'firestore.rules'
@@ -58,9 +58,12 @@ jobs:
           python3 tools/me-profile-parity-v10088/check_source.py
           python3 tools/me-profile-parity-v10089/check_source.py
           python3 tools/me-agency-access-v10090/check_source.py
-          grep -q "versionCode 369" app/build.gradle
-          grep -q "versionName '10.0.90-agency-visibility'" app/build.gradle
+          python3 tools/owner-vip-hunt-v10091/check_source.py
+          grep -q "versionCode 370" app/build.gradle
+          grep -q "versionName '10.0.91-owner-vip-hunt'" app/build.gradle
           test -s app/kingplus-ci-debug.keystore
+      - name: Test trusted owner gift entitlement
+        run: node --test functions/room-gift-service.test.js functions/owner-entitlement-service.test.js
       - name: Verify cloud Block List and report receipt Firestore rules
         run: |
           set -euo pipefail
@@ -75,7 +78,7 @@ jobs:
           test -s "$apk"
           aapt="$(find "$ANDROID_HOME/build-tools" -name aapt -type f | sort -V | tail -1)"
           signer="$(find "$ANDROID_HOME/build-tools" -name apksigner -type f | sort -V | tail -1)"
-          "$aapt" dump badging "$apk" | grep '^package:' | grep "name='com.kingplus.social'" | grep "versionCode='369'"
+          "$aapt" dump badging "$apk" | grep '^package:' | grep "name='com.kingplus.social'" | grep "versionCode='370'"
           "$signer" verify --print-certs "$apk"
           test "$(stat -c%s "$apk")" -gt 60000000
           unzip -Z1 "$apk" | grep -q '^lib/arm64-v8a/libjingle_peerconnection_so.so$'
@@ -83,14 +86,14 @@ jobs:
       - name: Package TEST APK and source
         run: |
           set -euo pipefail
-          mkdir -p /tmp/king-v10089-out
-          cp app/build/outputs/apk/debug/app-debug.apk /tmp/king-v10089-out/KING-Plus-v10.0.90-Me-Profile-Editor-TEST.apk
-          zip -qr /tmp/king-v10089-out/KING-Plus-v10.0.90-Me-Profile-Editor-TEST-Source.zip . \
+          mkdir -p /tmp/king-v10091-out
+          cp app/build/outputs/apk/debug/app-debug.apk /tmp/king-v10091-out/KING-Plus-v10.0.91-Owner-VIP-Hunt-TEST.apk
+          zip -qr /tmp/king-v10091-out/KING-Plus-v10.0.91-Owner-VIP-Hunt-TEST-Source.zip . \
             -x '.git/*' '*/.git/*' '*/build/*' '.gradle/*' '*/.gradle/*' '*/node_modules/*' \
             '*.apk' '*.aab' '*.keystore' '*.jks' '*.zip' '*local.properties' '*.log'
       - uses: actions/upload-artifact@v4
         with:
-          name: KING-Plus-v10.0.90-Me-Profile-Editor-TEST-APK-and-Source
-          path: /tmp/king-v10089-out/*
+          name: KING-Plus-v10.0.91-Owner-VIP-Hunt-TEST-APK-and-Source
+          path: /tmp/king-v10091-out/*
           retention-days: 30
           if-no-files-found: error

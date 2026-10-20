@@ -13,6 +13,7 @@ import android.widget.ScrollView;
 import android.content.res.ColorStateList;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
+import com.google.firebase.auth.GetTokenResult;
 
 /** The same secure Diamond balance that a future verified Razorpay
  * captured-payment webhook credits to Cloudflare D1. No fake TEST coins,
@@ -21,6 +22,7 @@ import com.google.firebase.auth.FirebaseUser;
 public final class KingWallet976Activity extends Activity {
     private TextView diamonds,vip,status,account;
     private int seq976;
+    private boolean ownerUnlimited=false;
     private int dp(int x){return (int)(x*getResources().getDisplayMetrics().density+.5f);}
     private GradientDrawable rounded(int color){
         GradientDrawable d=new GradientDrawable();
@@ -96,6 +98,17 @@ public final class KingWallet976Activity extends Activity {
             return;
         }
         String uid=me.getUid();
+        ownerUnlimited=false;
+        final String walletUid=uid;
+        me.getIdToken(false).addOnSuccessListener(token->{
+            FirebaseUser current=FirebaseAuth.getInstance().getCurrentUser();
+            if(requestId!=seq976||current==null||!walletUid.equals(current.getUid()))return;
+            ownerUnlimited=Boolean.TRUE.equals(token.getClaims().get("admin"));
+            if(ownerUnlimited){
+                diamonds.setText("💎 Diamonds: ∞ • Owner entitlement");
+                status.setText("Unlimited gift sending is enabled by a verified Super Admin claim; no wallet balance is minted.");
+            }
+        });
         account.setText("Verified Firebase account: "+(uid.length()>12?uid.substring(0,12)+"…":uid));
         diamonds.setText("💎 Diamonds: checking server…");
         vip.setText("👑 Recharge VIP: checking server…");
@@ -103,12 +116,12 @@ public final class KingWallet976Activity extends Activity {
         KingBackend976.fetchWallet(this,(verified,error)->{
             if(requestId!=seq976)return;
             if(verified==null){
-                diamonds.setText("💎 Diamonds: unavailable (not zero)");
+                if(!ownerUnlimited)diamonds.setText("💎 Diamonds: unavailable (not zero)");
                 vip.setText("👑 Recharge VIP: unavailable");
                 status.setText(error==null?"Cannot verify the Wallet right now.":error);
                 return;
             }
-            diamonds.setText("💎 Verified Diamonds: "+verified.diamonds);
+            if(!ownerUnlimited)diamonds.setText("💎 Verified Diamonds: "+verified.diamonds);
             vip.setText("👑 VIP "+verified.vipLevel+
                 "   •   Recharge total: "+verified.rechargeTotal+" Diamonds");
             status.setText("Verified using your Firebase ID token and the server Wallet.");

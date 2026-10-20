@@ -100,6 +100,30 @@ async function sendUserNotification(uid, title, body, data = {}) {
 
 const {createGiftService, GiftError} = require('./room-gift-service');
 const commitGift10064 = createGiftService({db, timestamp: () => FieldValue.serverTimestamp()});
+// VIP 000001 is reserved by a trusted function for a server-verified Super Admin.
+const claimOwnerVipNumber = onCall(async request => {
+  const uid=requireAuth(request);
+  if(request.auth.token?.admin!==true)
+    throw new HttpsError('permission-denied','Super Admin access required.');
+  const registry=db.collection('king_vip_number_registry').doc('000001');
+  const grant=db.collection('king_vip_identity_grants').doc(uid);
+  try {
+    return await db.runTransaction(async tx=>{
+      const [reserved,existing]=await Promise.all([tx.get(registry),tx.get(grant)]);
+      if(reserved.exists&&reserved.get('uid')!==uid)
+        throw new HttpsError('already-exists','VIP number 000001 is already reserved.');
+      if(existing.exists&&existing.get('vipNumber')&&existing.get('vipNumber')!=='000001')
+        throw new HttpsError('failed-precondition','This account already has a different VIP number.');
+      const now=FieldValue.serverTimestamp();
+      tx.set(registry,{uid,number:'000001',reservedForOwner:true,createdAt:now},{merge:true});
+      tx.set(grant,{uid,vipNumber:'000001',updatedAt:now},{merge:true});
+      return {ok:true,number:'000001'};
+    });
+  } catch(error) {
+    if(error instanceof HttpsError)throw error;
+    throw new HttpsError('internal','Owner VIP number could not be verified.');
+  }
+});
 async function purchaseGift10064(request, inRoom) {
   const senderUid=requireAuth(request);
   const data=request.data||{};
@@ -110,7 +134,8 @@ async function purchaseGift10064(request, inRoom) {
   try {
     const result=await commitGift10064({senderUid,targetUid:data.targetUid,
       giftName:data.giftName,cost:data.cost,requestId:data.requestId,
-      roomId:inRoom?data.roomId:null});
+      roomId:inRoom?data.roomId:null,
+      unlimitedSender:request.auth.token?.admin===true});
     if(!result.idempotent) {
       try { await sendUserNotification(data.targetUid,'You received a gift',data.giftName,
         {type:'gift',senderUid,giftId:result.giftId}); }
@@ -331,6 +356,7 @@ module.exports = {
   buyVipIdentity: require('./vip-style-service').createVipStyleService({
     db, FieldValue, HttpsError, requireAuth, isBanned
   }),
+  claimOwnerVipNumber,
   sendDirectMessageNotification,
   sendFollowNotification,
   requestAccountDeletion,

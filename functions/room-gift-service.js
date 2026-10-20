@@ -5,7 +5,7 @@ const {applyGiftDebit, applyGiftReception} = require('./recharge-policy');
 class GiftError extends Error { constructor(code,message){ super(message); this.code=code; } }
 const id = value => typeof value==='string' && /^[A-Za-z0-9_-]{1,128}$/.test(value);
 function createGiftService({db,timestamp}) {
-  return async ({senderUid,targetUid,giftName,cost,requestId,roomId=null}) => {
+  return async ({senderUid,targetUid,giftName,cost,requestId,roomId=null,unlimitedSender=false}) => {
     const gift = priceFor(giftName);
     if(!id(senderUid)||!id(targetUid)||senderUid===targetUid||!id(requestId)||
        (roomId!==null&&!id(roomId))||!gift||cost!==gift.total)
@@ -39,15 +39,20 @@ function createGiftService({db,timestamp}) {
           memberA.get('uid')!==senderUid||memberB.get('uid')!==targetUid))
         throw new GiftError('failed-precondition','Both members must be in the open Party room.');
       let debit,credit;
-      try { debit=applyGiftDebit(a.exists?a.data():{},gift.total);credit=applyGiftReception(b.exists?b.data():{},gift.total); }
+      try {
+        debit=unlimitedSender
+          ?{coins:a.exists?Number(a.get('coins')||0):0}
+          :applyGiftDebit(a.exists?a.data():{},gift.total);
+        credit=applyGiftReception(b.exists?b.data():{},gift.total);
+      }
       catch(error){throw new GiftError('failed-precondition',error.message);}
       const at=timestamp();
-      tx.set(sender,{coins:debit.coins,updatedAt:at},{merge:true});
+      if(!unlimitedSender)tx.set(sender,{coins:debit.coins,updatedAt:at},{merge:true});
       tx.set(recipient,{giftScore:credit.giftScore,updatedAt:at},{merge:true});
       const record={type:'gift',senderUid,targetUid,giftName:gift.giftName,quantity:gift.quantity,
         cost:gift.total,roomId,giftId,nonRedeemable:true,createdAt:at};
       tx.set(ledger,record);
-      tx.set(operation,{...record,balance:debit.coins});
+      tx.set(operation,{...record,balance:unlimitedSender?null:debit.coins,unlimitedSender});
       if(room){
         const actorName=String(profile.get('displayName')||'KING member').slice(0,60);
         const targetName=String(target.get('displayName')||'KING member').slice(0,60);
@@ -58,7 +63,10 @@ function createGiftService({db,timestamp}) {
         tx.set(room.collection('events').doc(giftId),event);
         tx.set(room.collection('messages').doc(giftId),{...event,senderUid,senderName:actorName});
       }
-      return {ok:true,idempotent:false,balance:debit.coins,giftId,message:'Gift sent • '+gift.total+' Diamonds'};
+      return {ok:true,idempotent:false,balance:unlimitedSender?null:debit.coins,
+        unlimited:unlimitedSender,giftId,message:unlimitedSender
+          ?'Gift sent • Owner unlimited Diamonds'
+          :'Gift sent • '+gift.total+' Diamonds'};
     });
   };
 }

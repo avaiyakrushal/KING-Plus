@@ -31,7 +31,7 @@ public final class KingVipIdentityShopActivity extends Activity {
     private LinearLayout column;
     private EditText numberInput;
     private TextView status,previewName,owned,priceNum,priceColor,balance;
-    private Button buyNumber,buyColor;
+    private Button buyNumber,buyColor,claimOwnerNumber;
     private String chosenColor="gold",uid="";
     private boolean shopEnabled=false,requesting=false;
     private long numberPrice=-1,colorPrice=-1;
@@ -54,13 +54,17 @@ public final class KingVipIdentityShopActivity extends Activity {
         FirebaseUser signed=FirebaseAuth.getInstance().getCurrentUser();
         if(signed==null||signed.isAnonymous()){row(label("Sign in to your permanent KING account first.",15,gold,true));return;}
         uid=signed.getUid();
+        claimOwnerNumber=action("Claim owner VIP ID 000001");
+        claimOwnerNumber.setVisibility(android.view.View.GONE);
+        claimOwnerNumber.setOnClickListener(v->claimOwnerVipNumber());
+        refreshOwnerAccess(signed);
         owned=label("My VIP identity: verifying server…",14,gold,true);row(owned);
         balance=label("💎 Wallet: loading…",13,Color.WHITE,true);row(balance);
         row(label("👑 Choose a unique 6-digit VIP Number",17,gold,true));
         row(label("A VIP number is separate from your normal free KING ID. It can only be sold once; no two customers can buy the same VIP number.",12,0xffc3b7d9,false));
         numberInput=new EditText(this);numberInput.setSingleLine(true);numberInput.setHint("e.g. 888888");numberInput.setTextColor(Color.WHITE);numberInput.setHintTextColor(0xffad9fb6);numberInput.setInputType(InputType.TYPE_CLASS_NUMBER);numberInput.setFilters(new android.text.InputFilter[]{new android.text.InputFilter.LengthFilter(6)});numberInput.setBackground(card());column.addView(numberInput,new LinearLayout.LayoutParams(-1,dp(54)));
         priceNum=label("VIP number price: checking…",13,0xffdecdf6,true);row(priceNum);
-        buyNumber=action("Buy VIP Number");buyNumber.setOnClickListener(v->{String n=numberInput.getText().toString();if(!KingVipIdentityStyle.validNumber(n)){numberInput.setError("Enter 6 digits, not starting with 0");return;}buy("vip_number",n);});
+        buyNumber=action("Buy VIP Number");buyNumber.setOnClickListener(v->{String n=numberInput.getText().toString();if(!KingVipIdentityStyle.validNumber(n)){numberInput.setError("Enter 6 digits (owner ID 000001 is reserved)");return;}buy("vip_number",n);});
         row(label("🎨 Choose VIP Name Color",17,gold,true));
         previewName=label("👑 KING VIP NAME",22,KingVipIdentityStyle.color(chosenColor),true);previewName.setGravity(Gravity.CENTER);previewName.setBackground(card());row(previewName);
         LinearLayout choices=new LinearLayout(this);choices.setOrientation(LinearLayout.VERTICAL);column.addView(choices);
@@ -92,7 +96,22 @@ public final class KingVipIdentityShopActivity extends Activity {
         db.collection("wallets").document(uid).get(Source.SERVER).addOnSuccessListener(d->{if(!accountOk())return;Object n=d.get("coins");balance.setText("💎 Verified Wallet: "+(n instanceof Number?((Number)n).longValue():"unavailable"));})
           .addOnFailureListener(e->{if(accountOk())balance.setText("💎 Wallet verification unavailable");});
     }
-    private void updateButtons(){if(buyNumber!=null)buyNumber.setEnabled(shopEnabled&&!requesting);if(buyColor!=null)buyColor.setEnabled(shopEnabled&&!requesting);}
+    private void refreshOwnerAccess(FirebaseUser user){
+        user.getIdToken(false).addOnSuccessListener(token->{
+            if(!accountOk()||claimOwnerNumber==null)return;
+            boolean admin=Boolean.TRUE.equals(token.getClaims().get("admin"));
+            claimOwnerNumber.setVisibility(admin?android.view.View.VISIBLE:android.view.View.GONE);
+        });
+    }
+    private void claimOwnerVipNumber(){
+        if(!accountOk()||requesting)return;
+        requesting=true;updateButtons();claimOwnerNumber.setEnabled(false);
+        status.setText("Verifying owner entitlement with KING server…");
+        FirebaseFunctions.getInstance().getHttpsCallable("claimOwnerVipNumber").call(new HashMap<>())
+            .addOnSuccessListener(result->{if(!accountOk())return;requesting=false;status.setText("Owner VIP ID 000001 confirmed by server");refresh();updateButtons();})
+            .addOnFailureListener(error->{if(!accountOk())return;requesting=false;claimOwnerNumber.setEnabled(true);updateButtons();status.setText("Owner ID not granted: "+String.valueOf(error.getLocalizedMessage()));});
+    }
+    private void updateButtons(){if(buyNumber!=null)buyNumber.setEnabled(shopEnabled&&!requesting);if(buyColor!=null)buyColor.setEnabled(shopEnabled&&!requesting);if(claimOwnerNumber!=null)claimOwnerNumber.setEnabled(!requesting);}
     private void buy(String product,String selection){
         if(!accountOk()||!shopEnabled||requesting)return;
         new android.app.AlertDialog.Builder(this).setTitle("Confirm VIP purchase")

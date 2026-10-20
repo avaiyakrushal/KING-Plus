@@ -57,6 +57,7 @@ public class GamePlayActivity extends Activity {
         else if("draw".equals(game))showDrawGuess();
         else if("bingo".equals(game))showBingo();
         else if("zoo".equals(game))showZoo();
+        else if("hunt".equals(game))showHunt();
         else if("domino".equals(game))showDomino();
         else showTicTacToe();
     }
@@ -309,6 +310,34 @@ public class GamePlayActivity extends Activity {
         nextBingoLp10031.setMargins(0,dp(10),0,0);page.addView(nextBingo10031,nextBingoLp10031);
     }
     private boolean bingoWin(boolean[] m){for(int r=0;r<5;r++){boolean ok=true;for(int c=0;c<5;c++)ok&=m[r*5+c];if(ok)return true;}for(int c=0;c<5;c++){boolean ok=true;for(int r=0;r<5;r++)ok&=m[r*5+c];if(ok)return true;}boolean a=true,b=true;for(int i=0;i<5;i++){a&=m[i*5+i];b&=m[i*5+4-i];}return a||b;}
+
+
+    private void showHunt(){
+        base("💎 Hunt","Free practice hunt • points only • no wallet Diamonds");
+        final int[] treasure={random.nextInt(9)};final int[] found={0};final int[] points={0};
+        final boolean[] revealed=new boolean[9];
+        status=label("Find the hidden treasure • Points "+points[0],18,0xffffd768,true);
+        status.setGravity(Gravity.CENTER);page.addView(status,new LinearLayout.LayoutParams(-1,dp(64)));
+        LinearLayout grid=new LinearLayout(this);grid.setOrientation(LinearLayout.VERTICAL);grid.setPadding(dp(4),dp(4),dp(4),dp(4));grid.setBackground(bg(CARD,18));
+        Button[] tiles=new Button[9];
+        for(int r=0;r<3;r++){
+            LinearLayout line=new LinearLayout(this);
+            for(int c=0;c<3;c++){
+                int index=r*3+c;Button tile=action("🌿");tiles[index]=tile;tile.setTextSize(24);tile.setBackground(bg(0xff4a3268,12));
+                tile.setOnClickListener(v->{
+                    if(revealed[index])return;revealed[index]=true;
+                    if(index==treasure[0]){tile.setText("💎");found[0]++;points[0]++;status.setText("Treasure found! • Points "+points[0]);for(Button cell:tiles)cell.setEnabled(false);KingSoundFx.win(this);}
+                    else {tile.setText("·");status.setText("No treasure here • Points "+points[0]);}
+                    boolean complete=true;for(boolean open:revealed)complete&=open;
+                    if(found[0]>0||complete){if(found[0]==0)status.setText("Round over • Points "+points[0]);for(Button cell:tiles)cell.setEnabled(false);}
+                });LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(0,dp(82),1);lp.setMargins(dp(3),dp(3),dp(3),dp(3));line.addView(tile,lp);
+            }
+            grid.addView(line);
+        }
+        page.addView(grid,new LinearLayout.LayoutParams(-1,-2));
+        Button next=action("🔄 New Hunt");next.setOnClickListener(v->{showHunt();});LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(-1,dp(54));lp.setMargins(0,dp(10),0,0);page.addView(next,lp);
+        page.addView(label("Hunt scores stay on this device. This practice game never spends or awards Diamonds, money or redeemable items.",12,MUTED,false));
+    }
 
     private void showZoo(){
         base("Crazy Zoo","Explore until you collect all animals");

@@ -76,3 +76,12 @@ test('direct profile gift shares the same catalog and history without room event
  assert.equal(result.ok,true);assert.equal(db.data.get('wallets/sender').coins,850);
  assert.equal(db.data.has('live_rooms/room/events/'+result.giftId),false);
 });
+test('trusted Super Admin unlimited gift does not debit the finite wallet balance',async()=>{
+ const {db,send,request}=setup();
+ const result=await send({...request,unlimitedSender:true});
+ assert.equal(result.ok,true);assert.equal(result.unlimited,true);assert.equal(result.balance,null);
+ assert.equal(db.data.get('wallets/sender').coins,1000);
+ assert.equal(db.data.get('wallets/receiver').giftScore,160);
+ assert.equal(db.data.get('wallet_ledger/'+result.giftId).cost,150);
+ assert.equal(db.data.get('wallet_operations/'+result.giftId).unlimitedSender,true);
+});

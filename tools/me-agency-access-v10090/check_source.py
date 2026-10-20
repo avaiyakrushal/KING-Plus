@@ -12,5 +12,5 @@ assert 'if(allowed&&!isFinishing())row("🏢","Agency & Agent Recharge"' in menu
 assert 'getIdToken(false)' in access and 'token.getClaims().get("admin")' in access
 assert 'king_agencies' in access and 'king_agents' in access and 'Source.SERVER' in access
 assert 'boolean admin, activeAgency, activeAgent' in activity
-assert 'versionCode 369' in gradle and '10.0.90-agency-visibility' in gradle
+assert 'versionCode 370' in gradle and '10.0.91-owner-vip-hunt' in gradle
 print('PASS: Agency entry points are shown only for server-authorized Super Admin, active Agency, or active Agent accounts')
