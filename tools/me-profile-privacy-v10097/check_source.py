@@ -9,7 +9,7 @@ social = (root / 'app/src/main/java/com/kingplus/social/SocialActivity.java').re
 party = (root / 'app/src/main/java/com/kingplus/social/PartyActivity.java').read_text()
 workflow = (root / '.github/workflows/king-v10077-party-rejoin-choice.yml').read_text()
 
-assert 'versionCode 378' in gradle and "10.0.99-home-party-category-options" in gradle
+assert 'versionCode 379' in gradle and "10.0.100-party-treasure-hunt-live" in gradle
 assert 'WriteBatch batch=db.batch()' in privacy and 'batch.commit()' in privacy
 assert 'KingPublicMeVisibility9984.discoverable(p10022)' in discover
 assert 'KingPublicMeVisibility9984.discoverable(p10028)' in discover
@@ -18,6 +18,6 @@ assert 'me_show_entrance_effects' in privacy and 'me_show_entrance_effects' in p
 assert 'showEntrance10098?effect730:"None"' in party
 assert 'return profile == null || !Boolean.FALSE.equals(profile.getBoolean("findMe"))' in visibility
 assert 'no global online indicator yet' in privacy
-assert 'KING-Plus-v10.0.99-Home-Party-TEST.apk' in workflow
-assert 'KING-Plus-v10.0.99-Home-Party-TEST-Source.zip' in workflow
+assert 'KING-Plus-v10.0.100-Party-Treasure-TEST.apk' in workflow
+assert 'KING-Plus-v10.0.100-Party-Treasure-TEST-Source.zip' in workflow
 print('PASS: Me find-me and entrance-effect preferences sync and are applied to supported profile surfaces')
