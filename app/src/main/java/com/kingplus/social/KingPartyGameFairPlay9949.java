@@ -17,6 +17,7 @@ public final class KingPartyGameFairPlay9949 {
       &&docUid!=null&&!docUid.isEmpty()&&docUid.equals(claimedUid);
  }
  public static String visibleMove(String game,String status,boolean serverVerified,String actualMove){
+   if("treasure".equals(game)&&(!serverVerified||!"closed".equals(status)))return "choice locked ✓";
    if("rps".equals(game)){
       if(!serverVerified||!"closed".equals(status))return "move locked ✓";
       if("Rock".equals(actualMove))return "✊ Rock";
