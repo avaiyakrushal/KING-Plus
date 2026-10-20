@@ -1,4 +1,4 @@
-name: KING Plus v10.0.91 Owner VIP and Hunt TEST APK
+name: KING Plus v10.0.92 Owner Gift and Hunt TEST APK
 on:
   push:
     branches: [work/king-v10070-nongame-audit]
@@ -8,8 +8,8 @@ on:
       - 'tools/**'
       - 'README.md'
       - 'BUILD-NOTES-READ-ME.txt'
-      - 'RELEASE-NOTES-v10.0.91.md'
-      - 'BOLO-HI-ME-PROFILE-AUDIT-v10.0.91.md'
+      - 'RELEASE-NOTES-v10.0.92.md'
+      - 'BOLO-HI-ME-PROFILE-AUDIT-v10.0.92.md'
       - 'tests/firestore/privacy-block-dm-firestore.test.mjs'
       - 'tests/firestore/liked-moments-v10085.test.mjs'
       - 'firestore.rules'
@@ -59,8 +59,8 @@ jobs:
           python3 tools/me-profile-parity-v10089/check_source.py
           python3 tools/me-agency-access-v10090/check_source.py
           python3 tools/owner-vip-hunt-v10091/check_source.py
-          grep -q "versionCode 370" app/build.gradle
-          grep -q "versionName '10.0.91-owner-vip-hunt'" app/build.gradle
+          grep -q "versionCode 371" app/build.gradle
+          grep -q "versionName '10.0.92-owner-gift-hunt'" app/build.gradle
           test -s app/kingplus-ci-debug.keystore
       - name: Test trusted owner gift entitlement
         run: node --test functions/room-gift-service.test.js functions/owner-entitlement-service.test.js
@@ -78,7 +78,7 @@ jobs:
           test -s "$apk"
           aapt="$(find "$ANDROID_HOME/build-tools" -name aapt -type f | sort -V | tail -1)"
           signer="$(find "$ANDROID_HOME/build-tools" -name apksigner -type f | sort -V | tail -1)"
-          "$aapt" dump badging "$apk" | grep '^package:' | grep "name='com.kingplus.social'" | grep "versionCode='370'"
+          "$aapt" dump badging "$apk" | grep '^package:' | grep "name='com.kingplus.social'" | grep "versionCode='371'"
           "$signer" verify --print-certs "$apk"
           test "$(stat -c%s "$apk")" -gt 60000000
           unzip -Z1 "$apk" | grep -q '^lib/arm64-v8a/libjingle_peerconnection_so.so$'
@@ -86,14 +86,14 @@ jobs:
       - name: Package TEST APK and source
         run: |
           set -euo pipefail
-          mkdir -p /tmp/king-v10091-out
-          cp app/build/outputs/apk/debug/app-debug.apk /tmp/king-v10091-out/KING-Plus-v10.0.91-Owner-VIP-Hunt-TEST.apk
-          zip -qr /tmp/king-v10091-out/KING-Plus-v10.0.91-Owner-VIP-Hunt-TEST-Source.zip . \
+          mkdir -p /tmp/king-v10092-out
+          cp app/build/outputs/apk/debug/app-debug.apk /tmp/king-v10092-out/KING-Plus-v10.0.92-Owner-Gift-Hunt-TEST.apk
+          zip -qr /tmp/king-v10092-out/KING-Plus-v10.0.92-Owner-Gift-Hunt-TEST-Source.zip . \
             -x '.git/*' '*/.git/*' '*/build/*' '.gradle/*' '*/.gradle/*' '*/node_modules/*' \
             '*.apk' '*.aab' '*.keystore' '*.jks' '*.zip' '*local.properties' '*.log'
       - uses: actions/upload-artifact@v4
         with:
-          name: KING-Plus-v10.0.91-Owner-VIP-Hunt-TEST-APK-and-Source
-          path: /tmp/king-v10091-out/*
+          name: KING-Plus-v10.0.92-Owner-Gift-Hunt-TEST-APK-and-Source
+          path: /tmp/king-v10092-out/*
           retention-days: 30
           if-no-files-found: error

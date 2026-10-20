@@ -105,8 +105,8 @@ public final class KingWallet976Activity extends Activity {
             if(requestId!=seq976||current==null||!walletUid.equals(current.getUid()))return;
             ownerUnlimited=Boolean.TRUE.equals(token.getClaims().get("admin"));
             if(ownerUnlimited){
-                diamonds.setText("💎 Diamonds: ∞ • Owner entitlement");
-                status.setText("Unlimited gift sending is enabled by a verified Super Admin claim; no wallet balance is minted.");
+                diamonds.setText("💎 Gift sending: ∞ • Owner entitlement");
+                status.setText("Unlimited gift sending is enabled by a verified Super Admin claim; the finite wallet balance remains unchanged.");
             }
         });
         account.setText("Verified Firebase account: "+(uid.length()>12?uid.substring(0,12)+"…":uid));

@@ -20,7 +20,7 @@ assert 'unlimitedSender:true' in gift_tests
 assert '"💎","Hunt"' in menu and 'if("hunt".equalsIgnoreCase(code))' in menu
 assert 'else if("hunt".equals(game))showHunt()' in game
 assert 'no wallet Diamonds' in game and 'never spends or awards Diamonds' in game
-assert 'token.getClaims().get("admin")' in wallet and 'Diamonds: ∞ • Owner entitlement' in wallet
-assert 'versionCode 370' in gradle and '10.0.91-owner-vip-hunt' in gradle
-assert "versionCode='370'" in workflow and 'KING-Plus-v10.0.91-Owner-VIP-Hunt-TEST.apk' in workflow
+assert 'token.getClaims().get("admin")' in wallet and 'Gift sending: ∞ • Owner entitlement' in wallet
+assert 'versionCode 371' in gradle and '10.0.92-owner-gift-hunt' in gradle
+assert "versionCode='371'" in workflow and 'KING-Plus-v10.0.92-Owner-Gift-Hunt-TEST.apk' in workflow
 print('PASS: owner VIP and unlimited gift privileges require trusted admin claims; Hunt is local and wallet-free')
