@@ -5238,7 +5238,7 @@ public class PartyActivity extends androidx.fragment.app.FragmentActivity implem
         if("Chicken Run".equals(name)){chickenRunEvent();return;}
         if("Animal PK".equals(name)){animalPkEvent();return;}
         if("Lucky Slot".equals(name)){luckySlotEvent();return;}
-        if("Treasure Hunt".equals(name)){openRoomGames740();return;}
+        if("Treasure Hunt".equals(name)){openRoomGames740("Treasure Hunt");return;}
         if("Room Quiz".equals(name)){roomQuizEvent();return;}
         if("Magic Lamp".equals(name)){simplePrizeEvent("🪄 Magic Lamp",new String[]{"✨ Wish granted","💎 Treasure sparkle","👑 Royal challenge","🌹 Send a rose"});return;}
         if("KING Tap Sprint".equals(name)||"Forza Motorsport".equals(name)){simpleRaceEvent();return;}
@@ -7573,9 +7573,10 @@ public class PartyActivity extends androidx.fragment.app.FragmentActivity implem
         KingRoomDice997.open(this,db,user,roomId,safeName(),this::openRoomGames740);
     }
 
-    private void openRoomGames740(){
+    private void openRoomGames740(){openRoomGames740("");}
+    private void openRoomGames740(String requestedGame10100){
         if(!cloudRoom||db==null||user==null||roomId==null||roomId.trim().isEmpty()){toast("Join a live Firebase Party room for multiplayer games");return;}
-        Intent i=new Intent(this,RoomGameActivity.class);i.putExtra("roomId",roomId);i.putExtra("roomName",roomName);i.putExtra("displayName",safeName());startActivity(i);
+        Intent i=new Intent(this,RoomGameActivity.class);i.putExtra("roomId",roomId);i.putExtra("roomName",roomName);i.putExtra("displayName",safeName());i.putExtra("requestedGame",requestedGame10100);startActivity(i);
     }
 
     private void openGames(){openMainTab(1);}
