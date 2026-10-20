@@ -1196,7 +1196,9 @@ public class PartyActivity extends androidx.fragment.app.FragmentActivity implem
         LevelSystem.Snapshot p720=LevelSystem.read(this);String frame730=KingCosmetics.frame(this),effect730=KingCosmetics.effect(this);
         Map<String,Object>d=new HashMap<>();d.put("uid",user.getUid());d.put("name",safeName());d.put("level",p720.level);
         // VIP is server-managed; rejoining a Party must not force it to zero.
-        d.put("equippedFrame",frame730);d.put("entranceEffect",effect730);d.put("nameBadge",KingCosmetics.badge(this));d.put("deviceId",deviceId891());d.put("sessionId",presenceSession967);d.put("online",true);try{d.put("appVersion",getPackageManager().getPackageInfo(getPackageName(),0).versionName);}
+        boolean showEntrance10098=getSharedPreferences("MainActivity",MODE_PRIVATE)
+            .getBoolean("me_show_entrance_effects",true);
+        d.put("equippedFrame",frame730);d.put("entranceEffect",showEntrance10098?effect730:"None");d.put("nameBadge",KingCosmetics.badge(this));d.put("deviceId",deviceId891());d.put("sessionId",presenceSession967);d.put("online",true);try{d.put("appVersion",getPackageManager().getPackageInfo(getPackageName(),0).versionName);}
         catch(Exception ignored){d.put("appVersion","9.6.7");}
         d.put("voiceJoined",voiceConferenceConnected10065);
         String cloudPhoto868=cloudProfilePhoto868();if(!cloudPhoto868.isEmpty())d.put("photoUrl",cloudPhoto868);else if(user.getPhotoUrl()!=null)d.put("photoUrl",user.getPhotoUrl().toString());

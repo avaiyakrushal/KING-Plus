@@ -295,6 +295,7 @@ public class DiscoverActivity extends Activity {
             DocumentSnapshot p10022=docs10022.get(ix10022);
             String id10022=p10022.getId();
             if(!KingDocumentId10036.valid(id10022)||uid10022.equals(id10022))continue;
+            if(!KingPublicMeVisibility9984.discoverable(p10022))continue;
             if(shown10022%2==0){row10022=new LinearLayout(this);row10022.setGravity(Gravity.TOP);
                 grid10022.addView(row10022,new LinearLayout.LayoutParams(-1,dp(264)));}
             addProfileCard940(row10022,p10022);shown10022++;
@@ -322,6 +323,7 @@ public class DiscoverActivity extends Activity {
         for(;i10028<docs10028.size()&&shown10028<8;i10028++){
             DocumentSnapshot p10028=docs10028.get(i10028);
             if(!KingDocumentId10036.valid(p10028.getId())||owner10028.equals(p10028.getId()))continue;
+            if(!KingPublicMeVisibility9984.discoverable(p10028))continue;
             if(shown10028%2==0){row10028=new LinearLayout(this);row10028.setGravity(Gravity.TOP);
                 grid10028.addView(row10028,new LinearLayout.LayoutParams(-1,dp(264)));}
             addProfileCard940(row10028,p10028);shown10028++;

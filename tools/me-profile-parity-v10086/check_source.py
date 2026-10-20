@@ -6,8 +6,8 @@ flow = (root / 'app/src/main/java/com/kingplus/social/KingDeepFlowActivity.java'
 main = (root / 'app/src/main/java/com/kingplus/social/MainActivity.java').read_text()
 workflow = (root / '.github/workflows/king-v10077-party-rejoin-choice.yml').read_text()
 
-assert 'versionCode 375' in gradle
-assert "10.0.96-me-profile-progress" in gradle
+assert 'versionCode 376' in gradle
+assert "10.0.97-me-privacy-progress" in gradle
 assert 'row("🎁","My Gift Wall","View gifts received by this signed-in account","gift_wall");' in flow
 assert 'row("🕘","Gift History","View server-recorded sent and received gifts","gift_history");' in flow
 assert 'row("✅","Daily Check-in & Missions"' in flow and '"task_center"' in flow

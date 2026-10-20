@@ -24,8 +24,9 @@ import java.util.*;
  * The 10 preferences are ACCOUNT-SYNCED, not a promise that every back-end
  * push producer respects them. Backend-enforced: new direct messages respect
  * recipient allowPrivateMessages, Party invites respect allowRoomInvites, and
- * both account block directions are checked. Discovery, presence and display
- * toggles are synced preferences and may not be enforced by every legacy surface.
+ * both account block directions are checked. Find-me and online status are
+ * mirrored into KING Plus discovery cards. Older app versions and direct
+ * profile links may still show a public profile.
  */
 public final class KingMePrivacy9984Activity extends Activity {
  private FirebaseFirestore db;
@@ -81,6 +82,9 @@ public final class KingMePrivacy9984Activity extends Activity {
    if(d.exists())for(String key:values.keySet())
       if(KingMePrivacyPolicy9984.permitted(key)&&d.get(key) instanceof Boolean)
           values.put(key,d.getBoolean(key));
+   getSharedPreferences("MainActivity",MODE_PRIVATE).edit()
+       .putBoolean("me_show_entrance_effects",Boolean.TRUE.equals(values.get("showEntranceEffects")))
+       .apply();
    render();
   }).addOnFailureListener(err->{
     if(isFinishing()||isDestroyed())return;
@@ -107,7 +111,7 @@ public final class KingMePrivacy9984Activity extends Activity {
  }
  private void renderPrivacy(){
    root.addView(label("🛡 Account Privacy — synced across signed-in devices",18));
-   root.addView(label("New private messages and Cloud Party invitations respect their saved permissions and your Block List. Find-me, online-status and entrance-display preferences sync online but are not enforced on every legacy surface yet.",13));
+   root.addView(label("New private messages and Cloud Party invitations respect their saved permissions and your Block List. Find-me and online-status choices are applied to KING Plus discovery and search cards. Older app versions or direct links may still show a public profile.",13));
    for(int i=0;i<KingMePrivacyPolicy9984.PRIVACY.length;i++)
       toggle(KingMePrivacyPolicy9984.PRIVACY[i],KingMePrivacyPolicy9984.PRIVACY_LABELS[i]);
    button("🚫 Review / unblock accounts",()->{page="blocked";render();});
@@ -133,17 +137,24 @@ public final class KingMePrivacy9984Activity extends Activity {
   busy=true;
   prefDoc.get(Source.SERVER).addOnSuccessListener(snapshot->{
     if(!correctAccount()){busy=false;return;}
-    if(snapshot.exists()){
-      Map<String,Object> fields=new HashMap<>();
-      fields.put(key,next);fields.put("updatedAt",FieldValue.serverTimestamp());
-      prefDoc.update(fields).addOnSuccessListener(v->{busy=false;refresh();})
-        .addOnFailureListener(err->{busy=false;toast("Cloud setting not saved: "+err.getMessage());refresh();});
-    }else{
-      Map<String,Object> data=KingMePrivacyPolicy9984.defaults(uid);
-      data.put(key,next);data.put("updatedAt",FieldValue.serverTimestamp());
-      prefDoc.set(data).addOnSuccessListener(v->{busy=false;refresh();})
-        .addOnFailureListener(err->{busy=false;toast("Cloud setting not saved: "+err.getMessage());refresh();});
+    Map<String,Object> data=snapshot.exists()?new HashMap<>():KingMePrivacyPolicy9984.defaults(uid);
+    data.put(key,next);data.put("updatedAt",FieldValue.serverTimestamp());
+    com.google.firebase.firestore.WriteBatch batch=db.batch();
+    if(snapshot.exists())batch.update(prefDoc,data);else batch.set(prefDoc,data);
+    // Mirror display preferences only. Wallet, VIP, level and entitlements
+    // remain server-owned and cannot be changed from this settings page.
+    if("findMe".equals(key)||"showOnlineStatus".equals(key)||"showEntranceEffects".equals(key)){
+      Map<String,Object> visible=new HashMap<>();visible.put(key,next);visible.put("uid",uid);
+      visible.put("vipLevel",0);visible.put("vipPoints",0);visible.put("nobleLevel",0);
+      batch.set(db.collection("public_profiles").document(uid),visible,
+          com.google.firebase.firestore.SetOptions.merge());
     }
+    batch.commit().addOnSuccessListener(v->{
+      if("showEntranceEffects".equals(key))getSharedPreferences("MainActivity",MODE_PRIVATE)
+          .edit().putBoolean("me_show_entrance_effects",next).apply();
+      busy=false;refresh();
+    })
+      .addOnFailureListener(err->{busy=false;toast("Cloud setting not saved: "+err.getMessage());refresh();});
   }).addOnFailureListener(err->{busy=false;toast("Could not verify account settings. Retry online.");});
  }
  private void renderBlocked(){

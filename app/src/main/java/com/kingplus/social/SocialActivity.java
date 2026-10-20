@@ -522,6 +522,8 @@ public class SocialActivity extends Activity {
     private void renderProfiles(List<DocumentSnapshot> docs, String empty) {
         list.removeAllViews(); int shown=0;
         for (DocumentSnapshot d : docs) { String uid=d.getId(); if(!KingDocumentId10036.valid(uid)||me!=null&&uid.equals(me.getUid())) continue;
+            boolean directoryScreen="search".equals(activeSocialScreen965)||"discover".equals(activeSocialScreen965);
+            if(directoryScreen&&!KingPublicMeVisibility9984.discoverable(d))continue;
             rememberIssuedId10037(d);addPerson(uid, nameOf(d), clean(d.getString("bio")),clean(d.getString("photoUrl")),d.getLong("level"),d.getLong("vipLevel")); shown++; }
         if (shown==0) setLoading(empty);
     }

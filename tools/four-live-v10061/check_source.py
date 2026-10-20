@@ -12,7 +12,7 @@ me=read('MainActivity.java')
 home=read('CommunityHubActivity.java')
 gradle=(root/'app/build.gradle').read_text()
 checks={
- 'app version increments and preserves package':'versionCode 340' in gradle and "com.kingplus.social" in gradle,
+ 'app version increments and preserves package':'versionCode 376' in gradle and "com.kingplus.social" in gradle,
  'Discover grid follow button is real':'bindFollow(uid,follow);' in discover,
  'Discover card fits live grid height':'dp(98)' in discover and 'dp(246)' in discover and 'dp(282)' not in discover,
  'Discover follow live owner query':'whereEqualTo("followerUid",owner)' in discover,
