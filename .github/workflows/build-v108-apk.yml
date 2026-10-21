@@ -25,13 +25,13 @@ jobs:
           cat .codex-build/v107-part-* > /tmp/king-v107-source.zip
           mkdir -p /tmp/king-v108-source
           unzip -q /tmp/king-v107-source.zip -d /tmp/king-v108-source
-          cp app/kingplus-ci-debug.keystore /tmp/king-v108-source/work/app/
+          cp app/kingplus-ci-debug.keystore /tmp/king-v108-source/app/
       - name: Apply KTV discovery fix and verify source
         run: |
           set -euo pipefail
           python3 - <<'PY'
           from pathlib import Path
-          root=Path('/tmp/king-v108-source/work')
+          root=Path('/tmp/king-v108-source')
           discover=root/'app/src/main/java/com/kingplus/social/DiscoverActivity.java'
           party=root/'app/src/main/java/com/kingplus/social/PartyActivity.java'
           gradle=root/'app/build.gradle'
@@ -66,12 +66,12 @@ jobs:
           print('PASS v10.0.108 Discover KTV route and Party lobby category')
           PY
       - name: Build Android debug APK
-        run: gradle -p /tmp/king-v108-source/work :app:assembleDebug --no-daemon --max-workers=2
+        run: gradle -p /tmp/king-v108-source :app:assembleDebug --no-daemon --max-workers=2
       - name: Verify app package and version
         run: |
           set -euo pipefail
           aapt="$(find "$ANDROID_HOME/build-tools" -name aapt -type f | sort -V | tail -1)"
-          apk=/tmp/king-v108-source/work/app/build/outputs/apk/debug/app-debug.apk
+          apk=/tmp/king-v108-source/app/build/outputs/apk/debug/app-debug.apk
           "$aapt" dump badging "$apk" | grep "^package:" | grep "name='com.kingplus.social'" | grep "versionCode='386'" | grep "versionName='10.0.108-discover-ktv-lobby'"
           mkdir -p /tmp/king-v108-output
           cp "$apk" /tmp/king-v108-output/KING-Plus-v10.0.108-Discover-KTV.apk
