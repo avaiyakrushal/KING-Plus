@@ -1,0 +1,159 @@
+name: KING Plus v10.0.111 Bolo-style Party Room redesign APK
+on:
+  push:
+    branches: [codex/build-v111-party-room-redesign]
+    paths:
+      - .github/workflows/build-v111-party-room-redesign.yml
+permissions:
+  contents: read
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+      - name: Restore v10.0.107 source bundle
+        run: |
+          set -euo pipefail
+          cat .codex-build/v107-part-* > /tmp/king-v107-source.zip
+          mkdir -p /tmp/king-v108-source
+          unzip -q /tmp/king-v107-source.zip -d /tmp/king-v108-source
+          cp app/kingplus-ci-debug.keystore /tmp/king-v108-source/app/
+      - name: Apply KTV discovery fix and verify source
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          root=Path('/tmp/king-v108-source')
+          discover=root/'app/src/main/java/com/kingplus/social/DiscoverActivity.java'
+          party=root/'app/src/main/java/com/kingplus/social/PartyActivity.java'
+          gradle=root/'app/build.gradle'
+          s=discover.read_text()
+          old='addDiscoverEntrance940(row,"🎵","KTV","Sing & queue",()->startActivity(new Intent(this,PartyActivity.class)));'
+          new='''addDiscoverEntrance940(row,"🎵","KTV","Sing & queue",()->{
+                      Intent ktvLobby=new Intent(this,PartyActivity.class);
+                      ktvLobby.putExtra("lobbyCategory","KTV");
+                      startActivity(ktvLobby);
+                  });'''
+          assert s.count(old)==1
+          discover.write_text(s.replace(old,new,1))
+          s=party.read_text()
+          old='        renderLobby("Hot");' + chr(10) + '        handlePartyIntent9989(getIntent());'
+          new='''        String requestedLobbyCategory=safe(getIntent().getStringExtra("lobbyCategory"),"Hot");
+          if(!KingPagePolicy10067.categories(requestedLobbyCategory).isEmpty())
+              renderLobby(requestedLobbyCategory);
+          else renderLobby("Hot");
+          handlePartyIntent9989(getIntent());'''
+          assert s.count(old)==1
+          s=s.replace(old,new,1)
+          old='String[] names = {"Hot","Music","Chat","Love","Game","Event","Date","Video"};'
+          assert s.count(old)==1
+          party.write_text(s.replace(old,'String[] names = {"Hot","Music","KTV","Radio","Chat","Love","Family","Game","Event","Date","Video"};',1))
+          s=party.read_text()
+          old='if("Hot".equalsIgnoreCase(category))return "🔥";'
+          assert s.count(old)==1
+          s=s.replace(old,old+'''
+          if("KTV".equalsIgnoreCase(category))return "🎤";
+          if("Radio".equalsIgnoreCase(category))return "📻";
+          if("Family".equalsIgnoreCase(category))return "🏠";
+          if("PK".equalsIgnoreCase(category))return "⚔";
+          if("Pick Me".equalsIgnoreCase(category))return "👑";
+          if("Team Up".equalsIgnoreCase(category))return "🤝";''',1)
+          old='        TextView tag=tv(("Music".equalsIgnoreCase(category)?"Music":"● "+("Hot".equalsIgnoreCase(category)?"Chat":category)),10,Color.WHITE,true);tag.setGravity(Gravity.CENTER);tag.setBackground(royalNeon9924(0xfff34b97,0xff8b2ab9,0x88ffe2b0,8));FrameLayout.LayoutParams tp=new FrameLayout.LayoutParams(dp(58),dp(23),Gravity.BOTTOM|Gravity.LEFT);tp.setMargins(dp(7),0,0,dp(7));cover.addView(tag,tp);'
+          new='        String badge100110=("Hot".equalsIgnoreCase(category)?"🔥 Hot":("Music".equalsIgnoreCase(category)?"🎵 Music":lobbyCategoryIcon100104(category)+" "+category));'
+          new+=''' 
+          TextView tag=tv(badge100110,10,Color.WHITE,true);tag.setGravity(Gravity.CENTER);tag.setSingleLine(true);tag.setPadding(dp(6),0,dp(6),0);tag.setBackground(royalNeon9924(0xfff34b97,0xff8b2ab9,0x88ffe2b0,8));FrameLayout.LayoutParams tp=new FrameLayout.LayoutParams(-2,dp(23),Gravity.BOTTOM|Gravity.LEFT);tp.setMargins(dp(7),0,0,dp(7));cover.addView(tag,tp);'''
+          assert s.count(old)==1
+          party.write_text(s.replace(old,new,1))
+          s=gradle.read_text()
+          old="versionCode 385; versionName '10.0.107-home-party-visual-polish'"
+          assert s.count(old)==1
+          gradle.write_text(s.replace(old,"versionCode 389; versionName '10.0.111-bolo-party-room'",1))
+          assert 'ktvLobby.putExtra("lobbyCategory","KTV")' in discover.read_text()
+          assert 'getStringExtra("lobbyCategory")' in party.read_text()
+          assert 'String[] names = {"Hot","Music","KTV","Radio","Chat","Love","Family"' in party.read_text()
+          assert 'if("KTV".equalsIgnoreCase(category))return "🎤";' in party.read_text()
+          assert '🔥 Hot' in party.read_text()
+          assert 'FrameLayout.LayoutParams(-2,dp(23)' in party.read_text()
+          # Recompose the Party room: move the eight existing tools into a slim
+          # bottom rail so the stage seats and live chat own the main canvas.
+          start=s.index('        // Visible actions open existing real Firebase-backed screens.')
+          endmark='        roomRoot.addView(roomActions9916,new LinearLayout.LayoutParams(-1,dp(62)));'
+          end=s.index(endmark,start)+len(endmark)
+          toolsBlock=s[start:end]
+          s=s[:start]+s[end:]
+          toolsBlock=toolsBlock.replace('// Visible actions open existing real Firebase-backed screens.','// Party tools stay in a compact bottom rail, matching the room-first layout.')
+          anchor='        roomRoot.addView(chatSection,new LinearLayout.LayoutParams(-1,0,1));'
+          assert s.count(anchor)==1
+          s=s.replace(anchor,anchor+'\\n'+toolsBlock,1)
+          def repl(src,old,new,label):
+              count=src.count(old)
+              assert count==1,(label,count)
+              return src.replace(old,new,1)
+          s=repl(s,'int a=0xff07956f,b=0xff04b4a3,c=0xff062f38;','int a=0xff10152f,b=0xff291d49,c=0xff070b1b;','classic room palette')
+          s=repl(s,'else if("Game".equals(roomTheme)){a=0xff078d70;b=0xff0aaf93;c=0xff073a37;}','else if("Game".equals(roomTheme)){a=0xff111b48;b=0xff46306f;c=0xff090d24;}','game palette')
+          s=repl(s,'head.setBackground(royalNeon9924(0xc9093b3c,0xc70f2638,0x6678e1c8,14));','head.setBackground(royalNeon9924(0xe80b1024,0xe8171234,0x66d8b36a,14));','room header')
+          s=repl(s,'actionTile9916.setBackground(royalNeon9924(0xff17584e,0xff12343c,0x667be1c8,14));','actionTile9916.setBackground(royalNeon9924(0x292b2345,0x24171431,0x559d86c8,18));','tool rail')
+          s=repl(s,'actionTile9916.setPadding(dp(3),dp(3),dp(3),dp(3));','actionTile9916.setPadding(dp(2),dp(2),dp(2),dp(2));','tool padding')
+          s=repl(s,'TextView actionIcon9916=tv(actionCopy9916[0],25,Color.WHITE,true);','TextView actionIcon9916=tv(actionCopy9916[0],23,0xffffe9bd,true);','tool icon')
+          s=repl(s,'new LinearLayout.LayoutParams(-1,dp(32))','new LinearLayout.LayoutParams(-1,dp(29))','tool icon height')
+          s=repl(s,'new LinearLayout.LayoutParams(-1,dp(19))','new LinearLayout.LayoutParams(-1,dp(16))','tool caption')
+          s=repl(s,'new LinearLayout.LayoutParams(dp(76),dp(60))','new LinearLayout.LayoutParams(dp(54),dp(52))','tool target')
+          s=repl(s,'new LinearLayout.LayoutParams(-1,dp(62))','new LinearLayout.LayoutParams(-1,dp(56))','tool rail height')
+          s=repl(s,'composer.setBackground(royalNeon9924(0xff103b3c,0xff101d31,0x887be1c8,14));','composer.setBackground(royalNeon9924(0xff12162d,0xff0b0f20,0x99d7ae62,18));','composer')
+          s=repl(s,'composerBox.setHintTextColor(0xffbfaad6);','composerBox.setHintTextColor(0xffa8a4bb);','composer hint')
+          s=repl(s,'composerBox.setBackground(royalNeon9924(0xff243c48,0xff1d293c,0x8884d9c8,20));','composerBox.setBackground(royalNeon9924(0xff24203c,0xff17162b,0x667c69a5,20));','composer input')
+          s=repl(s,'LinearLayout chatSection = new LinearLayout(this); chatSection.setOrientation(LinearLayout.VERTICAL); chatSection.setPadding(dp(12),0,dp(12),0);','LinearLayout chatSection = new LinearLayout(this); chatSection.setOrientation(LinearLayout.VERTICAL); chatSection.setPadding(dp(10),0,dp(10),0);','chat inset')
+          s=repl(s,'TextView safety = tv("KING Plus Safety • Be respectful. Child endangerment, harassment and prohibited content can lead to removal or bans.",10,0xffffe580,true);','TextView safety = tv("● LIVE CHAT  ·  Keep the room friendly",10,0xffffe9b8,true);','chat header')
+          s=repl(s,'safety.setBackground(bg(0x2e004d3a,10));','safety.setBackground(bg(0x33201934,10));','chat header color')
+          s=repl(s,'hostVisualV532?0xff52b69a:(n==null?0x38ffffff:(mine?0xff2e9d83:seatColor(no)))','hostVisualV532?0xffb8872f:(n==null?0x33292345:(mine?0xff7543bd:seatColor(no)))','seat colors')
+          s=repl(s,'new int[]{0xff5d315f,0xff1f6f8d,0xff67408a,0xff365a82,0xff6d4e3a,0xff27655f}','new int[]{0xff51306d,0xff304a83,0xff67408a,0xff365a82,0xff6d4e3a,0xff493169}','seat palette')
+          party.write_text(s)
+          stage=root/'app/src/main/java/com/kingplus/social/KingRoomStageView.java'
+          s=stage.read_text()
+          s=repl(s,'case "Game":return new int[]{0xff042a24,0xff118d73,0xff001d42,0xff79ffd0};','case "Game":return new int[]{0xff10153a,0xff413071,0xff0a1028,0xffffd98a};','stage game palette')
+          s=repl(s,'default:return new int[]{0xff063b3c,0xff0a927e,0xff052939,0xffb0ffdd};','default:return new int[]{0xff10152f,0xff34245c,0xff080d20,0xffffd98a};','stage default palette')
+          s=repl(s,'light(c,w*.5f,h*.24f,w*.72f,cl[1],.62f);','light(c,w*.5f,h*.24f,w*.72f,cl[1],.38f);','stage light')
+          s=repl(s,'light(c,w*.23f,h*.5f,w*.5f,cl[3],.13f);','light(c,w*.23f,h*.5f,w*.5f,cl[3],.07f);','stage fill')
+          s=repl(s,'light(c,w*.81f,h*.69f,w*.46f,cl[3],.10f);','light(c,w*.81f,h*.69f,w*.46f,cl[3],.06f);','stage fill')
+          s=repl(s,'for(int i=0;i<48;i++){\\n            float x=stars[i*3]*w;','for(int i=0;i<28;i++){\\n            float x=stars[i*3]*w;','stage stars')
+          s=repl(s,'float shimmer=.46f+.34f*(float)Math.sin(t*2.3f+i*.63f);','float shimmer=.30f+.22f*(float)Math.sin(t*2.3f+i*.63f);','stage shimmer')
+          stage.write_text(s)
+          s=gradle.read_text()
+          old="versionCode 385; versionName '10.0.107-home-party-visual-polish'"
+          assert s.count(old)==1
+          gradle.write_text(s.replace(old,"versionCode 389; versionName '10.0.111-bolo-party-room'",1))
+          partyText=party.read_text()
+          assert partyText.index('roomRoot.addView(chatSection') < partyText.index('roomRoot.addView(roomActions9916')
+          assert '0xff12162d' in partyText and '0xffb8872f' in partyText
+          assert '0xff10152f' in stage.read_text()
+          assert 'this::toggleMic' in partyText and 'this::giftShopPanel' in partyText
+          print('PASS v10.0.111 Party room hierarchy, palette, tool rail, and existing actions')
+          PY
+      - name: Build Android debug APK
+        run: gradle -p /tmp/king-v108-source :app:assembleDebug --no-daemon --max-workers=2
+      - name: Verify app package and version
+        run: |
+          set -euo pipefail
+          aapt="$(find "$ANDROID_HOME/build-tools" -name aapt -type f | sort -V | tail -1)"
+          apk=/tmp/king-v108-source/app/build/outputs/apk/debug/app-debug.apk
+          "$aapt" dump badging "$apk" | grep "^package:" | grep "name='com.kingplus.social'" | grep "versionCode='389'" | grep "versionName='10.0.111-bolo-party-room'"
+          mkdir -p /tmp/king-v111-output
+          cp "$apk" /tmp/king-v111-output/KING-Plus-v10.0.111-Party-Room-Redesign.apk
+          sha256sum /tmp/king-v111-output/*.apk
+          rm -f /tmp/king-v108-source/app/kingplus-ci-debug.keystore
+          cd /tmp/king-v108-source
+          zip -qr /tmp/king-v111-output/KING-Plus-v10.0.111-Party-Room-Redesign-Source.zip . -x '*node_modules/*' '*/build/*' '*/.gradle/*' '.gradle/*' '*.apk' '*.aab' '*.keystore' '*.jks' '*.zip' '*local.properties' '*.log'
+      - uses: actions/upload-artifact@v4
+        with:
+          name: KING-Plus-v10.0.111-Party-Room-Redesign-APK
+          path: /tmp/king-v111-output/*
+          retention-days: 14
+          if-no-files-found: error
