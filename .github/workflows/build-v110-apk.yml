@@ -73,7 +73,7 @@ jobs:
           assert s.count(old)==1
           party.write_text(s.replace(old,new,1))
           s=gradle.read_text()
-          old="versionCode 388; versionName '10.0.110-party-category-icons'"
+          old="versionCode 385; versionName '10.0.107-home-party-visual-polish'"
           assert s.count(old)==1
           gradle.write_text(s.replace(old,"versionCode 388; versionName '10.0.110-discover-party-categories'",1))
           assert 'ktvLobby.putExtra("lobbyCategory","KTV")' in discover.read_text()
