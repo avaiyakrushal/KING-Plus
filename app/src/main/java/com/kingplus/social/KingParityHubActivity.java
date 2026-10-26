@@ -66,7 +66,71 @@ public class KingParityHubActivity extends Activity {
     private boolean cloud(){if(me==null||db==null){toast("Google / Firebase sign-in required");return false;}return true;}
     private boolean room(){if(!cloud())return false;if(roomId.isEmpty()){toast("Open this from a live Party room");return false;}return true;}
 
-    private void home(){hero("✨ KING Plus","Discover live rooms, friends and events");card("🎙️","Live Party Rooms","Open real rooms, join a seat and chat with members",()->{Intent i=new Intent(this,PartyActivity.class);startActivity(i);});card("🚀","Ecosystem Pro","KTV recording, PK timer, Family treasury, Rank and Arcade",()->openPro880("home"));card("🎤","KTV Stage","Shared song requests and current singer stage",()->show("ktv"));card("⚔️","PK Arena","Red vs Blue room battle with gift-backed score",()->show("pk"));card("🎲","Match","Browse real signed-in KING profiles",()->show("match"));card("🏰","Party Stage","Switch room scene/theme: Royal, KTV, PK, Galaxy",()->show("stage"));card("👑","Family","Real Family create/join/chat center",()->show("family"));card("💎","VIP & Rank","VIP progress, cosmetics and public level ranking",()->show("vip"));}
+    private void home(){
+        hero("✨ KING Plus","Discover live rooms, friends and events");
+        LinearLayout quick=new LinearLayout(this);quick.setOrientation(LinearLayout.HORIZONTAL);quick.setGravity(Gravity.CENTER);
+        TextView search=action("⌕  Search rooms",()->showHomeRoomSearch());
+        quick.addView(search,new LinearLayout.LayoutParams(0,dp(44),1));
+        TextView browse=action("＋  Create / Browse",()->openPartyLobby());
+        LinearLayout.LayoutParams browseLp=new LinearLayout.LayoutParams(0,dp(44),1);browseLp.setMargins(dp(8),0,0,0);quick.addView(browse,browseLp);
+        LinearLayout.LayoutParams quickLp=new LinearLayout.LayoutParams(-1,dp(44));quickLp.setMargins(0,0,0,dp(10));body.addView(quick,quickLp);
+        TextView liveTitle=tv("🔴  Live Party Rooms",18,Color.WHITE,true);liveTitle.setPadding(dp(2),dp(8),dp(2),dp(4));body.addView(liveTitle);
+        loadHomeLiveRooms();
+        card("🚀","Ecosystem Pro","KTV recording, PK timer, Family treasury, Rank and Arcade",()->openPro880("home"));
+        card("🎤","KTV Stage","Shared song requests and current singer stage",()->show("ktv"));
+        card("⚔️","PK Arena","Red vs Blue room battle with gift-backed score",()->show("pk"));
+        card("🎲","Match","Browse real signed-in KING profiles",()->show("match"));
+        card("🏰","Party Stage","Switch room scene/theme: Royal, KTV, PK, Galaxy",()->show("stage"));
+        card("👑","Family","Real Family create/join/chat center",()->show("family"));
+        card("💎","VIP & Rank","VIP progress, cosmetics and public level ranking",()->show("vip"));
+    }
+
+    private void openPartyLobby(){Intent i=new Intent(this,PartyActivity.class);startActivity(i);}
+
+    private void showHomeRoomSearch(){
+        EditText query=new EditText(this);query.setSingleLine(true);query.setHint("Room name, host or room ID");
+        new AlertDialog.Builder(this).setTitle("Search live Party rooms").setView(query)
+            .setNegativeButton("Cancel",null)
+            .setPositiveButton("Search",(d,w)->{String q=query.getText().toString().trim();if(q.isEmpty()){openPartyLobby();return;}Intent i=new Intent(this,PartyActivity.class);i.putExtra("lobbySearch",q);startActivity(i);})
+            .show();
+    }
+
+    private void loadHomeLiveRooms(){
+        if(me==null||db==null){
+            TextView sign=tv("Sign in to discover live rooms",13,MUTED,true);sign.setGravity(Gravity.CENTER);
+            sign.setBackground(bg(CARD,14));sign.setOnClickListener(v->{Intent i=new Intent(this,MainActivity.class);i.putExtra("forceLogin",true);startActivity(i);});
+            body.addView(sign,new LinearLayout.LayoutParams(-1,dp(58)));return;
+        }
+        TextView loading=tv("Loading live rooms…",13,MUTED,false);loading.setGravity(Gravity.CENTER);
+        body.addView(loading,new LinearLayout.LayoutParams(-1,dp(48)));
+        // One bounded read per Home visit: avoid a persistent listener and unnecessary Firebase usage.
+        db.collection("live_rooms").whereEqualTo("closed",false).limit(8).get()
+            .addOnSuccessListener(snapshot->{
+                if(isFinishing()||isDestroyed()||! "home".equals(route))return;
+                body.removeView(loading);
+                List<DocumentSnapshot> rooms=new ArrayList<>(snapshot.getDocuments());
+                rooms.sort((a,b)->{com.google.firebase.Timestamp at=a.getTimestamp("createdAt"),bt=b.getTimestamp("createdAt");return at==null?(bt==null?0:1):bt==null?-1:bt.compareTo(at);});
+                int shown=0;
+                for(DocumentSnapshot doc:rooms){
+                    if(Boolean.TRUE.equals(doc.getBoolean("closed")))continue;
+                    String id=doc.getId();String room=safe(doc.getString("name"),"Live Party");
+                    String host=safe(doc.getString("ownerName"),"KING Host");
+                    String category=safe(doc.getString("category"),"Hot");
+                    LinearLayout item=new LinearLayout(this);item.setGravity(Gravity.CENTER_VERTICAL);item.setPadding(dp(12),dp(7),dp(12),dp(7));item.setBackground(bg(CARD,14));
+                    TextView icon=tv("🔴",20,Color.WHITE,true);item.addView(icon,new LinearLayout.LayoutParams(dp(42),dp(44)));
+                    LinearLayout details=new LinearLayout(this);details.setOrientation(LinearLayout.VERTICAL);
+                    TextView nameText=tv(room,14,Color.WHITE,true);nameText.setPadding(0,0,0,0);
+                    TextView meta=tv(category+"  •  Host: "+host,11,MUTED,false);meta.setPadding(0,dp(2),0,0);
+                    details.addView(nameText);details.addView(meta);item.addView(details,new LinearLayout.LayoutParams(0,dp(48),1));
+                    TextView join=tv("JOIN  ›",12,GOLD,true);item.addView(join);
+                    item.setOnClickListener(v->{Intent i=new Intent(this,PartyActivity.class);i.putExtra("directRoomId",id);startActivity(i);});
+                    LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(-1,dp(62));lp.setMargins(0,dp(3),0,dp(3));body.addView(item,lp);shown++;
+                }
+                if(shown==0){TextView empty=tv("No live rooms right now. Create a room or refresh later.",12,MUTED,false);empty.setGravity(Gravity.CENTER);body.addView(empty,new LinearLayout.LayoutParams(-1,dp(54)));}
+                TextView all=action("View all Party Rooms  →",this::openPartyLobby);LinearLayout.LayoutParams allLp=new LinearLayout.LayoutParams(-1,dp(42));allLp.setMargins(0,dp(6),0,dp(8));body.addView(all,allLp);
+            })
+            .addOnFailureListener(e->{if(isFinishing()||isDestroyed()||!"home".equals(route))return;body.removeView(loading);TextView err=tv("Live rooms could not load. Open Party to retry.",12,MUTED,false);err.setGravity(Gravity.CENTER);err.setOnClickListener(v->openPartyLobby());body.addView(err,new LinearLayout.LayoutParams(-1,dp(52)));});
+    }
 
     private void ktv(){hero("🎤 KTV • "+roomName,roomId.isEmpty()?"Open from Party Room for synchronized queue":"Room-synchronized requests • host/co-host can put a song on stage");if(!roomId.isEmpty()){LinearLayout buttons=new LinearLayout(this);TextView add=action("＋ Request song",this::requestSong);buttons.addView(add,new LinearLayout.LayoutParams(0,dp(48),1));TextView refresh=action("↻ Refresh",this::ktv);LinearLayout.LayoutParams rp=new LinearLayout.LayoutParams(0,dp(48),1);rp.setMargins(dp(8),0,0,0);buttons.addView(refresh,rp);body.addView(buttons);}
         if(!room())return;db.collection("live_rooms").document(roomId).get().addOnSuccessListener(d->{String current=safe(d.getString("currentSong"),"No song on stage");TextView now=tv("🎙 NOW ON STAGE\n"+current,16,GOLD,true);now.setGravity(Gravity.CENTER);now.setBackground(bg(0xff3c245e,16));body.addView(now,new LinearLayout.LayoutParams(-1,dp(78)));});
