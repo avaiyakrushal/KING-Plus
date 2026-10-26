@@ -12,8 +12,12 @@ public final class KingNav {
         if (activity == null) return;
         Intent i;
         if (tab == 0) {
-            if (activity instanceof PartyActivity) return;
-            i = new Intent(activity, PartyActivity.class);
+            // Home and Party are separate destinations. The Home hub provides
+            // the Bolo Hi-style discovery surface; its Live Party Rooms action
+            // opens the existing real Firebase-backed Party screen.
+            if (activity instanceof KingParityHubActivity) return;
+            i = new Intent(activity, KingParityHubActivity.class);
+            i.putExtra("route", "home");
         } else if (tab == 2) {
             if (activity instanceof DiscoverActivity) return;
             i = new Intent(activity, DiscoverActivity.class);

@@ -17,7 +17,7 @@ android {
     buildFeatures { buildConfig true }
     defaultConfig {
         applicationId 'com.kingplus.social'; minSdk 26; targetSdk 35
-        versionCode 380; versionName '10.0.101-party-events-live'
+        versionCode 381; versionName '10.0.102-home-party-parity'
         // Account, backend deployment and a guaranteed zero-cost policy are still pending.
         buildConfigField 'boolean', 'CLOUDFLARE_VOICE_ENABLED', 'false'
     }
