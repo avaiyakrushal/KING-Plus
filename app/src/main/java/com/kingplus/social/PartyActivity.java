@@ -398,6 +398,8 @@ public class PartyActivity extends androidx.fragment.app.FragmentActivity implem
         loadMusicPlaylist();
         displayName = getIntent().getStringExtra("displayName");
         if (displayName == null || displayName.trim().isEmpty()) displayName = safeName();
+        // Accept Home's room-search handoff so search results are applied on first lobby render.
+        lobbyFilter = safe(getIntent().getStringExtra("lobbySearch"), "");
         requestedGame940=safe(getIntent().getStringExtra("requestedGame"),"");
         requestedPanel940=safe(getIntent().getStringExtra("requestedPanel"),"");
         localCoins = prefs.getInt("coins", 2500);
