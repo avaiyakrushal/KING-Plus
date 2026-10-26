@@ -917,12 +917,17 @@ public class MainActivity extends Activity {
     }
 
     private void openPartyActivity() {
-        KingNav.openRoot(this,0);
+        // Party is a distinct destination; never route this action through the Home tab.
+        Intent partyIntent = new Intent(this, PartyActivity.class);
+        KingSafe.run(this, "open-party-room", () -> startActivity(partyIntent));
     }
 
     private void home() {
-        // There is now only one Party UI in the app. MainActivity never renders a second Party page.
-        openPartyActivity();
+        // Keep the Bolo Hi-style Home hub separate from the live Party room.
+        Intent homeIntent = new Intent(this, KingParityHubActivity.class);
+        homeIntent.putExtra("route", "home");
+        homeIntent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);
+        KingSafe.run(this, "open-home", () -> startActivity(homeIntent));
     }
 
     private void simplePage(String title, String message){ screen="sub"; base(title,null); text(message,18,Color.WHITE,true); button("પાછા Party પર જાઓ",PURPLE,this::home); }
