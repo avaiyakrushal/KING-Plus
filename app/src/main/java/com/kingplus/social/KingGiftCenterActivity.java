@@ -48,12 +48,27 @@ public class KingGiftCenterActivity extends Activity {
         retryPending.setOnClickListener(v->KingGiftPurchase10064.retryPending(this,(ok,message)->{
             sending=false;Toast.makeText(this,message,Toast.LENGTH_LONG).show();
         }));body.addView(retryPending);
-        body.addView(text("GIFT HISTORY"));history=new LinearLayout(this);history.setOrientation(1);body.addView(history);setContentView(root);
+        body.addView(text("GIFT HISTORY"));history=new LinearLayout(this);history.setOrientation(1);body.addView(history);root.addView(rootNav10064(),new LinearLayout.LayoutParams(-1,dp(62)));setContentView(root);
         androidx.core.view.ViewCompat.setOnApplyWindowInsetsListener(root,(v,insets)->{
             androidx.core.graphics.Insets safe=insets.getInsets(androidx.core.view.WindowInsetsCompat.Type.systemBars());
             v.setPadding(safe.left,safe.top,safe.right,safe.bottom);return insets;
         });
     }
+    private LinearLayout rootNav10064(){
+        LinearLayout nav=new LinearLayout(this);nav.setGravity(android.view.Gravity.CENTER);nav.setPadding(dp(4),dp(4),dp(4),dp(4));nav.setBackgroundColor(0xff211238);
+        String[] labels={"⌂\nHome","🎤\nParty","◉\nDiscover","▢\nMessages","♙\nMe"};
+        for(int tab=0;tab<labels.length;tab++){
+            final int destination=tab;TextView item=text(labels[tab]);item.setTextSize(11);item.setGravity(android.view.Gravity.CENTER);item.setPadding(dp(2),0,dp(2),0);
+            LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(0,-1,1);lp.setMargins(dp(2),0,dp(2),0);nav.addView(item,lp);
+            item.setOnClickListener(v->KingSafe.run(this,"gift-root-nav-"+destination,()->{
+                if(destination==0)KingNav.openRoot(this,0);
+                else if(destination==1)startActivity(new android.content.Intent(this,PartyActivity.class));
+                else KingNav.openRoot(this,destination==2?2:destination==3?3:4);
+            }));
+        }
+        return nav;
+    }
+
     @Override protected void onStart(){
         super.onStart();accountListener10065=auth->start();FirebaseAuth.getInstance().addAuthStateListener(accountListener10065);
     }
