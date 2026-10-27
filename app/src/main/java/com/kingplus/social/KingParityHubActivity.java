@@ -55,7 +55,25 @@ public class KingParityHubActivity extends Activity {
         HorizontalScrollView hsv=new HorizontalScrollView(this);hsv.setHorizontalScrollBarEnabled(false);LinearLayout tabs=new LinearLayout(this);tabs.setPadding(dp(8),0,dp(8),dp(8));
         String[][] all={{"✨","Home","home"},{"🎤","KTV","ktv"},{"⚔️","PK","pk"},{"🎲","Match","match"},{"🏰","Stage","stage"},{"👑","Family","family"},{"💎","VIP/Rank","vip"}};
         for(String[] x:all){TextView t=tv(x[0]+" "+x[1],12,Color.WHITE,true);t.setGravity(Gravity.CENTER);t.setBackground(bg(CARD2,16));String r=x[2];t.setOnClickListener(v->KingSafe.run(this,"parity-tab:"+r,()->show(r)));LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(dp(104),dp(42));lp.setMargins(dp(4),0,dp(4),0);tabs.addView(t,lp);}hsv.addView(tabs);root.addView(hsv,new LinearLayout.LayoutParams(-1,dp(52)));
-        ScrollView sv=new ScrollView(this);sv.setFillViewport(true);body=new LinearLayout(this);body.setOrientation(LinearLayout.VERTICAL);body.setPadding(dp(14),dp(10),dp(14),dp(30));sv.addView(body);root.addView(sv,new LinearLayout.LayoutParams(-1,0,1));setContentView(root);
+        ScrollView sv=new ScrollView(this);sv.setFillViewport(true);body=new LinearLayout(this);body.setOrientation(LinearLayout.VERTICAL);body.setPadding(dp(14),dp(10),dp(14),dp(30));sv.addView(body);root.addView(sv,new LinearLayout.LayoutParams(-1,0,1));root.addView(rootNav(),new LinearLayout.LayoutParams(-1,dp(64)));setContentView(root);
+    }
+
+    /** Persistent five-destination navigation shared with the rest of KING Plus. */
+    private LinearLayout rootNav(){
+        LinearLayout nav=new LinearLayout(this);nav.setGravity(Gravity.CENTER);nav.setPadding(dp(4),dp(4),dp(4),dp(4));nav.setBackgroundColor(0xff211238);
+        String[] labels={"⌂\nHome","🎤\nParty","◉\nDiscover","▢\nMessages","♙\nMe"};
+        for(int tab=0;tab<labels.length;tab++){
+            final int destination=tab;
+            TextView item=tv(labels[tab],11,destination==0?GOLD:MUTED,destination==0);item.setGravity(Gravity.CENTER);
+            if(destination==0)item.setBackground(bg(CARD2,14));
+            LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(0,-1,1);lp.setMargins(dp(2),0,dp(2),0);nav.addView(item,lp);
+            item.setOnClickListener(v->KingSafe.run(this,"home-root-nav-"+destination,()->{
+                if(destination==0){if(!"home".equals(route))show("home");}
+                else if(destination==1){Intent i=new Intent(this,PartyActivity.class);startActivity(i);}
+                else KingNav.openRoot(this,destination==2?2:destination==3?3:4);
+            }));
+        }
+        return nav;
     }
 
     private void show(String r){route=r;body.removeAllViews();if(title!=null)title.setText(titleFor(r));if("ktv".equals(r))ktv();else if("pk".equals(r))pk();else if("match".equals(r))match();else if("stage".equals(r))stage();else if("family".equals(r))openFamily();else if("vip".equals(r))vip();else home();}

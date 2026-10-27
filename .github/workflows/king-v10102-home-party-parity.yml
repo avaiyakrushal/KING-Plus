@@ -1,4 +1,4 @@
-name: KING Plus v10.0.103 Home and Party CI
+name: KING Plus v10.0.104 Home and Party CI
 
 on:
   push:
@@ -35,15 +35,15 @@ jobs:
 
       - name: Package source ZIP
         if: success()
-        run: git archive --format=zip --output=KING-Plus-v10.0.103-Source.zip HEAD
+        run: git archive --format=zip --output=KING-Plus-v10.0.104-Source.zip HEAD
 
       - name: Upload APK and source ZIP
         if: success()
         uses: actions/upload-artifact@v4
         with:
-          name: KING-Plus-v10.0.103-QA
+          name: KING-Plus-v10.0.104-QA
           path: |
             app/build/outputs/apk/debug/app-debug.apk
-            KING-Plus-v10.0.103-Source.zip
+            KING-Plus-v10.0.104-Source.zip
           if-no-files-found: error
           retention-days: 14
