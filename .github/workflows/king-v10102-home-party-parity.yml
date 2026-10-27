@@ -1,4 +1,4 @@
-name: KING Plus v10.0.106 Consistent Root Navigation CI
+name: KING Plus v10.0.107 Source Package Fix CI
 
 on:
   push:
@@ -35,15 +35,15 @@ jobs:
 
       - name: Package source ZIP
         if: success()
-        run: git archive --format=zip --output=KING-Plus-v10.0.106-Source.zip HEAD
+        run: git archive --format=zip --output=KING-Plus-v10.0.107-Source.zip HEAD
 
       - name: Upload APK and source ZIP
         if: success()
         uses: actions/upload-artifact@v4
         with:
-          name: KING-Plus-v10.0.106-QA
+          name: KING-Plus-v10.0.107-QA
           path: |
             app/build/outputs/apk/debug/app-debug.apk
-            KING-Plus-v10.0.105-Source.zip
+            KING-Plus-v10.0.107-Source.zip
           if-no-files-found: error
           retention-days: 14
