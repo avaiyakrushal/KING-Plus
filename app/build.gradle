@@ -17,7 +17,7 @@ android {
     buildFeatures { buildConfig true }
     defaultConfig {
         applicationId 'com.kingplus.social'; minSdk 26; targetSdk 35
-        versionCode 384; versionName '10.0.105-profile-gifts-navigation'
+        versionCode 385; versionName '10.0.106-consistent-root-navigation'
         // Account, backend deployment and a guaranteed zero-cost policy are still pending.
         buildConfigField 'boolean', 'CLOUDFLARE_VOICE_ENABLED', 'false'
     }

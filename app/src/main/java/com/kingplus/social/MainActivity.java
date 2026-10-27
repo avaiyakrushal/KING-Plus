@@ -1324,8 +1324,8 @@ public class MainActivity extends Activity {
     }
 
     private void addBottomNav(LinearLayout root,int selected){
-        LinearLayout nav=new LinearLayout(this); nav.setGravity(Gravity.CENTER); nav.setBackground(KingRoyalTheme10021.bottomNav(this)); String[] ni={"⌂\nParty","♟\nGame","◇\nDiscover","✉\nMessages","●\nMe"};
-        for(int i=0;i<ni.length;i++){TextView n=new TextView(this);n.setText(ni[i]);n.setTextSize(12);n.setGravity(Gravity.CENTER);n.setTextColor(i==selected?0xffd2b100:0xff777777);final int k=i;n.setOnClickListener(v->{if(k==0)openPartyActivity();else if(k==1)games();else if(k==2)discover();else if(k==3)messages();else profile();});nav.addView(n,new LinearLayout.LayoutParams(0,dp(62),1));} root.addView(nav);
+        LinearLayout nav=new LinearLayout(this); nav.setGravity(Gravity.CENTER); nav.setBackground(KingRoyalTheme10021.bottomNav(this)); String[] ni={"⌂\nHome","🎤\nParty","◇\nDiscover","✉\nMessages","●\nMe"};
+        for(int i=0;i<ni.length;i++){TextView n=new TextView(this);n.setText(ni[i]);n.setTextSize(12);n.setGravity(Gravity.CENTER);n.setTextColor(i==selected?0xffd2b100:0xff777777);final int k=i;n.setOnClickListener(v->{if(k==0)KingNav.openRoot(this,0);else if(k==1)openPartyActivity();else if(k==2)discover();else if(k==3)messages();else profile();});nav.addView(n,new LinearLayout.LayoutParams(0,dp(62),1));} root.addView(nav);
     }
 
     private void games(){
@@ -1400,7 +1400,7 @@ public class MainActivity extends Activity {
                 "ludo".equals(games[i][0])?"Online + solo":"Play now");
         }
         root.addView(scroll,new LinearLayout.LayoutParams(-1,0,1));
-        addBottomNav(root,1);setSafeContentView(root);
+        addBottomNav(root,-1);setSafeContentView(root);
     }
     private void addGameVideoCard940(LinearLayout row,String code,String title,String badge){
         LinearLayout card=new LinearLayout(this);card.setOrientation(LinearLayout.VERTICAL);card.setPadding(dp(4),dp(4),dp(4),dp(6));card.setBackground(KingRoyalTheme10021.card(this,14));card.setOnClickListener(v->openPlayableGame(code));
