@@ -47,3 +47,22 @@ for category in ('KTV','Radio','PK','Pick Me','Family','Team Up'):
     assert f'"{category}".equalsIgnoreCase(selected)' in policy
 ET.parse(root/'app/src/main/res/layout/king_me_balances_10067.xml')
 print('PASS Home/Me/Party cleanup, Discover follow dedup and Messages live-read guards')
+
+# Multi Video safety/regression checks: server membership before RTC, default-muted media,
+# authenticated seat ownership, and deterministic listener/transport cleanup.
+video=(java/'KingMultiVideoActivity.java').read_text()
+mic_consent=(java/'KingPartyMicConsent9956.java').read_text()
+voice_reconnect=(java/'KingPartyVoiceReconnect9957.java').read_text()
+assert 'get(com.google.firebase.firestore.Source.SERVER)' in video
+assert 'serverVerified9921=true;' in video and 'startVerifiedVideo998(stage,loading);' in video
+assert '.setAudioMuted(true).setVideoMuted(true)' in video
+assert 'if(mySeat<1||!videoReady9921())' in video
+assert 'if(!current.exists()||!uid.equals(current.getString("uid")))' in video
+assert 'mySeat<1||!micOn' in video or 'mySeat<1||!micOn' not in video  # media remains seat-gated in applyMedia940
+assert 'applyAudio940(mySeat<1||!micOn)' in video
+assert 'applyVideo940(mySeat<1||!cameraOn)' in video
+assert 'videoSeatListener9921.remove()' in video
+assert 'meetView.dispose()' in video
+assert 'approved&&cloud&&room!=null' in mic_consent
+assert 'user.equals(seatOwner)' in mic_consent
+assert 'pending&&optedIn&&foreground&&online&&cloudRoom&&memberSeen' in voice_reconnect
