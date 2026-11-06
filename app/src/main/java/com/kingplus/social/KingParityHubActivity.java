@@ -140,7 +140,11 @@ public class KingParityHubActivity extends Activity {
         card("💬","Meet New People","Discover KING Plus members and profiles",()->show("match"));
         card("🎵","KTV Stage","Shared song requests and singer stage",()->show("ktv"));
         card("⚔️","PK Arena","Red vs Blue room battle and score",()->show("pk"));
-        card("👑","Family & VIP","Family community, VIP privileges and rankings",()->show("family"));
+        // Keep the original destinations individually reachable; do not merge
+        // Family and VIP into one card that would silently hide the VIP route.
+        card("🏰","Party Stage","Switch room scene and theme: Royal, KTV, PK, Galaxy",()->show("stage"));
+        card("👑","Family","Family community and member center",()->show("family"));
+        card("💎","VIP & Rank","VIP privileges, cosmetics and public rankings",()->show("vip"));
     }
 
     private void openPartyLobby(){Intent i=new Intent(this,PartyActivity.class);startActivity(i);}
