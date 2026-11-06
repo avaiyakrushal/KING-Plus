@@ -58,7 +58,6 @@ assert 'serverVerified9921=true;' in video and 'startVerifiedVideo998(stage,load
 assert '.setAudioMuted(true).setVideoMuted(true)' in video
 assert 'if(mySeat<1||!videoReady9921())' in video
 assert 'if(!current.exists()||!uid.equals(current.getString("uid")))' in video
-assert 'mySeat<1||!micOn' in video or 'mySeat<1||!micOn' not in video  # media remains seat-gated in applyMedia940
 assert 'applyAudio940(mySeat<1||!micOn)' in video
 assert 'applyVideo940(mySeat<1||!cameraOn)' in video
 assert 'videoSeatListener9921.remove()' in video
