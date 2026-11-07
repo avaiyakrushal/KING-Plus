@@ -1,0 +1,70 @@
+name: KING Plus Android verification
+
+on:
+  push:
+    branches:
+      - work/king-bolohi-parity-start
+  pull_request:
+    branches:
+      - work/king-v10102-home-party-parity
+
+permissions:
+  contents: read
+
+concurrency:
+  group: kingplus-android-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    name: Source checks and debug APK
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Run repository source regression checks
+        run: |
+          python3 tools/android16-media-uri-v10070/check_source.py
+          python3 tools/four-pages-v10048/check_source.py
+          python3 tools/party-gifts-me-v10064/check_source.py
+          python3 tools/home-me-party-v10067/check_source.py
+          python3 tools/discover-follow-name-v10074/check_source.py
+          python3 tools/social-follow-name-v10075/check_source.py
+          python3 tools/discover-hot-pages-v10076/check_source.py
+          python3 tools/party-rejoin-choice-v10077/check_source.py
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install Android 35 SDK packages
+        run: sdkmanager "platforms;android-35" "build-tools;35.0.0" "platform-tools"
+
+      - name: Install Gradle 8.9
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+
+      - name: Assemble debug APK
+        run: gradle --no-daemon --stacktrace :app:assembleDebug
+
+      - name: Upload debug APK
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: KING-Plus-debug-${{ github.sha }}
+          path: app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+          retention-days: 7
