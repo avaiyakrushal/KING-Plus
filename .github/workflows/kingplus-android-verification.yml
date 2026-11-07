@@ -40,6 +40,17 @@ jobs:
           python3 tools/discover-hot-pages-v10076/check_source.py
           python3 tools/party-rejoin-choice-v10077/check_source.py
 
+      - name: Package complete source ZIP
+        run: git archive --format=zip --output "KING-Plus-source-${GITHUB_SHA}.zip" HEAD
+
+      - name: Upload source ZIP
+        uses: actions/upload-artifact@v4
+        with:
+          name: KING-Plus-source-${{ github.sha }}
+          path: KING-Plus-source-${{ github.sha }}.zip
+          if-no-files-found: error
+          retention-days: 7
+
       - name: Set up JDK 17
         uses: actions/setup-java@v4
         with:
