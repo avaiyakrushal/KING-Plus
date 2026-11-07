@@ -523,7 +523,11 @@ public class KingMultiVideoActivity extends androidx.fragment.app.FragmentActivi
     @Override protected void onActivityResult(int requestCode,int resultCode,Intent data){super.onActivityResult(requestCode,resultCode,data);try{org.jitsi.meet.sdk.JitsiMeetActivityDelegate.onActivityResult(this,requestCode,resultCode,data);}catch(Throwable e){KingStability.nonFatal(this,"video-jitsi-result",e);}}
     @Override public void requestPermissions(String[] permissions,int requestCode,com.facebook.react.modules.core.PermissionListener listener){try{org.jitsi.meet.sdk.JitsiMeetActivityDelegate.requestPermissions(this,permissions,requestCode,listener);}catch(Throwable e){KingStability.nonFatal(this,"video-jitsi-permission-request",e);}}
     @Override public void onRequestPermissionsResult(int requestCode,String[] permissions,int[] grantResults){super.onRequestPermissionsResult(requestCode,permissions,grantResults);try{org.jitsi.meet.sdk.JitsiMeetActivityDelegate.onRequestPermissionsResult(requestCode,permissions,grantResults);}catch(Throwable e){KingStability.nonFatal(this,"video-jitsi-permission-result",e);}}
-    @Override protected void onDestroy(){heartbeat940.removeCallbacks(heartbeatTask940);if(eventsListener!=null)eventsListener.remove();if(roomListener!=null)roomListener.remove();if(roleListener!=null)roleListener.remove();
+    @Override protected void onDestroy(){
+        // If Android destroys this Activity without the explicit Leave path,
+        // best-effort release the current seat. The transaction rechecks UID ownership.
+        if(!leaving940&&mySeat>0)releaseVideoSeat9921(mySeat,null);
+        heartbeat940.removeCallbacks(heartbeatTask940);if(eventsListener!=null)eventsListener.remove();if(roomListener!=null)roomListener.remove();if(roleListener!=null)roleListener.remove();
         if(videoSeatListener9921!=null)videoSeatListener9921.remove();
         if(videoInviteListener9921!=null)videoInviteListener9921.remove();
         if(selfMemberListener9921!=null)selfMemberListener9921.remove();
