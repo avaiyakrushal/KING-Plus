@@ -67,3 +67,11 @@ assert 'if(!leaving940&&mySeat>0)releaseVideoSeat9921(mySeat,null);' in video
 assert 'approved&&cloud&&room!=null' in mic_consent
 assert 'user.equals(seatOwner)' in mic_consent
 assert 'pending&&optedIn&&foreground&&online&&cloudRoom&&memberSeen' in voice_reconnect
+
+# PartyActivity must enforce consent and actual voice transport state at the audio boundary.
+assert 'return KingPartyMicConsent9956.canTransmit(localMicConsent9956,cloudRoom,' in party
+assert 'setInlineAudioMuted940(!canTransmitMic9956());' in party
+assert 'boolean actualMuted9956=muted||!voiceConferenceConnected10065||!canTransmitMic9956();' in party
+assert 'if(!desiredMic968)revokeMicConsent9956();' in party
+assert 'if(!inRoomVoiceJoined940){' in party
+
