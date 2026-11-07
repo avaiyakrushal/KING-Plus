@@ -40,6 +40,17 @@ jobs:
           python3 tools/discover-hot-pages-v10076/check_source.py
           python3 tools/party-rejoin-choice-v10077/check_source.py
 
+      - name: Set up Node.js for backend tests
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Run backend unit tests
+        working-directory: functions
+        run: |
+          npm ci
+          node --test *.test.js
+
       - name: Package complete source ZIP
         run: git archive --format=zip --output "KING-Plus-source-${GITHUB_SHA}.zip" HEAD
 
