@@ -62,6 +62,8 @@ assert 'applyAudio940(mySeat<1||!micOn)' in video
 assert 'applyVideo940(mySeat<1||!cameraOn)' in video
 assert 'videoSeatListener9921.remove()' in video
 assert 'meetView.dispose()' in video
+# Activity teardown outside the explicit Leave path must also release its owned seat.
+assert 'if(!leaving940&&mySeat>0)releaseVideoSeat9921(mySeat,null);' in video
 assert 'approved&&cloud&&room!=null' in mic_consent
 assert 'user.equals(seatOwner)' in mic_consent
 assert 'pending&&optedIn&&foreground&&online&&cloudRoom&&memberSeen' in voice_reconnect
