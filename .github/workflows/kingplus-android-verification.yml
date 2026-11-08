@@ -68,6 +68,15 @@ jobs:
           distribution: temurin
           java-version: '17'
 
+      - name: Execute Party voice policy tests
+        run: |
+          mkdir -p "$RUNNER_TEMP/kingplus-voice-policy"
+          javac -d "$RUNNER_TEMP/kingplus-voice-policy" \
+            app/src/main/java/com/kingplus/social/KingPartyMicConsent9956.java \
+            app/src/main/java/com/kingplus/social/KingPartyVoiceReconnect9957.java \
+            tools/party-voice-policy-v10108/KingPartyVoicePolicyTest.java
+          java -cp "$RUNNER_TEMP/kingplus-voice-policy" com.kingplus.social.KingPartyVoicePolicyTest
+
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
         with:
