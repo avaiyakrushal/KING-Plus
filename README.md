@@ -4,7 +4,7 @@ This source bundle is for `com.kingplus.social`, Android version code `386`
 and version name `10.0.107-source-package-fix`. It continues the existing
 KING Plus Android application; it is not a new project.
 
-## Current project handoff — 2026-11-07
+## Current project handoff — 2026-11-08
 
 - Existing repository: [avaiyakrushal/KING-Plus](https://github.com/avaiyakrushal/KING-Plus)
 - Current work branch: `work/king-bolohi-parity-start`
@@ -13,6 +13,7 @@ KING Plus Android application; it is not a new project.
   Party Stage, Family, VIP & Rank, KTV, PK, Match and Games destinations.
 - Live room data continues to come from the existing Firebase-backed room list;
   no demo rooms are inserted.
+- Added an executable Java policy test suite for Party microphone consent and voice reconnect gating. It checks that room, UID, seat, explicit opt-in, foreground/online state, membership, and reconnect generation/view conditions are required; the workflow runs it with JDK 17.
 - Multi Video verifies Firebase room membership from the server before joining
   Jitsi, starts with microphone and camera muted, and gates media controls on
   the authenticated video-seat owner. Activity teardown now attempts a
