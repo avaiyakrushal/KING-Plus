@@ -85,22 +85,66 @@ public class KingParityHubActivity extends Activity {
     private boolean room(){if(!cloud())return false;if(roomId.isEmpty()){toast("Open this from a live Party room");return false;}return true;}
 
     private void home(){
-        hero("✨ KING Plus","Discover live rooms, friends and events");
-        LinearLayout quick=new LinearLayout(this);quick.setOrientation(LinearLayout.HORIZONTAL);quick.setGravity(Gravity.CENTER);
+        // BoloHi-inspired social discovery layout, implemented with original KING Plus UI.
+        hero("👑 KING Plus","Meet friends • Join live voice rooms • Share moments");
+
+        // Compact discovery categories, similar to the quick browsing pattern in social-room apps.
+        HorizontalScrollView categoriesScroll=new HorizontalScrollView(this);
+        categoriesScroll.setHorizontalScrollBarEnabled(false);
+        LinearLayout categories=new LinearLayout(this);
+        categories.setGravity(Gravity.CENTER_VERTICAL);
+        categories.setPadding(0,dp(2),0,dp(10));
+        String[][] categoryItems={{"✨","For You","home"},{"🎤","Voice Rooms","party"},{"🎮","Games","games"},{"🆕","New People","match"},{"👑","VIP","vip"}};
+        for(String[] item:categoryItems){
+            TextView chip=tv(item[0]+"  "+item[1],12,Color.WHITE,true);
+            chip.setGravity(Gravity.CENTER);
+            chip.setPadding(dp(14),0,dp(14),0);
+            chip.setBackground(bg(CARD2,22));
+            LinearLayout.LayoutParams chipLp=new LinearLayout.LayoutParams(-2,dp(40));
+            chipLp.setMargins(0,0,dp(8),0);
+            categories.addView(chip,chipLp);
+            chip.setOnClickListener(v->KingSafe.run(this,"home-category:"+item[2],()->{
+                if("home".equals(item[2]))show("home");
+                else if("party".equals(item[2]))openPartyLobby();
+                else if("games".equals(item[2]))openPro880("home");
+                else if("match".equals(item[2]))show("match");
+                else show("vip");
+            }));
+        }
+        categoriesScroll.addView(categories);
+        body.addView(categoriesScroll,new LinearLayout.LayoutParams(-1,dp(48)));
+
+        LinearLayout quick=new LinearLayout(this);
+        quick.setOrientation(LinearLayout.HORIZONTAL);
+        quick.setGravity(Gravity.CENTER);
         TextView search=action("⌕  Search rooms",()->showHomeRoomSearch());
-        quick.addView(search,new LinearLayout.LayoutParams(0,dp(44),1));
-        TextView browse=action("＋  Create / Browse",()->openPartyLobby());
-        LinearLayout.LayoutParams browseLp=new LinearLayout.LayoutParams(0,dp(44),1);browseLp.setMargins(dp(8),0,0,0);quick.addView(browse,browseLp);
-        LinearLayout.LayoutParams quickLp=new LinearLayout.LayoutParams(-1,dp(44));quickLp.setMargins(0,0,0,dp(10));body.addView(quick,quickLp);
-        TextView liveTitle=tv("🔴  Live Party Rooms",18,Color.WHITE,true);liveTitle.setPadding(dp(2),dp(8),dp(2),dp(4));body.addView(liveTitle);
+        quick.addView(search,new LinearLayout.LayoutParams(0,dp(46),1));
+        TextView create=action("＋  Create Room",()->openPartyLobby());
+        LinearLayout.LayoutParams createLp=new LinearLayout.LayoutParams(0,dp(46),1);
+        createLp.setMargins(dp(8),0,0,0);
+        quick.addView(create,createLp);
+        LinearLayout.LayoutParams quickLp=new LinearLayout.LayoutParams(-1,dp(46));
+        quickLp.setMargins(0,0,0,dp(12));
+        body.addView(quick,quickLp);
+
+        TextView liveTitle=tv("🔴  Live Voice Rooms",18,Color.WHITE,true);
+        liveTitle.setPadding(dp(2),dp(8),dp(2),dp(4));
+        body.addView(liveTitle);
         loadHomeLiveRooms();
-        card("🚀","Ecosystem Pro","KTV recording, PK timer, Family treasury, Rank and Arcade",()->openPro880("home"));
-        card("🎤","KTV Stage","Shared song requests and current singer stage",()->show("ktv"));
-        card("⚔️","PK Arena","Red vs Blue room battle with gift-backed score",()->show("pk"));
-        card("🎲","Match","Browse real signed-in KING profiles",()->show("match"));
-        card("🏰","Party Stage","Switch room scene/theme: Royal, KTV, PK, Galaxy",()->show("stage"));
-        card("👑","Family","Real Family create/join/chat center",()->show("family"));
-        card("💎","VIP & Rank","VIP progress, cosmetics and public level ranking",()->show("vip"));
+
+        TextView discoverTitle=tv("Discover more on KING Plus",17,Color.WHITE,true);
+        discoverTitle.setPadding(dp(2),dp(12),dp(2),dp(4));
+        body.addView(discoverTitle);
+        card("🎤","Voice Party","Join friends and talk together in live rooms",this::openPartyLobby);
+        card("🎮","Games & Activities","Explore games and interactive activities",()->openPro880("home"));
+        card("💬","Meet New People","Discover KING Plus members and profiles",()->show("match"));
+        card("🎵","KTV Stage","Shared song requests and singer stage",()->show("ktv"));
+        card("⚔️","PK Arena","Red vs Blue room battle and score",()->show("pk"));
+        // Keep the original destinations individually reachable; do not merge
+        // Family and VIP into one card that would silently hide the VIP route.
+        card("🏰","Party Stage","Switch room scene and theme: Royal, KTV, PK, Galaxy",()->show("stage"));
+        card("👑","Family","Family community and member center",()->show("family"));
+        card("💎","VIP & Rank","VIP privileges, cosmetics and public rankings",()->show("vip"));
     }
 
     private void openPartyLobby(){Intent i=new Intent(this,PartyActivity.class);startActivity(i);}
