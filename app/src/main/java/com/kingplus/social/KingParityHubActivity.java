@@ -106,7 +106,7 @@ public class KingParityHubActivity extends Activity {
             chip.setOnClickListener(v->KingSafe.run(this,"home-category:"+item[2],()->{
                 if("home".equals(item[2]))show("home");
                 else if("party".equals(item[2]))openPartyLobby();
-                else if("games".equals(item[2]))openPro880("home");
+                else if("games".equals(item[2]))openPro880("arcade");
                 else if("match".equals(item[2]))show("match");
                 else show("vip");
             }));
@@ -136,7 +136,7 @@ public class KingParityHubActivity extends Activity {
         discoverTitle.setPadding(dp(2),dp(12),dp(2),dp(4));
         body.addView(discoverTitle);
         card("🎤","Voice Party","Join friends and talk together in live rooms",this::openPartyLobby);
-        card("🎮","Games & Activities","Explore games and interactive activities",()->openPro880("home"));
+        card("🎮","Games & Activities","Explore games and interactive activities",()->openPro880("arcade"));
         card("💬","Meet New People","Discover KING Plus members and profiles",()->show("match"));
         card("🎵","KTV Stage","Shared song requests and singer stage",()->show("ktv"));
         card("⚔️","PK Arena","Red vs Blue room battle and score",()->show("pk"));
