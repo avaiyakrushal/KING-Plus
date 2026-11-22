@@ -127,6 +127,7 @@ public class PartyActivity extends androidx.fragment.app.FragmentActivity implem
     private boolean roomHasPassword;
     private boolean memberRecoveryDialogOpen10077;
     private String roomEntranceMode9931="legacy";
+    private boolean roomVoicePolicyVerified;
     private String roomEntryEpoch9936="";
     private final Set<Integer> lockedSeats = new HashSet<>();
     private ListenerRegistration seatLocksListener;
@@ -1201,6 +1202,7 @@ public class PartyActivity extends androidx.fragment.app.FragmentActivity implem
         clearPartyReconnect979();
         presenceSession967=java.util.UUID.randomUUID().toString();
         roomVisitStarted10026=System.currentTimeMillis();
+        roomVoicePolicyVerified=false;
         roomId=id.trim(); micTogglePending968=false; roomName=name; ownerUid=hostUid; ownerName=hostName; cloudRoom=true; mySeat=-1; micOn=false; coHost=false; roomPrivate=priv; roomHasPassword=password;roomEntranceMode9931="legacy";roomEntryEpoch9936=""; memberSeen=false; localRemovedSeats.clear(); lockedSeats.clear();
         processedEventIds.clear(); eventSnapshotReady=false;
         if(roomPrivate&&!isOwner()) tryPrivateEntry();
@@ -3057,6 +3059,10 @@ public class PartyActivity extends androidx.fragment.app.FragmentActivity implem
         final int expectedSeat968=mySeat;
         final int expectedGeneration968=presenceGeneration967;
         final boolean desiredMic968=!micOn;
+        if(desiredMic968&&!canConnectPartyVoice()){
+            showPartyVoiceUnavailable();
+            return;
+        }
         if(!desiredMic968)revokeMicConsent9956();
         if(desiredMic968 && android.os.Build.VERSION.SDK_INT>=23 &&
                 checkSelfPermission(android.Manifest.permission.RECORD_AUDIO)
@@ -3166,7 +3172,7 @@ public class PartyActivity extends androidx.fragment.app.FragmentActivity implem
     private void toggleSound(){
         soundOn=!soundOn;roomVoiceOptedIn957=soundOn;
         if(!soundOn){micOn=false;revokeMicConsent9956();if(mySeat>0)muteOwnedSeat9920("sound-off");stopInRoomVoice940(true);refreshMicControl();voiceState10065("Voice off • tap to connect");toast("Voice and microphone off");}
-        else if(cloudRoom&&memberSeen&&partyShell940!=null){attachInRoomVoice940(partyShell940);voiceState10065("Voice connecting…");}
+        else if(cloudRoom&&memberSeen&&partyShell940!=null){attachInRoomVoice940(partyShell940);}
     }
     private String musicPrefsKey(){return "music_playlist_"+(user==null?"local":user.getUid());}
     private void loadMusicPlaylist(){
@@ -7712,7 +7718,7 @@ public class PartyActivity extends androidx.fragment.app.FragmentActivity implem
         final DocumentReference room=db.collection("live_rooms").document(roomId);
         final String expectedRoom982=room.getId(),expectedUid982=user.getUid();
         final int visit982=presenceGeneration967,binding982=roomListenerGeneration982;
-        roomListener=room.addSnapshotListener((doc,e)->{
+        roomListener=room.addSnapshotListener(com.google.firebase.firestore.MetadataChanges.INCLUDE,(doc,e)->{
             if(!activeRoomCallback982(expectedRoom982,expectedUid982,visit982,binding982))return;
             if(e!=null||doc==null)return;
             if(doc.getMetadata().isFromCache()||doc.getMetadata().hasPendingWrites()){
@@ -7723,7 +7729,20 @@ public class PartyActivity extends androidx.fragment.app.FragmentActivity implem
             if(Boolean.TRUE.equals(doc.getBoolean("closed"))){
                 toast("Room closed • leaving");leaveRoom();return;
             }
-            announcement=str(doc,"announcement",announcement);roomCategory=str(doc,"category",roomCategory);roomTheme=str(doc,"theme",roomTheme);Long ms=doc.getLong("maxSeats");if(ms!=null){maxSeats=(int)Math.max(8,Math.min(12,ms));}Long mm=doc.getLong("maxMembers");if(mm!=null)maxMembers930=(int)Math.max(10,Math.min(200,mm));hostSeatMode=Boolean.TRUE.equals(doc.getBoolean("hostSeatMode"));loadRoomPersonalSettings();rebuildSeats();roomLocked=Boolean.TRUE.equals(doc.getBoolean("locked"));muteAll=Boolean.TRUE.equals(doc.getBoolean("muteAll"));if(muteAll&&!isModerator()&&micOn){micOn=false;revokeMicConsent9956();if(mySeat>0)muteOwnedSeat9920("moderator-mute-all");refreshMicControl();}roomPrivate=Boolean.TRUE.equals(doc.getBoolean("isPrivate"));roomHasPassword=Boolean.TRUE.equals(doc.getBoolean("hasPassword"));roomEntranceMode9931=str(doc,"entranceMode","legacy");roomEntryEpoch9936=str(doc,"entryEpoch","");if(announcementLabel!=null)announcementLabel.setText((roomLocked?"🔒  ":"📢  ")+announcement);refreshRoomState();});
+            announcement=str(doc,"announcement",announcement);roomCategory=str(doc,"category",roomCategory);roomTheme=str(doc,"theme",roomTheme);Long ms=doc.getLong("maxSeats");if(ms!=null){maxSeats=(int)Math.max(8,Math.min(12,ms));}Long mm=doc.getLong("maxMembers");if(mm!=null)maxMembers930=(int)Math.max(10,Math.min(200,mm));hostSeatMode=Boolean.TRUE.equals(doc.getBoolean("hostSeatMode"));loadRoomPersonalSettings();rebuildSeats();roomLocked=Boolean.TRUE.equals(doc.getBoolean("locked"));muteAll=Boolean.TRUE.equals(doc.getBoolean("muteAll"));if(muteAll&&!isModerator()&&micOn){micOn=false;revokeMicConsent9956();if(mySeat>0)muteOwnedSeat9920("moderator-mute-all");refreshMicControl();}roomPrivate=Boolean.TRUE.equals(doc.getBoolean("isPrivate"));roomHasPassword=Boolean.TRUE.equals(doc.getBoolean("hasPassword"));roomEntranceMode9931=str(doc,"entranceMode","legacy");roomEntryEpoch9936=str(doc,"entryEpoch","");
+            roomVoicePolicyVerified=true;
+            if(!canConnectPartyVoice()&&(inRoomVoiceJoined940||micOn||roomVoiceOptedIn957)){
+                micOn=false;
+                roomVoiceOptedIn957=false;
+                soundOn=false;
+                revokeMicConsent9956();
+                clearVoiceRejoin9957();
+                if(mySeat>0)muteOwnedSeat9920("restricted-voice");
+                stopInRoomVoice940(true);
+                refreshMicControl();
+                showPartyVoiceUnavailable();
+            }
+            if(announcementLabel!=null)announcementLabel.setText((roomLocked?"🔒  ":"📢  ")+announcement);refreshRoomState();});
         roleListener=room.collection("roles").document(expectedUid982)
             .addSnapshotListener(com.google.firebase.firestore.MetadataChanges.INCLUDE,(doc,e)->{
             if(!activeRoomCallback982(expectedRoom982,expectedUid982,visit982,binding982))return;
@@ -7935,8 +7954,26 @@ public class PartyActivity extends androidx.fragment.app.FragmentActivity implem
     private void addEvent(String type,String text){if(cloudRoom&&user!=null&&db!=null&&roomId!=null){LevelSystem.Snapshot p720=LevelSystem.read(this);Map<String,Object>d=new HashMap<>();d.put("actorUid",user.getUid());d.put("actorName",safeName());d.put("actorLevel",p720.level);d.put("actorVip",0);d.put("actorFrame",KingCosmetics.frame(this));d.put("actorEffect",KingCosmetics.effect(this));d.put("type",type);d.put("text",text);d.put("createdAt",FieldValue.serverTimestamp());db.collection("live_rooms").document(roomId).collection("events").add(d);}else addFeed(text);}
 
     private void voiceState10065(String message){if(voiceStatus10065!=null)voiceStatus10065.setText(message);}
+    private boolean canConnectPartyVoice(){
+        return roomVoicePolicyVerified&&(BuildConfig.CLOUDFLARE_VOICE_ENABLED
+            ||(!roomPrivate&&!roomHasPassword
+                &&("free".equals(roomEntranceMode9931)||"legacy".equals(roomEntranceMode9931))));
+    }
+
+    private void showPartyVoiceUnavailable(){
+        String message=roomVoicePolicyVerified
+            ?"Private voice requires the configured voice service"
+            :"Waiting for room settings • tap to retry";
+        voiceState10065(message);
+        toast(message);
+    }
+
     private void showVoiceConnection10065(){
         if(!cloudRoom||!memberSeen||partyShell940==null)return;
+        if(!canConnectPartyVoice()){
+            showPartyVoiceUnavailable();
+            return;
+        }
         if(BuildConfig.CLOUDFLARE_VOICE_ENABLED){
             new AlertDialog.Builder(this).setTitle("Cloudflare voice")
                 .setMessage(voiceConferenceConnected10065?"Room voice connected":"Voice is waiting for a room microphone or server connection.")
@@ -7967,6 +8004,12 @@ public class PartyActivity extends androidx.fragment.app.FragmentActivity implem
     }
     private void attachInRoomVoice940(FrameLayout shell){
         if(!cloudRoom||!memberSeen||!roomVoiceOptedIn957||!soundOn||roomId==null||roomId.trim().isEmpty()||user==null||shell==null)return;
+        if(!canConnectPartyVoice()){
+            roomVoiceOptedIn957=false;
+            soundOn=false;
+            showPartyVoiceUnavailable();
+            return;
+        }
         if(BuildConfig.CLOUDFLARE_VOICE_ENABLED){
             if(cloudflareVoice10066!=null)return;
             stopInRoomVoice940(true);
