@@ -23,8 +23,13 @@ import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
 
+import com.google.android.gms.tasks.Task;
+import com.google.android.gms.tasks.Tasks;
+import com.google.firebase.Timestamp;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
+import com.google.firebase.firestore.AggregateQuerySnapshot;
+import com.google.firebase.firestore.AggregateSource;
 import com.google.firebase.firestore.DocumentSnapshot;
 import com.google.firebase.firestore.FieldValue;
 import com.google.firebase.firestore.FirebaseFirestore;
@@ -32,6 +37,7 @@ import com.google.firebase.firestore.Query;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -155,7 +161,7 @@ public class KingParityHubActivity extends Activity {
         HorizontalScrollView roomFilters=new HorizontalScrollView(this);
         roomFilters.setHorizontalScrollBarEnabled(false);
         LinearLayout filterRow=new LinearLayout(this);
-        for(String category:new String[]{"Hot","Music","Game","Event","Family","Video"}){
+        for(String category:new String[]{"Hot","Popular","Music","Game","Event","Family","Video"}){
             TextView filter=action(category,()->{
                 homeRoomCategory=category;
                 for(int i=0;i<filterRow.getChildCount();i++){
@@ -223,6 +229,10 @@ public class KingParityHubActivity extends Activity {
         }
         String uid=signedIn.getUid();
         roomRows.addView(tv("Loading live rooms…",13,MUTED,false));
+        if("Popular".equals(homeRoomCategory)){
+            loadPopularHomeRooms(roomRows,request,uid);
+            return;
+        }
         Query query=db.collection("live_rooms").whereEqualTo("closed",false);
         List<String> aliases=KingPagePolicy10067.categories(homeRoomCategory);
         if(!aliases.isEmpty())query=query.whereIn("category",aliases);
@@ -255,12 +265,67 @@ public class KingParityHubActivity extends Activity {
             });
     }
 
+    private void loadPopularHomeRooms(LinearLayout rows,int request,String uid){
+        db.collection("live_rooms").whereEqualTo("closed",false)
+            .limit(24).get(com.google.firebase.firestore.Source.SERVER)
+            .addOnSuccessListener(snapshot->{
+                if(!canShowHomeRooms(rows,request,uid))return;
+                Map<DocumentSnapshot,Task<AggregateQuerySnapshot>> counts=new LinkedHashMap<>();
+                Timestamp cutoff=new Timestamp(new Date(System.currentTimeMillis()-60_000L));
+                for(DocumentSnapshot room:snapshot.getDocuments()){
+                    String mode=roomText(room,"entranceMode","legacy");
+                    if(Boolean.TRUE.equals(room.get("isPrivate"))||Boolean.TRUE.equals(room.get("hasPassword"))
+                        ||(!"legacy".equals(mode)&&!"free".equals(mode)))continue;
+                    counts.put(room,room.getReference().collection("members")
+                        .whereGreaterThan("lastSeenAt",cutoff).count().get(AggregateSource.SERVER));
+                }
+                Tasks.whenAllComplete(counts.values()).addOnSuccessListener(ignored->{
+                    if(!canShowHomeRooms(rows,request,uid))return;
+                    List<DocumentSnapshot> ranked=new ArrayList<>();
+                    Map<DocumentSnapshot,Long> recent=new HashMap<>();
+                    for(Map.Entry<DocumentSnapshot,Task<AggregateQuerySnapshot>> entry:counts.entrySet()){
+                        Task<AggregateQuerySnapshot> count=entry.getValue();
+                        if(count.isSuccessful()){
+                            long active=count.getResult().getCount();
+                            if(active>0)ranked.add(entry.getKey());
+                            recent.put(entry.getKey(),active);
+                        }
+                    }
+                    if(!counts.isEmpty()&&recent.isEmpty()){
+                        showPopularError(rows);return;
+                    }
+                    rows.removeAllViews();
+                    rows.addView(tv("Activity in up to 24 open rooms · last 60 seconds",12,MUTED,false));
+                    if(recent.size()<counts.size())rows.addView(tv("Some activity counts were unavailable.",12,MUTED,false));
+                    ranked.sort((a,b)->Long.compare(recent.get(b),recent.get(a)));
+                    for(DocumentSnapshot room:ranked.subList(0,Math.min(8,ranked.size())))
+                        addHomeRoomCard(rows,room,recent.get(room)+" active");
+                    if(ranked.isEmpty())rows.addView(tv("No active public rooms in these results.",13,MUTED,false));
+                    rows.addView(action("View all Party Rooms",this::openPartyLobby),
+                        new LinearLayout.LayoutParams(-1,dp(48)));
+                });
+            })
+            .addOnFailureListener(error->{
+                if(canShowHomeRooms(rows,request,uid))showPopularError(rows);
+            });
+    }
+
+    private void showPopularError(LinearLayout rows){
+        rows.removeAllViews();
+        rows.addView(action("Could not load Popular rooms. Tap to retry.",
+            ()->loadHomeLiveRooms(rows)),new LinearLayout.LayoutParams(-1,-2));
+    }
+
     private String roomText(DocumentSnapshot room,String field,String fallback){
         Object value=room.get(field);
         return value instanceof String?safe((String)value,fallback):fallback;
     }
 
     private void addHomeRoomCard(LinearLayout rows,DocumentSnapshot doc){
+        addHomeRoomCard(rows,doc,"");
+    }
+
+    private void addHomeRoomCard(LinearLayout rows,DocumentSnapshot doc,String activity){
         String name=roomText(doc,"name","Live Party");
         String host=roomText(doc,"ownerName","KING Host");
         String category=roomText(doc,"category","Hot");
@@ -289,7 +354,7 @@ public class KingParityHubActivity extends Activity {
         label.setMaxLines(2);
         label.setEllipsize(TextUtils.TruncateAt.END);
         details.addView(label);
-        TextView meta=tv(category+" • "+host,12,MUTED,false);
+        TextView meta=tv(category+" • "+host+(activity.isEmpty()?"":" • "+activity),12,MUTED,false);
         meta.setPadding(0,dp(2),0,0);
         meta.setMaxLines(2);
         meta.setEllipsize(TextUtils.TruncateAt.END);
