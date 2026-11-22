@@ -432,6 +432,13 @@ public class PartyActivity extends androidx.fragment.app.FragmentActivity implem
             }
         }));
         renderLobby("Hot");
+        // Home Create Room opens the actual creation screen, not just the lobby.
+        // Direct room links retain priority and must never trigger creation.
+        if(getIntent().getBooleanExtra("openCreateRoom",false)
+                && getIntent().getStringExtra("directRoomId")==null){
+            getIntent().removeExtra("openCreateRoom");
+            createRoomDialog();
+        }
         handlePartyIntent9989(getIntent());
     }
 
