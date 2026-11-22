@@ -9,12 +9,19 @@ import android.graphics.Typeface;
 import android.graphics.drawable.GradientDrawable;
 import android.os.Bundle;
 import android.view.Gravity;
+import android.text.TextUtils;
 import android.widget.EditText;
+import android.widget.FrameLayout;
+import android.widget.ImageView;
 import android.widget.HorizontalScrollView;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
 import android.widget.TextView;
 import android.widget.Toast;
+
+import androidx.core.graphics.Insets;
+import androidx.core.view.ViewCompat;
+import androidx.core.view.WindowInsetsCompat;
 
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
@@ -37,6 +44,8 @@ public class KingParityHubActivity extends Activity {
     private FirebaseFirestore db; private FirebaseUser me; private LinearLayout body; private TextView title;
     private String route="home", roomId="", roomName="KING Party";
     private SharedPreferences prefs;
+    private String homeRoomCategory="Hot";
+    private int homeRoomRequest;
 
     private int dp(int n){return(int)(n*getResources().getDisplayMetrics().density+.5f);}
     private GradientDrawable bg(int c,int r){GradientDrawable d=new GradientDrawable();d.setColor(c);d.setCornerRadius(dp(r));return d;}
@@ -56,6 +65,13 @@ public class KingParityHubActivity extends Activity {
         String[][] all={{"✨","Home","home"},{"🎤","KTV","ktv"},{"⚔️","PK","pk"},{"🎲","Match","match"},{"🏰","Stage","stage"},{"👑","Family","family"},{"💎","VIP/Rank","vip"}};
         for(String[] x:all){TextView t=tv(x[0]+" "+x[1],12,Color.WHITE,true);t.setGravity(Gravity.CENTER);t.setBackground(bg(CARD2,16));String r=x[2];t.setOnClickListener(v->KingSafe.run(this,"parity-tab:"+r,()->show(r)));LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(dp(104),dp(42));lp.setMargins(dp(4),0,dp(4),0);tabs.addView(t,lp);}hsv.addView(tabs);root.addView(hsv,new LinearLayout.LayoutParams(-1,dp(52)));
         ScrollView sv=new ScrollView(this);sv.setFillViewport(true);body=new LinearLayout(this);body.setOrientation(LinearLayout.VERTICAL);body.setPadding(dp(14),dp(10),dp(14),dp(30));sv.addView(body);root.addView(sv,new LinearLayout.LayoutParams(-1,0,1));root.addView(rootNav(),new LinearLayout.LayoutParams(-1,dp(64)));setContentView(root);
+        ViewCompat.setOnApplyWindowInsetsListener(root,(view,insets)->{
+            Insets safeArea=insets.getInsets(WindowInsetsCompat.Type.systemBars()
+                | WindowInsetsCompat.Type.displayCutout());
+            view.setPadding(safeArea.left,safeArea.top,safeArea.right,safeArea.bottom);
+            return insets;
+        });
+        ViewCompat.requestApplyInsets(root);
     }
 
     /** Persistent five-destination navigation shared with the rest of KING Plus. */
@@ -127,10 +143,38 @@ public class KingParityHubActivity extends Activity {
         quickLp.setMargins(0,0,0,dp(12));
         body.addView(quick,quickLp);
 
-        TextView liveTitle=tv("🔴  Live Voice Rooms",18,Color.WHITE,true);
-        liveTitle.setPadding(dp(2),dp(8),dp(2),dp(4));
-        body.addView(liveTitle);
-        loadHomeLiveRooms();
+        LinearLayout liveHeader=new LinearLayout(this);
+        liveHeader.setGravity(Gravity.CENTER_VERTICAL);
+        liveHeader.addView(tv("Live Voice Rooms",18,Color.WHITE,true),
+            new LinearLayout.LayoutParams(0,-2,1));
+        body.addView(liveHeader);
+        LinearLayout roomRows=new LinearLayout(this);
+        roomRows.setOrientation(LinearLayout.VERTICAL);
+        liveHeader.addView(action("Refresh",()->loadHomeLiveRooms(roomRows)),
+            new LinearLayout.LayoutParams(-2,dp(48)));
+        HorizontalScrollView roomFilters=new HorizontalScrollView(this);
+        roomFilters.setHorizontalScrollBarEnabled(false);
+        LinearLayout filterRow=new LinearLayout(this);
+        for(String category:new String[]{"Hot","Music","Game","Event","Family","Video"}){
+            TextView filter=action(category,()->{
+                homeRoomCategory=category;
+                for(int i=0;i<filterRow.getChildCount();i++){
+                    TextView option=(TextView)filterRow.getChildAt(i);
+                    option.setSelected(category.contentEquals(option.getText()));
+                    option.setBackground(bg(option.isSelected()?PURPLE:CARD2,14));
+                }
+                loadHomeLiveRooms(roomRows);
+            });
+            filter.setSelected(category.equals(homeRoomCategory));
+            filter.setBackground(bg(filter.isSelected()?PURPLE:CARD2,14));
+            LinearLayout.LayoutParams filterParams=new LinearLayout.LayoutParams(-2,dp(48));
+            filterParams.setMargins(0,0,dp(6),0);
+            filterRow.addView(filter,filterParams);
+        }
+        roomFilters.addView(filterRow);
+        body.addView(roomFilters,new LinearLayout.LayoutParams(-1,dp(52)));
+        body.addView(roomRows,new LinearLayout.LayoutParams(-1,-2));
+        loadHomeLiveRooms(roomRows);
 
         TextView discoverTitle=tv("Discover more on KING Plus",17,Color.WHITE,true);
         discoverTitle.setPadding(dp(2),dp(12),dp(2),dp(4));
@@ -158,46 +202,112 @@ public class KingParityHubActivity extends Activity {
             .show();
     }
 
-    private void loadHomeLiveRooms(){
-        // Own all asynchronous room rows in one container to prevent stale results
-        // from being appended below unrelated Home sections after a refresh.
-        LinearLayout roomRows=new LinearLayout(this);
-        roomRows.setOrientation(LinearLayout.VERTICAL);
-        body.addView(roomRows,new LinearLayout.LayoutParams(-1,-2));
-        if(me==null||db==null){
-            TextView sign=tv("Sign in to discover live rooms",13,MUTED,true);sign.setGravity(Gravity.CENTER);
-            sign.setBackground(bg(CARD,14));sign.setOnClickListener(v->{Intent i=new Intent(this,MainActivity.class);i.putExtra("forceLogin",true);startActivity(i);});
-            roomRows.addView(sign,new LinearLayout.LayoutParams(-1,dp(58)));return;
+    private boolean canShowHomeRooms(LinearLayout rows,int request,String uid){
+        FirebaseUser current=FirebaseAuth.getInstance().getCurrentUser();
+        return !isFinishing()&&!isDestroyed()&&"home".equals(route)
+            && rows.getParent()==body&&request==homeRoomRequest
+            && current!=null&&uid.equals(current.getUid());
+    }
+
+    private void loadHomeLiveRooms(LinearLayout roomRows){
+        int request=++homeRoomRequest;
+        roomRows.removeAllViews();
+        FirebaseUser signedIn=db==null?null:FirebaseAuth.getInstance().getCurrentUser();
+        if(signedIn==null){
+            roomRows.addView(action("Sign in to discover live rooms",()->{
+                Intent intent=new Intent(this,MainActivity.class);
+                intent.putExtra("forceLogin",true);
+                startActivity(intent);
+            }),new LinearLayout.LayoutParams(-1,dp(56)));
+            return;
         }
-        TextView loading=tv("Loading live rooms…",13,MUTED,false);loading.setGravity(Gravity.CENTER);
-        roomRows.addView(loading,new LinearLayout.LayoutParams(-1,dp(48)));
-        // One bounded read per Home visit: avoid a persistent listener and unnecessary Firebase usage.
-        db.collection("live_rooms").whereEqualTo("closed",false).limit(8).get()
+        String uid=signedIn.getUid();
+        roomRows.addView(tv("Loading live rooms…",13,MUTED,false));
+        Query query=db.collection("live_rooms").whereEqualTo("closed",false);
+        List<String> aliases=KingPagePolicy10067.categories(homeRoomCategory);
+        if(!aliases.isEmpty())query=query.whereIn("category",aliases);
+        query.limit(8).get()
             .addOnSuccessListener(snapshot->{
-                if(isFinishing()||isDestroyed()||!"home".equals(route)||roomRows.getParent()==null)return;
-                roomRows.removeView(loading);
+                if(!canShowHomeRooms(roomRows,request,uid))return;
+                roomRows.removeAllViews();
+                boolean cached=snapshot.getMetadata().isFromCache();
+                if(cached)roomRows.addView(tv("Showing saved rooms. Joining requires a connection.",13,MUTED,false));
                 List<DocumentSnapshot> rooms=new ArrayList<>(snapshot.getDocuments());
-                rooms.sort((a,b)->{com.google.firebase.Timestamp at=a.getTimestamp("createdAt"),bt=b.getTimestamp("createdAt");return at==null?(bt==null?0:1):bt==null?-1:bt.compareTo(at);});
-                int shown=0;
-                for(DocumentSnapshot doc:rooms){
-                    if(Boolean.TRUE.equals(doc.getBoolean("closed")))continue;
-                    String id=doc.getId();String room=safe(doc.getString("name"),"Live Party");
-                    String host=safe(doc.getString("ownerName"),"KING Host");
-                    String category=safe(doc.getString("category"),"Hot");
-                    LinearLayout item=new LinearLayout(this);item.setGravity(Gravity.CENTER_VERTICAL);item.setPadding(dp(12),dp(7),dp(12),dp(7));item.setBackground(bg(CARD,14));
-                    TextView icon=tv("🔴",20,Color.WHITE,true);item.addView(icon,new LinearLayout.LayoutParams(dp(42),dp(44)));
-                    LinearLayout details=new LinearLayout(this);details.setOrientation(LinearLayout.VERTICAL);
-                    TextView nameText=tv(room,14,Color.WHITE,true);nameText.setPadding(0,0,0,0);
-                    TextView meta=tv(category+"  •  Host: "+host,11,MUTED,false);meta.setPadding(0,dp(2),0,0);
-                    details.addView(nameText);details.addView(meta);item.addView(details,new LinearLayout.LayoutParams(0,dp(48),1));
-                    TextView join=tv("JOIN  ›",12,GOLD,true);item.addView(join);
-                    item.setOnClickListener(v->{Intent i=new Intent(this,PartyActivity.class);i.putExtra("directRoomId",id);startActivity(i);});
-                    LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(-1,dp(62));lp.setMargins(0,dp(3),0,dp(3));roomRows.addView(item,lp);shown++;
-                }
-                if(shown==0){TextView empty=tv("No live rooms right now. Create a room or refresh later.",12,MUTED,false);empty.setGravity(Gravity.CENTER);roomRows.addView(empty,new LinearLayout.LayoutParams(-1,dp(54)));}
-                TextView all=action("View all Party Rooms  →",this::openPartyLobby);LinearLayout.LayoutParams allLp=new LinearLayout.LayoutParams(-1,dp(42));allLp.setMargins(0,dp(6),0,dp(8));roomRows.addView(all,allLp);
+                rooms.sort((a,b)->{
+                    Object av=a.get("createdAt"),bv=b.get("createdAt");
+                    if(!(av instanceof com.google.firebase.Timestamp))
+                        return bv instanceof com.google.firebase.Timestamp?1:0;
+                    if(!(bv instanceof com.google.firebase.Timestamp))return -1;
+                    return ((com.google.firebase.Timestamp)bv).compareTo((com.google.firebase.Timestamp)av);
+                });
+                for(DocumentSnapshot doc:rooms)addHomeRoomCard(roomRows,doc);
+                if(rooms.isEmpty())roomRows.addView(tv(cached
+                    ?"No saved rooms available. Connect and refresh."
+                    :"No live rooms right now.",13,MUTED,false));
+                roomRows.addView(action("View all Party Rooms",this::openPartyLobby),
+                    new LinearLayout.LayoutParams(-1,dp(48)));
             })
-            .addOnFailureListener(e->{if(isFinishing()||isDestroyed()||!"home".equals(route))return;roomRows.removeView(loading);TextView err=tv("Live rooms could not load. Open Party to retry.",12,MUTED,false);err.setGravity(Gravity.CENTER);err.setOnClickListener(v->openPartyLobby());roomRows.addView(err,new LinearLayout.LayoutParams(-1,dp(52)));});
+            .addOnFailureListener(error->{
+                if(!canShowHomeRooms(roomRows,request,uid))return;
+                roomRows.removeAllViews();
+                roomRows.addView(action("Could not load rooms. Tap to retry.",
+                    ()->loadHomeLiveRooms(roomRows)),new LinearLayout.LayoutParams(-1,-2));
+            });
+    }
+
+    private String roomText(DocumentSnapshot room,String field,String fallback){
+        Object value=room.get(field);
+        return value instanceof String?safe((String)value,fallback):fallback;
+    }
+
+    private void addHomeRoomCard(LinearLayout rows,DocumentSnapshot doc){
+        String name=roomText(doc,"name","Live Party");
+        String host=roomText(doc,"ownerName","KING Host");
+        String category=roomText(doc,"category","Hot");
+        boolean locked=Boolean.TRUE.equals(doc.get("isPrivate"))||Boolean.TRUE.equals(doc.get("hasPassword"));
+        LinearLayout item=new LinearLayout(this);
+        item.setGravity(Gravity.CENTER_VERTICAL);
+        item.setPadding(dp(10),dp(8),dp(10),dp(8));
+        item.setBackground(bg(CARD,14));
+
+        FrameLayout thumbnail=new FrameLayout(this);
+        thumbnail.setBackground(bg(CARD2,10));
+        thumbnail.setClipToOutline(true);
+        ImageView image=new ImageView(this);
+        image.setScaleType(ImageView.ScaleType.CENTER_CROP);
+        thumbnail.addView(image,new FrameLayout.LayoutParams(-1,-1));
+        TextView fallback=tv("🎤",18,GOLD,false);
+        fallback.setGravity(Gravity.CENTER);
+        thumbnail.addView(fallback,new FrameLayout.LayoutParams(-1,-1));
+        item.addView(thumbnail,new LinearLayout.LayoutParams(dp(54),dp(54)));
+
+        LinearLayout details=new LinearLayout(this);
+        details.setOrientation(LinearLayout.VERTICAL);
+        details.setPadding(dp(10),0,0,0);
+        TextView label=tv(name,14,Color.WHITE,true);
+        label.setPadding(0,0,0,0);
+        label.setMaxLines(2);
+        label.setEllipsize(TextUtils.TruncateAt.END);
+        details.addView(label);
+        TextView meta=tv(category+" • "+host,12,MUTED,false);
+        meta.setPadding(0,dp(2),0,0);
+        meta.setMaxLines(2);
+        meta.setEllipsize(TextUtils.TruncateAt.END);
+        details.addView(meta);
+        item.addView(details,new LinearLayout.LayoutParams(0,-2,1));
+        item.addView(tv(locked?"🔒":"Join",12,GOLD,true));
+        item.setContentDescription("Join "+name+", "+category+", hosted by "+host
+            +(locked?", restricted room":""));
+        item.setOnClickListener(v->{
+            Intent intent=new Intent(this,PartyActivity.class);
+            intent.putExtra("directRoomId",doc.getId());
+            startActivity(intent);
+        });
+        LinearLayout.LayoutParams params=new LinearLayout.LayoutParams(-1,-2);
+        params.setMargins(0,dp(4),0,dp(4));
+        rows.addView(item,params);
+        KingProfileImages10068.load(this,image,fallback,
+            roomText(doc,"coverUrl",roomText(doc,"ownerPhoto","")));
     }
 
     private void ktv(){hero("🎤 KTV • "+roomName,roomId.isEmpty()?"Open from Party Room for synchronized queue":"Room-synchronized requests • host/co-host can put a song on stage");if(!roomId.isEmpty()){LinearLayout buttons=new LinearLayout(this);TextView add=action("＋ Request song",this::requestSong);buttons.addView(add,new LinearLayout.LayoutParams(0,dp(48),1));TextView refresh=action("↻ Refresh",this::ktv);LinearLayout.LayoutParams rp=new LinearLayout.LayoutParams(0,dp(48),1);rp.setMargins(dp(8),0,0,0);buttons.addView(refresh,rp);body.addView(buttons);}

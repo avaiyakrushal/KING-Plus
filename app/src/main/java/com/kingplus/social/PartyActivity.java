@@ -891,7 +891,7 @@ public class PartyActivity extends androidx.fragment.app.FragmentActivity implem
                             boolean password = Boolean.TRUE.equals(doc.getBoolean("hasPassword"));
                             String q = lobbyFilter.toLowerCase(java.util.Locale.US);
                             if(q.isEmpty()&&!categoryMatches(selected,category)) continue;
-                            if(!q.isEmpty() && !(name.toLowerCase(java.util.Locale.US).contains(q) || host.toLowerCase(java.util.Locale.US).contains(q) || category.toLowerCase(java.util.Locale.US).contains(q) || shortId(id).contains(q))) continue;
+                            if(!q.isEmpty() && !(name.toLowerCase(java.util.Locale.US).contains(q) || host.toLowerCase(java.util.Locale.US).contains(q) || category.toLowerCase(java.util.Locale.US).contains(q) || shortId(id).contains(q) || id.toLowerCase(java.util.Locale.US).equals(q))) continue;
                             if (shown % 2 == 0) {
                                 row = new LinearLayout(this); row.setOrientation(LinearLayout.HORIZONTAL); row.setGravity(Gravity.TOP);
                                 LinearLayout.LayoutParams rp = new LinearLayout.LayoutParams(-1,dp(206)); rp.setMargins(0,dp(4),0,dp(4)); cloudList.addView(row,rp);
@@ -1586,22 +1586,21 @@ public class PartyActivity extends androidx.fragment.app.FragmentActivity implem
         if(isOwner()){verifyExistingRoomOpen10037(expectedRoom966,expectedId966,expectedUid966,token966,join);return;}
         // Fetch room state and member capacity together, not in two serial server
         // round-trips. Keep the existing signed-in room+generation guards.
-        com.google.android.gms.tasks.Tasks.whenAllSuccess(
-                expectedRoom966.get(com.google.firebase.firestore.Source.SERVER),
-                expectedRoom966.collection("members").get(com.google.firebase.firestore.Source.SERVER))
-            .addOnSuccessListener(responses10027->{
+        com.google.android.gms.tasks.Task<DocumentSnapshot> roomRead=
+            expectedRoom966.get(com.google.firebase.firestore.Source.SERVER);
+        com.google.android.gms.tasks.Task<com.google.firebase.firestore.QuerySnapshot> memberRead=
+            expectedRoom966.collection("members").get(com.google.firebase.firestore.Source.SERVER);
+        com.google.android.gms.tasks.Tasks.whenAll(roomRead,memberRead)
+            .addOnSuccessListener(ignored->{
                 if(!isCurrentPartyJoin966(expectedId966,expectedUid966,token966))return;
-                if(responses10027.size()!=2){
-                    showPartyJoinFailure977("Cannot verify Party Room capacity");return;
-                }
-                DocumentSnapshot roomDoc10027=(DocumentSnapshot)responses10027.get(0);
-                com.google.firebase.firestore.QuerySnapshot members10027=
-                    (com.google.firebase.firestore.QuerySnapshot)responses10027.get(1);
+                DocumentSnapshot roomDoc10027=roomRead.getResult();
+                com.google.firebase.firestore.QuerySnapshot members10027=memberRead.getResult();
                 if(roomDoc10027==null||!roomDoc10027.exists()
                     ||Boolean.TRUE.equals(roomDoc10027.getBoolean("closed"))){
                     toast("This Party room is no longer available");renderLobby("Hot");return;
                 }
-                Long cap10027=roomDoc10027.getLong("maxMembers");
+                Object cap=roomDoc10027.get("maxMembers");
+                Long cap10027=cap instanceof Number?((Number)cap).longValue():null;
                 int limit10027=cap10027==null?100:(int)Math.max(10,Math.min(200,cap10027));
                 maxMembers930=limit10027;
                 if(members10027==null){showPartyJoinFailure977("Cannot verify Party Room members");return;}
