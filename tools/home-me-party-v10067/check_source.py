@@ -13,7 +13,6 @@ for label in ('For You','Voice Rooms','Games','New People','VIP','Live Voice Roo
 for route in ('show("home")','openPartyLobby()','openPro880("arcade")','show("match")','show("vip")','show("stage")','show("family")'):
     assert route in home
 assert home.count('openPro880("arcade")') == 2
-    assert route in home
 assert 'Family & VIP' not in home
 assert "buildConfigField 'boolean', 'CLOUDFLARE_VOICE_ENABLED', 'false'" in (root/'app/build.gradle').read_text()
 assert 'whereIn("category",aliases10067)' in party and 'lobbyPrevious10067' in party
