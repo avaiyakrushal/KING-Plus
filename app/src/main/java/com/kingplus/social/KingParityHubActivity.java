@@ -119,7 +119,7 @@ public class KingParityHubActivity extends Activity {
         quick.setGravity(Gravity.CENTER);
         TextView search=action("⌕  Search rooms",()->showHomeRoomSearch());
         quick.addView(search,new LinearLayout.LayoutParams(0,dp(46),1));
-        TextView create=action("＋  Create Room",()->openPartyLobby());
+        TextView create=action("＋  Create Room",this::openPartyCreate);
         LinearLayout.LayoutParams createLp=new LinearLayout.LayoutParams(0,dp(46),1);
         createLp.setMargins(dp(8),0,0,0);
         quick.addView(create,createLp);
@@ -148,6 +148,7 @@ public class KingParityHubActivity extends Activity {
     }
 
     private void openPartyLobby(){Intent i=new Intent(this,PartyActivity.class);startActivity(i);}
+    private void openPartyCreate(){Intent i=new Intent(this,PartyActivity.class);i.putExtra("openCreateRoom",true);startActivity(i);}
 
     private void showHomeRoomSearch(){
         EditText query=new EditText(this);query.setSingleLine(true);query.setHint("Room name, host or room ID");
