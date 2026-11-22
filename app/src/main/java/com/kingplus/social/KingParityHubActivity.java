@@ -159,18 +159,23 @@ public class KingParityHubActivity extends Activity {
     }
 
     private void loadHomeLiveRooms(){
+        // Own all asynchronous room rows in one container to prevent stale results
+        // from being appended below unrelated Home sections after a refresh.
+        LinearLayout roomRows=new LinearLayout(this);
+        roomRows.setOrientation(LinearLayout.VERTICAL);
+        body.addView(roomRows,new LinearLayout.LayoutParams(-1,-2));
         if(me==null||db==null){
             TextView sign=tv("Sign in to discover live rooms",13,MUTED,true);sign.setGravity(Gravity.CENTER);
             sign.setBackground(bg(CARD,14));sign.setOnClickListener(v->{Intent i=new Intent(this,MainActivity.class);i.putExtra("forceLogin",true);startActivity(i);});
-            body.addView(sign,new LinearLayout.LayoutParams(-1,dp(58)));return;
+            roomRows.addView(sign,new LinearLayout.LayoutParams(-1,dp(58)));return;
         }
         TextView loading=tv("Loading live rooms…",13,MUTED,false);loading.setGravity(Gravity.CENTER);
-        body.addView(loading,new LinearLayout.LayoutParams(-1,dp(48)));
+        roomRows.addView(loading,new LinearLayout.LayoutParams(-1,dp(48)));
         // One bounded read per Home visit: avoid a persistent listener and unnecessary Firebase usage.
         db.collection("live_rooms").whereEqualTo("closed",false).limit(8).get()
             .addOnSuccessListener(snapshot->{
-                if(isFinishing()||isDestroyed()||! "home".equals(route))return;
-                body.removeView(loading);
+                if(isFinishing()||isDestroyed()||!"home".equals(route)||roomRows.getParent()==null)return;
+                roomRows.removeView(loading);
                 List<DocumentSnapshot> rooms=new ArrayList<>(snapshot.getDocuments());
                 rooms.sort((a,b)->{com.google.firebase.Timestamp at=a.getTimestamp("createdAt"),bt=b.getTimestamp("createdAt");return at==null?(bt==null?0:1):bt==null?-1:bt.compareTo(at);});
                 int shown=0;
@@ -187,12 +192,12 @@ public class KingParityHubActivity extends Activity {
                     details.addView(nameText);details.addView(meta);item.addView(details,new LinearLayout.LayoutParams(0,dp(48),1));
                     TextView join=tv("JOIN  ›",12,GOLD,true);item.addView(join);
                     item.setOnClickListener(v->{Intent i=new Intent(this,PartyActivity.class);i.putExtra("directRoomId",id);startActivity(i);});
-                    LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(-1,dp(62));lp.setMargins(0,dp(3),0,dp(3));body.addView(item,lp);shown++;
+                    LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(-1,dp(62));lp.setMargins(0,dp(3),0,dp(3));roomRows.addView(item,lp);shown++;
                 }
-                if(shown==0){TextView empty=tv("No live rooms right now. Create a room or refresh later.",12,MUTED,false);empty.setGravity(Gravity.CENTER);body.addView(empty,new LinearLayout.LayoutParams(-1,dp(54)));}
-                TextView all=action("View all Party Rooms  →",this::openPartyLobby);LinearLayout.LayoutParams allLp=new LinearLayout.LayoutParams(-1,dp(42));allLp.setMargins(0,dp(6),0,dp(8));body.addView(all,allLp);
+                if(shown==0){TextView empty=tv("No live rooms right now. Create a room or refresh later.",12,MUTED,false);empty.setGravity(Gravity.CENTER);roomRows.addView(empty,new LinearLayout.LayoutParams(-1,dp(54)));}
+                TextView all=action("View all Party Rooms  →",this::openPartyLobby);LinearLayout.LayoutParams allLp=new LinearLayout.LayoutParams(-1,dp(42));allLp.setMargins(0,dp(6),0,dp(8));roomRows.addView(all,allLp);
             })
-            .addOnFailureListener(e->{if(isFinishing()||isDestroyed()||!"home".equals(route))return;body.removeView(loading);TextView err=tv("Live rooms could not load. Open Party to retry.",12,MUTED,false);err.setGravity(Gravity.CENTER);err.setOnClickListener(v->openPartyLobby());body.addView(err,new LinearLayout.LayoutParams(-1,dp(52)));});
+            .addOnFailureListener(e->{if(isFinishing()||isDestroyed()||!"home".equals(route))return;roomRows.removeView(loading);TextView err=tv("Live rooms could not load. Open Party to retry.",12,MUTED,false);err.setGravity(Gravity.CENTER);err.setOnClickListener(v->openPartyLobby());roomRows.addView(err,new LinearLayout.LayoutParams(-1,dp(52)));});
     }
 
     private void ktv(){hero("🎤 KTV • "+roomName,roomId.isEmpty()?"Open from Party Room for synchronized queue":"Room-synchronized requests • host/co-host can put a song on stage");if(!roomId.isEmpty()){LinearLayout buttons=new LinearLayout(this);TextView add=action("＋ Request song",this::requestSong);buttons.addView(add,new LinearLayout.LayoutParams(0,dp(48),1));TextView refresh=action("↻ Refresh",this::ktv);LinearLayout.LayoutParams rp=new LinearLayout.LayoutParams(0,dp(48),1);rp.setMargins(dp(8),0,0,0);buttons.addView(refresh,rp);body.addView(buttons);}
