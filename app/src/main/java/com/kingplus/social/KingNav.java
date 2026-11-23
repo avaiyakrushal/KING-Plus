@@ -19,9 +19,14 @@ public final class KingNav {
             i = new Intent(activity, KingParityHubActivity.class);
             i.putExtra("route", "home");
         } else if (tab == 1) {
-            // Party is a distinct root destination; do not route it to the legacy Games tab.
-            if (activity instanceof PartyActivity) return;
-            i = new Intent(activity, PartyActivity.class);
+            // Party's local Games tab and Discover's Games tab target the legacy
+            // Games screen. Elsewhere, tab 1 is the Party root destination.
+            if (activity instanceof PartyActivity || activity instanceof DiscoverActivity) {
+                i = new Intent(activity, MainActivity.class);
+                i.putExtra("openTab", 1);
+            } else {
+                i = new Intent(activity, PartyActivity.class);
+            }
         } else if (tab == 2) {
             if (activity instanceof DiscoverActivity) return;
             i = new Intent(activity, DiscoverActivity.class);

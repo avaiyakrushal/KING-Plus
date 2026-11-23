@@ -153,7 +153,7 @@ public class DiscoverActivity extends Activity {
         LinearLayout row=new LinearLayout(this);row.setGravity(Gravity.CENTER_VERTICAL);
         addDiscoverEntrance940(row,"🎤","Party","Live voice rooms",()->startActivity(new Intent(this,PartyActivity.class)));
         addDiscoverEntrance940(row,"🎵","KTV","Sing & queue",()->startActivity(new Intent(this,PartyActivity.class)));
-        addDiscoverEntrance940(row,"🎮","Games","Games and multiplayer rooms",()->KingNav.openRoot(this,1));
+        addDiscoverEntrance940(row,"🎮","Games","Games and multiplayer rooms",()->KingNav.openMainTab(this,1));
         addDiscoverEntrance940(row,"👑","Family","Family center",()->{Intent i=new Intent(this,CommunityHubActivity.class);i.putExtra("tab","Family");startActivity(i);});
         HorizontalScrollView strip=new HorizontalScrollView(this);strip.setHorizontalScrollBarEnabled(false);strip.setFillViewport(false);strip.addView(row);
         LinearLayout.LayoutParams rp=new LinearLayout.LayoutParams(-1,dp(112));rp.setMargins(0,dp(2),0,dp(8));content.addView(strip,rp);
@@ -810,7 +810,7 @@ public class DiscoverActivity extends Activity {
     private String issued10039(DocumentSnapshot d){String x=KingPublicId9996.verified(d.getString("publicId"));return x==null?"Not issued":x;}
     private String followId(String a,String b){return a+"__"+b;}
 
-    private View bottomNav(){LinearLayout nav=new LinearLayout(this);nav.setGravity(Gravity.CENTER);nav.setBackground(KingRoyalTheme10021.bottomNav(this));addNav(nav,"⌂\nParty",0);addNav(nav,"▣\nGame",1);addNav(nav,"◉\nDiscover",2);addNav(nav,"▢\nMessages",3);addNav(nav,"♙\nMe",4);return nav;}
+    private View bottomNav(){LinearLayout nav=new LinearLayout(this);nav.setGravity(Gravity.CENTER);nav.setBackground(KingRoyalTheme10021.bottomNav(this));addNav(nav,"⌂\nHome",0);addNav(nav,"🎤\nParty",1);addNav(nav,"◉\nDiscover",2);addNav(nav,"▢\nMessages",3);addNav(nav,"♙\nMe",4);return nav;}
     private void addNav(LinearLayout nav,String label,int tab){TextView t=tv(label,11,tab==2?0xff111111:0xff8c8991,tab==2);t.setGravity(Gravity.CENTER);if(tab==2)t.setBackground(bg(0xffffec3a,28));LinearLayout.LayoutParams p=new LinearLayout.LayoutParams(0,dp(64),1);p.setMargins(dp(5),dp(3),dp(5),dp(3));nav.addView(t,p);t.setOnClickListener(v->{if(tab!=2)KingNav.openRoot(this,tab);});}
     @Override protected void onResume(){
         super.onResume();
