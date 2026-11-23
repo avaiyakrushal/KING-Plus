@@ -33,7 +33,10 @@ import com.google.firebase.firestore.AggregateSource;
 import com.google.firebase.firestore.DocumentSnapshot;
 import com.google.firebase.firestore.FieldValue;
 import com.google.firebase.firestore.FirebaseFirestore;
+import com.google.firebase.firestore.FirebaseFirestoreException;
 import com.google.firebase.firestore.Query;
+import com.google.firebase.firestore.QuerySnapshot;
+import com.google.firebase.firestore.Source;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -237,7 +240,7 @@ public class KingParityHubActivity extends Activity {
         Query query=db.collection("live_rooms").whereEqualTo("closed",false);
         List<String> aliases=KingPagePolicy10067.categories(homeRoomCategory);
         if(!aliases.isEmpty())query=query.whereIn("category",aliases);
-        query.limit(8).get()
+        readRecentRooms(query,8,Source.DEFAULT)
             .addOnSuccessListener(snapshot->{
                 if(!canShowHomeRooms(roomRows,request,uid))return;
                 roomRows.removeAllViews();
@@ -266,9 +269,19 @@ public class KingParityHubActivity extends Activity {
             });
     }
 
+    private Task<QuerySnapshot> readRecentRooms(Query filter,int limit,Source source){
+        return filter.orderBy("createdAt",Query.Direction.DESCENDING).limit(limit).get(source)
+            .continueWithTask(read->{
+                Exception error=read.getException();
+                if(error instanceof FirebaseFirestoreException
+                    &&((FirebaseFirestoreException)error).getCode()==FirebaseFirestoreException.Code.FAILED_PRECONDITION)
+                    return filter.limit(limit).get(source);
+                return read;
+            });
+    }
+
     private void loadPopularHomeRooms(LinearLayout rows,int request,String uid){
-        db.collection("live_rooms").whereEqualTo("closed",false)
-            .limit(24).get(com.google.firebase.firestore.Source.SERVER)
+        readRecentRooms(db.collection("live_rooms").whereEqualTo("closed",false),24,Source.SERVER)
             .addOnSuccessListener(snapshot->{
                 if(!canShowHomeRooms(rows,request,uid))return;
                 Map<DocumentSnapshot,Task<AggregateQuerySnapshot>> counts=new LinkedHashMap<>();

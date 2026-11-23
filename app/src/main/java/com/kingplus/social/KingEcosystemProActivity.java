@@ -20,6 +20,7 @@ import android.widget.ScrollView;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import com.google.firebase.Timestamp;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
 import com.google.firebase.firestore.DocumentReference;
@@ -28,6 +29,7 @@ import com.google.firebase.firestore.FieldValue;
 import com.google.firebase.firestore.FirebaseFirestore;
 import com.google.firebase.firestore.ListenerRegistration;
 import com.google.firebase.firestore.Query;
+import com.google.firebase.firestore.Source;
 import com.google.firebase.firestore.SetOptions;
 
 import java.io.File;
@@ -68,7 +70,7 @@ public class KingEcosystemProActivity extends Activity {
         HorizontalScrollView hs=new HorizontalScrollView(this);hs.setHorizontalScrollBarEnabled(false);LinearLayout tabs=new LinearLayout(this);tabs.setPadding(dp(8),0,dp(8),dp(8));String[][] a={{"🎤","KTV","ktv"},{"⚔️","PK","pk"},{"👑","Family","family"},{"🏆","Rank","rank"},{"🎁","Gift","gift"},{"🎮","Arcade","arcade"}};for(String[] x:a){TextView t=tv(x[0]+" "+x[1],12,Color.WHITE,true);t.setGravity(Gravity.CENTER);t.setBackground(bg(CARD2,16));String r=x[2];t.setOnClickListener(v->KingSafe.run(this,"ecosystem-tab:"+r,()->show(r)));LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(dp(102),dp(42));lp.setMargins(dp(4),0,dp(4),0);tabs.addView(t,lp);}hs.addView(tabs);root.addView(hs,new LinearLayout.LayoutParams(-1,dp(52)));
         ScrollView sv=new ScrollView(this);sv.setFillViewport(true);body=new LinearLayout(this);body.setOrientation(LinearLayout.VERTICAL);body.setPadding(dp(14),dp(10),dp(14),dp(32));sv.addView(body);root.addView(sv,new LinearLayout.LayoutParams(-1,0,1));setContentView(root);}
 
-    private void clearListeners(){for(ListenerRegistration r:listeners)try{r.remove();}catch(Exception ignored){}listeners.clear();if(pkTimer!=null){pkTimer.cancel();pkTimer=null;}}
+    private void clearListeners(){++pkScoreGeneration;if(pkEvents!=null){pkEvents.remove();pkEvents=null;}for(ListenerRegistration r:listeners)try{r.remove();}catch(Exception ignored){}listeners.clear();if(pkTimer!=null){pkTimer.cancel();pkTimer=null;}}
     private void show(String r){clearListeners();route=r;body.removeAllViews();pageTitle.setText(title(r));if("ktv".equals(r))ktv();else if("pk".equals(r))pk();else if("family".equals(r))family();else if("rank".equals(r))rank("level");else if("gift".equals(r))gift();else if("arcade".equals(r))arcade();else home();}
     private String title(String r){if("ktv".equals(r))return "KTV Studio";if("pk".equals(r))return "PK Arena Pro";if("family".equals(r))return "Family Pro";if("rank".equals(r))return "Rank Center";if("gift".equals(r))return "Gift Universe";if("arcade".equals(r))return "KING Arcade";return "KING Ecosystem";}
     private void hero(String a,String b){TextView h=tv(a+"\n"+b,17,Color.WHITE,true);h.setBackground(bg(CARD,18));h.setPadding(dp(16),dp(14),dp(16),dp(14));LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(-1,-2);lp.setMargins(0,0,0,dp(8));body.addView(h,lp);KingPresentationView visual=new KingPresentationView(this,route);LinearLayout.LayoutParams vp=new LinearLayout.LayoutParams(-1,dp(172));vp.setMargins(0,0,0,dp(12));body.addView(visual,vp);}
@@ -98,16 +100,113 @@ public class KingEcosystemProActivity extends Activity {
 
     private void pk(){hero("⚔️ PK Arena Pro • "+roomName,"Realtime Red vs Blue • timed round • gift-backed score • result card");if(!room())return;LinearLayout teams=new LinearLayout(this);TextView red=button("🔴 Join Red",()->joinPk("red"));red.setBackground(bg(RED,14));teams.addView(red,new LinearLayout.LayoutParams(0,dp(50),1));TextView blue=button("🔵 Join Blue",()->joinPk("blue"));blue.setBackground(bg(BLUE,14));LinearLayout.LayoutParams bp=new LinearLayout.LayoutParams(0,dp(50),1);bp.setMargins(dp(8),0,0,0);teams.addView(blue,bp);body.addView(teams);LinearLayout control=new LinearLayout(this);control.addView(button("⚡ Start 90s",()->setPkRound(true,90)),new LinearLayout.LayoutParams(0,dp(48),1));TextView end=button("■ Finish + result",this::finishPkRound910);LinearLayout.LayoutParams ep=new LinearLayout.LayoutParams(0,dp(48),1);ep.setMargins(dp(8),0,0,0);control.addView(end,ep);LinearLayout.LayoutParams cp=new LinearLayout.LayoutParams(-1,dp(48));cp.setMargins(0,dp(8),0,dp(8));body.addView(control,cp);
         LinearLayout arena=new LinearLayout(this);arena.setGravity(Gravity.CENTER);TextView rs=tv("🔴 RED\n0",24,Color.WHITE,true);rs.setGravity(Gravity.CENTER);rs.setBackground(bg(0xff74233b,18));TextView mid=tv("VS\n90",17,GOLD,true);mid.setGravity(Gravity.CENTER);TextView bs=tv("🔵 BLUE\n0",24,Color.WHITE,true);bs.setGravity(Gravity.CENTER);bs.setBackground(bg(0xff214e91,18));arena.addView(rs,new LinearLayout.LayoutParams(0,dp(118),1));arena.addView(mid,new LinearLayout.LayoutParams(dp(78),dp(118)));arena.addView(bs,new LinearLayout.LayoutParams(0,dp(118),1));body.addView(arena);
-        TextView history=button("📜 PK history",this::pkHistory910);LinearLayout.LayoutParams hp=new LinearLayout.LayoutParams(-1,dp(44));hp.setMargins(0,0,0,dp(6));body.addView(history,hp);TextView result=tv("Waiting for PK round…",15,MUTED,true);result.setGravity(Gravity.CENTER);body.addView(result,new LinearLayout.LayoutParams(-1,dp(58)));DocumentReference state=db.collection("live_rooms").document(roomId).collection("room_settings").document("pk");listeners.add(state.addSnapshotListener((d,e)->{if(e!=null||d==null)return;boolean active=Boolean.TRUE.equals(d.getBoolean("active"));Long start=d.getLong("startedAtMs"),dur=d.getLong("durationSec");long duration=dur==null?90:dur;if(active&&start!=null)startPkTimer(mid,Math.max(0,duration*1000-(System.currentTimeMillis()-start)));else{if(pkTimer!=null){pkTimer.cancel();pkTimer=null;}mid.setText("VS\n0");}}));listeners.add(db.collection("live_rooms").document(roomId).collection("events").orderBy("createdAt",Query.Direction.DESCENDING).limit(300).addSnapshotListener((q,e)->{if(e!=null||q==null)return;Map<String,String>team=new LinkedHashMap<>();for(DocumentSnapshot d:q.getDocuments()){if("pk_join".equals(d.getString("type"))){String uid=d.getString("actorUid");if(uid!=null&&!team.containsKey(uid))team.put(uid,safe(d.getString("team"),""));}}long rScore=0,bScore=0;for(DocumentSnapshot d:q.getDocuments()){if(!"gift".equals(d.getString("type")))continue;Long v=d.getLong("giftValue");long val=v==null?0:Math.max(0,v);String t=team.get(d.getString("actorUid"));if("red".equals(t))rScore+=val;else if("blue".equals(t))bScore+=val;}rs.setText("🔴 RED\n"+rScore);bs.setText("🔵 BLUE\n"+bScore);String msg=rScore==bScore?"🤝 Draw":rScore>bScore?"🔥 Red team leads by "+(rScore-bScore):"❄️ Blue team leads by "+(bScore-rScore);result.setText(msg);}));
+        TextView history=button("📜 PK history",this::pkHistory910);LinearLayout.LayoutParams hp=new LinearLayout.LayoutParams(-1,dp(44));hp.setMargins(0,0,0,dp(6));body.addView(history,hp);TextView result=tv("Waiting for PK round…",15,MUTED,true);result.setGravity(Gravity.CENTER);body.addView(result,new LinearLayout.LayoutParams(-1,dp(58)));DocumentReference room=db.collection("live_rooms").document(roomId);
+        DocumentReference state=room.collection("room_settings").document("pk");
+        listeners.add(state.addSnapshotListener((round,error)->{
+            if(!"pk".equals(route)||!result.isAttachedToWindow())return;
+            if(pkEvents!=null){pkEvents.remove();pkEvents=null;}
+            int generation=++pkScoreGeneration;
+            rs.setText("🔴 RED\n0");
+            bs.setText("🔵 BLUE\n0");
+            Timestamp started=pkStart(round);
+            long duration=pkDuration(round);
+            if(error!=null||started==null){
+                startPkTimer(mid,0);
+                result.setText(error==null?"Waiting for a new PK round":"PK round unavailable");
+                return;
+            }
+            startPkTimer(mid,Math.max(0,started.toDate().getTime()+duration*1000-System.currentTimeMillis()));
+            result.setText("Loading PK score…");
+            pkEvents=pkEventsForRound(room,started,duration).addSnapshotListener((events,problem)->{
+                if(generation!=pkScoreGeneration||!"pk".equals(route)||!result.isAttachedToWindow())return;
+                if(problem!=null||events==null){result.setText("PK score unavailable");return;}
+                long[] score=pkScore(events.getDocuments());
+                rs.setText("🔴 RED\n"+score[0]);
+                bs.setText("🔵 BLUE\n"+score[1]);
+                result.setText(score[0]==score[1]?"Draw":score[0]>score[1]?"Red leads":"Blue leads");
+            });
+        }));
+
     }
     private void joinPk(String team){if(!room())return;Map<String,Object>m=new HashMap<>();m.put("actorUid",me.getUid());m.put("actorName",displayName);m.put("type","pk_join");m.put("team",team);m.put("text",displayName+" joined "+("red".equals(team)?"Red":"Blue")+" PK team");m.put("createdAt",FieldValue.serverTimestamp());db.collection("live_rooms").document(roomId).collection("events").add(m).addOnSuccessListener(v->toast("Joined "+team+" team")).addOnFailureListener(e->toast("Could not join team"));}
+    private ListenerRegistration pkEvents;
+    private int pkScoreGeneration;
+
+    private Timestamp pkStart(DocumentSnapshot round){
+        if(round==null||!Boolean.TRUE.equals(round.get("active")))return null;
+        Object value=round.get("startedAt");
+        return value instanceof Timestamp?(Timestamp)value:null;
+    }
+
+    private long pkDuration(DocumentSnapshot round){
+        Object value=round==null?null:round.get("durationSec");
+        return value instanceof Number?Math.max(1,Math.min(600,((Number)value).longValue())):90;
+    }
+
+    private Query pkEventsForRound(DocumentReference room,Timestamp started,long duration){
+        Timestamp end=new Timestamp(started.getSeconds()+duration,started.getNanoseconds());
+        return room.collection("events").whereGreaterThanOrEqualTo("createdAt",started)
+            .whereLessThan("createdAt",end).orderBy("createdAt",Query.Direction.ASCENDING);
+    }
+
+    private long[] pkScore(List<DocumentSnapshot> events){
+        Map<String,String> teams=new HashMap<>();
+        long red=0,blue=0;
+        for(DocumentSnapshot event:events){
+            Object actor=event.get("actorUid");
+            if(!(actor instanceof String))continue;
+            if("pk_join".equals(event.get("type"))){
+                Object team=event.get("team");
+                if("red".equals(team)||"blue".equals(team))teams.put((String)actor,(String)team);
+            }else if("gift".equals(event.get("type"))&&event.get("giftValue") instanceof Number){
+                long value=Math.max(0,((Number)event.get("giftValue")).longValue());
+                if("red".equals(teams.get(actor)))red+=value;
+                else if("blue".equals(teams.get(actor)))blue+=value;
+            }
+        }
+        return new long[]{red,blue};
+    }
+
     private void finishPkRound910(){
-        if(!room())return;db.collection("live_rooms").document(roomId).collection("events").orderBy("createdAt",Query.Direction.DESCENDING).limit(300).get().addOnSuccessListener(q->{Map<String,String>team=new LinkedHashMap<>();for(DocumentSnapshot d:q.getDocuments())if("pk_join".equals(d.getString("type"))){String uid=d.getString("actorUid");if(uid!=null&&!team.containsKey(uid))team.put(uid,safe(d.getString("team"),""));}long red=0,blue=0;for(DocumentSnapshot d:q.getDocuments())if("gift".equals(d.getString("type"))){Long v=d.getLong("giftValue");long score=v==null?0:Math.max(0,v);String t=team.get(d.getString("actorUid"));if("red".equals(t))red+=score;else if("blue".equals(t))blue+=score;}String winner=red==blue?"Draw":red>blue?"Red":"Blue";final long redFinal=red,blueFinal=blue;final String winnerFinal=winner;Map<String,Object>h=new HashMap<>();h.put("actorUid",me.getUid());h.put("actorName",displayName);h.put("type","pk_result");h.put("redScore",redFinal);h.put("blueScore",blueFinal);h.put("winner",winnerFinal);h.put("text","PK result • "+winnerFinal+" • "+redFinal+"-"+blueFinal);h.put("createdAt",FieldValue.serverTimestamp());db.collection("live_rooms").document(roomId).collection("events").add(h).addOnSuccessListener(v->{setPkRound(false,0);new AlertDialog.Builder(this).setTitle("PK Result").setMessage("🔴 "+redFinal+"   VS   "+blueFinal+" 🔵"+System.lineSeparator()+"Winner: "+winnerFinal).setPositiveButton("OK",null).show();}).addOnFailureListener(e->toast("PK result could not be saved"));}).addOnFailureListener(e->toast("PK score unavailable"));
+        if(!room())return;
+        DocumentReference room=db.collection("live_rooms").document(roomId);
+        DocumentReference state=room.collection("room_settings").document("pk");
+        state.get(Source.SERVER).addOnSuccessListener(round->{
+            Timestamp started=pkStart(round);
+            if(started==null){toast("Start a new PK round first");return;}
+            pkEventsForRound(room,started,pkDuration(round)).get(Source.SERVER)
+                .addOnSuccessListener(events->{
+                    long[] score=pkScore(events.getDocuments());
+                    String winner=score[0]==score[1]?"Draw":score[0]>score[1]?"Red":"Blue";
+                    DocumentReference result=room.collection("events").document();
+                    Map<String,Object> history=new HashMap<>();
+                    history.put("actorUid",me.getUid());
+                    history.put("actorName",displayName);
+                    history.put("type","pk_result");
+                    history.put("redScore",score[0]);
+                    history.put("blueScore",score[1]);
+                    history.put("winner",winner);
+                    history.put("text","PK result • "+winner+" • "+score[0]+"-"+score[1]);
+                    history.put("createdAt",FieldValue.serverTimestamp());
+                    db.runTransaction(transaction->{
+                        if(!started.equals(pkStart(transaction.get(state))))
+                            throw new IllegalStateException("PK round already changed");
+                        transaction.update(state,"active",false,"updatedAt",FieldValue.serverTimestamp());
+                        transaction.set(result,history);
+                        return null;
+                    }).addOnSuccessListener(ignored->{
+                        if(!isFinishing()&&!isDestroyed()&&"pk".equals(route))
+                            new AlertDialog.Builder(this).setTitle("PK Result")
+                                .setMessage("Red "+score[0]+" · Blue "+score[1]+" • "+winner)
+                                .setPositiveButton("OK",null).show();
+                    }).addOnFailureListener(error->toast("PK round changed or moderator permission was denied"));
+                }).addOnFailureListener(error->toast("PK score unavailable"));
+        }).addOnFailureListener(error->toast("PK round unavailable"));
     }
     private void pkHistory910(){
         if(!room())return;db.collection("live_rooms").document(roomId).collection("events").orderBy("createdAt",Query.Direction.DESCENDING).limit(100).get().addOnSuccessListener(q->{ArrayList<String>a=new ArrayList<>();for(DocumentSnapshot d:q.getDocuments())if("pk_result".equals(d.getString("type"))){Long r=d.getLong("redScore"),b=d.getLong("blueScore");a.add("⚔️ "+safe(d.getString("winner"),"Result")+" • "+(r==null?0:r)+"-"+(b==null?0:b));}if(a.isEmpty())a.add("No completed PK rounds yet.");new AlertDialog.Builder(this).setTitle("PK history").setItems(a.toArray(new String[0]),null).setPositiveButton("Close",null).show();}).addOnFailureListener(e->toast("PK history unavailable"));
     }
-    private void setPkRound(boolean active,long sec){if(!room())return;Map<String,Object>m=new HashMap<>();m.put("active",active);m.put("durationSec",sec);m.put("startedAtMs",active?System.currentTimeMillis():0);m.put("startedBy",me.getUid());m.put("updatedAt",FieldValue.serverTimestamp());db.collection("live_rooms").document(roomId).collection("room_settings").document("pk").set(m,SetOptions.merge()).addOnSuccessListener(v->toast(active?"PK round started":"PK round ended")).addOnFailureListener(e->toast("Host/co-host permission required"));}
+    private void setPkRound(boolean active,long sec){if(!room())return;Map<String,Object>m=new HashMap<>();m.put("active",active);m.put("durationSec",sec);m.put("startedAtMs",active?System.currentTimeMillis():0);if(active)m.put("startedAt",FieldValue.serverTimestamp());m.put("startedBy",me.getUid());m.put("updatedAt",FieldValue.serverTimestamp());db.collection("live_rooms").document(roomId).collection("room_settings").document("pk").set(m,SetOptions.merge()).addOnSuccessListener(v->toast(active?"PK round started":"PK round ended")).addOnFailureListener(e->toast("Host/co-host permission required"));}
     private void startPkTimer(TextView mid,long ms){if(pkTimer!=null)pkTimer.cancel();if(ms<=0){mid.setText("VS\n0");return;}pkTimer=new CountDownTimer(ms,1000){public void onTick(long left){mid.setText("VS\n"+Math.max(0,left/1000));}public void onFinish(){mid.setText("VS\n0");}}.start();}
 
     private void family(){hero("👑 Family Pro","Family level • treasury points • activity • members • voice call");if(!cloud())return;db.collection("users").document(me.getUid()).get().addOnSuccessListener(u->{familyCode=safe(u.getString("familyCode"),"");if(familyCode.isEmpty()){row("➕","Create / Join Family","Open Family center to create or join",()->openCommunity("Family"));return;}loadFamily(familyCode);}).addOnFailureListener(e->row("👑","Open Family","Family data unavailable",()->openCommunity("Family")));}
