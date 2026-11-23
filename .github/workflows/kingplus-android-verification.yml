@@ -53,6 +53,16 @@ jobs:
           npm ci
           node --test *.test.js
 
+      - name: Install Firestore emulator test dependencies
+        working-directory: tests/firestore
+        run: npm ci
+
+      - name: Run Home and Party Firestore emulator regressions
+        run: |
+          ./tests/firestore/node_modules/.bin/firebase emulators:exec \
+            --only firestore --project demo-kingplus --config firebase-emulator.json \
+            "node tests/firestore/home-me-party-v10067.test.mjs && node tests/firestore/me-home-party-security.test.mjs && node tests/firestore/mic-consent-firestore.test.mjs && node tests/firestore/room_exit_firestore.test.mjs && node tests/firestore/party-seat-capacity-firestore.test.mjs"
+
       - name: Package complete source ZIP
         run: git archive --format=zip --output "KING-Plus-source-${GITHUB_SHA}.zip" HEAD
 
