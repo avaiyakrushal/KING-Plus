@@ -19,7 +19,7 @@ android {
     buildFeatures { buildConfig true }
     defaultConfig {
         applicationId 'com.kingplus.social'; minSdk 26; targetSdk 35
-        versionCode 388; versionName '10.0.109-room-ranking-and-pk'
+        versionCode 389; versionName '10.0.110-home-room-paging'
         // Enable only for builds targeting a configured Firebase voice backend.
         buildConfigField 'boolean', 'CLOUDFLARE_VOICE_ENABLED', partyVoiceEnabled.toString()
     }
