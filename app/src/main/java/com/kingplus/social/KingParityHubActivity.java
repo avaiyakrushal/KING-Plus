@@ -312,7 +312,9 @@ public class KingParityHubActivity extends Activity {
     }
 
     private void loadPopularHomeRooms(LinearLayout rows,int request,String uid){
-        readRecentRooms(db.collection("live_rooms").whereEqualTo("closed",false),24,Source.SERVER)
+        Query recentQuery=db.collection("live_rooms").whereEqualTo("closed",false);
+        if(homeRoomCursor!=null)recentQuery=recentQuery.startAfter(homeRoomCursor);
+        readRecentRooms(recentQuery,24,Source.SERVER)
             .addOnSuccessListener(snapshot->{
                 if(!canShowHomeRooms(rows,request,uid))return;
                 Map<DocumentSnapshot,Task<AggregateQuerySnapshot>> counts=new LinkedHashMap<>();
@@ -346,6 +348,27 @@ public class KingParityHubActivity extends Activity {
                     for(DocumentSnapshot room:ranked.subList(0,Math.min(8,ranked.size())))
                         addHomeRoomCard(rows,room,recent.get(room)+" active");
                     if(ranked.isEmpty())rows.addView(tv("No active public rooms in these results.",13,MUTED,false));
+                    LinearLayout pageControls=new LinearLayout(this);
+                    pageControls.setGravity(Gravity.CENTER);
+                    if(!homeRoomPrevious.isEmpty()){
+                        pageControls.addView(action("‹ Previous",()->{
+                            homeRoomCursor=homeRoomPrevious.remove(homeRoomPrevious.size()-1);
+                            loadHomeLiveRooms(rows);
+                        }),new LinearLayout.LayoutParams(0,dp(44),1));
+                    }
+                    if(snapshot.size()==24){
+                        TextView next=action("More rooms ›",()->{
+                            if(snapshot.isEmpty())return;
+                            homeRoomPrevious.add(homeRoomCursor);
+                            homeRoomCursor=snapshot.getDocuments().get(snapshot.size()-1);
+                            loadHomeLiveRooms(rows);
+                        });
+                        LinearLayout.LayoutParams nextParams=new LinearLayout.LayoutParams(0,dp(44),1);
+                        nextParams.setMargins(dp(8),0,0,0);
+                        pageControls.addView(next,nextParams);
+                    }
+                    if(pageControls.getChildCount()>0)rows.addView(pageControls,
+                        new LinearLayout.LayoutParams(-1,dp(48)));
                     rows.addView(action("View all Party Rooms",this::openPartyLobby),
                         new LinearLayout.LayoutParams(-1,dp(48)));
                 });
