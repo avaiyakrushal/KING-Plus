@@ -36,6 +36,7 @@ import com.google.firebase.firestore.FirebaseFirestore;
 import com.google.firebase.firestore.FirebaseFirestoreException;
 import com.google.firebase.firestore.Query;
 import com.google.firebase.firestore.QuerySnapshot;
+import com.google.firebase.firestore.ListenerRegistration;
 import com.google.firebase.firestore.Source;
 
 import java.util.ArrayList;
@@ -56,6 +57,9 @@ public class KingParityHubActivity extends Activity {
     private String homeRoomCategory="Hot";
     private int homeRoomRequest;
     private int routeGeneration;
+    private ListenerRegistration homeRoomsListener;
+    private DocumentSnapshot homeRoomCursor;
+    private final ArrayList<DocumentSnapshot> homeRoomPrevious=new ArrayList<>();
 
     private int dp(int n){return(int)(n*getResources().getDisplayMetrics().density+.5f);}
     private GradientDrawable bg(int c,int r){GradientDrawable d=new GradientDrawable();d.setColor(c);d.setCornerRadius(dp(r));return d;}
@@ -102,7 +106,7 @@ public class KingParityHubActivity extends Activity {
         return nav;
     }
 
-    private void show(String r){++routeGeneration;route=r;body.removeAllViews();if(title!=null)title.setText(titleFor(r));if("ktv".equals(r))ktv();else if("pk".equals(r))pk();else if("match".equals(r))match();else if("stage".equals(r))stage();else if("family".equals(r))openFamily();else if("vip".equals(r))vip();else home();}
+    private void show(String r){++routeGeneration;stopHomeRoomListener();route=r;body.removeAllViews();if(title!=null)title.setText(titleFor(r));if("ktv".equals(r))ktv();else if("pk".equals(r))pk();else if("match".equals(r))match();else if("stage".equals(r))stage();else if("family".equals(r))openFamily();else if("vip".equals(r))vip();else home();}
     private String titleFor(String r){if("ktv".equals(r))return "KTV Stage";if("pk".equals(r))return "PK Arena";if("match".equals(r))return "Match";if("stage".equals(r))return "Party Stage";if("family".equals(r))return "Family";if("vip".equals(r))return "VIP & Rank";return "KING Center";}
     private void hero(String a,String b){TextView h=tv(a+"\n"+b,18,Color.WHITE,true);h.setGravity(Gravity.CENTER_VERTICAL);h.setBackground(bg(CARD,18));h.setPadding(dp(18),dp(16),dp(18),dp(16));LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(-1,-2);lp.setMargins(0,0,0,dp(8));body.addView(h,lp);KingPresentationView visual=new KingPresentationView(this,route);LinearLayout.LayoutParams vp=new LinearLayout.LayoutParams(-1,dp(158));vp.setMargins(0,0,0,dp(12));body.addView(visual,vp);}
     private TextView action(String s,Runnable r){TextView t=tv(s,14,Color.WHITE,true);t.setGravity(Gravity.CENTER);t.setBackground(bg(PURPLE,14));t.setOnClickListener(v->KingSafe.run(this,"parity-action:"+s,r));return t;}
@@ -167,6 +171,10 @@ public class KingParityHubActivity extends Activity {
         LinearLayout filterRow=new LinearLayout(this);
         for(String category:new String[]{"Hot","Popular","Music","Game","Event","Family","Video"}){
             TextView filter=action(category,()->{
+                if(!homeRoomCategory.equals(category)){
+                    homeRoomCursor=null;
+                    homeRoomPrevious.clear();
+                }
                 homeRoomCategory=category;
                 for(int i=0;i<filterRow.getChildCount();i++){
                     TextView option=(TextView)filterRow.getChildAt(i);
@@ -220,6 +228,7 @@ public class KingParityHubActivity extends Activity {
     }
 
     private void loadHomeLiveRooms(LinearLayout roomRows){
+        stopHomeRoomListener();
         int request=++homeRoomRequest;
         roomRows.removeAllViews();
         FirebaseUser signedIn=db==null?null:FirebaseAuth.getInstance().getCurrentUser();
@@ -240,33 +249,55 @@ public class KingParityHubActivity extends Activity {
         Query query=db.collection("live_rooms").whereEqualTo("closed",false);
         List<String> aliases=KingPagePolicy10067.categories(homeRoomCategory);
         if(!aliases.isEmpty())query=query.whereIn("category",aliases);
-        readRecentRooms(query,8,Source.DEFAULT)
-            .addOnSuccessListener(snapshot->{
-                if(!canShowHomeRooms(roomRows,request,uid))return;
-                roomRows.removeAllViews();
-                boolean cached=snapshot.getMetadata().isFromCache();
-                if(cached)roomRows.addView(tv("Showing saved rooms. Joining requires a connection.",13,MUTED,false));
-                List<DocumentSnapshot> rooms=new ArrayList<>(snapshot.getDocuments());
-                rooms.sort((a,b)->{
-                    Object av=a.get("createdAt"),bv=b.get("createdAt");
-                    if(!(av instanceof com.google.firebase.Timestamp))
-                        return bv instanceof com.google.firebase.Timestamp?1:0;
-                    if(!(bv instanceof com.google.firebase.Timestamp))return -1;
-                    return ((com.google.firebase.Timestamp)bv).compareTo((com.google.firebase.Timestamp)av);
-                });
-                for(DocumentSnapshot doc:rooms)addHomeRoomCard(roomRows,doc);
-                if(rooms.isEmpty())roomRows.addView(tv(cached
-                    ?"No saved rooms available. Connect and refresh."
-                    :"No live rooms right now.",13,MUTED,false));
-                roomRows.addView(action("View all Party Rooms",this::openPartyLobby),
-                    new LinearLayout.LayoutParams(-1,dp(48)));
-            })
-            .addOnFailureListener(error->{
-                if(!canShowHomeRooms(roomRows,request,uid))return;
+        query=query.orderBy("createdAt",Query.Direction.DESCENDING);
+        if(homeRoomCursor!=null)query=query.startAfter(homeRoomCursor);
+        homeRoomsListener=query.limit(8).addSnapshotListener((snapshot,error)->{
+            if(!canShowHomeRooms(roomRows,request,uid))return;
+            if(error!=null){
                 roomRows.removeAllViews();
                 roomRows.addView(action("Could not load rooms. Tap to retry.",
                     ()->loadHomeLiveRooms(roomRows)),new LinearLayout.LayoutParams(-1,-2));
-            });
+                return;
+            }
+            roomRows.removeAllViews();
+            boolean cached=snapshot.getMetadata().isFromCache();
+            if(cached)roomRows.addView(tv("Showing saved rooms. Joining requires a connection.",13,MUTED,false));
+            List<DocumentSnapshot> rooms=snapshot.getDocuments();
+            for(DocumentSnapshot doc:rooms)addHomeRoomCard(roomRows,doc);
+            if(rooms.isEmpty())roomRows.addView(tv(cached
+                ?"No saved rooms available. Connect and refresh."
+                :"No live rooms right now.",13,MUTED,false));
+            LinearLayout pageControls=new LinearLayout(this);
+            pageControls.setGravity(Gravity.CENTER);
+            if(!homeRoomPrevious.isEmpty()){
+                pageControls.addView(action("‹ Previous",()->{
+                    homeRoomCursor=homeRoomPrevious.remove(homeRoomPrevious.size()-1);
+                    loadHomeLiveRooms(roomRows);
+                }),new LinearLayout.LayoutParams(0,dp(44),1));
+            }
+            if(snapshot.size()==8){
+                TextView next=action("More rooms ›",()->{
+                    if(snapshot.getDocuments().isEmpty())return;
+                    homeRoomPrevious.add(homeRoomCursor);
+                    homeRoomCursor=snapshot.getDocuments().get(snapshot.size()-1);
+                    loadHomeLiveRooms(roomRows);
+                });
+                LinearLayout.LayoutParams nextParams=new LinearLayout.LayoutParams(0,dp(44),1);
+                nextParams.setMargins(dp(8),0,0,0);
+                pageControls.addView(next,nextParams);
+            }
+            if(pageControls.getChildCount()>0)roomRows.addView(pageControls,
+                new LinearLayout.LayoutParams(-1,dp(48)));
+            roomRows.addView(action("View all Party Rooms",this::openPartyLobby),
+                new LinearLayout.LayoutParams(-1,dp(48)));
+        });
+    }
+
+    private void stopHomeRoomListener(){
+        if(homeRoomsListener!=null){
+            homeRoomsListener.remove();
+            homeRoomsListener=null;
+        }
     }
 
     private Task<QuerySnapshot> readRecentRooms(Query filter,int limit,Source source){
