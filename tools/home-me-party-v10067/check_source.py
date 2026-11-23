@@ -15,13 +15,15 @@ for route in ('show("home")','openPartyLobby()','openPro880("arcade")','show("ma
 assert home.count('openPro880("arcade")') == 2
 assert 'Family & VIP' not in home
 gradle=(root/'app/build.gradle').read_text()
-assert "gradleProperty('kingPartyCloudflareVoice').orElse('false')" in gradle
-assert "buildConfigField 'boolean', 'CLOUDFLARE_VOICE_ENABLED', partyVoiceEnabled.toString()" in gradle
 policy=party.split("private boolean canConnectPartyVoice()",1)[1].split("private void showPartyVoiceUnavailable()",1)[0]
-assert "roomVoicePolicyVerified" in policy and "!roomPrivate&&!roomHasPassword" in policy
+assert "roomVoicePolicyVerified" in policy and "cloudflareVoiceReady10066" in policy and "!roomPrivate&&!roomHasPassword" in policy
+assert 'getHttpsCallable("partyVoice").call(data)' in party
+assert 'data.put("action","config")' in party
+assert 'checkCloudflareVoiceConfig10066(expectedRoom982,expectedUid982,visit982,binding982,false);' in party
+assert "BuildConfig.CLOUDFLARE_VOICE_ENABLED" not in party and "kingPartyCloudflareVoice" not in gradle
 for entry in ("private void showVoiceConnection10065()", "private void attachInRoomVoice940(FrameLayout shell)"):
     voice=party.split(entry,1)[1]
-    assert voice.index("if(!canConnectPartyVoice())") < voice.index("if(BuildConfig.CLOUDFLARE_VOICE_ENABLED)")
+    assert voice.index("if(!canConnectPartyVoice())") < voice.index("if(cloudflareVoiceReady10066)")
 assert 'whereIn("category",aliases10067)' in party and 'lobbyPrevious10067' in party
 assert 'showAllLobbyCategories10099' in party and 'Browse Party categories' in party
 assert '"All rooms","Hot","Event","Date","Music","KTV","Radio"' in party

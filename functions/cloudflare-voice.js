@@ -26,11 +26,17 @@ function createVoiceService({config, authority, store, api, now = Date.now, rand
   return async function voice({uid, data = {}}) {
     if (!validId(uid)) fail('unauthenticated', 'Sign in to use room voice.');
     const cfg = await config();
-    if (data.action === 'config') return {
-      provider: 'cloudflare', enabled: cfg.enabled === true && cfg.zeroCostVerified === true,
-      message: cfg.enabled && cfg.zeroCostVerified ? 'Cloudflare voice ready' :
-        'Cloudflare voice is not activated. Account and zero-cost setup are pending.'
-    };
+    if (data.action === 'config') {
+      const flagsReady = cfg.enabled === true && cfg.zeroCostVerified === true;
+      const credentialsReady = typeof cfg.appId === 'string' && cfg.appId.length > 0 &&
+        typeof cfg.secret === 'string' && cfg.secret.length > 0;
+      return {
+        provider: 'cloudflare', enabled: flagsReady && credentialsReady,
+        message: flagsReady && credentialsReady ? 'Cloudflare voice ready' :
+          !flagsReady ? 'Cloudflare voice is not activated. Account and usage setup are pending.' :
+            'Cloudflare voice server credentials are missing.'
+      };
+    }
     const {action, roomId, visit} = data;
     if (!validId(roomId) || !validId(visit)) fail('invalid-argument', 'A current room visit is required.');
     if (!['join','publish','listen','answer','tracks','leave'].includes(action))
