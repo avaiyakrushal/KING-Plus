@@ -1,7 +1,7 @@
 import {readFileSync} from 'node:fs';
 import {initializeTestEnvironment,assertSucceeds,assertFails} from '@firebase/rules-unit-testing';
 import {doc,setDoc,deleteDoc,getDoc,updateDoc,serverTimestamp} from 'firebase/firestore';
-const env=await initializeTestEnvironment({projectId:'demo-king-atomic-moderation-v10011',firestore:{host:'127.0.0.1',port:8080,rules:readFileSync('firestore.rules','utf8')}});
+const env=await initializeTestEnvironment({projectId:'demo-kingplus',firestore:{host:'127.0.0.1',port:8080,rules:readFileSync('firestore.rules','utf8')}});
 try{
  await env.clearFirestore();
  const ctx=(uid)=>env.authenticatedContext(uid).firestore();

@@ -2,7 +2,7 @@ import {initializeTestEnvironment,assertSucceeds,assertFails} from '@firebase/ru
 import {doc,setDoc,getDoc,getDocs,writeBatch,collection,query,where,limit,startAfter,orderBy,onSnapshot,Timestamp} from 'firebase/firestore';
 import fs from 'node:fs';
 import assert from 'node:assert/strict';
-const env=await initializeTestEnvironment({projectId:'demo-king-pages-10067',firestore:{host:'127.0.0.1',port:8080,rules:fs.readFileSync('firestore.rules','utf8')}});
+const env=await initializeTestEnvironment({projectId:'demo-kingplus',firestore:{host:'127.0.0.1',port:8080,rules:fs.readFileSync('firestore.rules','utf8')}});
 const A=env.authenticatedContext('alice').firestore(),B=env.authenticatedContext('bob').firestore();
 try{
  await env.clearFirestore();

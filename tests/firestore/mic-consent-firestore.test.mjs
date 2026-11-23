@@ -1,7 +1,7 @@
 import {initializeTestEnvironment,assertSucceeds,assertFails} from '@firebase/rules-unit-testing';
 import fs from 'node:fs';
 import {doc,setDoc,updateDoc,getDoc} from 'firebase/firestore';
-const env=await initializeTestEnvironment({projectId:'demo-king-mic-consent-9956',
+const env=await initializeTestEnvironment({projectId:'demo-kingplus',
  firestore:{host:'127.0.0.1',port:8080,rules:fs.readFileSync('firestore.rules','utf8')}});
 const H=env.authenticatedContext('host').firestore(),C=env.authenticatedContext('cohost').firestore(),
  A=env.authenticatedContext('alice').firestore(),B=env.authenticatedContext('bob').firestore();
