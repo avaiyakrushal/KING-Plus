@@ -39,6 +39,8 @@ jobs:
           python3 tools/social-follow-name-v10075/check_source.py
           python3 tools/discover-hot-pages-v10076/check_source.py
           python3 tools/party-rejoin-choice-v10077/check_source.py
+          python3 tools/me-profile-gift-history-v10093/check_source.py
+          python3 tools/production_smoke_check.py
 
       - name: Set up Node.js for backend tests
         uses: actions/setup-node@v4

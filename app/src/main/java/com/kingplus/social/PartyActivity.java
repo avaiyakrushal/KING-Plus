@@ -2079,7 +2079,7 @@ public class PartyActivity extends androidx.fragment.app.FragmentActivity implem
         }
         roomActions9916.addView(actionRow9916,new HorizontalScrollView.LayoutParams(-2,dp(48)));
         roomRoot.addView(roomActions9916,new LinearLayout.LayoutParams(-1,dp(50)));
-        voiceStatus10065=(TextView)getLayoutInflater().inflate(R.layout.king_party_voice_status_10065,roomRoot,false);voiceStatus10065.setText("Voice connecting…");
+        voiceStatus10065=(TextView)getLayoutInflater().inflate(R.layout.king_party_voice_status_10065,roomRoot,false);voiceStatus10065.setText(voiceConferenceConnected10065?"Voice connected":"Voice • tap to connect");
         voiceStatus10065.setMinHeight(dp(44));voiceStatus10065.setOnClickListener(v->showVoiceConnection10065());
         roomRoot.addView(voiceStatus10065,new LinearLayout.LayoutParams(-1,-2));
         if(!requestedGame940.isEmpty()){

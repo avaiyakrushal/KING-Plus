@@ -19,7 +19,7 @@ android {
     buildFeatures { buildConfig true }
     defaultConfig {
         applicationId 'com.kingplus.social'; minSdk 26; targetSdk 35
-        versionCode 386; versionName '10.0.107-source-package-fix'
+        versionCode 387; versionName '10.0.108-audit-fixes'
         // Enable only for builds targeting a configured Firebase voice backend.
         buildConfigField 'boolean', 'CLOUDFLARE_VOICE_ENABLED', partyVoiceEnabled.toString()
     }

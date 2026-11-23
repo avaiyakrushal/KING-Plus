@@ -8,7 +8,7 @@ required_files = [
     Path('functions/package.json'),
     Path('functions/index.js'),
     Path('functions/v3.js'),
-    Path('app/src/main/java/com/kingplus/social/BillingManager.java'),
+    Path('app/src/main/java/com/kingplus/social/KingRecharge974Activity.java'),
     Path('app/src/main/java/com/kingplus/social/CloudBackend.java'),
     Path('app/src/main/java/com/kingplus/social/LiveCloudActivity.java'),
     Path('app/src/main/java/com/kingplus/social/KingMessagingService.java'),
@@ -28,7 +28,7 @@ for client in config.get('client', []):
 if 'com.kingplus.social' not in packages:
     raise SystemExit('google-services.json does not contain com.kingplus.social')
 
-billing = Path('app/src/main/java/com/kingplus/social/BillingManager.java').read_text(encoding='utf-8')
+billing = Path('app/src/main/java/com/kingplus/social/KingRecharge974Activity.java').read_text(encoding='utf-8')
 for product in ('king_coins_100', 'king_coins_600', 'king_coins_1300'):
     if product not in billing:
         raise SystemExit(f'Missing Play product ID: {product}')

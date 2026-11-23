@@ -108,6 +108,10 @@ public class KingMultiVideoActivity extends androidx.fragment.app.FragmentActivi
                   loading.setText("That KING Party is closed or no longer exists");
                   return;
               }
+              if(!allowsPublicVideo(room998)){
+                  loading.setText("Private video requires an authenticated video service");
+                  return;
+              }
               db.collection("live_rooms").document(candidateRoom998)
                 .collection("members").document(uid998)
                 .get(com.google.firebase.firestore.Source.SERVER)
@@ -132,6 +136,12 @@ public class KingMultiVideoActivity extends androidx.fragment.app.FragmentActivi
                   loading.setText("Could not verify KING Party on server: "+
                     String.valueOf(e.getLocalizedMessage()));
           });
+    }
+
+    private boolean allowsPublicVideo(com.google.firebase.firestore.DocumentSnapshot room){
+        Object mode=room.get("entranceMode");
+        return !Boolean.TRUE.equals(room.get("isPrivate"))&&!Boolean.TRUE.equals(room.get("hasPassword"))
+            &&(mode==null||"legacy".equals(mode)||"free".equals(mode));
     }
 
     private void startVerifiedVideo998(FrameLayout stage,TextView loading){
@@ -177,8 +187,9 @@ public class KingMultiVideoActivity extends androidx.fragment.app.FragmentActivi
         final DocumentReference room=db.collection("live_rooms").document(roomId);
         roomListener=room.addSnapshotListener((doc,e)->{
             if(leaving940||isFinishing()||isDestroyed())return;
-            if(e==null&&doc!=null&&doc.exists()&&Boolean.TRUE.equals(doc.getBoolean("closed"))){
-                toast("Party was closed");leaveAndFinish940();return;
+            if(e==null&&doc!=null&&!doc.getMetadata().isFromCache()
+                &&(!doc.exists()||Boolean.TRUE.equals(doc.get("closed"))||!allowsPublicVideo(doc))){
+                toast("Public video is no longer available for this room");leaveAndFinish940();return;
             }
             owner940=e==null&&doc!=null&&doc.exists()&&uid.equals(doc.getString("ownerUid"));
             refreshModerator940();
