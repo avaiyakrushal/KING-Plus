@@ -19,6 +19,12 @@ assert 'addNav(nav,"⌂\\nHome",0);addNav(nav,"🎤\\nParty",1);' in discover
 assert 'str(doc,"coverUrl",str(doc,"roomPhotoUrl",str(doc,"photoUrl","")))' in party
 assert 'roomText(doc,"coverUrl",roomText(doc,"roomPhotoUrl",""))' in hub
 assert 'roomText(doc,"coverUrl",roomText(doc,"ownerPhoto",""))' not in hub
+create=party[party.index('private void createCloudRoom(String name,String category,int seats,boolean priv)'):party.index('    private void finishRoomCreate921',party.index('private void createCloudRoom(String name,String category,int seats,boolean priv)'))]
+assert 'String entranceMode=priv?"invite":"free";' in create
+assert create.count('put("entranceMode",entranceMode)') == 3
+assert create.count('put("entryEpoch",entryEpoch)') == 3
+assert 'private void retryRoomCreateCompact921(DocumentReference ref,String name,String category,int seats,boolean priv,String joinCode,String entranceMode,String entryEpoch' in create
+assert 'private void retryRoomCreateLegacy921(DocumentReference ref,String name,String category,int seats,boolean priv,String joinCode,String entranceMode,String entryEpoch' in create
 party_nav=party[party.index('private void addBottomNav('):party.index('    private void reducePartyMemory',party.index('private void addBottomNav('))]
 assert 'KingNav.openRoot(this,tab);' in party_nav
 nav=(java/'KingNav.java').read_text()

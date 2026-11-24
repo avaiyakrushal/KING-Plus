@@ -17,7 +17,7 @@ android {
     buildFeatures { buildConfig true }
     defaultConfig {
         applicationId 'com.kingplus.social'; minSdk 26; targetSdk 35
-        versionCode 392; versionName '10.0.113-home-party-room-cover-fix'
+        versionCode 393; versionName '10.0.114-room-entry-policy-fix'
     }
     buildTypes {
         debug { signingConfig signingConfigs.debug }
