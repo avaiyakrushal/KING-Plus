@@ -12,30 +12,25 @@ public final class KingNav {
         if (activity == null) return;
         Intent i;
         if (tab == 0) {
-            // Home and Party are separate destinations. The Home hub provides
-            // the Bolo Hi-style discovery surface; its Live Party Rooms action
-            // opens the existing real Firebase-backed Party screen.
             if (activity instanceof KingParityHubActivity) return;
             i = new Intent(activity, KingParityHubActivity.class);
             i.putExtra("route", "home");
         } else if (tab == 1) {
-            // Party's local Games tab and Discover's Games tab target the legacy
-            // Games screen. Elsewhere, tab 1 is the Party root destination.
-            if (activity instanceof PartyActivity || activity instanceof DiscoverActivity) {
-                i = new Intent(activity, MainActivity.class);
-                i.putExtra("openTab", 1);
-            } else {
-                i = new Intent(activity, PartyActivity.class);
-            }
+            if (activity instanceof PartyActivity) return;
+            i = new Intent(activity, PartyActivity.class);
         } else if (tab == 2) {
+            // The Games tab always opens the same playable-games destination.
+            i = new Intent(activity, MainActivity.class);
+            i.putExtra("openTab", 1);
+        } else if (tab == 3) {
             if (activity instanceof DiscoverActivity) return;
             i = new Intent(activity, DiscoverActivity.class);
-        } else if (tab == 3) {
+        } else if (tab == 4) {
             if (activity instanceof InboxActivity) return;
             i = new Intent(activity, InboxActivity.class);
         } else {
             i = new Intent(activity, MainActivity.class);
-            i.putExtra("openTab", tab);
+            i.putExtra("openTab", 4);
         }
         i.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);
         final Intent target = i;

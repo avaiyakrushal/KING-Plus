@@ -184,7 +184,7 @@ public class DiscoverActivity extends Activity {
         if("Nearby".equals(activePeopleTab)&&nearbyCity10047().isEmpty()){
             TextView setup10048=emptyText("Set your Hometown in Me → Edit Profile to discover people nearby • tap to edit");
             setup10048.setOnClickListener(v->{if(!isFinishing()&&!isDestroyed())
-                KingNav.openRoot(this,4);});
+                KingNav.openRoot(this,5);});
             grid.addView(setup10048,new LinearLayout.LayoutParams(-1,dp(94)));
             return;
         }
@@ -810,8 +810,8 @@ public class DiscoverActivity extends Activity {
     private String issued10039(DocumentSnapshot d){String x=KingPublicId9996.verified(d.getString("publicId"));return x==null?"Not issued":x;}
     private String followId(String a,String b){return a+"__"+b;}
 
-    private View bottomNav(){LinearLayout nav=new LinearLayout(this);nav.setGravity(Gravity.CENTER);nav.setBackground(KingRoyalTheme10021.bottomNav(this));addNav(nav,"⌂\nHome",0);addNav(nav,"🎤\nParty",1);addNav(nav,"◉\nDiscover",2);addNav(nav,"▢\nMessages",3);addNav(nav,"♙\nMe",4);return nav;}
-    private void addNav(LinearLayout nav,String label,int tab){TextView t=tv(label,11,tab==2?0xff111111:0xff8c8991,tab==2);t.setGravity(Gravity.CENTER);if(tab==2)t.setBackground(bg(0xffffec3a,28));LinearLayout.LayoutParams p=new LinearLayout.LayoutParams(0,dp(64),1);p.setMargins(dp(5),dp(3),dp(5),dp(3));nav.addView(t,p);t.setOnClickListener(v->{if(tab!=2)KingNav.openRoot(this,tab);});}
+    private View bottomNav(){LinearLayout nav=new LinearLayout(this);nav.setGravity(Gravity.CENTER);nav.setBackground(KingRoyalTheme10021.bottomNav(this));addNav(nav,"⌂\nHome",0);addNav(nav,"🎤\nParty",1);addNav(nav,"🎮\nGames",2);addNav(nav,"◉\nDiscover",3);addNav(nav,"▢\nMessages",4);addNav(nav,"♙\nMe",5);return nav;}
+    private void addNav(LinearLayout nav,String label,int tab){TextView t=tv(label,10,tab==3?0xff7555b7:0xff8c8991,tab==3);t.setGravity(Gravity.CENTER);if(tab==3)t.setBackground(bg(0xfff1eafa,28));LinearLayout.LayoutParams p=new LinearLayout.LayoutParams(0,dp(64),1);p.setMargins(dp(2),dp(3),dp(2),dp(3));nav.addView(t,p);t.setOnClickListener(v->{if(tab!=3)KingNav.openRoot(this,tab);});}
     @Override protected void onResume(){
         super.onResume();
         FirebaseUser current10024=FirebaseAuth.getInstance().getCurrentUser();

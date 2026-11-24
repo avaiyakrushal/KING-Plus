@@ -30,7 +30,7 @@ public final class KingSavedRooms9990Activity extends Activity {
         tabs.addView(favTab,new LinearLayout.LayoutParams(0,dp(54),1));tabs.addView(recentTab,new LinearLayout.LayoutParams(0,dp(54),1));root.addView(tabs);
         state=text("Loading your saved rooms…",12);state.setOnClickListener(v->listen());root.addView(state);
         ScrollView scroll=new ScrollView(this);list=new LinearLayout(this);list.setOrientation(1);scroll.addView(list);root.addView(scroll,new LinearLayout.LayoutParams(-1,0,1));
-        TextView party=text("Open Party Home  ›",17);party.setGravity(Gravity.CENTER);party.setOnClickListener(v->KingNav.openRoot(this,0));root.addView(party);
+        TextView party=text("Open Party Home  ›",17);party.setGravity(Gravity.CENTER);party.setOnClickListener(v->KingNav.openRoot(this,1));root.addView(party);
         setContentView(root);ViewCompat.setOnApplyWindowInsetsListener(root,(v,i)->{Insets x=i.getInsets(WindowInsetsCompat.Type.systemBars());v.setPadding(0,x.top,0,x.bottom);return i;});ViewCompat.requestApplyInsets(root);
     }
     private void stop(){++generation;if(listener!=null){listener.remove();listener=null;}}

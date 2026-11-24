@@ -55,15 +55,13 @@ public class KingGiftCenterActivity extends Activity {
         });
     }
     private LinearLayout rootNav10064(){
-        LinearLayout nav=new LinearLayout(this);nav.setGravity(android.view.Gravity.CENTER);nav.setPadding(dp(4),dp(4),dp(4),dp(4));nav.setBackgroundColor(0xff211238);
-        String[] labels={"⌂\nHome","🎤\nParty","◉\nDiscover","▢\nMessages","♙\nMe"};
+        LinearLayout nav=new LinearLayout(this);nav.setGravity(android.view.Gravity.CENTER);nav.setPadding(dp(4),dp(4),dp(4),dp(4));nav.setBackground(KingRoyalTheme10021.bottomNav(this));
+        String[] labels={"⌂\nHome","🎤\nParty","🎮\nGames","◉\nDiscover","▢\nMessages","♙\nMe"};
         for(int tab=0;tab<labels.length;tab++){
-            final int destination=tab;TextView item=text(labels[tab]);item.setTextSize(11);item.setGravity(android.view.Gravity.CENTER);item.setPadding(dp(2),0,dp(2),0);
+            final int destination=tab;TextView item=text(labels[tab]);item.setTextSize(10);item.setTextColor(destination==4?0xff7555b7:0xff766a80);item.setGravity(android.view.Gravity.CENTER);item.setPadding(0,dp(4),0,dp(4));
             LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(0,-1,1);lp.setMargins(dp(2),0,dp(2),0);nav.addView(item,lp);
             item.setOnClickListener(v->KingSafe.run(this,"gift-root-nav-"+destination,()->{
-                if(destination==0)KingNav.openRoot(this,0);
-                else if(destination==1)startActivity(new android.content.Intent(this,PartyActivity.class));
-                else KingNav.openRoot(this,destination==2?2:destination==3?3:4);
+                KingNav.openRoot(this,destination);
             }));
         }
         return nav;

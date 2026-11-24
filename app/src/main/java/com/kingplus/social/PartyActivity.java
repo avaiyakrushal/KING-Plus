@@ -943,7 +943,7 @@ public class PartyActivity extends androidx.fragment.app.FragmentActivity implem
         }
 
         root.addView(scroll,new LinearLayout.LayoutParams(-1,0,1));
-        addBottomNav(root,0); setSafeContentView(root);
+        addBottomNav(root,1); setSafeContentView(root);
     }
 
 
@@ -7624,7 +7624,7 @@ public class PartyActivity extends androidx.fragment.app.FragmentActivity implem
         Intent i=new Intent(this,RoomGameActivity.class);i.putExtra("roomId",roomId);i.putExtra("roomName",roomName);i.putExtra("displayName",safeName());i.putExtra("requestedGame",requestedGame10100);startActivity(i);
     }
 
-    private void openGames(){openMainTab(1);}
+    private void openGames(){openMainTab(2);}
     private void renameRoomDialog(){if(!isOwner())return;final EditText e=new EditText(this);e.setText(roomName);new AlertDialog.Builder(this).setTitle("Rename room").setView(e).setPositiveButton("Save",(d,w)->{String n=e.getText().toString().trim();if(n.length()<2)return;roomName=n;if(cloudRoom)setRoomValue("name",n);renderParty();}).setNegativeButton("Cancel",null).show();}
     private void changeCategoryDialog(){if(!isOwner())return;String[] cats={"Chat","Date","Music","KTV","Radio","Sing","Game","PK","Pick Me","Family","Multi Video","Event","Birthday","Wedding"};new AlertDialog.Builder(this).setTitle("Room category").setItems(cats,(d,w)->{roomCategory=cats[w];if(cloudRoom)setRoomValue("category",roomCategory);renderParty();}).show();}
     private void changeThemeDialog(){if(!isOwner())return;String[] labels={"Classic Emerald","Ocean KTV","PK Red vs Blue","Rose Love","Game Emerald","Royal Purple","Neon Night","Galaxy Stage","Festival Glow","Ice Crystal"};String[] themes={"Classic","KTV","PK","Love","Game","Royal","Neon","Galaxy","Festival","Ice"};new AlertDialog.Builder(this).setTitle("Room theme").setItems(labels,(d,w)->{roomTheme=themes[w];if(cloudRoom)setRoomValue("theme",roomTheme);else prefs.edit().putString("theme_"+roomName,roomTheme).apply();renderParty();}).show();}
@@ -8282,29 +8282,25 @@ public class PartyActivity extends androidx.fragment.app.FragmentActivity implem
         LinearLayout nav=new LinearLayout(this);
         nav.setGravity(Gravity.CENTER_VERTICAL);
         nav.setPadding(dp(5),dp(5),dp(5),dp(5));
-        nav.setBackground(new GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM,
-            new int[]{0xff3a1859,0xff110920}));
-        String[] icons={"⌂","♟","◇","✉","●"};
-        String[] names={"Party","Games","Discover","Messages","Me"};
-        for(int i=0;i<5;i++){
+        nav.setBackground(KingRoyalTheme10021.bottomNav(this));
+        String[] icons={"⌂","🎤","🎮","◇","✉","●"};
+        String[] names={"Home","Party","Games","Discover","Messages","Me"};
+        for(int i=0;i<names.length;i++){
             final int tab=i; boolean active=i==selected;
             LinearLayout item=new LinearLayout(this);
             item.setOrientation(LinearLayout.VERTICAL);item.setGravity(Gravity.CENTER);
             if(active){
-                GradientDrawable bgNav=new GradientDrawable(GradientDrawable.Orientation.TL_BR,
-                    new int[]{0xffb83b9f,0xff6226a5});
-                bgNav.setCornerRadius(dp(16));bgNav.setStroke(dp(1),0xb5ffdc8b);
-                item.setBackground(bgNav);
+                item.setBackground(KingRoyalTheme10021.violetCard(this,14));
             }
-            TextView icon=tv(icons[i],24,active?0xffffdf80:0xffcab9dd,true);
-            icon.setGravity(Gravity.CENTER);
+            TextView icon=tv(icons[i],22,active?0xffffdf80:0xff766a80,true);
+            icon.setGravity(Gravity.CENTER);icon.setPadding(0,0,0,0);
             item.addView(icon,new LinearLayout.LayoutParams(-1,dp(30)));
-            TextView label=tv(names[i],11,active?Color.WHITE:0xffc7b9d8,true);
-            label.setGravity(Gravity.CENTER);
+            TextView label=tv(names[i],10,active?Color.WHITE:0xff766a80,true);
+            label.setGravity(Gravity.CENTER);label.setPadding(0,0,0,0);
             item.addView(label,new LinearLayout.LayoutParams(-1,dp(20)));
             item.setContentDescription(names[i]+(active?" selected":""));
             item.setOnClickListener(v->{
-                if(tab==0){if(roomId!=null)confirmLeave940();else renderLobby("Hot");}
+                if(tab==1){if(roomId!=null)confirmLeave940();else renderLobby("Hot");}
                 else {
                     // Single navigation at a time: rapid taps must never race a second Leave.
                     if(partyNavigationPending10033)return;

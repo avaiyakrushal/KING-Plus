@@ -50,10 +50,8 @@ import java.util.Map;
 
 /** KING Plus original parity center: KTV stage, PK arena, family/VIP entry and social matching. */
 public class KingParityHubActivity extends Activity {
-    // Keep Home/Discover in the same cream, gold and violet system used by
-    // Games and Me. Purple remains the action colour, rather than the page canvas.
-    private static final int CARD=0xffffffff, CARD2=0xfff1eafa,
-        PURPLE=0xff7555b7, GOLD=0xffdcb65d, MUTED=0xff766a80, INK=0xff292044;
+    private static final int CARD=0xffffffff, CARD2=0xfff1eafa, PURPLE=0xff7555b7,
+        GOLD=0xffdcb65d, MUTED=0xff766a80, INK=0xff292044;
     private FirebaseFirestore db; private FirebaseUser me; private LinearLayout body; private TextView title;
     private String route="home", roomId="", roomName="KING Party";
     private SharedPreferences prefs;
@@ -94,16 +92,15 @@ public class KingParityHubActivity extends Activity {
     /** Persistent five-destination navigation shared with the rest of KING Plus. */
     private LinearLayout rootNav(){
         LinearLayout nav=new LinearLayout(this);nav.setGravity(Gravity.CENTER);nav.setPadding(dp(4),dp(4),dp(4),dp(4));nav.setBackground(KingRoyalTheme10021.bottomNav(this));
-        String[] labels={"⌂\nHome","🎤\nParty","◉\nDiscover","▢\nMessages","♙\nMe"};
+        String[] labels={"⌂\nHome","🎤\nParty","🎮\nGames","◉\nDiscover","▢\nMessages","♙\nMe"};
         for(int tab=0;tab<labels.length;tab++){
             final int destination=tab;
-            TextView item=tv(labels[tab],11,destination==0?PURPLE:MUTED,destination==0);item.setGravity(Gravity.CENTER);
+            TextView item=tv(labels[tab],10,destination==0?PURPLE:MUTED,destination==0);item.setGravity(Gravity.CENTER);item.setPadding(0,dp(4),0,dp(4));
             if(destination==0)item.setBackground(bg(CARD2,14));
             LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(0,-1,1);lp.setMargins(dp(2),0,dp(2),0);nav.addView(item,lp);
             item.setOnClickListener(v->KingSafe.run(this,"home-root-nav-"+destination,()->{
                 if(destination==0){if(!"home".equals(route))show("home");}
-                else if(destination==1){Intent i=new Intent(this,PartyActivity.class);startActivity(i);}
-                else KingNav.openRoot(this,destination==2?2:destination==3?3:4);
+                else KingNav.openRoot(this,destination);
             }));
         }
         return nav;
@@ -139,7 +136,7 @@ public class KingParityHubActivity extends Activity {
             chip.setOnClickListener(v->KingSafe.run(this,"home-category:"+item[2],()->{
                 if("home".equals(item[2]))show("home");
                 else if("party".equals(item[2]))openPartyLobby();
-                else if("games".equals(item[2]))openPro880("arcade");
+                else if("games".equals(item[2]))KingNav.openRoot(this,2);
                 else if("match".equals(item[2]))show("match");
                 else show("vip");
             }));
@@ -203,7 +200,7 @@ public class KingParityHubActivity extends Activity {
         discoverTitle.setPadding(dp(2),dp(12),dp(2),dp(4));
         body.addView(discoverTitle);
         card("🎤","Voice Party","Join friends and talk together in live rooms",this::openPartyLobby);
-        card("🎮","Games & Activities","Explore games and interactive activities",()->openPro880("arcade"));
+        card("🎮","Games & Activities","Explore games and interactive activities",()->KingNav.openRoot(this,2));
         card("💬","Meet New People","Discover KING Plus members and profiles",()->show("match"));
         card("🎵","KTV Stage","Shared song requests and singer stage",()->show("ktv"));
         card("⚔️","PK Arena","Red vs Blue room battle and score",()->show("pk"));

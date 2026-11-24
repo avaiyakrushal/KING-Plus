@@ -106,7 +106,7 @@ public class InboxActivity extends Activity {
 
         ScrollView sv = new ScrollView(this); list = new LinearLayout(this); list.setOrientation(LinearLayout.VERTICAL); list.setPadding(0,0,0,dp(16)); sv.addView(list);
         root.addView(sv,new LinearLayout.LayoutParams(-1,0,1));
-        addBottomNav(root,3);
+        addBottomNav(root,4);
         setSafeContentView10021(root);
     }
 
@@ -451,8 +451,8 @@ public class InboxActivity extends Activity {
         Intent i=new Intent(this,ChatActivity.class);i.putExtra("peerName",name);i.putExtra("peerUid",peerUid);startActivity(i);}
 
     private void addBottomNav(LinearLayout root,int selected){
-        LinearLayout nav=new LinearLayout(this);nav.setGravity(Gravity.CENTER);nav.setBackground(KingRoyalTheme10021.bottomNav(this));String[] ni={"⌂\nHome","🎤\nParty","◇\nDiscover","✉\nMessages","●\nMe"};
-        for(int i=0;i<ni.length;i++){TextView n=label(ni[i],12,i==selected?0xffd2b100:0xff777777,true);n.setGravity(Gravity.CENTER);final int k=i;n.setOnClickListener(v->{if(k!=3)KingNav.openRoot(this,k);});nav.addView(n,new LinearLayout.LayoutParams(0,dp(62),1));}root.addView(nav);
+        LinearLayout nav=new LinearLayout(this);nav.setGravity(Gravity.CENTER);nav.setBackground(KingRoyalTheme10021.bottomNav(this));String[] ni={"⌂\nHome","🎤\nParty","🎮\nGames","◇\nDiscover","✉\nMessages","●\nMe"};
+        for(int i=0;i<ni.length;i++){TextView n=label(ni[i],10,i==selected?0xff7555b7:0xff777777,true);n.setGravity(Gravity.CENTER);final int k=i;n.setOnClickListener(v->{if(k!=4)KingNav.openRoot(this,k);});nav.addView(n,new LinearLayout.LayoutParams(0,dp(62),1));}root.addView(nav);
     }
 
     @Override public void onBackPressed(){if(isTaskRoot())KingNav.confirmExit(this);else finish();}

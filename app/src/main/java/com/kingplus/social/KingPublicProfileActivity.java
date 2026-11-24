@@ -51,15 +51,13 @@ public class KingPublicProfileActivity extends Activity {
     @Override public void onCreate(Bundle b){super.onCreate(b);uid=getIntent().getStringExtra("uid");name=getIntent().getStringExtra("name");if(uid==null)uid="";if(name==null||name.trim().isEmpty())name="KING User";try{db=FirebaseFirestore.getInstance();me=FirebaseAuth.getInstance().getCurrentUser();}catch(Exception ignored){}activeRoomId997=getIntent().getStringExtra("roomId");if(activeRoomId997==null)activeRoomId997="";render();logProfileVisit940();}
     private void render(){LinearLayout root=new LinearLayout(this);root.setOrientation(LinearLayout.VERTICAL);root.setBackgroundColor(BG);LinearLayout head=new LinearLayout(this);head.setGravity(Gravity.CENTER_VERTICAL);TextView back=tv("‹",38,INK,false);back.setGravity(Gravity.CENTER);back.setOnClickListener(v->finish());head.addView(back,new LinearLayout.LayoutParams(dp(50),dp(56)));TextView title=tv("Profile",20,INK,true);head.addView(title,new LinearLayout.LayoutParams(0,dp(56),1));root.addView(head);profileState10068=tv("Loading online profile…",12,MUTED,false);root.addView(profileState10068);ScrollView sv=new ScrollView(this);profileScroll10068=sv;body=new LinearLayout(this);body.setOrientation(LinearLayout.VERTICAL);body.setPadding(dp(14),dp(8),dp(14),dp(30));sv.addView(body);root.addView(sv,new LinearLayout.LayoutParams(-1,0,1));root.addView(rootNav10068(),new LinearLayout.LayoutParams(-1,dp(62)));setContentView(root);}
     private LinearLayout rootNav10068(){
-        LinearLayout nav=new LinearLayout(this);nav.setGravity(Gravity.CENTER);nav.setPadding(dp(4),dp(4),dp(4),dp(4));nav.setBackgroundColor(0xff211238);
-        String[] labels={"⌂\nHome","🎤\nParty","◉\nDiscover","▢\nMessages","♙\nMe"};
+        LinearLayout nav=new LinearLayout(this);nav.setGravity(Gravity.CENTER);nav.setPadding(dp(4),dp(4),dp(4),dp(4));nav.setBackground(KingRoyalTheme10021.bottomNav(this));
+        String[] labels={"⌂\nHome","🎤\nParty","🎮\nGames","◉\nDiscover","▢\nMessages","♙\nMe"};
         for(int tab=0;tab<labels.length;tab++){
-            final int destination=tab;TextView item=tv(labels[tab],11,destination==4?PURPLE:INK,destination==4);item.setGravity(Gravity.CENTER);
+            final int destination=tab;TextView item=tv(labels[tab],10,destination==5?PURPLE:INK,destination==5);item.setGravity(Gravity.CENTER);item.setPadding(0,dp(4),0,dp(4));
             LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(0,-1,1);lp.setMargins(dp(2),0,dp(2),0);nav.addView(item,lp);
             item.setOnClickListener(v->KingSafe.run(this,"profile-root-nav-"+destination,()->{
-                if(destination==0)KingNav.openRoot(this,0);
-                else if(destination==1)startActivity(new Intent(this,PartyActivity.class));
-                else KingNav.openRoot(this,destination==2?2:destination==3?3:4);
+                KingNav.openRoot(this,destination);
             }));
         }
         return nav;
