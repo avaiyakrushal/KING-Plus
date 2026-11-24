@@ -10,16 +10,17 @@ hub=(java/'KingParityHubActivity.java').read_text()
 home=hub[hub.index('    private void home(){'):hub.index('    private void openPartyLobby()',hub.index('    private void home(){'))]
 for label in ('For You','Voice Rooms','Games','New People','VIP','Live Voice Rooms','Party Stage','Family','VIP & Rank'):
     assert label in home
-for route in ('show("home")','openPartyLobby()','openPro880("arcade")','show("match")','show("vip")','show("stage")','show("family")'):
+for route in ('show("home")','openPartyLobby()','KingNav.openRoot(this,2)','show("match")','show("vip")','show("stage")','show("family")'):
     assert route in home
-assert home.count('openPro880("arcade")') == 2
+assert home.count('KingNav.openRoot(this,2)') == 2
 assert 'Family & VIP' not in home
 assert 'addDiscoverEntrance940(row,"🎮","Games","Games and multiplayer rooms",()->KingNav.openMainTab(this,1));' in discover
 assert 'addNav(nav,"⌂\\nHome",0);addNav(nav,"🎤\\nParty",1);' in discover
 party_nav=party[party.index('private void addBottomNav('):party.index('    private void reducePartyMemory',party.index('private void addBottomNav('))]
 assert 'KingNav.openRoot(this,tab);' in party_nav
 nav=(java/'KingNav.java').read_text()
-assert 'activity instanceof PartyActivity || activity instanceof DiscoverActivity' in nav
+assert 'if (activity instanceof PartyActivity) return;' in nav
+assert 'else if (tab == 2)' in nav
 assert 'i.putExtra("openTab", 1);' in nav
 gradle=(root/'app/build.gradle').read_text()
 policy=party.split("private boolean canConnectPartyVoice()",1)[1].split("private void showPartyVoiceUnavailable()",1)[0]
