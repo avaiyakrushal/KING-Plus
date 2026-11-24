@@ -124,7 +124,7 @@ public class KingParityHubActivity extends Activity {
         LinearLayout categories=new LinearLayout(this);
         categories.setGravity(Gravity.CENTER_VERTICAL);
         categories.setPadding(0,dp(2),0,dp(10));
-        String[][] categoryItems={{"✨","For You","home"},{"🎤","Voice Rooms","party"},{"🎮","Games","games"},{"🆕","New People","match"},{"👑","VIP","vip"}};
+        String[][] categoryItems={{"✨","For You","home"},{"🎤","Voice Rooms","party"},{"🎮","Games","games"},{"🆕","New People","discover"},{"👑","VIP","vip"}};
         for(String[] item:categoryItems){
             TextView chip=tv(item[0]+"  "+item[1],12,INK,true);
             chip.setGravity(Gravity.CENTER);
@@ -137,6 +137,7 @@ public class KingParityHubActivity extends Activity {
                 if("home".equals(item[2]))show("home");
                 else if("party".equals(item[2]))openPartyLobby();
                 else if("games".equals(item[2]))KingNav.openRoot(this,2);
+                else if("discover".equals(item[2]))KingNav.openRoot(this,3);
                 else if("match".equals(item[2]))show("match");
                 else show("vip");
             }));
@@ -201,7 +202,7 @@ public class KingParityHubActivity extends Activity {
         body.addView(discoverTitle);
         card("🎤","Voice Party","Join friends and talk together in live rooms",this::openPartyLobby);
         card("🎮","Games & Activities","Explore games and interactive activities",()->KingNav.openRoot(this,2));
-        card("💬","Meet New People","Discover KING Plus members and profiles",()->show("match"));
+        card("💬","Meet New People","Discover KING Plus members and profiles",()->KingNav.openRoot(this,3));
         card("🎵","KTV Stage","Shared song requests and singer stage",()->show("ktv"));
         card("⚔️","PK Arena","Red vs Blue room battle and score",()->show("pk"));
         // Keep the original destinations individually reachable; do not merge
