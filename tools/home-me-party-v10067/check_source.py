@@ -10,9 +10,11 @@ hub=(java/'KingParityHubActivity.java').read_text()
 home=hub[hub.index('    private void home(){'):hub.index('    private void openPartyLobby()',hub.index('    private void home(){'))]
 for label in ('For You','Voice Rooms','Games','New People','VIP','Live Voice Rooms','Party Stage','Family','VIP & Rank'):
     assert label in home
-for route in ('show("home")','openPartyLobby()','KingNav.openRoot(this,2)','show("match")','show("vip")','show("stage")','show("family")'):
+for route in ('show("home")','openPartyLobby()','KingNav.openRoot(this,2)','KingNav.openRoot(this,3)','show("vip")','show("stage")','show("family")'):
     assert route in home
 assert home.count('KingNav.openRoot(this,2)') == 2
+assert '"New People","discover"' in home
+assert '"Meet New People","Discover KING Plus members and profiles",()->KingNav.openRoot(this,3)' in home
 assert 'Family & VIP' not in home
 assert 'addDiscoverEntrance940(row,"🎮","Games","Games and multiplayer rooms",()->KingNav.openMainTab(this,1));' in discover
 assert 'addNav(nav,"⌂\\nHome",0);addNav(nav,"🎤\\nParty",1);' in discover
