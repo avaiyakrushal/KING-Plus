@@ -16,6 +16,9 @@ assert home.count('KingNav.openRoot(this,2)') == 2
 assert 'Family & VIP' not in home
 assert 'addDiscoverEntrance940(row,"🎮","Games","Games and multiplayer rooms",()->KingNav.openMainTab(this,1));' in discover
 assert 'addNav(nav,"⌂\\nHome",0);addNav(nav,"🎤\\nParty",1);' in discover
+assert 'str(doc,"coverUrl",str(doc,"roomPhotoUrl",str(doc,"photoUrl","")))' in party
+assert 'roomText(doc,"coverUrl",roomText(doc,"roomPhotoUrl",""))' in hub
+assert 'roomText(doc,"coverUrl",roomText(doc,"ownerPhoto",""))' not in hub
 party_nav=party[party.index('private void addBottomNav('):party.index('    private void reducePartyMemory',party.index('private void addBottomNav('))]
 assert 'KingNav.openRoot(this,tab);' in party_nav
 nav=(java/'KingNav.java').read_text()

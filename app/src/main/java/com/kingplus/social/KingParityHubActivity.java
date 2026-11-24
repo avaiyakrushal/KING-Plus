@@ -442,7 +442,7 @@ public class KingParityHubActivity extends Activity {
         params.setMargins(0,dp(4),0,dp(4));
         rows.addView(item,params);
         KingProfileImages10068.load(this,image,fallback,
-            roomText(doc,"coverUrl",roomText(doc,"ownerPhoto","")));
+            roomText(doc,"coverUrl",roomText(doc,"roomPhotoUrl","")));
     }
 
     private boolean isCurrentRoute(int generation){

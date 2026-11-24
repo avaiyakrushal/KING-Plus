@@ -903,8 +903,8 @@ public class PartyActivity extends androidx.fragment.app.FragmentActivity implem
                                 row = new LinearLayout(this); row.setOrientation(LinearLayout.HORIZONTAL); row.setGravity(Gravity.TOP);
                                 LinearLayout.LayoutParams rp = new LinearLayout.LayoutParams(-1,dp(206)); rp.setMargins(0,dp(4),0,dp(4)); cloudList.addView(row,rp);
                             }
-                            String ownerPhoto = str(doc,"coverUrl",str(doc,"ownerPhoto",""));
-                            addLiveRoomGridCard(row,name,host,id,category,priv,password,ownerPhoto,
+                            String roomCover = str(doc,"coverUrl",str(doc,"roomPhotoUrl",str(doc,"photoUrl","")));
+                            addLiveRoomGridCard(row,name,host,id,category,priv,password,roomCover,
                                 () -> openCloudRoom(id,name,doc.getString("ownerUid"),host,priv,password));
                             shown++;
                         }
