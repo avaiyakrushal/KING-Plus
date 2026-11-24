@@ -50,7 +50,10 @@ import java.util.Map;
 
 /** KING Plus original parity center: KTV stage, PK arena, family/VIP entry and social matching. */
 public class KingParityHubActivity extends Activity {
-    private static final int BG=0xff170b2d, CARD=0xff2a1747, CARD2=0xff35205a, PURPLE=0xff8a49ed, GOLD=0xffffd768, MUTED=0xffc7b9d8;
+    // Keep Home/Discover in the same cream, gold and violet system used by
+    // Games and Me. Purple remains the action colour, rather than the page canvas.
+    private static final int CARD=0xffffffff, CARD2=0xfff1eafa,
+        PURPLE=0xff7555b7, GOLD=0xffdcb65d, MUTED=0xff766a80, INK=0xff292044;
     private FirebaseFirestore db; private FirebaseUser me; private LinearLayout body; private TextView title;
     private String route="home", roomId="", roomName="KING Party";
     private SharedPreferences prefs;
@@ -71,13 +74,13 @@ public class KingParityHubActivity extends Activity {
     @Override public void onCreate(Bundle b){super.onCreate(b);prefs=getSharedPreferences("MainActivity",MODE_PRIVATE);route=safe(getIntent().getStringExtra("route"),"home");roomId=safe(getIntent().getStringExtra("roomId"),"");roomName=safe(getIntent().getStringExtra("roomName"),"KING Party");try{db=FirebaseFirestore.getInstance();me=FirebaseAuth.getInstance().getCurrentUser();}catch(Exception ignored){}shell();show(route);}
 
     private void shell(){
-        LinearLayout root=new LinearLayout(this);root.setOrientation(LinearLayout.VERTICAL);root.setBackgroundColor(BG);
-        LinearLayout head=new LinearLayout(this);head.setGravity(Gravity.CENTER_VERTICAL);head.setPadding(dp(8),dp(8),dp(8),0);
-        TextView back=tv("‹",38,Color.WHITE,true);back.setGravity(Gravity.CENTER);back.setOnClickListener(v->finish());head.addView(back,new LinearLayout.LayoutParams(dp(52),dp(56)));
-        title=tv("KING Center",20,Color.WHITE,true);head.addView(title,new LinearLayout.LayoutParams(0,dp(56),1));root.addView(head);
+        LinearLayout root=new LinearLayout(this);root.setOrientation(LinearLayout.VERTICAL);root.setBackground(KingRoyalTheme10021.page());
+        LinearLayout head=new LinearLayout(this);head.setGravity(Gravity.CENTER_VERTICAL);head.setPadding(dp(8),dp(8),dp(8),0);head.setBackground(KingRoyalTheme10021.header(this));
+        TextView back=tv("‹",38,INK,true);back.setGravity(Gravity.CENTER);back.setOnClickListener(v->finish());head.addView(back,new LinearLayout.LayoutParams(dp(52),dp(56)));
+        title=tv("KING Center",20,INK,true);head.addView(title,new LinearLayout.LayoutParams(0,dp(56),1));root.addView(head,new LinearLayout.LayoutParams(-1,dp(72)));
         HorizontalScrollView hsv=new HorizontalScrollView(this);hsv.setHorizontalScrollBarEnabled(false);LinearLayout tabs=new LinearLayout(this);tabs.setPadding(dp(8),0,dp(8),dp(8));
         String[][] all={{"✨","Home","home"},{"🎤","KTV","ktv"},{"⚔️","PK","pk"},{"🎲","Match","match"},{"🏰","Stage","stage"},{"👑","Family","family"},{"💎","VIP/Rank","vip"}};
-        for(String[] x:all){TextView t=tv(x[0]+" "+x[1],12,Color.WHITE,true);t.setGravity(Gravity.CENTER);t.setBackground(bg(CARD2,16));String r=x[2];t.setOnClickListener(v->KingSafe.run(this,"parity-tab:"+r,()->show(r)));LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(dp(104),dp(42));lp.setMargins(dp(4),0,dp(4),0);tabs.addView(t,lp);}hsv.addView(tabs);root.addView(hsv,new LinearLayout.LayoutParams(-1,dp(52)));
+        for(String[] x:all){TextView t=tv(x[0]+" "+x[1],12,INK,true);t.setGravity(Gravity.CENTER);t.setBackground(bg(CARD2,16));String r=x[2];t.setOnClickListener(v->KingSafe.run(this,"parity-tab:"+r,()->show(r)));LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(dp(104),dp(42));lp.setMargins(dp(4),0,dp(4),0);tabs.addView(t,lp);}hsv.addView(tabs);root.addView(hsv,new LinearLayout.LayoutParams(-1,dp(52)));
         ScrollView sv=new ScrollView(this);sv.setFillViewport(true);body=new LinearLayout(this);body.setOrientation(LinearLayout.VERTICAL);body.setPadding(dp(14),dp(10),dp(14),dp(30));sv.addView(body);root.addView(sv,new LinearLayout.LayoutParams(-1,0,1));root.addView(rootNav(),new LinearLayout.LayoutParams(-1,dp(64)));setContentView(root);
         ViewCompat.setOnApplyWindowInsetsListener(root,(view,insets)->{
             Insets safeArea=insets.getInsets(WindowInsetsCompat.Type.systemBars()
@@ -90,11 +93,11 @@ public class KingParityHubActivity extends Activity {
 
     /** Persistent five-destination navigation shared with the rest of KING Plus. */
     private LinearLayout rootNav(){
-        LinearLayout nav=new LinearLayout(this);nav.setGravity(Gravity.CENTER);nav.setPadding(dp(4),dp(4),dp(4),dp(4));nav.setBackgroundColor(0xff211238);
+        LinearLayout nav=new LinearLayout(this);nav.setGravity(Gravity.CENTER);nav.setPadding(dp(4),dp(4),dp(4),dp(4));nav.setBackground(KingRoyalTheme10021.bottomNav(this));
         String[] labels={"⌂\nHome","🎤\nParty","◉\nDiscover","▢\nMessages","♙\nMe"};
         for(int tab=0;tab<labels.length;tab++){
             final int destination=tab;
-            TextView item=tv(labels[tab],11,destination==0?GOLD:MUTED,destination==0);item.setGravity(Gravity.CENTER);
+            TextView item=tv(labels[tab],11,destination==0?PURPLE:MUTED,destination==0);item.setGravity(Gravity.CENTER);
             if(destination==0)item.setBackground(bg(CARD2,14));
             LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(0,-1,1);lp.setMargins(dp(2),0,dp(2),0);nav.addView(item,lp);
             item.setOnClickListener(v->KingSafe.run(this,"home-root-nav-"+destination,()->{
@@ -108,9 +111,9 @@ public class KingParityHubActivity extends Activity {
 
     private void show(String r){++routeGeneration;stopHomeRoomListener();route=r;body.removeAllViews();if(title!=null)title.setText(titleFor(r));if("ktv".equals(r))ktv();else if("pk".equals(r))pk();else if("match".equals(r))match();else if("stage".equals(r))stage();else if("family".equals(r))openFamily();else if("vip".equals(r))vip();else home();}
     private String titleFor(String r){if("ktv".equals(r))return "KTV Stage";if("pk".equals(r))return "PK Arena";if("match".equals(r))return "Match";if("stage".equals(r))return "Party Stage";if("family".equals(r))return "Family";if("vip".equals(r))return "VIP & Rank";return "KING Center";}
-    private void hero(String a,String b){TextView h=tv(a+"\n"+b,18,Color.WHITE,true);h.setGravity(Gravity.CENTER_VERTICAL);h.setBackground(bg(CARD,18));h.setPadding(dp(18),dp(16),dp(18),dp(16));LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(-1,-2);lp.setMargins(0,0,0,dp(8));body.addView(h,lp);KingPresentationView visual=new KingPresentationView(this,route);LinearLayout.LayoutParams vp=new LinearLayout.LayoutParams(-1,dp(158));vp.setMargins(0,0,0,dp(12));body.addView(visual,vp);}
-    private TextView action(String s,Runnable r){TextView t=tv(s,14,Color.WHITE,true);t.setGravity(Gravity.CENTER);t.setBackground(bg(PURPLE,14));t.setOnClickListener(v->KingSafe.run(this,"parity-action:"+s,r));return t;}
-    private void card(String icon,String a,String b,Runnable r){LinearLayout x=new LinearLayout(this);x.setGravity(Gravity.CENTER_VERTICAL);x.setPadding(dp(12),dp(8),dp(12),dp(8));x.setBackground(bg(CARD,16));TextView i=tv(icon,28,Color.WHITE,false);i.setGravity(Gravity.CENTER);x.addView(i,new LinearLayout.LayoutParams(dp(54),dp(62)));LinearLayout info=new LinearLayout(this);info.setOrientation(LinearLayout.VERTICAL);TextView aa=tv(a,16,Color.WHITE,true);aa.setPadding(0,0,0,0);TextView bb=tv(b,11,MUTED,false);bb.setPadding(0,dp(2),0,0);info.addView(aa);info.addView(bb);x.addView(info,new LinearLayout.LayoutParams(0,dp(62),1));TextView ar=tv("›",28,GOLD,true);ar.setGravity(Gravity.CENTER);x.addView(ar,new LinearLayout.LayoutParams(dp(36),dp(62)));x.setOnClickListener(v->KingSafe.run(this,"parity-card:"+a,r));LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(-1,dp(78));lp.setMargins(0,dp(5),0,dp(5));body.addView(x,lp);}
+    private void hero(String a,String b){TextView h=tv(a+"\n"+b,18,INK,true);h.setGravity(Gravity.CENTER_VERTICAL);h.setBackground(KingRoyalTheme10021.card(this,18));h.setPadding(dp(18),dp(16),dp(18),dp(16));LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(-1,-2);lp.setMargins(0,0,0,dp(8));body.addView(h,lp);KingPresentationView visual=new KingPresentationView(this,route);LinearLayout.LayoutParams vp=new LinearLayout.LayoutParams(-1,dp(158));vp.setMargins(0,0,0,dp(12));body.addView(visual,vp);}
+    private TextView action(String s,Runnable r){TextView t=tv(s,14,Color.WHITE,true);t.setGravity(Gravity.CENTER);t.setBackground(KingRoyalTheme10021.violetCard(this,14));t.setOnClickListener(v->KingSafe.run(this,"parity-action:"+s,r));return t;}
+    private void card(String icon,String a,String b,Runnable r){LinearLayout x=new LinearLayout(this);x.setGravity(Gravity.CENTER_VERTICAL);x.setPadding(dp(12),dp(8),dp(12),dp(8));x.setBackground(KingRoyalTheme10021.card(this,16));TextView i=tv(icon,28,INK,false);i.setGravity(Gravity.CENTER);x.addView(i,new LinearLayout.LayoutParams(dp(54),dp(62)));LinearLayout info=new LinearLayout(this);info.setOrientation(LinearLayout.VERTICAL);TextView aa=tv(a,16,INK,true);aa.setPadding(0,0,0,0);TextView bb=tv(b,11,MUTED,false);bb.setPadding(0,dp(2),0,0);info.addView(aa);info.addView(bb);x.addView(info,new LinearLayout.LayoutParams(0,dp(62),1));TextView ar=tv("›",28,GOLD,true);ar.setGravity(Gravity.CENTER);x.addView(ar,new LinearLayout.LayoutParams(dp(36),dp(62)));x.setOnClickListener(v->KingSafe.run(this,"parity-card:"+a,r));LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(-1,dp(78));lp.setMargins(0,dp(5),0,dp(5));body.addView(x,lp);}
     private boolean cloud(){if(me==null||db==null){toast("Google / Firebase sign-in required");return false;}return true;}
     private boolean room(){if(!cloud())return false;if(roomId.isEmpty()){toast("Open this from a live Party room");return false;}return true;}
 
@@ -126,7 +129,7 @@ public class KingParityHubActivity extends Activity {
         categories.setPadding(0,dp(2),0,dp(10));
         String[][] categoryItems={{"✨","For You","home"},{"🎤","Voice Rooms","party"},{"🎮","Games","games"},{"🆕","New People","match"},{"👑","VIP","vip"}};
         for(String[] item:categoryItems){
-            TextView chip=tv(item[0]+"  "+item[1],12,Color.WHITE,true);
+            TextView chip=tv(item[0]+"  "+item[1],12,INK,true);
             chip.setGravity(Gravity.CENTER);
             chip.setPadding(dp(14),0,dp(14),0);
             chip.setBackground(bg(CARD2,22));
@@ -159,7 +162,7 @@ public class KingParityHubActivity extends Activity {
 
         LinearLayout liveHeader=new LinearLayout(this);
         liveHeader.setGravity(Gravity.CENTER_VERTICAL);
-        liveHeader.addView(tv("Live Voice Rooms",18,Color.WHITE,true),
+        liveHeader.addView(tv("Live Voice Rooms",18,INK,true),
             new LinearLayout.LayoutParams(0,-2,1));
         body.addView(liveHeader);
         LinearLayout roomRows=new LinearLayout(this);
@@ -180,11 +183,13 @@ public class KingParityHubActivity extends Activity {
                     TextView option=(TextView)filterRow.getChildAt(i);
                     option.setSelected(category.contentEquals(option.getText()));
                     option.setBackground(bg(option.isSelected()?PURPLE:CARD2,14));
+                    option.setTextColor(option.isSelected()?Color.WHITE:INK);
                 }
                 loadHomeLiveRooms(roomRows);
             });
             filter.setSelected(category.equals(homeRoomCategory));
             filter.setBackground(bg(filter.isSelected()?PURPLE:CARD2,14));
+            filter.setTextColor(filter.isSelected()?Color.WHITE:INK);
             LinearLayout.LayoutParams filterParams=new LinearLayout.LayoutParams(-2,dp(48));
             filterParams.setMargins(0,0,dp(6),0);
             filterRow.addView(filter,filterParams);
@@ -194,7 +199,7 @@ public class KingParityHubActivity extends Activity {
         body.addView(roomRows,new LinearLayout.LayoutParams(-1,-2));
         loadHomeLiveRooms(roomRows);
 
-        TextView discoverTitle=tv("Discover more on KING Plus",17,Color.WHITE,true);
+        TextView discoverTitle=tv("Discover more on KING Plus",17,INK,true);
         discoverTitle.setPadding(dp(2),dp(12),dp(2),dp(4));
         body.addView(discoverTitle);
         card("🎤","Voice Party","Join friends and talk together in live rooms",this::openPartyLobby);
@@ -417,7 +422,7 @@ public class KingParityHubActivity extends Activity {
         LinearLayout details=new LinearLayout(this);
         details.setOrientation(LinearLayout.VERTICAL);
         details.setPadding(dp(10),0,0,0);
-        TextView label=tv(name,14,Color.WHITE,true);
+        TextView label=tv(name,14,INK,true);
         label.setPadding(0,0,0,0);
         label.setMaxLines(2);
         label.setEllipsize(TextUtils.TruncateAt.END);
@@ -448,8 +453,8 @@ public class KingParityHubActivity extends Activity {
     }
 
     private void ktv(){final int generation=routeGeneration;hero("🎤 KTV • "+roomName,roomId.isEmpty()?"Open from Party Room for synchronized queue":"Room-synchronized requests • host/co-host can put a song on stage");if(!roomId.isEmpty()){LinearLayout buttons=new LinearLayout(this);TextView add=action("＋ Request song",this::requestSong);buttons.addView(add,new LinearLayout.LayoutParams(0,dp(48),1));TextView refresh=action("↻ Refresh",()->show("ktv"));LinearLayout.LayoutParams rp=new LinearLayout.LayoutParams(0,dp(48),1);rp.setMargins(dp(8),0,0,0);buttons.addView(refresh,rp);body.addView(buttons);}
-        if(!room())return;db.collection("live_rooms").document(roomId).get().addOnSuccessListener(d->{if(!isCurrentRoute(generation))return;String current=safe(d.getString("currentSong"),"No song on stage");TextView now=tv("🎙 NOW ON STAGE\n"+current,16,GOLD,true);now.setGravity(Gravity.CENTER);now.setBackground(bg(0xff3c245e,16));body.addView(now,new LinearLayout.LayoutParams(-1,dp(78)));});
-        body.addView(tv("Queue",16,Color.WHITE,true));db.collection("live_rooms").document(roomId).collection("events").orderBy("createdAt",Query.Direction.DESCENDING).limit(100).get().addOnSuccessListener(q->{if(!isCurrentRoute(generation))return;int shown=0;for(DocumentSnapshot d:q.getDocuments()){if(!"ktv_request".equals(d.getString("type")))continue;String song=safe(d.getString("songName"),safe(d.getString("text"),"Song"));String who=safe(d.getString("actorName"),"User");TextView row=tv("🎵 "+song+"\n   requested by "+who,14,Color.WHITE,true);row.setBackground(bg(CARD,14));row.setOnClickListener(v->startSong(song));LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(-1,dp(64));lp.setMargins(0,dp(4),0,dp(4));body.addView(row,lp);if(++shown>=25)break;}if(shown==0)body.addView(tv("No song requests yet.",13,MUTED,false));}).addOnFailureListener(e->{if(isCurrentRoute(generation))body.addView(tv("KTV queue unavailable",12,MUTED,false));});}
+        if(!room())return;db.collection("live_rooms").document(roomId).get().addOnSuccessListener(d->{if(!isCurrentRoute(generation))return;String current=safe(d.getString("currentSong"),"No song on stage");TextView now=tv("🎙 NOW ON STAGE\n"+current,16,INK,true);now.setGravity(Gravity.CENTER);now.setBackground(KingRoyalTheme10021.card(this,16));body.addView(now,new LinearLayout.LayoutParams(-1,dp(78)));});
+        body.addView(tv("Queue",16,INK,true));db.collection("live_rooms").document(roomId).collection("events").orderBy("createdAt",Query.Direction.DESCENDING).limit(100).get().addOnSuccessListener(q->{if(!isCurrentRoute(generation))return;int shown=0;for(DocumentSnapshot d:q.getDocuments()){if(!"ktv_request".equals(d.getString("type")))continue;String song=safe(d.getString("songName"),safe(d.getString("text"),"Song"));String who=safe(d.getString("actorName"),"User");TextView row=tv("🎵 "+song+"\n   requested by "+who,14,INK,true);row.setBackground(KingRoyalTheme10021.card(this,14));row.setOnClickListener(v->startSong(song));LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(-1,dp(64));lp.setMargins(0,dp(4),0,dp(4));body.addView(row,lp);if(++shown>=25)break;}if(shown==0)body.addView(tv("No song requests yet.",13,MUTED,false));}).addOnFailureListener(e->{if(isCurrentRoute(generation))body.addView(tv("KTV queue unavailable",12,MUTED,false));});}
     private void requestSong(){if(!room())return;EditText e=new EditText(this);e.setHint("Song title");e.setSingleLine(true);new AlertDialog.Builder(this).setTitle("Request KTV song").setView(e).setPositiveButton("Request",(d,w)->{String s=e.getText().toString().trim();if(s.isEmpty())return;Map<String,Object>m=new HashMap<>();m.put("actorUid",me.getUid());m.put("actorName",name());m.put("type","ktv_request");m.put("songName",s);m.put("text",name()+" requested 🎵 "+s);m.put("createdAt",FieldValue.serverTimestamp());db.collection("live_rooms").document(roomId).collection("events").add(m).addOnSuccessListener(v->{toast("Added to KTV queue");show("ktv");}).addOnFailureListener(x->toast("Request failed"));}).setNegativeButton("Cancel",null).show();}
     private void startSong(String song){if(!room())return;new AlertDialog.Builder(this).setTitle(song).setMessage("Host/co-host can put this song on the room stage.").setPositiveButton("Start on stage",(d,w)->{Map<String,Object>m=new HashMap<>();m.put("currentSong",song);m.put("updatedAt",FieldValue.serverTimestamp());db.collection("live_rooms").document(roomId).update(m).addOnSuccessListener(v->{toast("KTV stage updated");show("ktv");}).addOnFailureListener(e->toast("Host/co-host permission required"));}).setNegativeButton("Close",null).show();}
 
@@ -493,14 +498,14 @@ public class KingParityHubActivity extends Activity {
     }
 
     private void renderPkScore(String text){
-        TextView score=tv(text,20,Color.WHITE,true);
+        TextView score=tv(text,20,INK,true);
         score.setGravity(Gravity.CENTER);
         score.setBackground(bg(CARD2,18));
         body.addView(score,new LinearLayout.LayoutParams(-1,dp(84)));
         body.addView(action("Refresh score",()->show("pk")),new LinearLayout.LayoutParams(-1,dp(48)));
     }
 
-    private void match(){final int generation=routeGeneration;hero("🎲 KING Match","Browse real public KING Plus profiles. Open a card to follow, message or send gifts.");card("🔎","Search KING profiles","Find by name or 6-digit KING ID",this::matchSearch910);if(!cloud())return;db.collection("public_profiles").limit(40).get().addOnSuccessListener(q->{if(!isCurrentRoute(generation))return;List<DocumentSnapshot>list=new ArrayList<>(q.getDocuments());Collections.shuffle(list);int n=0;for(DocumentSnapshot d:list){String uid=safe(d.getString("uid"),d.getId());if(me!=null&&uid.equals(me.getUid()))continue;String nm=safe(d.getString("displayName"),"KING User");Long lv=d.getLong("level"),vip=d.getLong("vipLevel");TextView row=tv("👤  "+nm+"   💎 VIP "+(vip==null?0:vip)+"\n     KING ID "+(KingPublicId9996.verified(d.getString("publicId"))==null?"Not issued":KingPublicId9996.verified(d.getString("publicId")))+" • Lv."+(lv==null?1:lv),14,Color.WHITE,true);row.setBackground(bg(CARD,16));row.setOnClickListener(v->openProfile(uid,nm));LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(-1,dp(70));lp.setMargins(0,dp(5),0,dp(5));body.addView(row,lp);if(++n>=24)break;}if(n==0)body.addView(tv("No public profiles yet.",13,MUTED,false));}).addOnFailureListener(e->{if(isCurrentRoute(generation))body.addView(tv("Match list unavailable",13,MUTED,false));});}
+    private void match(){final int generation=routeGeneration;hero("🎲 KING Match","Browse real public KING Plus profiles. Open a card to follow, message or send gifts.");card("🔎","Search KING profiles","Find by name or 6-digit KING ID",this::matchSearch910);if(!cloud())return;db.collection("public_profiles").limit(40).get().addOnSuccessListener(q->{if(!isCurrentRoute(generation))return;List<DocumentSnapshot>list=new ArrayList<>(q.getDocuments());Collections.shuffle(list);int n=0;for(DocumentSnapshot d:list){String uid=safe(d.getString("uid"),d.getId());if(me!=null&&uid.equals(me.getUid()))continue;String nm=safe(d.getString("displayName"),"KING User");Long lv=d.getLong("level"),vip=d.getLong("vipLevel");TextView row=tv("👤  "+nm+"   💎 VIP "+(vip==null?0:vip)+"\n     KING ID "+(KingPublicId9996.verified(d.getString("publicId"))==null?"Not issued":KingPublicId9996.verified(d.getString("publicId")))+" • Lv."+(lv==null?1:lv),14,INK,true);row.setBackground(KingRoyalTheme10021.card(this,16));row.setOnClickListener(v->openProfile(uid,nm));LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(-1,dp(70));lp.setMargins(0,dp(5),0,dp(5));body.addView(row,lp);if(++n>=24)break;}if(n==0)body.addView(tv("No public profiles yet.",13,MUTED,false));}).addOnFailureListener(e->{if(isCurrentRoute(generation))body.addView(tv("Match list unavailable",13,MUTED,false));});}
     private void matchSearch910(){
         if(!cloud())return;final EditText e=new EditText(this);e.setHint("Name or KING ID");e.setSingleLine(true);new AlertDialog.Builder(this).setTitle("Find KING user").setView(e).setNegativeButton("Cancel",null).setPositiveButton("Search",(d,w)->{String q=e.getText().toString().trim().toLowerCase(Locale.US);if(q.isEmpty())return;
         int generation=routeGeneration;
@@ -519,5 +524,5 @@ public class KingParityHubActivity extends Activity {
 
     private void openFamily(){hero("👑 Family Square","Family level • treasury • members • activity • family voice");card("👑","Open Family Pro","Family progress, treasury, member list and daily activity",()->openPro880("family"));card("💬","Family Chat","Open family community chat",()->{Intent i=new Intent(this,CommunityHubActivity.class);i.putExtra("tab","Family");startActivity(i);});card("🎙","Family Voice","Open Family Pro voice controls",()->openPro880("family"));}
     private void openPro880(String route){Intent i=new Intent(this,KingEcosystemProActivity.class);i.putExtra("route",route);i.putExtra("roomId",roomId);i.putExtra("roomName",roomName);startActivity(i);}
-    private void vip(){startActivity(new Intent(this,KingVipVisualActivity.class));finish();if(true)return;/* legacy parity fallback */} private void vipLegacy940(){hero("💎 VIP & Rank","VIP remains progression-based in this no-billing build. Levels come from real KING Plus activity.");LevelSystem.Snapshot p=LevelSystem.read(this);TextView meCard=tv("👑 "+name()+"\nVIP "+p.vipLevel+" • "+LevelSystem.vipName(p.vipLevel)+"   |   Lv."+p.level+" • "+LevelSystem.levelTier(p.level)+"\n"+p.vipPoints+" VIP points • "+p.xp+" XP",17,Color.WHITE,true);meCard.setBackground(bg(CARD2,18));body.addView(meCard,new LinearLayout.LayoutParams(-1,dp(106)));LinearLayout acts=new LinearLayout(this);TextView perks=action("VIP privileges",()->{Intent i=new Intent(this,KingDeepFlowActivity.class);i.putExtra("route","vip");startActivity(i);});acts.addView(perks,new LinearLayout.LayoutParams(0,dp(48),1));TextView collection=action("Collection",()->{Intent i=new Intent(this,CommunityHubActivity.class);i.putExtra("tab","Collection");startActivity(i);});LinearLayout.LayoutParams cp=new LinearLayout.LayoutParams(0,dp(48),1);cp.setMargins(dp(8),0,0,0);acts.addView(collection,cp);body.addView(acts);body.addView(tv("Public level ranking",16,Color.WHITE,true));if(!cloud())return;db.collection("public_profiles").orderBy("level",Query.Direction.DESCENDING).limit(30).get().addOnSuccessListener(q->{int rank=1;for(DocumentSnapshot d:q.getDocuments()){String uid=safe(d.getString("uid"),d.getId()),nm=safe(d.getString("displayName"),"KING User");Long lv=d.getLong("level"),vv=d.getLong("vipLevel");TextView row=tv((rank<=3?(rank==1?"🥇":rank==2?"🥈":"🥉"):"#"+rank)+"   "+nm+"   • Lv."+(lv==null?1:lv)+" • VIP "+(vv==null?0:vv),13,Color.WHITE,true);row.setBackground(bg(CARD,12));row.setOnClickListener(v->openProfile(uid,nm));LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(-1,dp(48));lp.setMargins(0,dp(3),0,dp(3));body.addView(row,lp);rank++;}}).addOnFailureListener(e->body.addView(tv("Ranking unavailable",13,MUTED,false)));}
+    private void vip(){startActivity(new Intent(this,KingVipVisualActivity.class));finish();if(true)return;/* legacy parity fallback */} private void vipLegacy940(){hero("💎 VIP & Rank","VIP remains progression-based in this no-billing build. Levels come from real KING Plus activity.");LevelSystem.Snapshot p=LevelSystem.read(this);TextView meCard=tv("👑 "+name()+"\nVIP "+p.vipLevel+" • "+LevelSystem.vipName(p.vipLevel)+"   |   Lv."+p.level+" • "+LevelSystem.levelTier(p.level)+"\n"+p.vipPoints+" VIP points • "+p.xp+" XP",17,INK,true);meCard.setBackground(bg(CARD2,18));body.addView(meCard,new LinearLayout.LayoutParams(-1,dp(106)));LinearLayout acts=new LinearLayout(this);TextView perks=action("VIP privileges",()->{Intent i=new Intent(this,KingDeepFlowActivity.class);i.putExtra("route","vip");startActivity(i);});acts.addView(perks,new LinearLayout.LayoutParams(0,dp(48),1));TextView collection=action("Collection",()->{Intent i=new Intent(this,CommunityHubActivity.class);i.putExtra("tab","Collection");startActivity(i);});LinearLayout.LayoutParams cp=new LinearLayout.LayoutParams(0,dp(48),1);cp.setMargins(dp(8),0,0,0);acts.addView(collection,cp);body.addView(acts);body.addView(tv("Public level ranking",16,INK,true));if(!cloud())return;db.collection("public_profiles").orderBy("level",Query.Direction.DESCENDING).limit(30).get().addOnSuccessListener(q->{int rank=1;for(DocumentSnapshot d:q.getDocuments()){String uid=safe(d.getString("uid"),d.getId()),nm=safe(d.getString("displayName"),"KING User");Long lv=d.getLong("level"),vv=d.getLong("vipLevel");TextView row=tv((rank<=3?(rank==1?"🥇":rank==2?"🥈":"🥉"):"#"+rank)+"   "+nm+"   • Lv."+(lv==null?1:lv)+" • VIP "+(vv==null?0:vv),13,INK,true);row.setBackground(KingRoyalTheme10021.card(this,12));row.setOnClickListener(v->openProfile(uid,nm));LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(-1,dp(48));lp.setMargins(0,dp(3),0,dp(3));body.addView(row,lp);rank++;}}).addOnFailureListener(e->body.addView(tv("Ranking unavailable",13,MUTED,false)));}
 }
