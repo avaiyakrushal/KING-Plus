@@ -12,7 +12,7 @@ public final class KingNav {
         if (activity == null) return;
         Intent i;
         if (tab == 0) {
-            if (activity instanceof KingParityHubActivity) return;
+            // A hub instance may currently show KTV, PK, Match or Stage rather than Home.
             i = new Intent(activity, KingParityHubActivity.class);
             i.putExtra("route", "home");
         } else if (tab == 1) {
