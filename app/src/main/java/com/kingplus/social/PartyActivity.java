@@ -527,15 +527,15 @@ public class PartyActivity extends androidx.fragment.app.FragmentActivity implem
     private void addRoyalHero9924(LinearLayout host) {
         LinearLayout hero=new LinearLayout(this);
         hero.setOrientation(LinearLayout.VERTICAL);
-        hero.setPadding(dp(14),dp(8),dp(14),dp(11));
+        hero.setPadding(dp(8),dp(4),dp(8),dp(4));
         hero.setBackground(royalNeon9924(0xff58208b,0xff181036,0xaaffdb81,20));
         TextView crown=tv("👑  KING Plus  ✨",21,0xffffda80,true);
         crown.setGravity(Gravity.CENTER);
-        hero.addView(crown,new LinearLayout.LayoutParams(-1,dp(39)));
+        // The lobby header already displays KING Plus; keep only quick filters here.
         TextView caption=tv("MEET  •  CHAT  •  PLAY  •  PARTY",10,0xfff6dffa,true);
         caption.setLetterSpacing(.07f);
         caption.setGravity(Gravity.CENTER);
-        hero.addView(caption,new LinearLayout.LayoutParams(-1,dp(24)));
+        // Avoid duplicating the lobby branding above the room list.
         LinearLayout links=new LinearLayout(this);
         links.setGravity(Gravity.CENTER_VERTICAL);
         String[] labels={"🎙 Voice","📹 Video","🎮 Games"};
@@ -550,7 +550,7 @@ public class PartyActivity extends androidx.fragment.app.FragmentActivity implem
             lp.setMargins(dp(3),dp(4),dp(3),0);links.addView(link,lp);
         }
         hero.addView(links,new LinearLayout.LayoutParams(-1,dp(41)));
-        LinearLayout.LayoutParams hp=new LinearLayout.LayoutParams(-1,dp(123));
+        LinearLayout.LayoutParams hp=new LinearLayout.LayoutParams(-1,dp(60));
         hp.setMargins(dp(5),dp(8),dp(5),dp(10));host.addView(hero,hp);
     }
 
