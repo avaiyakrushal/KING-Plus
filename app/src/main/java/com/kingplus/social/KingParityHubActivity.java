@@ -106,6 +106,14 @@ public class KingParityHubActivity extends Activity {
         return nav;
     }
 
+    @Override protected void onNewIntent(Intent intent) {
+        super.onNewIntent(intent);
+        setIntent(intent);
+        roomId=safe(intent.getStringExtra("roomId"),"");
+        roomName=safe(intent.getStringExtra("roomName"),"KING Party");
+        show(safe(intent.getStringExtra("route"),"home"));
+    }
+
     private void show(String r){++routeGeneration;stopHomeRoomListener();route=r;body.removeAllViews();if(title!=null)title.setText(titleFor(r));if("ktv".equals(r))ktv();else if("pk".equals(r))pk();else if("match".equals(r))match();else if("stage".equals(r))stage();else if("family".equals(r))openFamily();else if("vip".equals(r))vip();else home();}
     private String titleFor(String r){if("ktv".equals(r))return "KTV Stage";if("pk".equals(r))return "PK Arena";if("match".equals(r))return "Match";if("stage".equals(r))return "Party Stage";if("family".equals(r))return "Family";if("vip".equals(r))return "VIP & Rank";return "KING Center";}
     private void hero(String a,String b){TextView h=tv(a+"\n"+b,18,INK,true);h.setGravity(Gravity.CENTER_VERTICAL);h.setBackground(KingRoyalTheme10021.card(this,18));h.setPadding(dp(18),dp(16),dp(18),dp(16));LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(-1,-2);lp.setMargins(0,0,0,dp(8));body.addView(h,lp);KingPresentationView visual=new KingPresentationView(this,route);LinearLayout.LayoutParams vp=new LinearLayout.LayoutParams(-1,dp(158));vp.setMargins(0,0,0,dp(12));body.addView(visual,vp);}
