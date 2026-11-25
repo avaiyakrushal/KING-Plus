@@ -75,7 +75,7 @@ public class KingParityHubActivity extends Activity {
         LinearLayout root=new LinearLayout(this);root.setOrientation(LinearLayout.VERTICAL);root.setBackground(KingRoyalTheme10021.page());
         LinearLayout head=new LinearLayout(this);head.setGravity(Gravity.CENTER_VERTICAL);head.setPadding(dp(8),dp(8),dp(8),0);head.setBackground(KingRoyalTheme10021.header(this));
         TextView back=tv("‹",38,INK,true);back.setGravity(Gravity.CENTER);back.setOnClickListener(v->finish());head.addView(back,new LinearLayout.LayoutParams(dp(52),dp(56)));
-        title=tv("KING Center",20,INK,true);head.addView(title,new LinearLayout.LayoutParams(0,dp(56),1));root.addView(head,new LinearLayout.LayoutParams(-1,dp(72)));
+        title=tv("👑 KING Plus",20,INK,true);head.addView(title,new LinearLayout.LayoutParams(0,dp(56),1));root.addView(head,new LinearLayout.LayoutParams(-1,dp(60)));
         HorizontalScrollView hsv=new HorizontalScrollView(this);hsv.setHorizontalScrollBarEnabled(false);LinearLayout tabs=new LinearLayout(this);tabs.setPadding(dp(8),0,dp(8),dp(8));
         String[][] all={{"✨","Home","home"},{"🎤","KTV","ktv"},{"⚔️","PK","pk"},{"🎲","Match","match"},{"🏰","Stage","stage"},{"👑","Family","family"},{"💎","VIP/Rank","vip"}};
         for(String[] x:all){TextView t=tv(x[0]+" "+x[1],12,INK,true);t.setGravity(Gravity.CENTER);t.setBackground(bg(CARD2,16));String r=x[2];t.setOnClickListener(v->KingSafe.run(this,"parity-tab:"+r,()->show(r)));LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(dp(104),dp(42));lp.setMargins(dp(4),0,dp(4),0);tabs.addView(t,lp);}hsv.addView(tabs);root.addView(hsv,new LinearLayout.LayoutParams(-1,dp(52)));
@@ -115,7 +115,7 @@ public class KingParityHubActivity extends Activity {
     }
 
     private void show(String r){++routeGeneration;stopHomeRoomListener();route=r;body.removeAllViews();if(title!=null)title.setText(titleFor(r));if("ktv".equals(r))ktv();else if("pk".equals(r))pk();else if("match".equals(r))match();else if("stage".equals(r))stage();else if("family".equals(r))openFamily();else if("vip".equals(r))vip();else home();}
-    private String titleFor(String r){if("ktv".equals(r))return "KTV Stage";if("pk".equals(r))return "PK Arena";if("match".equals(r))return "Match";if("stage".equals(r))return "Party Stage";if("family".equals(r))return "Family";if("vip".equals(r))return "VIP & Rank";return "KING Center";}
+    private String titleFor(String r){if("ktv".equals(r))return "KTV Stage";if("pk".equals(r))return "PK Arena";if("match".equals(r))return "Match";if("stage".equals(r))return "Party Stage";if("family".equals(r))return "Family";if("vip".equals(r))return "VIP & Rank";return "👑 KING Plus";}
     private void hero(String a,String b){TextView h=tv(a+"\n"+b,18,INK,true);h.setGravity(Gravity.CENTER_VERTICAL);h.setBackground(KingRoyalTheme10021.card(this,18));h.setPadding(dp(18),dp(16),dp(18),dp(16));LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(-1,-2);lp.setMargins(0,0,0,dp(8));body.addView(h,lp);KingPresentationView visual=new KingPresentationView(this,route);LinearLayout.LayoutParams vp=new LinearLayout.LayoutParams(-1,dp(158));vp.setMargins(0,0,0,dp(12));body.addView(visual,vp);}
     private TextView action(String s,Runnable r){TextView t=tv(s,14,Color.WHITE,true);t.setGravity(Gravity.CENTER);t.setBackground(KingRoyalTheme10021.violetCard(this,14));t.setOnClickListener(v->KingSafe.run(this,"parity-action:"+s,r));return t;}
     private void card(String icon,String a,String b,Runnable r){LinearLayout x=new LinearLayout(this);x.setGravity(Gravity.CENTER_VERTICAL);x.setPadding(dp(12),dp(8),dp(12),dp(8));x.setBackground(KingRoyalTheme10021.card(this,16));TextView i=tv(icon,28,INK,false);i.setGravity(Gravity.CENTER);x.addView(i,new LinearLayout.LayoutParams(dp(54),dp(62)));LinearLayout info=new LinearLayout(this);info.setOrientation(LinearLayout.VERTICAL);TextView aa=tv(a,16,INK,true);aa.setPadding(0,0,0,0);TextView bb=tv(b,11,MUTED,false);bb.setPadding(0,dp(2),0,0);info.addView(aa);info.addView(bb);x.addView(info,new LinearLayout.LayoutParams(0,dp(62),1));TextView ar=tv("›",28,GOLD,true);ar.setGravity(Gravity.CENTER);x.addView(ar,new LinearLayout.LayoutParams(dp(36),dp(62)));x.setOnClickListener(v->KingSafe.run(this,"parity-card:"+a,r));LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(-1,dp(78));lp.setMargins(0,dp(5),0,dp(5));body.addView(x,lp);}
@@ -124,7 +124,7 @@ public class KingParityHubActivity extends Activity {
 
     private void home(){
         // BoloHi-inspired social discovery layout, implemented with original KING Plus UI.
-        hero("👑 KING Plus","Meet friends • Join live voice rooms • Share moments");
+        // Keep live discovery above the fold instead of a decorative hero.
 
         // Compact discovery categories, similar to the quick browsing pattern in social-room apps.
         HorizontalScrollView categoriesScroll=new HorizontalScrollView(this);
