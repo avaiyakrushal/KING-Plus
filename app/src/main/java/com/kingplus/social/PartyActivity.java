@@ -8271,9 +8271,9 @@ public class PartyActivity extends androidx.fragment.app.FragmentActivity implem
     private void confirmLeave940(){
         if(roomId==null){renderLobby("Hot");return;}
         new AlertDialog.Builder(this).setTitle("Leave Party?")
-            .setMessage("You can stay, leave to Party lobby, or discover another live room.")
-            .setPositiveButton("Leave",(d,w)->leaveRoom())
-            .setNeutralButton("Find another",(d,w)->{leaveRoom();new android.os.Handler(android.os.Looper.getMainLooper()).postDelayed(()->showLobbySearch("Hot"),120L);})
+            .setMessage("Leave this room and return to Home?")
+            .setPositiveButton("Leave",(d,w)->{leaveRoom();KingNav.openRoot(this,0);finish();})
+            .setNeutralButton("Find another",(d,w)->{leaveRoom();KingNav.openRoot(this,0);finish();})
             .setNegativeButton("Stay",null).show();
     }
     private void leaveRoom(){
@@ -8286,44 +8286,14 @@ public class PartyActivity extends androidx.fragment.app.FragmentActivity implem
         partyShell940=null;stopInRoomVoice940(true);renderLobby("Hot");
     }
     private void addBottomNav(LinearLayout root,int selected){
-        LinearLayout nav=new LinearLayout(this);
-        nav.setGravity(Gravity.CENTER_VERTICAL);
-        nav.setPadding(dp(5),dp(5),dp(5),dp(5));
-        nav.setBackground(KingRoyalTheme10021.bottomNav(this));
-        String[] icons={"⌂","🎤","🎮","◇","✉","●"};
-        String[] names={"Home","Party","Games","Discover","Messages","Me"};
-        for(int i=0;i<names.length;i++){
-            final int tab=i; boolean active=i==selected;
-            LinearLayout item=new LinearLayout(this);
-            item.setOrientation(LinearLayout.VERTICAL);item.setGravity(Gravity.CENTER);
-            if(active){
-                item.setBackground(KingRoyalTheme10021.violetCard(this,14));
-            }
-            TextView icon=tv(icons[i],22,active?0xffffdf80:0xff766a80,true);
-            icon.setGravity(Gravity.CENTER);icon.setPadding(0,0,0,0);
-            item.addView(icon,new LinearLayout.LayoutParams(-1,dp(30)));
-            TextView label=tv(names[i],10,active?Color.WHITE:0xff766a80,true);
-            label.setGravity(Gravity.CENTER);label.setPadding(0,0,0,0);
-            item.addView(label,new LinearLayout.LayoutParams(-1,dp(20)));
-            item.setContentDescription(names[i]+(active?" selected":""));
-            item.setOnClickListener(v->{
-                if(tab==1){if(roomId!=null)confirmLeave940();else renderLobby("Hot");}
-                else {
-                    // Single navigation at a time: rapid taps must never race a second Leave.
-                    if(partyNavigationPending10033)return;
-                    partyNavigationPending10033=true;
-                    for(int k10033=0;k10033<nav.getChildCount();k10033++)
-                        nav.getChildAt(k10033).setEnabled(false);
-                    // This releases mic, membership, and seats before leaving Party.
-                    if(roomId!=null)leaveRoom();
-                    KingNav.openRoot(this,tab);
-                    finish();
-                }
-            });
-            LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(0,dp(58),1);
-            lp.setMargins(dp(2),0,dp(2),0);nav.addView(item,lp);
-        }
-        root.addView(nav,new LinearLayout.LayoutParams(-1,dp(68)));
+        LinearLayout nav=KingNav.bottomBar(this,selected,tab->{
+            if(partyNavigationPending10033)return;
+            partyNavigationPending10033=true;
+            if(roomId!=null)leaveRoom();
+            KingNav.openRoot(this,tab);
+            finish();
+        });
+        root.addView(nav,new LinearLayout.LayoutParams(-1,dp(KingNav.NAV_HEIGHT_DP)));
     }
 
     private void reducePartyMemory969(int level969){

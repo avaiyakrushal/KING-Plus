@@ -56,6 +56,7 @@ public class KingParityHubActivity extends Activity {
     private String route="home", roomId="", roomName="KING Party";
     private SharedPreferences prefs;
     private String homeRoomCategory="Hot";
+    private String homeRoomSearch="";
     private int homeRoomRequest;
     private int routeGeneration;
     private ListenerRegistration homeRoomsListener;
@@ -82,7 +83,7 @@ public class KingParityHubActivity extends Activity {
         HorizontalScrollView hsv=new HorizontalScrollView(this);hsv.setHorizontalScrollBarEnabled(false);LinearLayout tabs=new LinearLayout(this);tabs.setPadding(dp(8),0,dp(8),dp(8));
         String[][] all={{"✨","Home","home"},{"🎤","KTV","ktv"},{"⚔️","PK","pk"},{"🎲","Match","match"},{"🏰","Stage","stage"},{"👑","Family","family"},{"💎","VIP/Rank","vip"}};
         for(String[] x:all){TextView t=tv(x[0]+" "+x[1],12,INK,true);t.setGravity(Gravity.CENTER);t.setBackground(bg(CARD2,16));String r=x[2];t.setOnClickListener(v->KingSafe.run(this,"parity-tab:"+r,()->show(r)));LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(dp(84),dp(38));lp.setMargins(dp(4),0,dp(4),0);tabs.addView(t,lp);}hsv.addView(tabs);root.addView(hsv,new LinearLayout.LayoutParams(-1,dp(46)));
-        ScrollView sv=new ScrollView(this);sv.setFillViewport(true);body=new LinearLayout(this);body.setOrientation(LinearLayout.VERTICAL);body.setPadding(dp(14),dp(10),dp(14),dp(30));sv.addView(body);root.addView(sv,new LinearLayout.LayoutParams(-1,0,1));root.addView(rootNav(),new LinearLayout.LayoutParams(-1,dp(64)));setContentView(root);
+        ScrollView sv=new ScrollView(this);sv.setFillViewport(true);body=new LinearLayout(this);body.setOrientation(LinearLayout.VERTICAL);body.setPadding(dp(14),dp(10),dp(14),dp(30));sv.addView(body);root.addView(sv,new LinearLayout.LayoutParams(-1,0,1));root.addView(rootNav(),new LinearLayout.LayoutParams(-1,dp(KingNav.NAV_HEIGHT_DP)));setContentView(root);
         ViewCompat.setOnApplyWindowInsetsListener(root,(view,insets)->{
             Insets safeArea=insets.getInsets(WindowInsetsCompat.Type.systemBars()
                 | WindowInsetsCompat.Type.displayCutout());
@@ -100,6 +101,7 @@ public class KingParityHubActivity extends Activity {
         String uid=current==null?"":current.getUid();
         if(!uid.equals(homeRoomAccount)){
             homeRoomAccount=uid;
+            homeRoomSearch="";
             homeRoomCursor=null;
             homeRoomPrevious.clear();
         }
@@ -123,21 +125,12 @@ public class KingParityHubActivity extends Activity {
         super.onDestroy();
     }
 
-    /** Persistent six-destination navigation shared with the rest of KING Plus. */
+    /** Shared five-tab navigation. Voice rooms belong to Home. */
     private LinearLayout rootNav(){
-        LinearLayout nav=new LinearLayout(this);nav.setGravity(Gravity.CENTER);nav.setPadding(dp(4),dp(4),dp(4),dp(4));nav.setBackground(KingRoyalTheme10021.bottomNav(this));
-        String[] labels={"⌂\nHome","🎤\nParty","🎮\nGames","◉\nDiscover","▢\nMessages","♙\nMe"};
-        for(int tab=0;tab<labels.length;tab++){
-            final int destination=tab;
-            TextView item=tv(labels[tab],10,destination==0?PURPLE:MUTED,destination==0);item.setGravity(Gravity.CENTER);item.setPadding(0,dp(4),0,dp(4));
-            if(destination==0)item.setBackground(bg(CARD2,14));
-            LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(0,-1,1);lp.setMargins(dp(2),0,dp(2),0);nav.addView(item,lp);
-            item.setOnClickListener(v->KingSafe.run(this,"home-root-nav-"+destination,()->{
-                if(destination==0){if(!"home".equals(route))show("home");}
-                else KingNav.openRoot(this,destination);
-            }));
-        }
-        return nav;
+        return KingNav.bottomBar(this,0,destination->{
+            if(destination==0){if(!"home".equals(route))show("home");}
+            else KingNav.openRoot(this,destination);
+        });
     }
 
     @Override protected void onNewIntent(Intent intent) {
@@ -151,7 +144,7 @@ public class KingParityHubActivity extends Activity {
     private void show(String r){++routeGeneration;++homeRoomRequest;stopHomeRoomListener();activeHomeRoomRows=null;route=r;body.removeAllViews();if(title!=null)title.setText(titleFor(r));if("ktv".equals(r))ktv();else if("pk".equals(r))pk();else if("match".equals(r))match();else if("stage".equals(r))stage();else if("family".equals(r))openFamily();else if("vip".equals(r))vip();else home();}
     private String titleFor(String r){if("ktv".equals(r))return "KTV Stage";if("pk".equals(r))return "PK Arena";if("match".equals(r))return "Match";if("stage".equals(r))return "Party Stage";if("family".equals(r))return "Family";if("vip".equals(r))return "VIP & Rank";return "👑 KING Plus";}
     private void hero(String a,String b){TextView h=tv(a+"\n"+b,18,INK,true);h.setGravity(Gravity.CENTER_VERTICAL);h.setBackground(KingRoyalTheme10021.card(this,18));h.setPadding(dp(18),dp(16),dp(18),dp(16));LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(-1,-2);lp.setMargins(0,0,0,dp(8));body.addView(h,lp);KingPresentationView visual=new KingPresentationView(this,route);LinearLayout.LayoutParams vp=new LinearLayout.LayoutParams(-1,dp(158));vp.setMargins(0,0,0,dp(12));body.addView(visual,vp);}
-    private TextView action(String s,Runnable r){TextView t=tv(s,14,Color.WHITE,true);t.setGravity(Gravity.CENTER);t.setBackground(KingRoyalTheme10021.violetCard(this,14));t.setOnClickListener(v->KingSafe.run(this,"parity-action:"+s,r));return t;}
+    private TextView action(String s,Runnable r){TextView t=tv(s,KingNav.ACTION_TEXT_SP,Color.WHITE,true);t.setGravity(Gravity.CENTER);t.setMinHeight(dp(KingNav.ACTION_HEIGHT_DP));t.setBackground(KingRoyalTheme10021.violetCard(this,14));t.setOnClickListener(v->KingSafe.run(this,"parity-action:"+s,r));return t;}
     private void card(String icon,String a,String b,Runnable r){LinearLayout x=new LinearLayout(this);x.setGravity(Gravity.CENTER_VERTICAL);x.setPadding(dp(12),dp(8),dp(12),dp(8));x.setBackground(KingRoyalTheme10021.card(this,16));TextView i=tv(icon,28,INK,false);i.setGravity(Gravity.CENTER);x.addView(i,new LinearLayout.LayoutParams(dp(54),dp(62)));LinearLayout info=new LinearLayout(this);info.setOrientation(LinearLayout.VERTICAL);TextView aa=tv(a,16,INK,true);aa.setPadding(0,0,0,0);TextView bb=tv(b,11,MUTED,false);bb.setPadding(0,dp(2),0,0);info.addView(aa);info.addView(bb);x.addView(info,new LinearLayout.LayoutParams(0,dp(62),1));TextView ar=tv("›",28,GOLD,true);ar.setGravity(Gravity.CENTER);x.addView(ar,new LinearLayout.LayoutParams(dp(36),dp(62)));x.setOnClickListener(v->KingSafe.run(this,"parity-card:"+a,r));LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(-1,dp(78));lp.setMargins(0,dp(5),0,dp(5));body.addView(x,lp);}
     private boolean cloud(){if(me==null||db==null){toast("Google / Firebase sign-in required");return false;}return true;}
     private boolean room(){if(!cloud())return false;if(roomId.isEmpty()){toast("Open this from a live Party room");return false;}return true;}
@@ -191,14 +184,15 @@ public class KingParityHubActivity extends Activity {
         quick.setOrientation(LinearLayout.HORIZONTAL);
         quick.setGravity(Gravity.CENTER);
         TextView search=action("⌕  Search rooms",()->showHomeRoomSearch());
-        quick.addView(search,new LinearLayout.LayoutParams(0,dp(46),1));
+        quick.addView(search,new LinearLayout.LayoutParams(0,dp(KingNav.ACTION_HEIGHT_DP),1));
         TextView create=action("＋  Create Room",this::openPartyCreate);
-        LinearLayout.LayoutParams createLp=new LinearLayout.LayoutParams(0,dp(46),1);
+        LinearLayout.LayoutParams createLp=new LinearLayout.LayoutParams(0,dp(KingNav.ACTION_HEIGHT_DP),1);
         createLp.setMargins(dp(8),0,0,0);
         quick.addView(create,createLp);
-        LinearLayout.LayoutParams quickLp=new LinearLayout.LayoutParams(-1,dp(46));
+        LinearLayout.LayoutParams quickLp=new LinearLayout.LayoutParams(-1,dp(KingNav.ACTION_HEIGHT_DP));
         quickLp.setMargins(0,0,0,dp(12));
         body.addView(quick,quickLp);
+        body.addView(action("Join by Room ID / Code / Link",this::showHomeJoin),new LinearLayout.LayoutParams(-1,dp(KingNav.ACTION_HEIGHT_DP)));
 
         LinearLayout liveHeader=new LinearLayout(this);
         liveHeader.setGravity(Gravity.CENTER_VERTICAL);
@@ -212,9 +206,10 @@ public class KingParityHubActivity extends Activity {
         HorizontalScrollView roomFilters=new HorizontalScrollView(this);
         roomFilters.setHorizontalScrollBarEnabled(false);
         LinearLayout filterRow=new LinearLayout(this);
-        for(String category:new String[]{"Hot","Popular","Music","Game","Event","Family","Video"}){
+        for(String category:new String[]{"Hot","Popular","Chat","Date","Music","KTV","Radio","Game","PK","Pick Me","Event","Family","Video","Team Up"}){
             TextView filter=action(category,()->{
-                if(!homeRoomCategory.equals(category)){
+                if(!homeRoomCategory.equals(category)||!homeRoomSearch.isEmpty()){
+                    homeRoomSearch="";
                     homeRoomCursor=null;
                     homeRoomPrevious.clear();
                 }
@@ -238,6 +233,7 @@ public class KingParityHubActivity extends Activity {
         body.addView(roomFilters,new LinearLayout.LayoutParams(-1,dp(52)));
         body.addView(roomRows,new LinearLayout.LayoutParams(-1,-2));
         activeHomeRoomRows=roomRows;
+        if(!homeRoomSearch.isEmpty())body.addView(action("Clear search: "+homeRoomSearch,()->{homeRoomSearch="";homeRoomCursor=null;homeRoomPrevious.clear();show("home");}),new LinearLayout.LayoutParams(-1,-2));
         if(homeForeground)loadHomeLiveRooms(roomRows);
 
         TextView discoverTitle=tv("Discover more on KING Plus",17,INK,true);
@@ -255,15 +251,65 @@ public class KingParityHubActivity extends Activity {
         card("💎","VIP & Rank","VIP privileges, cosmetics and public rankings",()->show("vip"));
     }
 
-    private void openPartyLobby(){Intent i=new Intent(this,PartyActivity.class);startActivity(i);}
+    private void openPartyLobby(){
+        homeRoomSearch="";homeRoomCategory="Hot";homeRoomCursor=null;homeRoomPrevious.clear();show("home");
+        if(activeHomeRoomRows!=null)activeHomeRoomRows.post(()->{
+            if(activeHomeRoomRows!=null&&"home".equals(route))activeHomeRoomRows.requestRectangleOnScreen(new android.graphics.Rect(0,0,activeHomeRoomRows.getWidth(),dp(100)));
+        });
+    }
     private void openPartyCreate(){Intent i=new Intent(this,PartyActivity.class);i.putExtra("openCreateRoom",true);startActivity(i);}
 
     private void showHomeRoomSearch(){
-        EditText query=new EditText(this);query.setSingleLine(true);query.setHint("Room name, host, room ID or invite link");
-        new AlertDialog.Builder(this).setTitle("Search live Party rooms").setView(query)
+        EditText query=new EditText(this);query.setSingleLine(true);query.setText(homeRoomSearch);query.setHint("Room name, host, room ID or invite link");
+        new AlertDialog.Builder(this).setTitle("Search live rooms").setView(query)
             .setNegativeButton("Cancel",null)
-            .setPositiveButton("Search",(d,w)->{String q=query.getText().toString().trim();if(q.isEmpty()){openPartyLobby();return;}Intent i=new Intent(this,PartyActivity.class);String lower=q.toLowerCase(Locale.US);String invite=KingRoomInvite959.parse(q);if(!invite.isEmpty()&&(lower.contains("kingplus://party/")||lower.contains("kingroom:")||lower.contains("room id:")))i.putExtra("directRoomId",invite);else i.putExtra("lobbySearch",q);startActivity(i);})
-            .show();
+            .setPositiveButton("Search",(d,w)->{
+                String q=query.getText().toString().trim();
+                String lower=q.toLowerCase(Locale.US);String invite=KingRoomInvite959.parse(q);
+                if(KingIdentity964.joinCode(q)){joinHomeCode(q);return;}
+                if(!invite.isEmpty()&&(lower.contains("kingplus://party/")||lower.contains("kingroom:")||lower.contains("room id:"))){openHomeRoom(invite);return;}
+                homeRoomSearch=q;homeRoomCategory="Hot";homeRoomCursor=null;homeRoomPrevious.clear();show("home");
+            }).show();
+    }
+
+    private void showHomeJoin(){
+        EditText input=new EditText(this);input.setSingleLine(true);input.setHint("6-digit code, full Room ID or invitation");
+        new AlertDialog.Builder(this).setTitle("Join live room").setView(input)
+            .setNegativeButton("Cancel",null).setPositiveButton("Join",(d,w)->{
+                String q=input.getText().toString().trim();
+                if(KingIdentity964.joinCode(q)){joinHomeCode(q);return;}
+                String id=KingRoomInvite959.parse(q);
+                if(id.isEmpty()){toast("Enter a valid Room ID or invite");return;}
+                openHomeRoom(id);
+            }).show();
+    }
+
+    private void openHomeRoom(String invite){
+        Intent i=new Intent(this,PartyActivity.class);i.putExtra("directRoomId",invite);startActivity(i);
+    }
+
+    private void joinHomeCode(String code){
+        if(!cloud())return;
+        final String uid=me.getUid();
+        final int generation=routeGeneration;
+        db.collection("live_rooms").whereEqualTo("joinCode",code).limit(10).get(Source.SERVER)
+            .addOnSuccessListener(result->{
+                FirebaseUser current=FirebaseAuth.getInstance().getCurrentUser();
+                if(!homeForeground||isFinishing()||isDestroyed()||generation!=routeGeneration||current==null||!uid.equals(current.getUid()))return;
+                List<DocumentSnapshot> matches=new ArrayList<>();
+                for(DocumentSnapshot doc:result.getDocuments())if(code.equals(doc.getString("joinCode"))&&!Boolean.TRUE.equals(doc.get("closed")))matches.add(doc);
+                if(matches.isEmpty()){toast("No active room matches this code");return;}
+                if(matches.size()==1){openHomeRoom(matches.get(0).getId());return;}
+                String[] labels=new String[matches.size()];
+                for(int i=0;i<matches.size();i++)labels[i]=roomText(matches.get(i),"name","Live room")+" • "+roomText(matches.get(i),"ownerName","Host");
+                new AlertDialog.Builder(this).setTitle("Choose matching room").setItems(labels,(d,w)->openHomeRoom(matches.get(w).getId())).setNegativeButton("Cancel",null).show();
+            }).addOnFailureListener(error->{if(homeForeground&&generation==routeGeneration)toast("Room lookup failed. Check connection.");});
+    }
+
+    private boolean matchesHomeRoom(DocumentSnapshot doc){
+        if(Boolean.TRUE.equals(doc.get("closed")))return false;
+        String q=homeRoomSearch.toLowerCase(Locale.US);
+        return q.isEmpty()||(roomText(doc,"name","")+" "+roomText(doc,"ownerName","")+" "+roomText(doc,"category","")+" "+doc.getId()).toLowerCase(Locale.US).contains(q);
     }
 
     private boolean canShowHomeRooms(LinearLayout rows,int request,String uid){
@@ -289,14 +335,14 @@ public class KingParityHubActivity extends Activity {
         }
         String uid=signedIn.getUid();
         roomRows.addView(tv("Loading live rooms…",13,MUTED,false));
-        if("Popular".equals(homeRoomCategory)){
+        if(homeRoomSearch.isEmpty()&&"Popular".equals(homeRoomCategory)){
             loadPopularHomeRooms(roomRows,request,uid);
             return;
         }
         Query query=db.collection("live_rooms").whereEqualTo("closed",false);
-        List<String> aliases=KingPagePolicy10067.categories(homeRoomCategory);
+        List<String> aliases=homeRoomSearch.isEmpty()?KingPagePolicy10067.categories(homeRoomCategory):new ArrayList<>();
         if(!aliases.isEmpty())query=query.whereIn("category",aliases);
-        query=query.orderBy("createdAt",Query.Direction.DESCENDING);
+        if(homeRoomSearch.isEmpty())query=query.orderBy("createdAt",Query.Direction.DESCENDING);
         if(homeRoomCursor!=null)query=query.startAfter(homeRoomCursor);
         homeRoomsListener=query.limit(8).addSnapshotListener((snapshot,error)->{
             if(!canShowHomeRooms(roomRows,request,uid))return;
@@ -304,7 +350,7 @@ public class KingParityHubActivity extends Activity {
                 roomRows.removeAllViews();
                 roomRows.addView(action("Retry live rooms",
                     ()->loadHomeLiveRooms(roomRows)),new LinearLayout.LayoutParams(-1,-2));
-                roomRows.addView(action("Open Party Rooms",this::openPartyLobby),
+                roomRows.addView(action("All live rooms",this::openPartyLobby),
                     new LinearLayout.LayoutParams(-1,dp(48)));
                 if(error.getCode()==FirebaseFirestoreException.Code.FAILED_PRECONDITION && homeRoomCursor==null){
                     Query fallback=db.collection("live_rooms").whereEqualTo("closed",false);
@@ -312,10 +358,10 @@ public class KingParityHubActivity extends Activity {
                     fallback.limit(8).get(Source.SERVER).addOnSuccessListener(result->{
                         if(!canShowHomeRooms(roomRows,request,uid))return;
                         roomRows.removeAllViews();
-                        for(DocumentSnapshot doc:result.getDocuments())addHomeRoomCard(roomRows,doc);
+                        for(DocumentSnapshot doc:result.getDocuments())if(matchesHomeRoom(doc))addHomeRoomCard(roomRows,doc);
                         if(result.isEmpty())roomRows.addView(tv("No live rooms right now.",13,MUTED,false));
                         roomRows.addView(action("Refresh rooms",()->loadHomeLiveRooms(roomRows)),new LinearLayout.LayoutParams(-1,dp(44)));
-                        roomRows.addView(action("View all Party Rooms",this::openPartyLobby),new LinearLayout.LayoutParams(-1,dp(48)));
+                        roomRows.addView(action("All live rooms",this::openPartyLobby),new LinearLayout.LayoutParams(-1,dp(48)));
                     });
                 }
                 return;
@@ -324,10 +370,10 @@ public class KingParityHubActivity extends Activity {
             boolean cached=snapshot.getMetadata().isFromCache();
             if(cached)roomRows.addView(tv("Showing saved rooms. Joining requires a connection.",13,MUTED,false));
             List<DocumentSnapshot> rooms=snapshot.getDocuments();
-            for(DocumentSnapshot doc:rooms)addHomeRoomCard(roomRows,doc);
-            if(rooms.isEmpty())roomRows.addView(tv(cached
+            int shown=0;for(DocumentSnapshot doc:rooms)if(matchesHomeRoom(doc)){addHomeRoomCard(roomRows,doc);shown++;}
+            if(shown==0)roomRows.addView(tv(cached
                 ?"No saved rooms available. Connect and refresh."
-                :"No live rooms right now.",13,MUTED,false));
+                :(homeRoomSearch.isEmpty()?"No live rooms right now.":"No matches on this page. More rooms may contain matches."),13,MUTED,false));
             LinearLayout pageControls=new LinearLayout(this);
             pageControls.setGravity(Gravity.CENTER);
             if(!homeRoomPrevious.isEmpty()){
@@ -349,7 +395,7 @@ public class KingParityHubActivity extends Activity {
             }
             if(pageControls.getChildCount()>0)roomRows.addView(pageControls,
                 new LinearLayout.LayoutParams(-1,dp(48)));
-            roomRows.addView(action("View all Party Rooms",this::openPartyLobby),
+            roomRows.addView(action("All live rooms",this::openPartyLobby),
                 new LinearLayout.LayoutParams(-1,dp(48)));
         });
     }
@@ -430,7 +476,7 @@ public class KingParityHubActivity extends Activity {
                     }
                     if(pageControls.getChildCount()>0)rows.addView(pageControls,
                         new LinearLayout.LayoutParams(-1,dp(48)));
-                    rows.addView(action("View all Party Rooms",this::openPartyLobby),
+                    rows.addView(action("All live rooms",this::openPartyLobby),
                         new LinearLayout.LayoutParams(-1,dp(48)));
                 });
             })

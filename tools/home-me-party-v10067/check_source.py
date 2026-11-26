@@ -17,7 +17,7 @@ assert '"New People","discover"' in home
 assert '"Meet New People","Discover KING Plus members and profiles",()->KingNav.openRoot(this,3)' in home
 assert 'Family & VIP' not in home
 assert 'addDiscoverEntrance940(row,"🎮","Games","Games and multiplayer rooms",()->KingNav.openMainTab(this,1));' in discover
-assert 'addNav(nav,"⌂\\nHome",0);addNav(nav,"🎤\\nParty",1);' in discover
+assert 'KingNav.bottomBar(this,3' in discover
 assert 'str(doc,"coverUrl",str(doc,"roomPhotoUrl",str(doc,"photoUrl","")))' in party
 assert 'roomText(doc,"coverUrl",roomText(doc,"roomPhotoUrl",""))' in hub
 assert 'roomText(doc,"coverUrl",roomText(doc,"ownerPhoto",""))' not in hub
@@ -30,7 +30,15 @@ assert 'private void retryRoomCreateLegacy921(DocumentReference ref,String name,
 party_nav=party[party.index('private void addBottomNav('):party.index('    private void reducePartyMemory',party.index('private void addBottomNav('))]
 assert 'KingNav.openRoot(this,tab);' in party_nav
 nav=(java/'KingNav.java').read_text()
-assert 'if (activity instanceof PartyActivity) return;' in nav
+assert 'if (tab == 0 || tab == 1)' in nav
+assert 'ROOT_IDS = {0, 2, 3, 4, 5}' in nav
+assert 'ROOT_NAMES = {"Home", "Games", "Discover", "Messages", "Me"}' in nav
+for name in ('MainActivity.java','PartyActivity.java','KingParityHubActivity.java','DiscoverActivity.java','InboxActivity.java'):
+    source=(java/name).read_text()
+    assert 'KingNav.bottomBar(' in source and 'KingNav.NAV_HEIGHT_DP' in source
+assert 'homeRoomSearch=q;' in hub and 'matchesHomeRoom(doc)' in hub
+assert 'whereEqualTo("joinCode",code).limit(10).get(Source.SERVER)' in hub
+assert 'private void openPartyLobby(){\n        homeRoomSearch=' in hub
 assert 'else if (tab == 2)' in nav
 assert 'i.putExtra("openTab", 1);' in nav
 gradle=(root/'app/build.gradle').read_text()

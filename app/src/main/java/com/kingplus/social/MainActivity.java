@@ -917,9 +917,7 @@ public class MainActivity extends Activity {
     }
 
     private void openPartyActivity() {
-        // Party is a distinct destination; never route this action through the Home tab.
-        Intent partyIntent = new Intent(this, PartyActivity.class);
-        KingSafe.run(this, "open-party-room", () -> startActivity(partyIntent));
+        KingNav.openRoot(this,0);
     }
 
     private void home() {
@@ -1324,8 +1322,7 @@ public class MainActivity extends Activity {
     }
 
     private void addBottomNav(LinearLayout root,int selected){
-        LinearLayout nav=new LinearLayout(this); nav.setGravity(Gravity.CENTER); nav.setBackground(KingRoyalTheme10021.bottomNav(this)); String[] ni={"⌂\nHome","🎤\nParty","🎮\nGames","◇\nDiscover","✉\nMessages","●\nMe"};
-        for(int i=0;i<ni.length;i++){TextView n=new TextView(this);n.setText(ni[i]);n.setTextSize(11);n.setGravity(Gravity.CENTER);n.setTextColor(i==selected?0xff7555b7:0xff777777);final int k=i;n.setOnClickListener(v->KingNav.openRoot(this,k));nav.addView(n,new LinearLayout.LayoutParams(0,dp(62),1));} root.addView(nav);
+        root.addView(KingNav.bottomBar(this,selected,tab->KingNav.openRoot(this,tab)),new LinearLayout.LayoutParams(-1,dp(KingNav.NAV_HEIGHT_DP)));
     }
 
     private void games(){

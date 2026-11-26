@@ -17,7 +17,7 @@ android {
     buildFeatures { buildConfig true }
     defaultConfig {
         applicationId 'com.kingplus.social'; minSdk 26; targetSdk 35
-        versionCode 394; versionName '10.0.115-home-discover-route-fix'
+        versionCode 395; versionName '10.0.116-unified-home'
     }
     buildTypes {
         debug { signingConfig signingConfigs.debug }

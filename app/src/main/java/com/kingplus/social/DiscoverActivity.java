@@ -138,7 +138,7 @@ public class DiscoverActivity extends Activity {
         loadActivityRecommendations();
         sectionTitle("Game Master","More",()->showRankingPage("Game Master","gameScore"));
         loadTalentGrid("gameScore",false);
-        root.addView(bottomNav(),new LinearLayout.LayoutParams(-1,dp(72)));
+        root.addView(bottomNav(),new LinearLayout.LayoutParams(-1,dp(KingNav.NAV_HEIGHT_DP)));
         setSafe(root);
     }
 
@@ -810,8 +810,7 @@ public class DiscoverActivity extends Activity {
     private String issued10039(DocumentSnapshot d){String x=KingPublicId9996.verified(d.getString("publicId"));return x==null?"Not issued":x;}
     private String followId(String a,String b){return a+"__"+b;}
 
-    private View bottomNav(){LinearLayout nav=new LinearLayout(this);nav.setGravity(Gravity.CENTER);nav.setBackground(KingRoyalTheme10021.bottomNav(this));addNav(nav,"⌂\nHome",0);addNav(nav,"🎤\nParty",1);addNav(nav,"🎮\nGames",2);addNav(nav,"◉\nDiscover",3);addNav(nav,"▢\nMessages",4);addNav(nav,"♙\nMe",5);return nav;}
-    private void addNav(LinearLayout nav,String label,int tab){TextView t=tv(label,10,tab==3?0xff7555b7:0xff8c8991,tab==3);t.setGravity(Gravity.CENTER);if(tab==3)t.setBackground(bg(0xfff1eafa,28));LinearLayout.LayoutParams p=new LinearLayout.LayoutParams(0,dp(64),1);p.setMargins(dp(2),dp(3),dp(2),dp(3));nav.addView(t,p);t.setOnClickListener(v->{if(tab!=3)KingNav.openRoot(this,tab);});}
+    private View bottomNav(){return KingNav.bottomBar(this,3,tab->{if(tab!=3)KingNav.openRoot(this,tab);});}
     @Override protected void onResume(){
         super.onResume();
         FirebaseUser current10024=FirebaseAuth.getInstance().getCurrentUser();
