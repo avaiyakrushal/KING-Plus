@@ -3533,10 +3533,10 @@ public class PartyActivity extends androidx.fragment.app.FragmentActivity implem
         if(chatBox==null)return;
         boolean follow=roomChatScroll!=null && !roomChatScroll.canScrollVertically(1);
         int bubbleWidth=Math.min(dp(280),Math.max(dp(220),getResources().getDisplayMetrics().widthPixels-dp(54)));
-        LinearLayout card=new LinearLayout(this);card.setOrientation(LinearLayout.VERTICAL);card.setMinimumHeight(dp(58));
-        card.setPadding(dp(10),dp(6),dp(10),dp(7));boolean giftMessage=text!=null&&text.contains("🎁")&&(text.contains(" sent ")||text.contains("Gift"));boolean mineBubble940=who!=null&&who.equals(safeName());int partyBubble940=mineBubble940?KingCosmetics.bubbleColor(KingCosmetics.bubble(this)):0x20ffffff;card.setBackground(bg(giftMessage?0x55b78925:partyBubble940,12));
+        LinearLayout card=new LinearLayout(this);card.setOrientation(LinearLayout.VERTICAL);card.setMinimumHeight(dp(46));
+        card.setPadding(dp(9),dp(4),dp(9),dp(5));boolean giftMessage=text!=null&&text.contains("🎁")&&(text.contains(" sent ")||text.contains("Gift"));boolean mineBubble940=who!=null&&who.equals(safeName());int partyBubble940=mineBubble940?KingCosmetics.bubbleColor(KingCosmetics.bubble(this)):0x20ffffff;card.setBackground(bg(giftMessage?0x55b78925:partyBubble940,12));
         TextView n=tv((giftMessage?"🎁  ":"👤  ")+chatIdentity750(who),11,giftMessage?0xffffdf6b:0xffffedaf,true);n.setPadding(0,0,0,dp(3));n.setSingleLine(true);n.setEllipsize(android.text.TextUtils.TruncateAt.END);
-        card.addView(n,new LinearLayout.LayoutParams(-1,dp(24)));
+        card.addView(n,new LinearLayout.LayoutParams(-1,dp(20)));
         TextView msg=tv(text,14,Color.WHITE,false);msg.setPadding(0,0,0,0);msg.setMinHeight(dp(24));
         text=stickerFallback610(text);msg.setText(text);int live=LiveEmojiView.parse(text);
         if(ReferenceEmojiView.parse(text)>=0){ReferenceEmojiView art=new ReferenceEmojiView(this,ReferenceEmojiView.parse(text),false);LinearLayout.LayoutParams ap=new LinearLayout.LayoutParams(dp(64),dp(64));ap.gravity=Gravity.CENTER_HORIZONTAL;card.addView(art,ap);}
@@ -3544,7 +3544,7 @@ public class PartyActivity extends androidx.fragment.app.FragmentActivity implem
         else if(live>=0){LiveEmojiView art=new LiveEmojiView(this,live,4500);LinearLayout.LayoutParams ap=new LinearLayout.LayoutParams(dp(64),dp(64));ap.gravity=Gravity.CENTER_HORIZONTAL;card.addView(art,ap);}
         else{card.addView(msg,new LinearLayout.LayoutParams(-1,-2));}
         final String actionText620=text;card.setOnLongClickListener(v->{roomChatMessageActions620(who,actionText620);return true;});n.setOnClickListener(v->roomChatMessageActions620(who,actionText620));
-        LinearLayout.LayoutParams p=new LinearLayout.LayoutParams(bubbleWidth,-2);p.setMargins(0,dp(3),0,dp(3));chatBox.addView(card,p);
+        LinearLayout.LayoutParams p=new LinearLayout.LayoutParams(bubbleWidth,-2);p.gravity=giftMessage?Gravity.CENTER_HORIZONTAL:Gravity.START;p.setMargins(dp(4),dp(2),dp(4),dp(2));chatBox.addView(card,p);
         if(follow){final ScrollView scroll=roomChatScroll;scroll.post(()->scroll.fullScroll(View.FOCUS_DOWN));}
     }
     private String chatIdentity750(String who){String uid=memberUids.get(who);int lv=1,vip=0;if(user!=null&&who!=null&&who.equals(safeName())){LevelSystem.Snapshot me=LevelSystem.read(this);lv=me.level;vip=me.vipLevel;}else if(uid!=null){Integer l=memberLevel720.get(uid),v=memberVip720.get(uid);if(l!=null)lv=l;if(v!=null)vip=v;}return (vip>0?"💎VIP"+vip+"  ":"")+"Lv."+lv+"  "+who;}
