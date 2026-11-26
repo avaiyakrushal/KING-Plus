@@ -104,3 +104,15 @@ assert 'boolean actualMuted9956=muted||!voiceConferenceConnected10065||!canTrans
 assert 'if(!desiredMic968)revokeMicConsent9956();' in party
 assert 'if(!inRoomVoiceJoined940){' in party
 
+
+# Home subscriptions must be owned by the visible Activity and current room list.
+start=hub.split("@Override protected void onStart(){",1)[1].split("@Override protected void onStop(){",1)[0]
+stop=hub.split("@Override protected void onStop(){",1)[1].split("@Override protected void onDestroy(){",1)[0]
+destroy=hub.split("@Override protected void onDestroy(){",1)[1].split("private LinearLayout rootNav()",1)[0]
+assert "homeForeground=true;" in start and "loadHomeLiveRooms(activeHomeRoomRows)" in start
+assert "homeRoomCursor=null;" in start and "homeRoomPrevious.clear();" in start
+assert "homeForeground=false;" in stop and "++homeRoomRequest;" in stop and "stopHomeRoomListener();" in stop
+assert "stopHomeRoomListener();" in destroy and "activeHomeRoomRows=null;" in destroy
+assert "rows==activeHomeRoomRows" in hub and "return homeForeground&&!isFinishing()" in hub
+assert 'KingRoomInvite959.parse(q)' in hub and 'i.putExtra("directRoomId",invite)' in hub
+print("PASS Home lifecycle subscription ownership and explicit Party invite routing source guards")
