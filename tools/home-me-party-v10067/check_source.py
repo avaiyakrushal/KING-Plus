@@ -124,3 +124,13 @@ assert "stopHomeRoomListener();" in destroy and "activeHomeRoomRows=null;" in de
 assert "rows==activeHomeRoomRows" in hub and "return homeForeground&&!isFinishing()" in hub
 assert 'KingRoomInvite959.parse(q)' in hub and 'i.putExtra("directRoomId",invite)' in hub
 print("PASS Home lifecycle subscription ownership and explicit Party invite routing source guards")
+
+# Unified golden Home room discovery layout: real Firebase covers, two equal columns and one room entry route.
+assert 'HOME_GRID_ROW' in hub and 'row.addView(item,cell)' in hub
+assert 'new LinearLayout.LayoutParams(0,-2,1)' in hub and 'empty.setTag("empty")' in hub
+assert 'addHomeWelcomeBanner();' in home and 'openSavedHomeRooms()' in hub
+assert 'homeAction("Join ID / Link",this::showHomeJoin)' in home
+assert 'sectionTabs.setVisibility("home".equals(r)?View.GONE:View.VISIBLE)' in hub
+assert 'addSnapshotListener(MetadataChanges.INCLUDE' in hub
+assert 'openHomeRoom(doc.getId())' in hub and 'homeUnorderedRooms=true;homeRoomCursor=null;homeRoomPrevious.clear();' in hub
+print("PASS golden Home grid, saved rooms, direct entry and metadata-aware live room pagination")
