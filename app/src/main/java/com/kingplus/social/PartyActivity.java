@@ -8279,6 +8279,8 @@ public class PartyActivity extends androidx.fragment.app.FragmentActivity implem
     private void leaveRoom(){
         clearVoiceRejoin9957();roomVoiceOptedIn957=false;
         clearPartyVisuals995(); // Cancel floating emojis and stale gift banners immediately.
+        clearRoomReply620();
+        if(composerBox!=null)composerBox.setText("");
         if(chatBox!=null)chatBox.removeAllViews();
         if(feedBox!=null)feedBox.removeAllViews();
         partyShell940=null;stopInRoomVoice940(true);renderLobby("Hot");
