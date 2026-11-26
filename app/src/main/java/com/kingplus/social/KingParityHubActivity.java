@@ -266,8 +266,22 @@ public class KingParityHubActivity extends Activity {
             if(!canShowHomeRooms(roomRows,request,uid))return;
             if(error!=null){
                 roomRows.removeAllViews();
-                roomRows.addView(action("Could not load rooms. Tap to retry.",
+                roomRows.addView(action("Retry live rooms",
                     ()->loadHomeLiveRooms(roomRows)),new LinearLayout.LayoutParams(-1,-2));
+                roomRows.addView(action("Open Party Rooms",this::openPartyLobby),
+                    new LinearLayout.LayoutParams(-1,dp(48)));
+                if(error.getCode()==FirebaseFirestoreException.Code.FAILED_PRECONDITION && homeRoomCursor==null){
+                    Query fallback=db.collection("live_rooms").whereEqualTo("closed",false);
+                    if(!aliases.isEmpty())fallback=fallback.whereIn("category",aliases);
+                    fallback.limit(8).get(Source.SERVER).addOnSuccessListener(result->{
+                        if(!canShowHomeRooms(roomRows,request,uid))return;
+                        roomRows.removeAllViews();
+                        for(DocumentSnapshot doc:result.getDocuments())addHomeRoomCard(roomRows,doc);
+                        if(result.isEmpty())roomRows.addView(tv("No live rooms right now.",13,MUTED,false));
+                        roomRows.addView(action("Refresh rooms",()->loadHomeLiveRooms(roomRows)),new LinearLayout.LayoutParams(-1,dp(44)));
+                        roomRows.addView(action("View all Party Rooms",this::openPartyLobby),new LinearLayout.LayoutParams(-1,dp(48)));
+                    });
+                }
                 return;
             }
             roomRows.removeAllViews();
