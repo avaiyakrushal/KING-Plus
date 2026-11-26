@@ -78,7 +78,7 @@ public class KingParityHubActivity extends Activity {
         title=tv("👑 KING Plus",20,INK,true);head.addView(title,new LinearLayout.LayoutParams(0,dp(56),1));root.addView(head,new LinearLayout.LayoutParams(-1,dp(60)));
         HorizontalScrollView hsv=new HorizontalScrollView(this);hsv.setHorizontalScrollBarEnabled(false);LinearLayout tabs=new LinearLayout(this);tabs.setPadding(dp(8),0,dp(8),dp(8));
         String[][] all={{"✨","Home","home"},{"🎤","KTV","ktv"},{"⚔️","PK","pk"},{"🎲","Match","match"},{"🏰","Stage","stage"},{"👑","Family","family"},{"💎","VIP/Rank","vip"}};
-        for(String[] x:all){TextView t=tv(x[0]+" "+x[1],12,INK,true);t.setGravity(Gravity.CENTER);t.setBackground(bg(CARD2,16));String r=x[2];t.setOnClickListener(v->KingSafe.run(this,"parity-tab:"+r,()->show(r)));LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(dp(104),dp(42));lp.setMargins(dp(4),0,dp(4),0);tabs.addView(t,lp);}hsv.addView(tabs);root.addView(hsv,new LinearLayout.LayoutParams(-1,dp(52)));
+        for(String[] x:all){TextView t=tv(x[0]+" "+x[1],12,INK,true);t.setGravity(Gravity.CENTER);t.setBackground(bg(CARD2,16));String r=x[2];t.setOnClickListener(v->KingSafe.run(this,"parity-tab:"+r,()->show(r)));LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(dp(84),dp(38));lp.setMargins(dp(4),0,dp(4),0);tabs.addView(t,lp);}hsv.addView(tabs);root.addView(hsv,new LinearLayout.LayoutParams(-1,dp(46)));
         ScrollView sv=new ScrollView(this);sv.setFillViewport(true);body=new LinearLayout(this);body.setOrientation(LinearLayout.VERTICAL);body.setPadding(dp(14),dp(10),dp(14),dp(30));sv.addView(body);root.addView(sv,new LinearLayout.LayoutParams(-1,0,1));root.addView(rootNav(),new LinearLayout.LayoutParams(-1,dp(64)));setContentView(root);
         ViewCompat.setOnApplyWindowInsetsListener(root,(view,insets)->{
             Insets safeArea=insets.getInsets(WindowInsetsCompat.Type.systemBars()
@@ -437,12 +437,12 @@ public class KingParityHubActivity extends Activity {
         TextView fallback=tv("🎤",18,GOLD,false);
         fallback.setGravity(Gravity.CENTER);
         thumbnail.addView(fallback,new FrameLayout.LayoutParams(-1,-1));
-        item.addView(thumbnail,new LinearLayout.LayoutParams(dp(54),dp(54)));
+        item.addView(thumbnail,new LinearLayout.LayoutParams(dp(72),dp(72)));
 
         LinearLayout details=new LinearLayout(this);
         details.setOrientation(LinearLayout.VERTICAL);
         details.setPadding(dp(10),0,0,0);
-        TextView label=tv(name,14,INK,true);
+        TextView label=tv(name,16,INK,true);
         label.setPadding(0,0,0,0);
         label.setMaxLines(2);
         label.setEllipsize(TextUtils.TruncateAt.END);
