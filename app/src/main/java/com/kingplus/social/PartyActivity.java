@@ -1057,8 +1057,10 @@ public class PartyActivity extends androidx.fragment.app.FragmentActivity implem
         LinearLayout card=new LinearLayout(this);card.setOrientation(LinearLayout.VERTICAL);
         card.setBackground(royalNeon9924(0xff48245c,0xff18142e,0xb5f1bf82,16));
         card.setElevation(dp(2));
+        card.setClipToOutline(true);
         FrameLayout cover=new FrameLayout(this);
         cover.setBackground(royalNeon9924(cardColor,0xff21133d,0x88f7c47f,14));
+        cover.setClipToOutline(true);
         KingRoomCoverView art940=new KingRoomCoverView(this,category,name);cover.addView(art940,new FrameLayout.LayoutParams(-1,-1));
         ImageView img=new ImageView(this);img.setScaleType(ImageView.ScaleType.CENTER_CROP);cover.addView(img,new FrameLayout.LayoutParams(-1,-1));
         TextView initial=tv("",1,Color.TRANSPARENT,false);initial.setVisibility(View.GONE);cover.addView(initial,new FrameLayout.LayoutParams(1,1));
@@ -1076,8 +1078,8 @@ public class PartyActivity extends androidx.fragment.app.FragmentActivity implem
                 .addOnFailureListener(e->{if(!isFinishing()&&!isDestroyed()&&count.isAttachedToWindow())count.setText("LIVE");});
         }
         card.addView(cover,new LinearLayout.LayoutParams(-1,dp(137)));
-        TextView title=tv(name,13,0xffffe4a0,true);title.setMaxLines(1);title.setPadding(dp(5),dp(4),dp(4),0);card.addView(title,new LinearLayout.LayoutParams(-1,dp(30)));
-        TextView host=tv((priv?"🔒 ":"")+(password?"🔑 ":"")+hostName,11,0xffd6c5ed,false);host.setMaxLines(1);host.setPadding(dp(5),0,dp(4),dp(3));card.addView(host,new LinearLayout.LayoutParams(-1,dp(28)));
+        TextView title=tv(name,15,0xffffe4a0,true);title.setMaxLines(1);title.setEllipsize(android.text.TextUtils.TruncateAt.END);title.setPadding(dp(5),dp(4),dp(4),0);card.addView(title,new LinearLayout.LayoutParams(-1,dp(30)));
+        TextView host=tv((priv?"🔒 ":"")+(password?"🔑 ":"")+hostName,11,0xffd6c5ed,false);host.setMaxLines(1);host.setEllipsize(android.text.TextUtils.TruncateAt.END);host.setPadding(dp(5),0,dp(4),dp(3));card.addView(host,new LinearLayout.LayoutParams(-1,dp(28)));
         card.setOnClickListener(v->KingSafe.run(this,"ui-action",action));
         LinearLayout.LayoutParams cp=new LinearLayout.LayoutParams(0,-1,1);cp.setMargins(dp(4),dp(2),dp(4),dp(2));row.addView(card,cp);
     }
