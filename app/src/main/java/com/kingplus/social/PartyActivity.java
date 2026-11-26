@@ -3698,7 +3698,7 @@ public class PartyActivity extends androidx.fragment.app.FragmentActivity implem
             if(row==null||col==4){row=new LinearLayout(this);row.setGravity(Gravity.CENTER);giftGridBox.addView(row,new LinearLayout.LayoutParams(-1,dp(139)));col=0;}
             final int idx=i;final int vipNeed=giftVipRequired[i];
             final boolean unlocked=idx<64||vipNeed==0;final boolean selected=idx==giftSelectedIndex;LinearLayout card=new LinearLayout(this);card.setOrientation(LinearLayout.VERTICAL);card.setGravity(Gravity.CENTER);card.setBackground(bg(selected?0xff47336c:(unlocked?0xff232231:0xff171720),14));card.setPadding(dp(2),dp(3),dp(2),dp(2));card.setAlpha(unlocked?1f:.82f);
-            TextView nw=tv(selected?"✓ SELECTED":unlocked?(idx<64?"💎 "+giftCosts[idx]:"FREE"):"🔒 VIP "+vipNeed,9,selected?0xffffd92e:(unlocked?0xff68e89d:0xffffb04f),true);nw.setGravity(Gravity.CENTER);card.addView(nw,new LinearLayout.LayoutParams(-1,dp(18)));
+            TextView nw=tv(selected?"✓ SELECTED":unlocked?"":"🔒 VIP "+vipNeed,9,selected?0xffffd92e:(unlocked?0xff68e89d:0xffffb04f),true);nw.setGravity(Gravity.CENTER);card.addView(nw,new LinearLayout.LayoutParams(-1,dp(18)));
             FrameLayout artStage994=new FrameLayout(this);
             KingGiftArtView art994=new KingGiftArtView(this,idx,
                 giftNames[i],giftIcons[i]);
@@ -3710,8 +3710,8 @@ public class PartyActivity extends androidx.fragment.app.FragmentActivity implem
                     new FrameLayout.LayoutParams(-1,dp(22),Gravity.TOP));
             }
             card.addView(artStage994,new LinearLayout.LayoutParams(-1,dp(61)));
-            TextView name=tv(giftNames[i],9,unlocked?0xfff5f2f7:0xff817b88,true);name.setGravity(Gravity.CENTER);name.setMaxLines(1);card.addView(name,new LinearLayout.LayoutParams(-1,dp(22)));
-            TextView cost=tv(unlocked?(idx<64?"💎 "+giftCosts[idx]:"FREE"):"PREVIEW",9,
+            TextView name=tv(giftNames[i],11,unlocked?0xfff5f2f7:0xff817b88,true);name.setGravity(Gravity.CENTER);name.setMaxLines(1);card.addView(name,new LinearLayout.LayoutParams(-1,dp(22)));
+            TextView cost=tv(unlocked?(idx<64?"💎 "+giftCosts[idx]:"FREE"):"PREVIEW",11,
                 selected?0xffffd92e:0xffaaa5b4,true);cost.setGravity(Gravity.CENTER);card.addView(cost,new LinearLayout.LayoutParams(-1,dp(20)));
             name.setSingleLine(true);name.setEllipsize(android.text.TextUtils.TruncateAt.END);
             card.setOnClickListener(v->{
