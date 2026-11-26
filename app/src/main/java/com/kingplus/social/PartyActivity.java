@@ -2261,13 +2261,14 @@ public class PartyActivity extends androidx.fragment.app.FragmentActivity implem
                 String photoUrl=memberPhotos540.get(seatUids.get(no));if(mine){String localPhoto868=localProfilePhoto868();if(!localPhoto868.isEmpty())photoUrl=localPhoto868;else{String cloudPhoto868=cloudProfilePhoto868();if(!cloudPhoto868.isEmpty())photoUrl=cloudPhoto868;else if(user!=null&&user.getPhotoUrl()!=null)photoUrl=user.getPhotoUrl().toString();}}if(n!=null&&photoUrl!=null&&!photoUrl.isEmpty())applyProfilePhoto868(photo,av,photoUrl);
                 String label;
                 if(hostVisualV532) label="👑 "+shortSeatName(n)+(vip720>0?" • V"+vip720:"");
-                else if(n==null) label=seatLocked?"NO."+no+" 🔒":"NO."+no;
+                else if(n==null) label=seatLocked?"🔒 "+no:"Mic "+no;
                 else label=(mine?"👑 ":"")+shortSeatName(n)+(level720>0?" • Lv"+level720:"")+(vip720>0?" • V"+vip720:"")+(Boolean.FALSE.equals(seatMics.get(no))?" 🔇":"");
-                TextView lab=seat.findViewById(R.id.party_seat_label_10064);lab.setText(label);lab.setTextColor(n==null&&!hostVisualV532?0xd8ffffff:Color.WHITE);lab.setTypeface(null,n!=null||hostVisualV532?Typeface.BOLD:Typeface.NORMAL);lab.setLayoutParams(new LinearLayout.LayoutParams(-1,dp(labelDp9920)));seat.setContentDescription("Mic seat "+no+", "+(n==null?(seatLocked?"locked":"empty"):n+", "+(Boolean.TRUE.equals(seatMics.get(no))?"microphone on":"microphone muted")));
+                TextView lab=seat.findViewById(R.id.party_seat_label_10064);lab.setText(label);lab.setTextColor(n==null&&!hostVisualV532?0xd8ffffff:Color.WHITE);lab.setTypeface(null,n!=null||hostVisualV532?Typeface.BOLD:Typeface.NORMAL);lab.setLayoutParams(new LinearLayout.LayoutParams(-1,dp(labelDp9920)));lab.setSingleLine(true);lab.setEllipsize(android.text.TextUtils.TruncateAt.END);seat.setContentDescription("Mic seat "+no+", "+(n==null?(seatLocked?"locked":"empty"):n+", "+(Boolean.TRUE.equals(seatMics.get(no))?"microphone on":"microphone muted")));
                 seatViews560.put(no,seat);final int seatNo=no; seat.setOnClickListener(v->seatAction(seatNo));
                 seat.setOnLongClickListener(v->{
-                    if(canModerateSeatsV530()&&seatUids.get(seatNo)!=null){
-                        showOccupiedSeatMenuV530(seatNo);
+                    if(cloudRoom&&canModerateSeatsV530()){
+                        if(seatUids.get(seatNo)==null)showEmptySeatMenuV530(seatNo);
+                        else showOccupiedSeatMenuV530(seatNo);
                         return true;
                     }
                     return false;
