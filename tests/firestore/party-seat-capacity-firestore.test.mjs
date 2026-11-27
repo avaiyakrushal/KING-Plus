@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import {initializeTestEnvironment,assertSucceeds,assertFails} from '@firebase/rules-unit-testing';
 import {doc,setDoc,updateDoc,deleteDoc,getDoc,runTransaction,serverTimestamp} from 'firebase/firestore';
-const env=await initializeTestEnvironment({projectId:'demo-king-real-seats-9970',firestore:{host:'127.0.0.1',port:8080,rules:fs.readFileSync('firestore.rules','utf8')}});
+const env=await initializeTestEnvironment({projectId:'demo-kingplus',firestore:{host:'127.0.0.1',port:8080,rules:fs.readFileSync('firestore.rules','utf8')}});
 const H=env.authenticatedContext('host').firestore(),A=env.authenticatedContext('alice').firestore(),B=env.authenticatedContext('bob').firestore(),E=env.authenticatedContext('eve').firestore();
 const base='live_rooms/live-seats-9970';
 const room=db=>doc(db,base), member=(db,uid)=>doc(db,base,'members',uid),seat=(db,id)=>doc(db,base,'seats',String(id));

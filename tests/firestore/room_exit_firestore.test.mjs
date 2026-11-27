@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {initializeTestEnvironment,assertSucceeds} from '@firebase/rules-unit-testing';
 import {doc,setDoc,getDoc,runTransaction,collection,query,where,limit,getDocs} from 'firebase/firestore';
 
-const env=await initializeTestEnvironment({projectId:'demo-kingplus-exit-9919',
+const env=await initializeTestEnvironment({projectId:'demo-kingplus',
   firestore:{host:'127.0.0.1',port:8080,rules:fs.readFileSync('firestore.rules','utf8')}});
 const a=env.authenticatedContext('alice').firestore(), b=env.authenticatedContext('bob').firestore();
 const room=db=>doc(db,'live_rooms','exit-test');

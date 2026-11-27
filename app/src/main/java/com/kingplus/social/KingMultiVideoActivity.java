@@ -108,6 +108,10 @@ public class KingMultiVideoActivity extends androidx.fragment.app.FragmentActivi
                   loading.setText("That KING Party is closed or no longer exists");
                   return;
               }
+              if(!allowsPublicVideo(room998)){
+                  loading.setText("Private video requires an authenticated video service");
+                  return;
+              }
               db.collection("live_rooms").document(candidateRoom998)
                 .collection("members").document(uid998)
                 .get(com.google.firebase.firestore.Source.SERVER)
@@ -132,6 +136,12 @@ public class KingMultiVideoActivity extends androidx.fragment.app.FragmentActivi
                   loading.setText("Could not verify KING Party on server: "+
                     String.valueOf(e.getLocalizedMessage()));
           });
+    }
+
+    private boolean allowsPublicVideo(com.google.firebase.firestore.DocumentSnapshot room){
+        Object mode=room.get("entranceMode");
+        return !Boolean.TRUE.equals(room.get("isPrivate"))&&!Boolean.TRUE.equals(room.get("hasPassword"))
+            &&(mode==null||"legacy".equals(mode)||"free".equals(mode));
     }
 
     private void startVerifiedVideo998(FrameLayout stage,TextView loading){
@@ -177,8 +187,9 @@ public class KingMultiVideoActivity extends androidx.fragment.app.FragmentActivi
         final DocumentReference room=db.collection("live_rooms").document(roomId);
         roomListener=room.addSnapshotListener((doc,e)->{
             if(leaving940||isFinishing()||isDestroyed())return;
-            if(e==null&&doc!=null&&doc.exists()&&Boolean.TRUE.equals(doc.getBoolean("closed"))){
-                toast("Party was closed");leaveAndFinish940();return;
+            if(e==null&&doc!=null&&!doc.getMetadata().isFromCache()
+                &&(!doc.exists()||Boolean.TRUE.equals(doc.get("closed"))||!allowsPublicVideo(doc))){
+                toast("Public video is no longer available for this room");leaveAndFinish940();return;
             }
             owner940=e==null&&doc!=null&&doc.exists()&&uid.equals(doc.getString("ownerUid"));
             refreshModerator940();
@@ -523,7 +534,11 @@ public class KingMultiVideoActivity extends androidx.fragment.app.FragmentActivi
     @Override protected void onActivityResult(int requestCode,int resultCode,Intent data){super.onActivityResult(requestCode,resultCode,data);try{org.jitsi.meet.sdk.JitsiMeetActivityDelegate.onActivityResult(this,requestCode,resultCode,data);}catch(Throwable e){KingStability.nonFatal(this,"video-jitsi-result",e);}}
     @Override public void requestPermissions(String[] permissions,int requestCode,com.facebook.react.modules.core.PermissionListener listener){try{org.jitsi.meet.sdk.JitsiMeetActivityDelegate.requestPermissions(this,permissions,requestCode,listener);}catch(Throwable e){KingStability.nonFatal(this,"video-jitsi-permission-request",e);}}
     @Override public void onRequestPermissionsResult(int requestCode,String[] permissions,int[] grantResults){super.onRequestPermissionsResult(requestCode,permissions,grantResults);try{org.jitsi.meet.sdk.JitsiMeetActivityDelegate.onRequestPermissionsResult(requestCode,permissions,grantResults);}catch(Throwable e){KingStability.nonFatal(this,"video-jitsi-permission-result",e);}}
-    @Override protected void onDestroy(){heartbeat940.removeCallbacks(heartbeatTask940);if(eventsListener!=null)eventsListener.remove();if(roomListener!=null)roomListener.remove();if(roleListener!=null)roleListener.remove();
+    @Override protected void onDestroy(){
+        // If Android destroys this Activity without the explicit Leave path,
+        // best-effort release the current seat. The transaction rechecks UID ownership.
+        if(!leaving940&&mySeat>0)releaseVideoSeat9921(mySeat,null);
+        heartbeat940.removeCallbacks(heartbeatTask940);if(eventsListener!=null)eventsListener.remove();if(roomListener!=null)roomListener.remove();if(roleListener!=null)roleListener.remove();
         if(videoSeatListener9921!=null)videoSeatListener9921.remove();
         if(videoInviteListener9921!=null)videoInviteListener9921.remove();
         if(selfMemberListener9921!=null)selfMemberListener9921.remove();

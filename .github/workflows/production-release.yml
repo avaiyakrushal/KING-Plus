@@ -50,13 +50,8 @@ jobs:
           echo "KINGPLUS_RELEASE_KEY_ALIAS=$KEY_ALIAS" >> "$GITHUB_ENV"
           echo "KINGPLUS_RELEASE_KEY_PASSWORD=$KEY_PASSWORD" >> "$GITHUB_ENV"
 
-      - name: Prepare production release source
-        run: |
-          python3 tools/prepare_v28_build.py
-          python3 tools/prepare_v29_build.py
-          python3 tools/prepare_v30_build.py
-          python3 tools/prepare_v301_hardening.py
-          python3 tools/configure_production_signing.py
+      - name: Configure production signing
+        run: python3 tools/configure_production_signing.py
 
       - name: Production backend and configuration checks
         run: |

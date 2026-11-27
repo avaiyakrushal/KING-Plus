@@ -127,6 +127,7 @@ public class PartyActivity extends androidx.fragment.app.FragmentActivity implem
     private boolean roomHasPassword;
     private boolean memberRecoveryDialogOpen10077;
     private String roomEntranceMode9931="legacy";
+    private boolean roomVoicePolicyVerified;
     private String roomEntryEpoch9936="";
     private final Set<Integer> lockedSeats = new HashSet<>();
     private ListenerRegistration seatLocksListener;
@@ -273,6 +274,12 @@ public class PartyActivity extends androidx.fragment.app.FragmentActivity implem
     private boolean voiceConferenceConnected10065;
     private KingPartyVoiceMonitor10065 voiceMonitor10065;
     private KingRoomVoice10066 cloudflareVoice10066;
+    private boolean cloudflareVoiceReady10066;
+    private boolean cloudflareVoiceConfigLoading10066;
+    private String cloudflareVoiceConfigMessage10066="";
+    private String cloudflareVoiceConfigSession10066="";
+    private long cloudflareVoiceConfigCheckedAt10066;
+    private int cloudflareVoiceConfigGeneration10066;
     private FirebaseAuth.AuthStateListener partyAuth10065;
     private TextView voiceStatus10065;
     private AlertDialog voiceConnectionDialog10065;
@@ -432,6 +439,13 @@ public class PartyActivity extends androidx.fragment.app.FragmentActivity implem
             }
         }));
         renderLobby("Hot");
+        // Home Create Room opens the actual creation screen, not just the lobby.
+        // Direct room links retain priority and must never trigger creation.
+        if(getIntent().getBooleanExtra("openCreateRoom",false)
+                && getIntent().getStringExtra("directRoomId")==null){
+            getIntent().removeExtra("openCreateRoom");
+            createRoomDialog();
+        }
         handlePartyIntent9989(getIntent());
     }
 
@@ -513,15 +527,15 @@ public class PartyActivity extends androidx.fragment.app.FragmentActivity implem
     private void addRoyalHero9924(LinearLayout host) {
         LinearLayout hero=new LinearLayout(this);
         hero.setOrientation(LinearLayout.VERTICAL);
-        hero.setPadding(dp(14),dp(8),dp(14),dp(11));
+        hero.setPadding(dp(8),dp(4),dp(8),dp(4));
         hero.setBackground(royalNeon9924(0xff58208b,0xff181036,0xaaffdb81,20));
         TextView crown=tv("👑  KING Plus  ✨",21,0xffffda80,true);
         crown.setGravity(Gravity.CENTER);
-        hero.addView(crown,new LinearLayout.LayoutParams(-1,dp(39)));
+        // The lobby header already displays KING Plus; keep only quick filters here.
         TextView caption=tv("MEET  •  CHAT  •  PLAY  •  PARTY",10,0xfff6dffa,true);
         caption.setLetterSpacing(.07f);
         caption.setGravity(Gravity.CENTER);
-        hero.addView(caption,new LinearLayout.LayoutParams(-1,dp(24)));
+        // Avoid duplicating the lobby branding above the room list.
         LinearLayout links=new LinearLayout(this);
         links.setGravity(Gravity.CENTER_VERTICAL);
         String[] labels={"🎙 Voice","📹 Video","🎮 Games"};
@@ -536,7 +550,7 @@ public class PartyActivity extends androidx.fragment.app.FragmentActivity implem
             lp.setMargins(dp(3),dp(4),dp(3),0);links.addView(link,lp);
         }
         hero.addView(links,new LinearLayout.LayoutParams(-1,dp(41)));
-        LinearLayout.LayoutParams hp=new LinearLayout.LayoutParams(-1,dp(123));
+        LinearLayout.LayoutParams hp=new LinearLayout.LayoutParams(-1,dp(60));
         hp.setMargins(dp(5),dp(8),dp(5),dp(10));host.addView(hero,hp);
     }
 
@@ -884,13 +898,13 @@ public class PartyActivity extends androidx.fragment.app.FragmentActivity implem
                             boolean password = Boolean.TRUE.equals(doc.getBoolean("hasPassword"));
                             String q = lobbyFilter.toLowerCase(java.util.Locale.US);
                             if(q.isEmpty()&&!categoryMatches(selected,category)) continue;
-                            if(!q.isEmpty() && !(name.toLowerCase(java.util.Locale.US).contains(q) || host.toLowerCase(java.util.Locale.US).contains(q) || category.toLowerCase(java.util.Locale.US).contains(q) || shortId(id).contains(q))) continue;
+                            if(!q.isEmpty() && !(name.toLowerCase(java.util.Locale.US).contains(q) || host.toLowerCase(java.util.Locale.US).contains(q) || category.toLowerCase(java.util.Locale.US).contains(q) || shortId(id).contains(q) || id.toLowerCase(java.util.Locale.US).equals(q))) continue;
                             if (shown % 2 == 0) {
                                 row = new LinearLayout(this); row.setOrientation(LinearLayout.HORIZONTAL); row.setGravity(Gravity.TOP);
                                 LinearLayout.LayoutParams rp = new LinearLayout.LayoutParams(-1,dp(206)); rp.setMargins(0,dp(4),0,dp(4)); cloudList.addView(row,rp);
                             }
-                            String ownerPhoto = str(doc,"coverUrl",str(doc,"ownerPhoto",""));
-                            addLiveRoomGridCard(row,name,host,id,category,priv,password,ownerPhoto,
+                            String roomCover = str(doc,"coverUrl",str(doc,"roomPhotoUrl",str(doc,"photoUrl","")));
+                            addLiveRoomGridCard(row,name,host,id,category,priv,password,roomCover,
                                 () -> openCloudRoom(id,name,doc.getString("ownerUid"),host,priv,password));
                             shown++;
                         }
@@ -929,7 +943,7 @@ public class PartyActivity extends androidx.fragment.app.FragmentActivity implem
         }
 
         root.addView(scroll,new LinearLayout.LayoutParams(-1,0,1));
-        addBottomNav(root,0); setSafeContentView(root);
+        addBottomNav(root,1); setSafeContentView(root);
     }
 
 
@@ -1043,8 +1057,10 @@ public class PartyActivity extends androidx.fragment.app.FragmentActivity implem
         LinearLayout card=new LinearLayout(this);card.setOrientation(LinearLayout.VERTICAL);
         card.setBackground(royalNeon9924(0xff48245c,0xff18142e,0xb5f1bf82,16));
         card.setElevation(dp(2));
+        card.setClipToOutline(true);
         FrameLayout cover=new FrameLayout(this);
         cover.setBackground(royalNeon9924(cardColor,0xff21133d,0x88f7c47f,14));
+        cover.setClipToOutline(true);
         KingRoomCoverView art940=new KingRoomCoverView(this,category,name);cover.addView(art940,new FrameLayout.LayoutParams(-1,-1));
         ImageView img=new ImageView(this);img.setScaleType(ImageView.ScaleType.CENTER_CROP);cover.addView(img,new FrameLayout.LayoutParams(-1,-1));
         TextView initial=tv("",1,Color.TRANSPARENT,false);initial.setVisibility(View.GONE);cover.addView(initial,new FrameLayout.LayoutParams(1,1));
@@ -1062,8 +1078,8 @@ public class PartyActivity extends androidx.fragment.app.FragmentActivity implem
                 .addOnFailureListener(e->{if(!isFinishing()&&!isDestroyed()&&count.isAttachedToWindow())count.setText("LIVE");});
         }
         card.addView(cover,new LinearLayout.LayoutParams(-1,dp(137)));
-        TextView title=tv(name,13,0xffffe4a0,true);title.setMaxLines(1);title.setPadding(dp(5),dp(4),dp(4),0);card.addView(title,new LinearLayout.LayoutParams(-1,dp(30)));
-        TextView host=tv((priv?"🔒 ":"")+(password?"🔑 ":"")+hostName,11,0xffd6c5ed,false);host.setMaxLines(1);host.setPadding(dp(5),0,dp(4),dp(3));card.addView(host,new LinearLayout.LayoutParams(-1,dp(28)));
+        TextView title=tv(name,15,0xffffe4a0,true);title.setMaxLines(1);title.setEllipsize(android.text.TextUtils.TruncateAt.END);title.setPadding(dp(5),dp(4),dp(4),0);card.addView(title,new LinearLayout.LayoutParams(-1,dp(30)));
+        TextView host=tv((priv?"🔒 ":"")+(password?"🔑 ":"")+hostName,11,0xffd6c5ed,false);host.setMaxLines(1);host.setEllipsize(android.text.TextUtils.TruncateAt.END);host.setPadding(dp(5),0,dp(4),dp(3));card.addView(host,new LinearLayout.LayoutParams(-1,dp(28)));
         card.setOnClickListener(v->KingSafe.run(this,"ui-action",action));
         LinearLayout.LayoutParams cp=new LinearLayout.LayoutParams(0,-1,1);cp.setMargins(dp(4),dp(2),dp(4),dp(2));row.addView(card,cp);
     }
@@ -1141,7 +1157,7 @@ public class PartyActivity extends androidx.fragment.app.FragmentActivity implem
         setSafeContentView(root);
     }
     private void renderCreateSeatPreview953(LinearLayout host,int count){host.removeAllViews();int rows=(count+3)/4,no=1;for(int r=0;r<rows;r++){LinearLayout row=new LinearLayout(this);row.setGravity(Gravity.CENTER);for(int c=0;c<4;c++){if(no<=count){TextView seat=tv(no==1?"👑\\nHOST":"＋\\n"+no,10,0xffd8eee7,true);seat.setGravity(Gravity.CENTER);seat.setBackground(bg(no==1?0x445fd7b2:0x2b4fd0aa,40));LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(0,dp(62),1);lp.setMargins(dp(5),dp(3),dp(5),dp(3));row.addView(seat,lp);no++;}else row.addView(new View(this),new LinearLayout.LayoutParams(0,dp(62),1));}host.addView(row,new LinearLayout.LayoutParams(-1,dp(68)));}}
-    
+
     // Set ONLY in successful new-room Firestore .set() callback, consumed once.
     // A normal room re-entry cannot use this newly-created-room shortcut.
     private String newlyCreatedServerRoom991;
@@ -1151,16 +1167,18 @@ public class PartyActivity extends androidx.fragment.app.FragmentActivity implem
         roomCreateInFlight921=true;toast("Creating Party…");renderCreateRoomPage();
         DocumentReference ref=db.collection("live_rooms").document();
         String joinCode=shortId(ref.getId());
-        Map<String,Object> full=new HashMap<>();full.put("name",name);full.put("ownerUid",user.getUid());full.put("ownerName",safeName());String ownerPhoto931=cloudProfilePhoto868();if(ownerPhoto931.isEmpty()&&user.getPhotoUrl()!=null)ownerPhoto931=user.getPhotoUrl().toString();if(!ownerPhoto931.isEmpty())full.put("ownerPhoto",ownerPhoto931);full.put("category",category);full.put("theme","Classic");full.put("maxSeats",seats);full.put("maxMembers",100);full.put("audienceEnabled",true);full.put("isPrivate",priv);full.put("hasPassword",false);full.put("joinCode",joinCode);full.put("announcement",announcement);full.put("locked",false);full.put("muteAll",false);full.put("closed",false);full.put("createdAt",FieldValue.serverTimestamp());full.put("updatedAt",FieldValue.serverTimestamp());
+        String entranceMode=priv?"invite":"free";
+        String entryEpoch=java.util.UUID.randomUUID().toString();
+        Map<String,Object> full=new HashMap<>();full.put("name",name);full.put("ownerUid",user.getUid());full.put("ownerName",safeName());String ownerPhoto931=cloudProfilePhoto868();if(ownerPhoto931.isEmpty()&&user.getPhotoUrl()!=null)ownerPhoto931=user.getPhotoUrl().toString();if(!ownerPhoto931.isEmpty())full.put("ownerPhoto",ownerPhoto931);full.put("category",category);full.put("theme","Classic");full.put("maxSeats",seats);full.put("maxMembers",100);full.put("audienceEnabled",true);full.put("isPrivate",priv);full.put("hasPassword",false);full.put("entranceMode",entranceMode);full.put("entryEpoch",entryEpoch);full.put("joinCode",joinCode);full.put("announcement",announcement);full.put("locked",false);full.put("muteAll",false);full.put("closed",false);full.put("createdAt",FieldValue.serverTimestamp());full.put("updatedAt",FieldValue.serverTimestamp());
         ref.set(full).addOnSuccessListener(v->finishRoomCreate921(ref,name,seats,priv))
-            .addOnFailureListener(first->retryRoomCreateCompact921(ref,name,category,seats,priv,joinCode,first));
+            .addOnFailureListener(first->retryRoomCreateCompact921(ref,name,category,seats,priv,joinCode,entranceMode,entryEpoch,first));
     }
-    private void retryRoomCreateCompact921(DocumentReference ref,String name,String category,int seats,boolean priv,String joinCode,Exception first){
-        Map<String,Object> compact=new HashMap<>();compact.put("name",name);compact.put("ownerUid",user.getUid());compact.put("ownerName",safeName());compact.put("category",category);compact.put("maxSeats",seats);compact.put("maxMembers",100);compact.put("audienceEnabled",true);compact.put("isPrivate",priv);compact.put("hasPassword",false);compact.put("joinCode",joinCode);compact.put("locked",false);compact.put("muteAll",false);compact.put("closed",false);compact.put("createdAt",FieldValue.serverTimestamp());compact.put("updatedAt",FieldValue.serverTimestamp());
-        ref.set(compact).addOnSuccessListener(v->finishRoomCreate921(ref,name,seats,priv)).addOnFailureListener(second->retryRoomCreateLegacy921(ref,name,category,seats,priv,joinCode,first,second));
+    private void retryRoomCreateCompact921(DocumentReference ref,String name,String category,int seats,boolean priv,String joinCode,String entranceMode,String entryEpoch,Exception first){
+        Map<String,Object> compact=new HashMap<>();compact.put("name",name);compact.put("ownerUid",user.getUid());compact.put("ownerName",safeName());compact.put("category",category);compact.put("maxSeats",seats);compact.put("maxMembers",100);compact.put("audienceEnabled",true);compact.put("isPrivate",priv);compact.put("hasPassword",false);compact.put("entranceMode",entranceMode);compact.put("entryEpoch",entryEpoch);compact.put("joinCode",joinCode);compact.put("locked",false);compact.put("muteAll",false);compact.put("closed",false);compact.put("createdAt",FieldValue.serverTimestamp());compact.put("updatedAt",FieldValue.serverTimestamp());
+        ref.set(compact).addOnSuccessListener(v->finishRoomCreate921(ref,name,seats,priv)).addOnFailureListener(second->retryRoomCreateLegacy921(ref,name,category,seats,priv,joinCode,entranceMode,entryEpoch,first,second));
     }
-    private void retryRoomCreateLegacy921(DocumentReference ref,String name,String category,int seats,boolean priv,String joinCode,Exception first,Exception second){
-        Map<String,Object> legacy=new HashMap<>();legacy.put("name",name);legacy.put("ownerUid",user.getUid());legacy.put("ownerName",safeName());legacy.put("category",category);legacy.put("maxSeats",seats);legacy.put("isPrivate",priv);legacy.put("hasPassword",false);legacy.put("joinCode",joinCode);legacy.put("locked",false);legacy.put("muteAll",false);legacy.put("closed",false);legacy.put("createdAt",FieldValue.serverTimestamp());legacy.put("updatedAt",FieldValue.serverTimestamp());
+    private void retryRoomCreateLegacy921(DocumentReference ref,String name,String category,int seats,boolean priv,String joinCode,String entranceMode,String entryEpoch,Exception first,Exception second){
+        Map<String,Object> legacy=new HashMap<>();legacy.put("name",name);legacy.put("ownerUid",user.getUid());legacy.put("ownerName",safeName());legacy.put("category",category);legacy.put("maxSeats",seats);legacy.put("isPrivate",priv);legacy.put("hasPassword",false);legacy.put("entranceMode",entranceMode);legacy.put("entryEpoch",entryEpoch);legacy.put("joinCode",joinCode);legacy.put("locked",false);legacy.put("muteAll",false);legacy.put("closed",false);legacy.put("createdAt",FieldValue.serverTimestamp());legacy.put("updatedAt",FieldValue.serverTimestamp());
         ref.set(legacy).addOnSuccessListener(v->finishRoomCreate921(ref,name,seats,priv)).addOnFailureListener(last->{roomCreateInFlight921=false;KingStability.nonFatal(this,"room-create-full",first);KingStability.nonFatal(this,"room-create-compact",second);KingStability.nonFatal(this,"room-create-legacy",last);roomJoinError891("Room create failed",last);renderCreateRoomPage();});
     }
     private void finishRoomCreate921(DocumentReference ref,String name,int seats,boolean priv){
@@ -1194,6 +1212,10 @@ public class PartyActivity extends androidx.fragment.app.FragmentActivity implem
         clearPartyReconnect979();
         presenceSession967=java.util.UUID.randomUUID().toString();
         roomVisitStarted10026=System.currentTimeMillis();
+        roomVoicePolicyVerified=false;
+        cloudflareVoiceReady10066=false;cloudflareVoiceConfigLoading10066=false;
+        cloudflareVoiceConfigMessage10066="";cloudflareVoiceConfigSession10066="";
+        cloudflareVoiceConfigCheckedAt10066=0L;++cloudflareVoiceConfigGeneration10066;
         roomId=id.trim(); micTogglePending968=false; roomName=name; ownerUid=hostUid; ownerName=hostName; cloudRoom=true; mySeat=-1; micOn=false; coHost=false; roomPrivate=priv; roomHasPassword=password;roomEntranceMode9931="legacy";roomEntryEpoch9936=""; memberSeen=false; localRemovedSeats.clear(); lockedSeats.clear();
         processedEventIds.clear(); eventSnapshotReady=false;
         if(roomPrivate&&!isOwner()) tryPrivateEntry();
@@ -1579,22 +1601,21 @@ public class PartyActivity extends androidx.fragment.app.FragmentActivity implem
         if(isOwner()){verifyExistingRoomOpen10037(expectedRoom966,expectedId966,expectedUid966,token966,join);return;}
         // Fetch room state and member capacity together, not in two serial server
         // round-trips. Keep the existing signed-in room+generation guards.
-        com.google.android.gms.tasks.Tasks.whenAllSuccess(
-                expectedRoom966.get(com.google.firebase.firestore.Source.SERVER),
-                expectedRoom966.collection("members").get(com.google.firebase.firestore.Source.SERVER))
-            .addOnSuccessListener(responses10027->{
+        com.google.android.gms.tasks.Task<DocumentSnapshot> roomRead=
+            expectedRoom966.get(com.google.firebase.firestore.Source.SERVER);
+        com.google.android.gms.tasks.Task<com.google.firebase.firestore.QuerySnapshot> memberRead=
+            expectedRoom966.collection("members").get(com.google.firebase.firestore.Source.SERVER);
+        com.google.android.gms.tasks.Tasks.whenAll(roomRead,memberRead)
+            .addOnSuccessListener(ignored->{
                 if(!isCurrentPartyJoin966(expectedId966,expectedUid966,token966))return;
-                if(responses10027.size()!=2){
-                    showPartyJoinFailure977("Cannot verify Party Room capacity");return;
-                }
-                DocumentSnapshot roomDoc10027=(DocumentSnapshot)responses10027.get(0);
-                com.google.firebase.firestore.QuerySnapshot members10027=
-                    (com.google.firebase.firestore.QuerySnapshot)responses10027.get(1);
+                DocumentSnapshot roomDoc10027=roomRead.getResult();
+                com.google.firebase.firestore.QuerySnapshot members10027=memberRead.getResult();
                 if(roomDoc10027==null||!roomDoc10027.exists()
                     ||Boolean.TRUE.equals(roomDoc10027.getBoolean("closed"))){
                     toast("This Party room is no longer available");renderLobby("Hot");return;
                 }
-                Long cap10027=roomDoc10027.getLong("maxMembers");
+                Object cap=roomDoc10027.get("maxMembers");
+                Long cap10027=cap instanceof Number?((Number)cap).longValue():null;
                 int limit10027=cap10027==null?100:(int)Math.max(10,Math.min(200,cap10027));
                 maxMembers930=limit10027;
                 if(members10027==null){showPartyJoinFailure977("Cannot verify Party Room members");return;}
@@ -2071,7 +2092,7 @@ public class PartyActivity extends androidx.fragment.app.FragmentActivity implem
         }
         roomActions9916.addView(actionRow9916,new HorizontalScrollView.LayoutParams(-2,dp(48)));
         roomRoot.addView(roomActions9916,new LinearLayout.LayoutParams(-1,dp(50)));
-        voiceStatus10065=(TextView)getLayoutInflater().inflate(R.layout.king_party_voice_status_10065,roomRoot,false);voiceStatus10065.setText("Voice connecting…");
+        voiceStatus10065=(TextView)getLayoutInflater().inflate(R.layout.king_party_voice_status_10065,roomRoot,false);voiceStatus10065.setText(voiceConferenceConnected10065?"Voice connected":"Voice • tap to connect");
         voiceStatus10065.setMinHeight(dp(44));voiceStatus10065.setOnClickListener(v->showVoiceConnection10065());
         roomRoot.addView(voiceStatus10065,new LinearLayout.LayoutParams(-1,-2));
         if(!requestedGame940.isEmpty()){
@@ -2140,7 +2161,7 @@ public class PartyActivity extends androidx.fragment.app.FragmentActivity implem
         composerBox=new EditText(this); composerBox.setHint("Type message..."); composerBox.setTextColor(Color.WHITE); composerBox.setHintTextColor(0xffbfaad6); composerBox.setSingleLine(true); composerBox.setTextSize(14); composerBox.setImeOptions(android.view.inputmethod.EditorInfo.IME_ACTION_SEND); composerBox.setOnEditorActionListener((v, actionId, event)->{ if(actionId==android.view.inputmethod.EditorInfo.IME_ACTION_SEND){sendMessage(composerBox);return true;}return false;}); composerBox.setBackground(royalNeon9924(0xff322053,0xff211438,0x88d2a5ea,20)); composerBox.setPadding(dp(10),0,dp(10),0);
         composerBox.setOnFocusChangeListener((v,focused)->{if(focused){ViewCompat.requestApplyInsets(shell);if(roomChatScroll!=null)roomChatScroll.postDelayed(()->roomChatScroll.fullScroll(View.FOCUS_DOWN),120);}});
         composerBox.setMinWidth(0); composer.addView(composerBox,new LinearLayout.LayoutParams(0,dp(48),1));
-        TextView emoji=pill("🌈",0x00ffffff,this::showLiveEmojiPanelV530); emoji.setTextColor(0xff732eb6); emoji.setTextSize(23); composer.addView(emoji,new LinearLayout.LayoutParams(dp(38),dp(46)));
+        TextView emoji=pill("😊",0x00ffffff,this::showLiveEmojiPanelV530); emoji.setTextColor(0xff732eb6); emoji.setTextSize(23); composer.addView(emoji,new LinearLayout.LayoutParams(dp(38),dp(46)));
         micLabel=pill(micOn?"🎤":"🎙",0x00ffffff,this::toggleMic); micLabel.setTextColor(0xffffd991); micLabel.setTextSize(22); composer.addView(micLabel,new LinearLayout.LayoutParams(dp(38),dp(46)));
         TextView gift=pill("🎁",0x00ffffff,this::giftShopPanel); gift.setTextColor(0xffaf3583); gift.setTextSize(24); gift.setContentDescription("Animated cinematic Gift Shop"); composer.addView(gift,new LinearLayout.LayoutParams(dp(38),dp(46)));
         TextView send=pill("➤",0x00ffffff,()->sendMessage(composerBox)); send.setTextColor(themeAccent954()); send.setTextSize(24); send.setGravity(Gravity.CENTER); composer.addView(send,new LinearLayout.LayoutParams(dp(40),dp(48)));
@@ -2240,13 +2261,14 @@ public class PartyActivity extends androidx.fragment.app.FragmentActivity implem
                 String photoUrl=memberPhotos540.get(seatUids.get(no));if(mine){String localPhoto868=localProfilePhoto868();if(!localPhoto868.isEmpty())photoUrl=localPhoto868;else{String cloudPhoto868=cloudProfilePhoto868();if(!cloudPhoto868.isEmpty())photoUrl=cloudPhoto868;else if(user!=null&&user.getPhotoUrl()!=null)photoUrl=user.getPhotoUrl().toString();}}if(n!=null&&photoUrl!=null&&!photoUrl.isEmpty())applyProfilePhoto868(photo,av,photoUrl);
                 String label;
                 if(hostVisualV532) label="👑 "+shortSeatName(n)+(vip720>0?" • V"+vip720:"");
-                else if(n==null) label=seatLocked?"NO."+no+" 🔒":"NO."+no;
+                else if(n==null) label=seatLocked?"🔒 "+no:"Mic "+no;
                 else label=(mine?"👑 ":"")+shortSeatName(n)+(level720>0?" • Lv"+level720:"")+(vip720>0?" • V"+vip720:"")+(Boolean.FALSE.equals(seatMics.get(no))?" 🔇":"");
-                TextView lab=seat.findViewById(R.id.party_seat_label_10064);lab.setText(label);lab.setTextColor(n==null&&!hostVisualV532?0xd8ffffff:Color.WHITE);lab.setTypeface(null,n!=null||hostVisualV532?Typeface.BOLD:Typeface.NORMAL);lab.setLayoutParams(new LinearLayout.LayoutParams(-1,dp(labelDp9920)));seat.setContentDescription("Mic seat "+no+", "+(n==null?(seatLocked?"locked":"empty"):n+", "+(Boolean.TRUE.equals(seatMics.get(no))?"microphone on":"microphone muted")));
+                TextView lab=seat.findViewById(R.id.party_seat_label_10064);lab.setText(label);lab.setTextColor(n==null&&!hostVisualV532?0xd8ffffff:Color.WHITE);lab.setTypeface(null,n!=null||hostVisualV532?Typeface.BOLD:Typeface.NORMAL);lab.setLayoutParams(new LinearLayout.LayoutParams(-1,dp(labelDp9920)));lab.setSingleLine(true);lab.setEllipsize(android.text.TextUtils.TruncateAt.END);seat.setContentDescription("Mic seat "+no+", "+(n==null?(seatLocked?"locked":"empty"):n+", "+(Boolean.TRUE.equals(seatMics.get(no))?"microphone on":"microphone muted")));
                 seatViews560.put(no,seat);final int seatNo=no; seat.setOnClickListener(v->seatAction(seatNo));
                 seat.setOnLongClickListener(v->{
-                    if(canModerateSeatsV530()&&seatUids.get(seatNo)!=null){
-                        showOccupiedSeatMenuV530(seatNo);
+                    if(cloudRoom&&canModerateSeatsV530()){
+                        if(seatUids.get(seatNo)==null)showEmptySeatMenuV530(seatNo);
+                        else showOccupiedSeatMenuV530(seatNo);
                         return true;
                     }
                     return false;
@@ -2567,53 +2589,54 @@ public class PartyActivity extends androidx.fragment.app.FragmentActivity implem
     private void showLiveEmojiPanelV530() {
         final LinearLayout sheet=new LinearLayout(this);
         sheet.setOrientation(LinearLayout.VERTICAL);
-        sheet.setBackgroundColor(0xff171326);
-        LinearLayout bar=new LinearLayout(this);
-        bar.setGravity(Gravity.CENTER_VERTICAL);bar.setPadding(dp(12),0,dp(8),0);
-        TextView title=tv("KING LIVE • 120 ACTION EMOJI",16,Color.WHITE,true);
-        bar.addView(title,new LinearLayout.LayoutParams(0,dp(48),1));
-        TextView close=tv("×",26,Color.WHITE,true);
-        close.setGravity(Gravity.CENTER);
-        bar.addView(close,new LinearLayout.LayoutParams(dp(48),dp(48)));
-        sheet.addView(bar);
-        TextView subtitle=tv("50 classic • 50 action • 10 level • 10 VIP preview",
-            11,0xffffdc95,true);
-        subtitle.setPadding(dp(12),0,dp(8),dp(5));
-        sheet.addView(subtitle,new LinearLayout.LayoutParams(-1,dp(25)));
-        HorizontalScrollView strip=new HorizontalScrollView(this);
-        strip.setHorizontalScrollBarEnabled(false);
-        LinearLayout tabs=new LinearLayout(this);
-        strip.addView(tabs);
-        sheet.addView(strip,new LinearLayout.LayoutParams(-1,dp(54)));
-        ScrollView scroll=new ScrollView(this);
-        LinearLayout grid=new LinearLayout(this);
-        grid.setOrientation(LinearLayout.VERTICAL);
-        grid.setPadding(dp(7),dp(5),dp(7),dp(7));
-        scroll.addView(grid);sheet.addView(scroll,new LinearLayout.LayoutParams(-1,0,1));
-        final String[] groups={"Action 25","Party 25","Classic A","Classic B",
-            "Level 10","VIP 10","Stickers","Saved"};
+        sheet.setBackgroundColor(0xfffffdf8);
         final AlertDialog dialog=new AlertDialog.Builder(this).setView(sheet).create();
-        close.setOnClickListener(v->dialog.dismiss());
+
+        // Keep the room and seats visible; quick phrases and emoji share a compact bottom sheet.
+        HorizontalScrollView quickScroll=new HorizontalScrollView(this);quickScroll.setHorizontalScrollBarEnabled(false);
+        LinearLayout quick=new LinearLayout(this);
+        for(String phrase:new String[]{"Nice to meet everyone!","😂😂😂","Hi","Nice"}){
+            TextView chip=tv(phrase,12,0xff3b2b45,true);chip.setGravity(Gravity.CENTER);chip.setBackground(bg(0xffffedbc,18));
+            LinearLayout.LayoutParams p=new LinearLayout.LayoutParams(-2,dp(40));p.setMargins(dp(4),dp(3),dp(4),dp(3));quick.addView(chip,p);
+            chip.setOnClickListener(v->{dialog.dismiss();if(composerBox!=null){composerBox.setText(phrase);composerBox.setSelection(composerBox.length());sendMessage(composerBox);}});
+        }
+        quickScroll.addView(quick);sheet.addView(quickScroll,new LinearLayout.LayoutParams(-1,dp(46)));
+
+        LinearLayout bar=new LinearLayout(this);bar.setGravity(Gravity.CENTER_VERTICAL);
+        EditText input=new EditText(this);input.setSingleLine(true);input.setTextSize(14);input.setHint("Send a message...");input.setPadding(dp(12),0,dp(12),0);
+        input.setBackground(bg(0xfff1eff4,18));bar.addView(input,new LinearLayout.LayoutParams(0,dp(44),1));
+        TextView send=tv("➤",22,0xff9c6b00,true);send.setGravity(Gravity.CENTER);
+        bar.addView(send,new LinearLayout.LayoutParams(dp(48),dp(48)));send.setContentDescription("Send chat message");
+        send.setOnClickListener(v->{String text=input.getText().toString().trim();if(text.isEmpty())return;dialog.dismiss();if(composerBox!=null){composerBox.setText(text);sendMessage(composerBox);}});
+        TextView close=tv("×",24,0xff3b2b45,true);close.setGravity(Gravity.CENTER);close.setContentDescription("Close emoji");close.setOnClickListener(v->dialog.dismiss());
+        bar.addView(close,new LinearLayout.LayoutParams(dp(48),dp(48)));sheet.addView(bar,new LinearLayout.LayoutParams(-1,dp(48)));
+
+        ScrollView scroll=new ScrollView(this);
+        LinearLayout grid=new LinearLayout(this);grid.setOrientation(LinearLayout.VERTICAL);grid.setPadding(dp(6),dp(4),dp(6),dp(4));
+        scroll.addView(grid);sheet.addView(scroll,new LinearLayout.LayoutParams(-1,0,1));
+        HorizontalScrollView strip=new HorizontalScrollView(this);strip.setHorizontalScrollBarEnabled(false);
+        LinearLayout tabs=new LinearLayout(this);strip.addView(tabs);sheet.addView(strip,new LinearLayout.LayoutParams(-1,dp(48)));
+        final String[] groups={"😀 Action","🎉 Party","🙂 Classic","😄 Faces","🎲 Stickers","⭐ Level","👑 VIP","♡ Saved"};
         for(int i=0;i<groups.length;i++){
             final int group=i;
-            TextView tab=tv(groups[i],12,Color.WHITE,true);
-            tab.setGravity(Gravity.CENTER);
-            LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(dp(92),dp(44));
-            lp.setMargins(dp(2),dp(2),dp(2),dp(2));tabs.addView(tab,lp);
+            TextView tab=tv(groups[i],12,0xff3b2b45,true);tab.setGravity(Gravity.CENTER);
+            LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(-2,dp(44));lp.setMargins(dp(2),dp(2),dp(2),dp(2));tabs.addView(tab,lp);
             tab.setOnClickListener(v->{
                 String[] pack;
                 if(group==0)pack=emojiSlice993(50,75);
                 else if(group==1)pack=emojiSlice993(75,100);
                 else if(group==2)pack=emojiSlice993(0,25);
                 else if(group==3)pack=emojiSlice993(25,50);
-                else if(group==4)pack=emojiSlice993(100,110);
-                else if(group==5)pack=emojiSlice993(110,120);
-                else if(group==6)pack=stickerPack550(0,67);
+                else if(group==4)pack=stickerPack550(0,67);
+                else if(group==5)pack=emojiSlice993(100,110);
+                else if(group==6)pack=emojiSlice993(110,120);
                 else pack=favouriteEmojiPack610();
-                fillEmojiGrid610(grid,pack,group==6?6:5,group<6);
-                for(int n=0;n<tabs.getChildCount();n++)
-                    tabs.getChildAt(n).setBackground(
-                        bg(n==group?0xfff5b83e:0xff383047,14));
+                fillEmojiGrid610(grid,pack,group==2||group==3?6:4,group!=4&&group!=7);
+                scroll.scrollTo(0,0);
+                for(int n=0;n<tabs.getChildCount();n++){
+                    tabs.getChildAt(n).setSelected(n==group);
+                    tabs.getChildAt(n).setBackground(bg(n==group?0xffffd56b:0xfff2eff5,14));
+                }
             });
         }
         tabs.getChildAt(0).performClick();
@@ -2623,9 +2646,8 @@ public class PartyActivity extends androidx.fragment.app.FragmentActivity implem
                 w.setBackgroundDrawableResource(android.R.color.transparent);
                 w.clearFlags(android.view.WindowManager.LayoutParams.FLAG_DIM_BEHIND);
                 w.setGravity(Gravity.BOTTOM);
-                int h=Math.min(dp(580),Math.max(dp(390),
-                    (int)(getResources().getDisplayMetrics().heightPixels*.64f)));
-                w.setLayout(-1,h);
+                w.setSoftInputMode(android.view.WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE|android.view.WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_HIDDEN);
+                w.setLayout(-1,Math.min(dp(460),(int)(getResources().getDisplayMetrics().heightPixels*.48f)));
             }
         });
         dialog.show();
@@ -2644,8 +2666,8 @@ public class PartyActivity extends androidx.fragment.app.FragmentActivity implem
     private void fillEmojiGrid610(LinearLayout grid,String[] emojis,int columns,boolean livePack){
         grid.removeAllViews();
         if(emojis==null||emojis.length==0){TextView empty=tv("No favourites yet\nLong-press any Face or Expression to add it here.",14,0xff777777,false);empty.setGravity(Gravity.CENTER);grid.addView(empty,new LinearLayout.LayoutParams(-1,dp(150)));return;}
-        final int rowHeight=columns>=6?dp(64):dp(72);
-        final int artSize=columns>=6?dp(46):dp(52);
+        final int rowHeight=columns>=6?dp(48):dp(68);
+        final int artSize=columns>=6?dp(38):dp(54);
         LinearLayout row=null;
         for(int i=0;i<emojis.length;i++){
             if(i%columns==0){row=new LinearLayout(this);row.setGravity(Gravity.CENTER);grid.addView(row,new LinearLayout.LayoutParams(-1,rowHeight));}
@@ -2654,7 +2676,7 @@ public class PartyActivity extends androidx.fragment.app.FragmentActivity implem
             else if(stickerResource550(token)!=0){android.widget.ImageView im=new android.widget.ImageView(this);im.setImageResource(stickerResource550(token));im.setScaleType(android.widget.ImageView.ScaleType.CENTER_INSIDE);im.setAdjustViewBounds(false);im.setContentDescription("Sticker "+token);art=im;}
             else if(live>=0){art=new LiveEmojiView(this,live,-1);art.setContentDescription("Preview "+LiveEmojiView.LABELS[live]+"; tap to animate in the room");}
             else{TextView text=tv(token,columns>=6?30:33,0xff202020,false);text.setGravity(Gravity.CENTER);text.setPadding(0,0,0,0);text.setContentDescription("Send "+token);art=text;}
-            FrameLayout cell=new FrameLayout(this);cell.setForegroundGravity(Gravity.CENTER);cell.setPadding(dp(2),dp(2),dp(2),dp(2));
+            FrameLayout cell=new FrameLayout(this);cell.setForegroundGravity(Gravity.CENTER);cell.setPadding(dp(2),dp(2),dp(2),dp(2));cell.setBackground(bg(0xfffff7e6,10));
             FrameLayout.LayoutParams ap=new FrameLayout.LayoutParams(artSize,artSize,Gravity.CENTER);cell.addView(art,ap);
             LinearLayout.LayoutParams cp=new LinearLayout.LayoutParams(0,rowHeight,1);cp.setMargins(dp(1),dp(1),dp(1),dp(1));row.addView(cell,cp);
             final int emojiId993=live;
@@ -2664,7 +2686,7 @@ public class PartyActivity extends androidx.fragment.app.FragmentActivity implem
                 String badge=KingEmojiAccess993.requiredVip(emojiId993)>0
                     ?"VIP "+KingEmojiAccess993.requiredVip(emojiId993)
                     :"LV "+KingEmojiAccess993.requiredLevel(emojiId993);
-                TextView lock=tv("🔒 "+badge,10,0xffffd889,true);
+                TextView lock=tv("🔒 "+badge,10,0xff885700,true);
                 lock.setGravity(Gravity.BOTTOM|Gravity.CENTER_HORIZONTAL);
                 cell.addView(lock,new FrameLayout.LayoutParams(-1,dp(20),Gravity.BOTTOM));
             }
@@ -2772,7 +2794,8 @@ public class PartyActivity extends androidx.fragment.app.FragmentActivity implem
             boolean match=uid!=null?uid.equals(seatUids.get(entry.getKey())):entry.getKey()==mySeat;
             if(match){int[] seatXY=new int[2],stageXY=new int[2];entry.getValue().getLocationOnScreen(seatXY);stage.getLocationOnScreen(stageXY);lp.leftMargin=Math.max(0,seatXY[0]-stageXY[0]+(entry.getValue().getWidth()-dp(82))/2);lp.topMargin=Math.max(0,seatXY[1]-stageXY[1]-dp(7));break;}
         }
-        if(ReferenceEmojiView.parse(emoji)>=3 || live>=12){lp.width=-1;lp.height=-1;lp.leftMargin=0;lp.topMargin=0;}
+        // Keep ordinary face reactions on the sender’s seat. Special reference effects may use the full stage.
+        if(ReferenceEmojiView.parse(emoji)>=3){lp.width=-1;lp.height=-1;lp.leftMargin=0;lp.topMargin=0;}
         stage.addView(reaction,lp);reaction.setScaleX(.6f);reaction.setScaleY(.6f);reaction.animate().scaleX(1f).scaleY(1f).setDuration(200).start();
         reaction.postDelayed(()->{reaction.animate().alpha(0f).setDuration(250).withEndAction(()->{stage.removeView(reaction);if(activeReactions560.get(key)==reaction)activeReactions560.remove(key);}).start();},3750);
     }
@@ -3051,6 +3074,13 @@ public class PartyActivity extends androidx.fragment.app.FragmentActivity implem
         final int expectedSeat968=mySeat;
         final int expectedGeneration968=presenceGeneration967;
         final boolean desiredMic968=!micOn;
+        if(desiredMic968&&!canConnectPartyVoice()){
+            if(roomVoicePolicyVerified&&(roomPrivate||roomHasPassword)&&user!=null)
+                checkCloudflareVoiceConfig10066(roomId,user.getUid(),presenceGeneration967,
+                    roomListenerGeneration982,true);
+            showPartyVoiceUnavailable();
+            return;
+        }
         if(!desiredMic968)revokeMicConsent9956();
         if(desiredMic968 && android.os.Build.VERSION.SDK_INT>=23 &&
                 checkSelfPermission(android.Manifest.permission.RECORD_AUDIO)
@@ -3160,7 +3190,7 @@ public class PartyActivity extends androidx.fragment.app.FragmentActivity implem
     private void toggleSound(){
         soundOn=!soundOn;roomVoiceOptedIn957=soundOn;
         if(!soundOn){micOn=false;revokeMicConsent9956();if(mySeat>0)muteOwnedSeat9920("sound-off");stopInRoomVoice940(true);refreshMicControl();voiceState10065("Voice off • tap to connect");toast("Voice and microphone off");}
-        else if(cloudRoom&&memberSeen&&partyShell940!=null){attachInRoomVoice940(partyShell940);voiceState10065("Voice connecting…");}
+        else if(cloudRoom&&memberSeen&&partyShell940!=null){attachInRoomVoice940(partyShell940);}
     }
     private String musicPrefsKey(){return "music_playlist_"+(user==null?"local":user.getUid());}
     private void loadMusicPlaylist(){
@@ -3505,10 +3535,10 @@ public class PartyActivity extends androidx.fragment.app.FragmentActivity implem
         if(chatBox==null)return;
         boolean follow=roomChatScroll!=null && !roomChatScroll.canScrollVertically(1);
         int bubbleWidth=Math.min(dp(280),Math.max(dp(220),getResources().getDisplayMetrics().widthPixels-dp(54)));
-        LinearLayout card=new LinearLayout(this);card.setOrientation(LinearLayout.VERTICAL);card.setMinimumHeight(dp(58));
-        card.setPadding(dp(10),dp(6),dp(10),dp(7));boolean giftMessage=text!=null&&text.contains("🎁")&&(text.contains(" sent ")||text.contains("Gift"));boolean mineBubble940=who!=null&&who.equals(safeName());int partyBubble940=mineBubble940?KingCosmetics.bubbleColor(KingCosmetics.bubble(this)):0x20ffffff;card.setBackground(bg(giftMessage?0x55b78925:partyBubble940,12));
+        LinearLayout card=new LinearLayout(this);card.setOrientation(LinearLayout.VERTICAL);card.setMinimumHeight(dp(46));
+        card.setPadding(dp(9),dp(4),dp(9),dp(5));boolean giftMessage=text!=null&&text.contains("🎁")&&(text.contains(" sent ")||text.contains("Gift"));boolean mineBubble940=who!=null&&who.equals(safeName());int partyBubble940=mineBubble940?KingCosmetics.bubbleColor(KingCosmetics.bubble(this)):0x20ffffff;card.setBackground(bg(giftMessage?0x55b78925:partyBubble940,12));
         TextView n=tv((giftMessage?"🎁  ":"👤  ")+chatIdentity750(who),11,giftMessage?0xffffdf6b:0xffffedaf,true);n.setPadding(0,0,0,dp(3));n.setSingleLine(true);n.setEllipsize(android.text.TextUtils.TruncateAt.END);
-        card.addView(n,new LinearLayout.LayoutParams(-1,dp(24)));
+        card.addView(n,new LinearLayout.LayoutParams(-1,dp(20)));
         TextView msg=tv(text,14,Color.WHITE,false);msg.setPadding(0,0,0,0);msg.setMinHeight(dp(24));
         text=stickerFallback610(text);msg.setText(text);int live=LiveEmojiView.parse(text);
         if(ReferenceEmojiView.parse(text)>=0){ReferenceEmojiView art=new ReferenceEmojiView(this,ReferenceEmojiView.parse(text),false);LinearLayout.LayoutParams ap=new LinearLayout.LayoutParams(dp(64),dp(64));ap.gravity=Gravity.CENTER_HORIZONTAL;card.addView(art,ap);}
@@ -3516,7 +3546,7 @@ public class PartyActivity extends androidx.fragment.app.FragmentActivity implem
         else if(live>=0){LiveEmojiView art=new LiveEmojiView(this,live,4500);LinearLayout.LayoutParams ap=new LinearLayout.LayoutParams(dp(64),dp(64));ap.gravity=Gravity.CENTER_HORIZONTAL;card.addView(art,ap);}
         else{card.addView(msg,new LinearLayout.LayoutParams(-1,-2));}
         final String actionText620=text;card.setOnLongClickListener(v->{roomChatMessageActions620(who,actionText620);return true;});n.setOnClickListener(v->roomChatMessageActions620(who,actionText620));
-        LinearLayout.LayoutParams p=new LinearLayout.LayoutParams(bubbleWidth,-2);p.setMargins(0,dp(3),0,dp(3));chatBox.addView(card,p);
+        LinearLayout.LayoutParams p=new LinearLayout.LayoutParams(bubbleWidth,-2);p.gravity=giftMessage?Gravity.CENTER_HORIZONTAL:Gravity.START;p.setMargins(dp(4),dp(2),dp(4),dp(2));chatBox.addView(card,p);
         if(follow){final ScrollView scroll=roomChatScroll;scroll.post(()->scroll.fullScroll(View.FOCUS_DOWN));}
     }
     private String chatIdentity750(String who){String uid=memberUids.get(who);int lv=1,vip=0;if(user!=null&&who!=null&&who.equals(safeName())){LevelSystem.Snapshot me=LevelSystem.read(this);lv=me.level;vip=me.vipLevel;}else if(uid!=null){Integer l=memberLevel720.get(uid),v=memberVip720.get(uid);if(l!=null)lv=l;if(v!=null)vip=v;}return (vip>0?"💎VIP"+vip+"  ":"")+"Lv."+lv+"  "+who;}
@@ -3587,57 +3617,21 @@ public class PartyActivity extends androidx.fragment.app.FragmentActivity implem
     private void giftShopPanel(){
         if(ownerName==null)ownerName="KING Host";
         if(giftTargetName==null||giftTargetName.isEmpty()){giftTargetName="👑 "+ownerName;giftTargetUid=ownerUid==null?"":ownerUid;}
-        giftQuantity=1; giftCategory="All"; giftSelectedIndex=0;giftHero994=null;
+        giftQuantity=1; giftCategory="Activity"; giftSelectedIndex=0;giftHero994=null;
         LinearLayout root=new LinearLayout(this);root.setOrientation(LinearLayout.VERTICAL);root.setPadding(dp(10),dp(8),dp(10),dp(10));root.setBackgroundColor(0xff181824);
-        LinearLayout banner=new LinearLayout(this);banner.setGravity(Gravity.CENTER_VERTICAL);banner.setPadding(dp(10),dp(4),dp(8),dp(4));banner.setBackground(bg(0xff7d36d6,14));
-        TextView wt=tv("🎟  Weekly Gift Card",16,Color.WHITE,true);banner.addView(wt,new LinearLayout.LayoutParams(0,dp(42),1));TextView arrow=tv("›",28,Color.WHITE,true);arrow.setGravity(Gravity.CENTER);banner.addView(arrow,new LinearLayout.LayoutParams(dp(40),dp(42)));banner.setOnClickListener(v->{if(giftShopDialog!=null)giftShopDialog.dismiss();weeklyGiftCardDialog();});root.addView(banner,new LinearLayout.LayoutParams(-1,dp(40)));
         LinearLayout top=(LinearLayout)getLayoutInflater().inflate(R.layout.king_party_gift_header_10064,root,false);
-        TextView title=top.findViewById(R.id.party_gift_title_10064);title.setText("Gift Shop • "+giftNames.length+" gifts");
+        TextView title=top.findViewById(R.id.party_gift_title_10064);title.setText("Gifts");
         giftBalanceLabel=top.findViewById(R.id.party_gift_balance_10064);giftBalanceLabel.setText("💎 checking…");
+        TextView more=tv("⋯",24,Color.WHITE,true);more.setGravity(Gravity.CENTER);more.setContentDescription("Gift tools");
+        more.setOnClickListener(v->showCompactGiftTools());top.addView(more,new LinearLayout.LayoutParams(dp(48),dp(48)));
         root.addView(top);refreshPartyGiftBalance10064();
-        LinearLayout giftQuick950=new LinearLayout(this);giftQuick950.setGravity(Gravity.CENTER);String[] gq950={"🎁 Wall","🏆 Rank","🎒 Backpack"};for(String q950:gq950){TextView b950=pill(q950,0xff2b2938,()->{if(giftShopDialog!=null)giftShopDialog.dismiss();if(q950.contains("Wall"))giftWall620();else if(q950.contains("Rank"))roomRankingDialog();else backpackGiftDialog700();});b950.setTextSize(11);LinearLayout.LayoutParams qp950=new LinearLayout.LayoutParams(0,dp(38),1);qp950.setMargins(dp(2),0,dp(2),dp(4));giftQuick950.addView(b950,qp950);}root.addView(giftQuick950,new LinearLayout.LayoutParams(-1,dp(42)));
-        TextView soundToggle993=pill(
-            KingGiftSound993.enabled(this)?"🔊 Gift Sound ON":"🔇 Gift Sound OFF",
-            0xff342c55,null);
-        soundToggle993.setTextSize(11);
-        soundToggle993.setOnClickListener(v->{
-            boolean on=!KingGiftSound993.enabled(this);
-            KingGiftSound993.setEnabled(this,on);
-            soundToggle993.setText(on?"🔊 Gift Sound ON":"🔇 Gift Sound OFF");
-        });
-        root.addView(soundToggle993,new LinearLayout.LayoutParams(-1,dp(34)));
-        TextView preview9932=pill("▶ Hear selected gift sound • FREE PREVIEW",0xff36305c,
-            ()->KingGiftSound993.play(this,giftNames[giftSelectedIndex]));
-        preview9932.setTextSize(11);
-        root.addView(preview9932,new LinearLayout.LayoutParams(-1,dp(36)));
-        LinearLayout heroPanel994=new LinearLayout(this);
-        heroPanel994.setGravity(Gravity.CENTER_VERTICAL);
-        heroPanel994.setPadding(dp(6),dp(4),dp(8),dp(4));
-        heroPanel994.setBackground(bg(0xff282038,16));
-        giftHero994=new KingGiftArtView(this,giftSelectedIndex,
-            giftNames[giftSelectedIndex],giftIcons[giftSelectedIndex]);
-        giftHero994.setShowcaseMode(true);
-        heroPanel994.addView(giftHero994,new LinearLayout.LayoutParams(dp(112),dp(104)));
-        LinearLayout heroInfo994=new LinearLayout(this);
-        heroInfo994.setOrientation(LinearLayout.VERTICAL);
-        giftSelectionLabel=tv(giftSelectionText867(),12,0xffffe38a,true);
-        giftSelectionLabel.setGravity(Gravity.CENTER_VERTICAL);
-        giftSelectionLabel.setMaxLines(3);
-        heroInfo994.addView(giftSelectionLabel,
-            new LinearLayout.LayoutParams(-1,dp(75)));
-        TextView hint994=tv("✨ Animated gift preview • choose any gift",10,
-            0xfff5cfee,false);
-        heroInfo994.addView(hint994,new LinearLayout.LayoutParams(-1,dp(22)));
-        heroPanel994.addView(heroInfo994,
-            new LinearLayout.LayoutParams(0,dp(104),1));
-        LinearLayout.LayoutParams heroLp994=new LinearLayout.LayoutParams(-1,dp(110));
-        heroLp994.bottomMargin=dp(4);
-        root.addView(heroPanel994,heroLp994);
+        giftSelectionLabel=tv(giftSelectionText867(),12,0xffffe38a,true);giftSelectionLabel.setMaxLines(2);giftSelectionLabel.setEllipsize(android.text.TextUtils.TruncateAt.END);
         HorizontalScrollView peopleScroll=new HorizontalScrollView(this);peopleScroll.setHorizontalScrollBarEnabled(false);LinearLayout people=new LinearLayout(this);people.setGravity(Gravity.CENTER_VERTICAL);people.setPadding(0,dp(3),0,dp(5));addGiftRecipientChip(people,"🙋 ME • "+safeName(),
             user==null?"":user.getUid());
-        addGiftRecipientChip(people,"👑 "+ownerName,ownerUid==null?"":ownerUid);for(int no=1;no<=maxSeats;no++){String n=seatNames.get(no);if(n==null||n.equals(displayName))continue;addGiftRecipientChip(people,no+" • "+n,seatUids.get(no)==null?"":seatUids.get(no));}peopleScroll.addView(people);root.addView(peopleScroll,new LinearLayout.LayoutParams(-1,dp(50)));
-        HorizontalScrollView catScroll=new HorizontalScrollView(this);catScroll.setHorizontalScrollBarEnabled(false);giftCategoryBar867=new LinearLayout(this);giftCategoryBar867.setGravity(Gravity.CENTER_VERTICAL);catScroll.addView(giftCategoryBar867);root.addView(catScroll,new LinearLayout.LayoutParams(-1,dp(44)));rebuildGiftCategories867();
+        addGiftRecipientChip(people,"👑 "+ownerName,ownerUid==null?"":ownerUid);for(int no=1;no<=maxSeats;no++){String n=seatNames.get(no);if(n==null||n.equals(displayName))continue;addGiftRecipientChip(people,no+" • "+n,seatUids.get(no)==null?"":seatUids.get(no));}peopleScroll.addView(people);root.addView(peopleScroll,new LinearLayout.LayoutParams(-1,dp(48)));
+        HorizontalScrollView catScroll=new HorizontalScrollView(this);catScroll.setHorizontalScrollBarEnabled(false);giftCategoryBar867=new LinearLayout(this);giftCategoryBar867.setGravity(Gravity.CENTER_VERTICAL);catScroll.addView(giftCategoryBar867);root.addView(catScroll,new LinearLayout.LayoutParams(-1,dp(40)));rebuildGiftCategories867();
         ScrollView giftsScroll=new ScrollView(this);giftGridBox=new LinearLayout(this);giftGridBox.setOrientation(LinearLayout.VERTICAL);giftsScroll.addView(giftGridBox);root.addView(giftsScroll,new LinearLayout.LayoutParams(-1,0,1));rebuildGiftGrid();
+        root.addView(giftSelectionLabel,new LinearLayout.LayoutParams(-1,-2));
         LinearLayout qty=new LinearLayout(this);qty.setGravity(Gravity.CENTER);int[] qs={1,3,9};for(int q:qs){TextView b=pill(String.valueOf(q),q==1?0xff776a00:0xff343143,()->{giftQuantity=q;refreshGiftSelection867();});LinearLayout.LayoutParams qp=new LinearLayout.LayoutParams(0,dp(44),1);qp.setMargins(dp(3),0,dp(3),0);qty.addView(b,qp);}TextView send=pill("SEND",0xffffd92e,()->KingSafe.run(this,"gift-send",()->{if(giftSelectedIndex>=64&&giftVipRequired[giftSelectedIndex]>0){
                     toast("VIP gift locked • Payments and verified entitlements are OFF");
                     return;
@@ -3649,11 +3643,20 @@ public class PartyActivity extends androidx.fragment.app.FragmentActivity implem
             giftHero994.setShowcaseMode(false);
             giftHero994=null;
         }});
-        giftShopDialog.setOnShowListener(v->{android.view.Window w=giftShopDialog.getWindow();if(w!=null){w.setBackgroundDrawableResource(android.R.color.transparent);w.clearFlags(android.view.WindowManager.LayoutParams.FLAG_DIM_BEHIND);w.setGravity(Gravity.BOTTOM);int h950=Math.min(dp(650),Math.max(dp(430),(int)(getResources().getDisplayMetrics().heightPixels*.72f)));w.setLayout(-1,h950);root.setTranslationY(dp(42));root.setAlpha(.88f);root.animate().translationY(0).alpha(1f).setDuration(190).start();}});giftShopDialog.show();
+        giftShopDialog.setOnShowListener(v->{android.view.Window w=giftShopDialog.getWindow();if(w!=null){w.setBackgroundDrawableResource(android.R.color.transparent);w.clearFlags(android.view.WindowManager.LayoutParams.FLAG_DIM_BEHIND);w.setGravity(Gravity.BOTTOM);int h950=Math.min(dp(540),(int)(getResources().getDisplayMetrics().heightPixels*.56f));w.setLayout(-1,h950);root.setTranslationY(dp(42));root.setAlpha(.88f);root.animate().translationY(0).alpha(1f).setDuration(190).start();}});giftShopDialog.show();
+    }
+    private void showCompactGiftTools(){
+        new AlertDialog.Builder(this).setTitle("Gift tools")
+            .setItems(new String[]{"Gift Wall","Gift Ranking","Backpack","Weekly Gift Card","Toggle Gift Sound","Preview selected gift sound"},(d,w)->{
+                if(w==4){boolean on=!KingGiftSound993.enabled(this);KingGiftSound993.setEnabled(this,on);toast(on?"Gift sound on":"Gift sound off");return;}
+                if(w==5){KingGiftSound993.play(this,giftNames[giftSelectedIndex]);return;}
+                if(giftShopDialog!=null)giftShopDialog.dismiss();
+                if(w==0)giftWall620();else if(w==1)roomRankingDialog();else if(w==2)backpackGiftDialog700();else weeklyGiftCardDialog();
+            }).setNegativeButton("Close",null).show();
     }
     private void rebuildGiftCategories867(){
-        if(giftCategoryBar867==null)return;giftCategoryBar867.removeAllViews();String[] cs={"All","Voice","VIP Night","Flying","Relationship","Activity","Classic","Fame","Privilege","Filters","Parcel"};
-        for(String c:cs){boolean selected=c.equals(giftCategory);TextView t=tv(c,12,selected?Color.BLACK:0xffd0cad8,true);t.setGravity(Gravity.CENTER);t.setBackground(bg(selected?0xffffd92e:0xff2a2938,12));t.setOnClickListener(v->{giftCategory=c;rebuildGiftCategories867();rebuildGiftGrid();});LinearLayout.LayoutParams cp=new LinearLayout.LayoutParams(dp(88),dp(36));cp.setMargins(dp(2),dp(2),dp(2),dp(2));giftCategoryBar867.addView(t,cp);}
+        if(giftCategoryBar867==null)return;giftCategoryBar867.removeAllViews();String[] cs={"Activity","Classic","Flying","Relationship","Fame","Privilege","Filters","Parcel","All","Voice","VIP Night"};
+        for(String c:cs){boolean selected=c.equals(giftCategory);TextView t=tv(c,12,selected?Color.BLACK:0xffd0cad8,true);t.setGravity(Gravity.CENTER);t.setBackground(bg(selected?0xffffd92e:0xff2a2938,12));t.setOnClickListener(v->{giftCategory=c;rebuildGiftCategories867();rebuildGiftGrid();});LinearLayout.LayoutParams cp=new LinearLayout.LayoutParams(-2,dp(36));cp.setMargins(dp(2),dp(2),dp(2),dp(2));giftCategoryBar867.addView(t,cp);}
     }
     private void addGiftRecipientChip(LinearLayout row,String label,String uid){
         TextView chip=pill(label,0xff343143,()->{giftTargetName=label;giftTargetUid=uid==null?"":uid;refreshGiftSelection867();});
@@ -3666,10 +3669,10 @@ public class PartyActivity extends androidx.fragment.app.FragmentActivity implem
         LinearLayout row=null;int col=0;int myVip=LevelSystem.read(this).vipLevel;
         for(int i=0;i<giftNames.length;i++){
             if(!"All".equals(giftCategory)&&!giftCategory.equals(giftCategories[i]))continue;
-            if(row==null||col==4){row=new LinearLayout(this);row.setGravity(Gravity.CENTER);giftGridBox.addView(row,new LinearLayout.LayoutParams(-1,dp(139)));col=0;}
+            if(row==null||col==4){row=new LinearLayout(this);row.setGravity(Gravity.CENTER);giftGridBox.addView(row,new LinearLayout.LayoutParams(-1,dp(112)));col=0;}
             final int idx=i;final int vipNeed=giftVipRequired[i];
             final boolean unlocked=idx<64||vipNeed==0;final boolean selected=idx==giftSelectedIndex;LinearLayout card=new LinearLayout(this);card.setOrientation(LinearLayout.VERTICAL);card.setGravity(Gravity.CENTER);card.setBackground(bg(selected?0xff47336c:(unlocked?0xff232231:0xff171720),14));card.setPadding(dp(2),dp(3),dp(2),dp(2));card.setAlpha(unlocked?1f:.82f);
-            TextView nw=tv(selected?"✓ SELECTED":unlocked?(idx<64?"💎 "+giftCosts[idx]:"FREE"):"🔒 VIP "+vipNeed,9,selected?0xffffd92e:(unlocked?0xff68e89d:0xffffb04f),true);nw.setGravity(Gravity.CENTER);card.addView(nw,new LinearLayout.LayoutParams(-1,dp(18)));
+            TextView nw=tv(selected?"✓ SELECTED":unlocked?"":"🔒 VIP "+vipNeed,9,selected?0xffffd92e:(unlocked?0xff68e89d:0xffffb04f),true);nw.setGravity(Gravity.CENTER);card.addView(nw,new LinearLayout.LayoutParams(-1,dp(15)));
             FrameLayout artStage994=new FrameLayout(this);
             KingGiftArtView art994=new KingGiftArtView(this,idx,
                 giftNames[i],giftIcons[i]);
@@ -3680,10 +3683,10 @@ public class PartyActivity extends androidx.fragment.app.FragmentActivity implem
                 artStage994.addView(badge994,
                     new FrameLayout.LayoutParams(-1,dp(22),Gravity.TOP));
             }
-            card.addView(artStage994,new LinearLayout.LayoutParams(-1,dp(61)));
-            TextView name=tv(giftNames[i],9,unlocked?0xfff5f2f7:0xff817b88,true);name.setGravity(Gravity.CENTER);name.setMaxLines(1);card.addView(name,new LinearLayout.LayoutParams(-1,dp(22)));
-            TextView cost=tv(unlocked?(idx<64?"💎 "+giftCosts[idx]:"FREE"):"PREVIEW",9,
-                selected?0xffffd92e:0xffaaa5b4,true);cost.setGravity(Gravity.CENTER);card.addView(cost,new LinearLayout.LayoutParams(-1,dp(20)));
+            card.addView(artStage994,new LinearLayout.LayoutParams(-1,dp(49)));
+            TextView name=tv(giftNames[i],11,unlocked?0xfff5f2f7:0xff817b88,true);name.setGravity(Gravity.CENTER);name.setMaxLines(1);card.addView(name,new LinearLayout.LayoutParams(-1,dp(19)));
+            TextView cost=tv(unlocked?(idx<64?"💎 "+giftCosts[idx]:"FREE"):"PREVIEW",11,
+                selected?0xffffd92e:0xffaaa5b4,true);cost.setGravity(Gravity.CENTER);card.addView(cost,new LinearLayout.LayoutParams(-1,dp(18)));
             name.setSingleLine(true);name.setEllipsize(android.text.TextUtils.TruncateAt.END);
             card.setOnClickListener(v->{
                 if(!unlocked){
@@ -3692,11 +3695,11 @@ public class PartyActivity extends androidx.fragment.app.FragmentActivity implem
                     return;
                 }
                 giftSelectedIndex=idx;refreshGiftSelection867();rebuildGiftGrid();
-            });LinearLayout.LayoutParams cp=new LinearLayout.LayoutParams(0,dp(133),1);cp.setMargins(dp(3),dp(3),dp(3),dp(3));row.addView(card,cp);col++;
+            });LinearLayout.LayoutParams cp=new LinearLayout.LayoutParams(0,dp(106),1);cp.setMargins(dp(3),dp(3),dp(3),dp(3));row.addView(card,cp);col++;
         }
         // Keep incomplete rows at four equal columns so cards never stretch larger than the others.
         if(row!=null&&col>0&&col<4){
-            for(int i=col;i<4;i++){View spacer=new View(this);LinearLayout.LayoutParams sp=new LinearLayout.LayoutParams(0,dp(133),1);sp.setMargins(dp(3),dp(3),dp(3),dp(3));row.addView(spacer,sp);}
+            for(int i=col;i<4;i++){View spacer=new View(this);LinearLayout.LayoutParams sp=new LinearLayout.LayoutParams(0,dp(106),1);sp.setMargins(dp(3),dp(3),dp(3),dp(3));row.addView(spacer,sp);}
         }
     }
     private boolean paidGiftEvent10064(DocumentSnapshot event){
@@ -5111,34 +5114,35 @@ public class PartyActivity extends androidx.fragment.app.FragmentActivity implem
 
     private void activityCenterPanel(String selected){
         LinearLayout root=new LinearLayout(this);root.setOrientation(LinearLayout.VERTICAL);root.setPadding(dp(12),dp(10),dp(12),dp(14));root.setBackgroundColor(0xff242333);
+        final AlertDialog[] sheet={null};
         LinearLayout tabs=new LinearLayout(this);
         String[] tabNames={"Templates","Events"};
-        for(String tab:tabNames){TextView t=tv(tab,17,tab.equals(selected)?0xffffd21c:0xff9f9aa8,true);t.setGravity(Gravity.CENTER);t.setOnClickListener(v->activityCenterPanel(tab));tabs.addView(t,new LinearLayout.LayoutParams(0,dp(48),1));}
+        for(String tab:tabNames){TextView t=tv(tab,17,tab.equals(selected)?0xffffd21c:0xff9f9aa8,true);t.setGravity(Gravity.CENTER);t.setOnClickListener(v->{if(tab.equals(selected))return;if(sheet[0]!=null)sheet[0].dismiss();activityCenterPanel(tab);});tabs.addView(t,new LinearLayout.LayoutParams(0,dp(48),1));}
         root.addView(tabs,new LinearLayout.LayoutParams(-1,dp(50)));
-        ScrollView sc=new ScrollView(this);LinearLayout body=new LinearLayout(this);body.setOrientation(LinearLayout.VERTICAL);sc.addView(body);root.addView(sc,new LinearLayout.LayoutParams(-1,dp(470)));
+        ScrollView sc=new ScrollView(this);LinearLayout body=new LinearLayout(this);body.setOrientation(LinearLayout.VERTICAL);sc.addView(body);root.addView(sc,new LinearLayout.LayoutParams(-1,0,1));
         if("Templates".equals(selected)){
             body.addView(tv("Interaction",15,Color.WHITE,true),new LinearLayout.LayoutParams(-1,dp(40)));
-            addActivityTiles(body,new String[]{"💬","💘","💞","🎊"},new String[]{"Chat room","Pick Me!","Coupling","Ceremony"},true);
+            addActivityTiles(body,new String[]{"💬","💘","💞","🎊"},new String[]{"Chat room","Pick Me!","Coupling","Ceremony"},true,sheet);
             body.addView(tv("Games",15,Color.WHITE,true),new LinearLayout.LayoutParams(-1,dp(42)));
-            addActivityTiles(body,new String[]{"🎲","⚔️","🔫","🔥","🎯","🐑","🎨","🧩"},new String[]{"Dominoes Chat Room","Mobile Legends","PUBG Mobile","Free Fire","Ludo Chat Room","SHEEP & PUZZLES","Draw & Guess","Bingo"},true);
+            addActivityTiles(body,new String[]{"🎲","🎯","🐑","🎨","🧩","⚔️","🔫","🔥"},new String[]{"Dominoes Chat Room","Ludo Chat Room","SHEEP & PUZZLES","Draw & Guess","Bingo","Mobile Legends (external)","PUBG Mobile (external)","Free Fire (external)"},true,sheet);
         }else{
-            addActivityTiles(body,new String[]{"💞","🍒","🐔","🐯","🪄","🏎️","🍬","🎰"},new String[]{"Relationship","Crazy Fruits","Chicken Run","Animal PK","Magic Lamp","KING Tap Sprint","Candy Legend","Lucky Slot"},false);
+            addActivityTiles(body,new String[]{"💞","🍒","🏰","🐔","🐯","🪄","🏎️","🍬","🎰"},new String[]{"Relationship","Crazy Fruits","Treasure Hunt","Chicken Run","Animal PK","Magic Lamp","KING Tap Sprint","Candy Legend","Lucky Slot"},false,sheet);
             body.addView(tv("PRIVILEGES",15,Color.WHITE,true),new LinearLayout.LayoutParams(-1,dp(44)));
-            addActivityTiles(body,new String[]{"💗","🎁"},new String[]{"Couple","Gift Wall"},false);
+            addActivityTiles(body,new String[]{"💗","🎁","👑","🛍"},new String[]{"Couple","Gift Wall","My Privilege Pack","Privilege Shop"},false,sheet);
         }
-        AlertDialog dialog=new AlertDialog.Builder(this).setView(root).create();
+        AlertDialog dialog=new AlertDialog.Builder(this).setView(root).create();sheet[0]=dialog;
         dialog.setOnShowListener(v->{android.view.Window w=dialog.getWindow();if(w!=null){w.setLayout(-1,(int)(getResources().getDisplayMetrics().heightPixels*.52f));w.clearFlags(android.view.WindowManager.LayoutParams.FLAG_DIM_BEHIND);w.setGravity(Gravity.BOTTOM);w.setBackgroundDrawable(bg(0xff242333,24));}});
         dialog.show();
     }
 
-    private void addActivityTiles(LinearLayout body,String[] icons,String[] labels,boolean template){
+    private void addActivityTiles(LinearLayout body,String[] icons,String[] labels,boolean template,AlertDialog[] sheet){
         int index=0;
         while(index<labels.length){
             LinearLayout row=new LinearLayout(this);row.setGravity(Gravity.CENTER);
             for(int c=0;c<4;c++){
                 if(index>=labels.length){row.addView(new View(this),new LinearLayout.LayoutParams(0,dp(108),1));continue;}
                 final String name=labels[index];final String icon=icons[index];
-                TextView tile=toolTile(icon,name,()->{if(template)startRoomTemplate(name);else runRoomEvent(name);});
+                TextView tile=toolTile(icon,name,()->{if(sheet[0]!=null)sheet[0].dismiss();if(template)startRoomTemplate(name);else runRoomEvent(name);});
                 LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(0,dp(108),1);lp.setMargins(dp(3),dp(3),dp(3),dp(3));row.addView(tile,lp);index++;
             }
             body.addView(row,new LinearLayout.LayoutParams(-1,dp(114)));
@@ -5147,6 +5151,11 @@ public class PartyActivity extends androidx.fragment.app.FragmentActivity implem
 
     private void startRoomTemplate(String name){
         if("Pick Me!".equals(name)){pickMePanel940();return;}
+        if(name.contains("(external)")){
+            new AlertDialog.Builder(this).setTitle("External game")
+                .setMessage("This game is not embedded in KING Plus. Open the playable KING room games instead.")
+                .setPositiveButton("KING Games",(d,w)->openRoomGames740()).setNegativeButton("Close",null).show();return;
+        }
         if(cloudRoom&&!isModerator()){toast("Host/co-host selects the room template");return;}
         activeRoomTemplate=name;
         if(cloudRoom&&db!=null&&user!=null){Map<String,Object>t=new HashMap<>();t.put("name",name);t.put("active",true);t.put("actorUid",user.getUid());t.put("actorName",safeName());t.put("updatedAt",FieldValue.serverTimestamp());db.collection("live_rooms").document(roomId).collection("room_templates").document("current").set(t).addOnFailureListener(e->toast("Template save failed: "+msg(e)));}
@@ -5243,14 +5252,16 @@ public class PartyActivity extends androidx.fragment.app.FragmentActivity implem
         if("Crazy Fruits".equals(name)||"Lucky Slot".equals(name)){openRoomGames740("Slot Clash");return;}
         if("Chicken Run".equals(name)){openRoomGames740("Live Sheep Sprint");return;}
         if("Animal PK".equals(name)){openRoomGames740("Crazy Zoo");return;}
-        
+
         if("Treasure Hunt".equals(name)){openRoomGames740("Treasure Hunt");return;}
         if("Room Quiz".equals(name)){roomQuizEvent();return;}
         if("Magic Lamp".equals(name)){simplePrizeEvent("🪄 Magic Lamp",new String[]{"✨ Wish granted","💎 Treasure sparkle","👑 Royal challenge","🌹 Send a rose"});return;}
         if("KING Tap Sprint".equals(name)||"Forza Motorsport".equals(name)){simpleRaceEvent();return;}
         if("Candy Legend".equals(name)){simplePrizeEvent("🍬 Candy Legend",new String[]{"🍬 Sweet win","🍭 Bonus round","⭐ Star candy","🎁 Candy gift challenge"});return;}
         if("Couple".equals(name)){relationshipEvent();return;}
-        if("Gift Wall".equals(name)){giftHistoryDialog();return;}
+        if("Gift Wall".equals(name)){giftWall620();return;}
+        if("My Privilege Pack".equals(name)){openDeepFlow810("privilege_pack");return;}
+        if("Privilege Shop".equals(name)){startActivity(new Intent(this,KingWardrobeActivity.class));return;}
         toast(name);
     }
     private void relationshipEvent(){
@@ -5376,8 +5387,29 @@ public class PartyActivity extends androidx.fragment.app.FragmentActivity implem
     }
 
     private void roomControlCenter(){
-        String[] items={"▣ Billboard","🪑 Room seat layout","🛡 Administrator","🎨 Theme Room","📢 Announcement","⚙ Room settings","👥 Channel / Group","🎯 Templates & Events"};
-        new AlertDialog.Builder(this).setTitle("Edit room").setItems(items,(d,w)->{String x=items[w];if(x.contains("Billboard"))roomBillboardDialog();else if(x.contains("seat"))seatLayoutPanel();else if(x.contains("Administrator"))administratorDialog();else if(x.contains("Theme"))themeRoomPanel();else if(x.contains("Announcement"))editAnnouncement();else if(x.contains("settings"))roomSettingsPanel();else if(x.contains("Channel"))channelPanel();else activityCenterPanel();}).setNegativeButton("Close",null).show();
+        if(roomId==null)return;
+        if(!isModerator()){roomBillboardDialog();return;}
+        List<String> labels=new ArrayList<>();List<Runnable> actions=new ArrayList<>();
+        labels.add("▣ Billboard");actions.add(this::roomBillboardDialog);
+        labels.add("🪑 Mic seat layout");actions.add(this::seatLayoutPanel);
+        labels.add("🛡 Administrator");actions.add(this::administratorDialog);
+        labels.add("🎨 Room background / Atmosphere");actions.add(this::themeRoomPanel);
+        labels.add("📢 Announcement");actions.add(this::editAnnouncement);
+        labels.add("👥 Channel / Group");actions.add(this::channelPanel);
+        labels.add("📊 Party Data");actions.add(this::partyDataPanel);
+        labels.add("🎯 Templates & Events");actions.add(this::activityCenterPanel);
+        labels.add("⚙ Room management");actions.add(this::moderationPanel);
+        if(isOwner()){
+            labels.add("✎ Change room name");actions.add(this::renameRoomDialog);
+            labels.add("🏷 Change room category");actions.add(this::changeCategoryDialog);
+            labels.add("🚪 Entrance settings");actions.add(this::channelEntranceSettings9931);
+            labels.add("🔑 Room password");actions.add(this::setRoomPasswordDialog);
+        }
+        labels.add("⚙ Personal room settings");actions.add(this::roomSettingsPanel);
+        final String expected=roomId;
+        new AlertDialog.Builder(this).setTitle("Edit room").setItems(labels.toArray(new String[0]),(d,w)->{
+            if(!expected.equals(roomId)||!isModerator())return;actions.get(w).run();
+        }).setNegativeButton("Close",null).show();
     }
 
     private void administratorDialog(){
@@ -5451,8 +5483,25 @@ public class PartyActivity extends androidx.fragment.app.FragmentActivity implem
     private void saveRoomPersonalSettings(){prefs.edit().putBoolean("skip_fx_"+roomId,skipEntranceVisuals).putBoolean("skip_sound_"+roomId,skipEntranceSound).putBoolean("skip_vibe_"+roomId,skipEntranceVibration).apply();toast("Room preference saved");}
 
     private void channelPanel(){
-        String[] items={"👥 Members ("+(cloudRoom?liveMemberCount:Math.max(1,seatNames.size()))+")","🟢 Party & Live in the channel","▣ Billboard","🎨 Channel theme","👤 Channel profile","🤖 Robot","🛡 Administrator","⚙ Room settings","⚑ Report the group"};
-        new AlertDialog.Builder(this).setTitle("From the channel • "+roomName).setItems(items,(d,w)->{String x=items[w];if(x.contains("Members"))membersDialog();else if(x.contains("Party & Live"))roomInfoDialog();else if(x.contains("Billboard"))roomBillboardDialog();else if(x.contains("theme"))themeRoomPanel();else if(x.contains("profile"))channelProfile940();else if(x.contains("Robot"))roomRobotDialog();else if(x.contains("Administrator"))administratorDialog();else if(x.contains("settings"))roomSettingsPanel();else reportHost();}).setNegativeButton("Close",null).show();
+        if(roomId==null){toast("Join a room first");return;}
+        String[] items={"👥 Members ("+(cloudRoom?liveMemberCount:Math.max(1,seatNames.size()))+")","＋ Invite members","🟢 Party & Live in the channel","▣ Billboard","🎨 Channel theme","👤 Channel profile","🤖 Robot","🛡 Administrator","⚙ Room settings","📊 Party Data","👑 My Privilege Pack","🛍 Privilege Shop","⚑ Report the group"};
+        new AlertDialog.Builder(this).setTitle("From the channel • "+roomName).setItems(items,(d,w)->{
+            switch(w){
+                case 0:membersDialog();break;
+                case 1:inviteDialog();break;
+                case 2:roomInfoDialog();break;
+                case 3:roomBillboardDialog();break;
+                case 4:themeRoomPanel();break;
+                case 5:channelProfile940();break;
+                case 6:roomRobotDialog();break;
+                case 7:administratorDialog();break;
+                case 8:roomSettingsPanel();break;
+                case 9:partyDataPanel();break;
+                case 10:openDeepFlow810("privilege_pack");break;
+                case 11:startActivity(new Intent(this,KingWardrobeActivity.class));break;
+                default:reportHost();
+            }
+        }).setNegativeButton("Close",null).show();
     }
 
     private void channelProfile940(){
@@ -5989,28 +6038,45 @@ public class PartyActivity extends androidx.fragment.app.FragmentActivity implem
     }
 
     private void partyDataPanel(){
-        if(!cloudRoom||db==null||roomId==null){
-            LinearLayout root954=new LinearLayout(this);root954.setOrientation(LinearLayout.VERTICAL);root954.setPadding(dp(12),dp(8),dp(12),dp(12));
-            addPartyStat954(root954,"👥","Members",String.valueOf(Math.max(1,memberNames.size())));
-            addPartyStat954(root954,"🎙","Occupied seats",seatNames.size()+" / "+maxSeats);
-            addPartyStat954(root954,themeIcon954(),"Theme",roomTheme);
-            addPartyStat954(root954,"🏷","Room type",roomCategory);
-            new AlertDialog.Builder(this).setTitle("📊 Party Data").setView(root954).setPositiveButton("OK",null).show();return;
+        if(!cloudRoom||db==null||roomId==null||user==null||!memberSeen){
+            toast("Join a live Firebase room to view Party Data");return;
         }
-        LinearLayout wait954=new LinearLayout(this);wait954.setGravity(Gravity.CENTER_VERTICAL);wait954.setPadding(dp(18),dp(10),dp(18),dp(10));android.widget.ProgressBar spin954=new android.widget.ProgressBar(this);wait954.addView(spin954,new LinearLayout.LayoutParams(dp(34),dp(34)));TextView loading954=tv("Loading room activity…",13,0xff5c5564,true);wait954.addView(loading954,new LinearLayout.LayoutParams(0,dp(52),1));final AlertDialog waiting954=new AlertDialog.Builder(this).setTitle("📊 Party Data").setView(wait954).setCancelable(false).create();waiting954.show();
-        final long[] giftValue={0};final int[] gifts={0};final int[] events={0};
-        db.collection("live_rooms").document(roomId).collection("events").orderBy("createdAt",Query.Direction.DESCENDING).limit(200).get().addOnSuccessListener(es->{
-            events[0]=es.size();for(DocumentSnapshot e:es.getDocuments())if("gift".equals(e.getString("type"))){gifts[0]++;Long v=e.getLong("giftValue");if(v!=null)giftValue[0]+=Math.max(0,v);}
-            db.collection("live_rooms").document(roomId).collection("messages").orderBy("createdAt",Query.Direction.DESCENDING).limit(200).get().addOnSuccessListener(ms->{
-                if(waiting954.isShowing())waiting954.dismiss();
-                LinearLayout root954=new LinearLayout(this);root954.setOrientation(LinearLayout.VERTICAL);root954.setPadding(dp(12),dp(8),dp(12),dp(12));root954.setBackgroundColor(0xfffaf8fc);
-                TextView live954=tv("● LIVE ROOM  •  "+themeIcon954()+" "+roomTheme,12,0xff198b64,true);live954.setGravity(Gravity.CENTER);live954.setBackground(bg(0xffe5f8f0,14));root954.addView(live954,new LinearLayout.LayoutParams(-1,dp(40)));
-                LinearLayout statsA954=new LinearLayout(this);statsA954.setGravity(Gravity.CENTER);statsA954.addView(partyStatCard954("👥",String.valueOf(liveMemberCount),"Online"),new LinearLayout.LayoutParams(0,dp(84),1));statsA954.addView(partyStatCard954("🎙",seatNames.size()+"/"+maxSeats,"Seats"),new LinearLayout.LayoutParams(0,dp(84),1));root954.addView(statsA954,new LinearLayout.LayoutParams(-1,dp(90)));
-                LinearLayout statsB954=new LinearLayout(this);statsB954.setGravity(Gravity.CENTER);statsB954.addView(partyStatCard954("💬",String.valueOf(ms.size()),"Messages"),new LinearLayout.LayoutParams(0,dp(84),1));statsB954.addView(partyStatCard954("🎁",String.valueOf(gifts[0]),"Gifts"),new LinearLayout.LayoutParams(0,dp(84),1));statsB954.addView(partyStatCard954("💎",compactNumber(giftValue[0]),"Gift value"),new LinearLayout.LayoutParams(0,dp(84),1));root954.addView(statsB954,new LinearLayout.LayoutParams(-1,dp(90)));
-                TextView details954=tv("Category  "+roomCategory+"     •     Recent events  "+events[0],11,0xff77707f,true);details954.setGravity(Gravity.CENTER);root954.addView(details954,new LinearLayout.LayoutParams(-1,dp(40)));
-                new AlertDialog.Builder(this).setTitle("📊 Party Data").setView(root954).setPositiveButton("Ranking",(d,w)->roomRankingDialog()).setNeutralButton("Gift history",(d,w)->giftHistoryDialog()).setNegativeButton("Close",null).show();
-            }).addOnFailureListener(e->{if(waiting954.isShowing())waiting954.dismiss();new AlertDialog.Builder(this).setTitle("Party data unavailable").setMessage(msg(e)).setPositiveButton("Retry",(d,w)->partyDataPanel()).setNegativeButton("Close",null).show();});
-        }).addOnFailureListener(e->{if(waiting954.isShowing())waiting954.dismiss();new AlertDialog.Builder(this).setTitle("Party data unavailable").setMessage(msg(e)).setPositiveButton("Retry",(d,w)->partyDataPanel()).setNegativeButton("Close",null).show();});
+        final String room=roomId,uid=user.getUid();
+        final int visit=presenceGeneration967;
+        final DocumentReference ref=db.collection("live_rooms").document(room);
+        final AlertDialog loading=new AlertDialog.Builder(this).setTitle("Party Data").setMessage("Loading current room activity…").setNegativeButton("Cancel",null).create();
+        loading.show();
+        java.util.Calendar midnight=java.util.Calendar.getInstance();midnight.set(java.util.Calendar.HOUR_OF_DAY,0);midnight.set(java.util.Calendar.MINUTE,0);midnight.set(java.util.Calendar.SECOND,0);midnight.set(java.util.Calendar.MILLISECOND,0);
+        com.google.firebase.Timestamp since=new com.google.firebase.Timestamp(midnight.getTime());
+        // Only the server's current-day event records; bounded reads are explicitly labelled.
+        ref.collection("events").whereGreaterThanOrEqualTo("createdAt",since).orderBy("createdAt",Query.Direction.DESCENDING).limit(200)
+            .get(com.google.firebase.firestore.Source.SERVER).addOnSuccessListener(es->{
+                if(!loading.isShowing()||!isActivePresence967(room,uid,visit)){if(loading.isShowing())loading.dismiss();return;}
+                long value=0;int gifts=0;Set<String> senders=new HashSet<>();
+                for(DocumentSnapshot e:es.getDocuments()){
+                    if(!"gift".equals(e.getString("type"))||!Boolean.FALSE.equals(e.getBoolean("freeGift")))continue;
+                    Long cost=e.getLong("giftValue");String sender=e.getString("actorUid");
+                    if(cost==null||cost<=0||sender==null||sender.isEmpty())continue;
+                    value+=cost;gifts++;senders.add(sender);
+                }
+                loading.dismiss();
+                LinearLayout root=new LinearLayout(this);root.setOrientation(LinearLayout.VERTICAL);root.setPadding(dp(12),dp(8),dp(12),dp(12));
+                TextView heading=tv("Today • "+java.text.DateFormat.getDateInstance().format(midnight.getTime()),14,0xff332344,true);root.addView(heading);
+                addPartyStat954(root,"👥","Online members",String.valueOf(liveMemberCount));
+                addPartyStat954(root,"🎙","Occupied seats",seatNames.size()+" / "+maxSeats);
+                addPartyStat954(root,"🎁","Paid gift events",String.valueOf(gifts));
+                addPartyStat954(root,"👤","Unique gift senders",String.valueOf(senders.size()));
+                addPartyStat954(root,"💎","Recorded paid gift value",compactNumber(value));
+                root.addView(tv(es.size()==200?"Latest 200 events only • totals may be incomplete.":"Current-day room events • device time zone. Not a cash balance.",12,0xff77707f,false));
+                ScrollView sc=new ScrollView(this);sc.addView(root);
+                new AlertDialog.Builder(this).setTitle("Party Data").setView(sc)
+                    .setPositiveButton("Ranking",(d,w)->{if(isActivePresence967(room,uid,visit))roomRankingDialog();})
+                    .setNeutralButton("Gift history",(d,w)->{if(isActivePresence967(room,uid,visit))giftHistoryDialog();})
+                    .setNegativeButton("Close",null).show();
+            }).addOnFailureListener(e->{
+                if(!loading.isShowing())return;loading.dismiss();if(!isActivePresence967(room,uid,visit))return;
+                new AlertDialog.Builder(this).setTitle("Party data unavailable").setMessage("Unable to read today's server events. Check connection.").setPositiveButton("Retry",(d,w)->partyDataPanel()).setNegativeButton("Close",null).show();
+            });
     }
 
     private void ktvQueuePanel(){
@@ -6532,7 +6598,7 @@ public class PartyActivity extends androidx.fragment.app.FragmentActivity implem
     private String themeIcon954(){if("KTV".equals(roomTheme))return "🎤";if("PK".equals(roomTheme))return "⚔️";if("Love".equals(roomTheme))return "💗";if("Game".equals(roomTheme))return "🎮";if("Royal".equals(roomTheme))return "👑";if("Neon".equals(roomTheme))return "💡";if("Galaxy".equals(roomTheme))return "🌌";if("Festival".equals(roomTheme))return "🎉";if("Ice".equals(roomTheme))return "❄️";return "✨";}
     private TextView partyStatCard954(String icon,String value,String label){TextView t=tv(icon+"\\n"+value+"\\n"+label,11,0xff302b35,true);t.setGravity(Gravity.CENTER);t.setBackground(bg(Color.WHITE,14));LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(0,dp(80),1);lp.setMargins(dp(3),dp(3),dp(3),dp(3));return t;}
     private void addPartyStat954(LinearLayout root,String icon,String label,String value){LinearLayout row=new LinearLayout(this);row.setGravity(Gravity.CENTER_VERTICAL);row.setPadding(dp(12),dp(4),dp(12),dp(4));row.setBackground(bg(0xfff6f3f8,13));TextView a=tv(icon+"  "+label,13,0xff39323f,true);row.addView(a,new LinearLayout.LayoutParams(0,dp(46),1));TextView b=tv(value,13,0xff6d527f,true);b.setGravity(Gravity.RIGHT|Gravity.CENTER_VERTICAL);row.addView(b,new LinearLayout.LayoutParams(dp(150),dp(46)));LinearLayout.LayoutParams rp=new LinearLayout.LayoutParams(-1,dp(52));rp.setMargins(0,dp(3),0,dp(3));root.addView(row,rp);}
-    
+
     private int themeBackground(){
         if("KTV".equals(roomTheme))return 0xff101d46;
         if("PK".equals(roomTheme))return 0xff321b50;
@@ -7600,7 +7666,7 @@ public class PartyActivity extends androidx.fragment.app.FragmentActivity implem
         Intent i=new Intent(this,RoomGameActivity.class);i.putExtra("roomId",roomId);i.putExtra("roomName",roomName);i.putExtra("displayName",safeName());i.putExtra("requestedGame",requestedGame10100);startActivity(i);
     }
 
-    private void openGames(){openMainTab(1);}
+    private void openGames(){openMainTab(2);}
     private void renameRoomDialog(){if(!isOwner())return;final EditText e=new EditText(this);e.setText(roomName);new AlertDialog.Builder(this).setTitle("Rename room").setView(e).setPositiveButton("Save",(d,w)->{String n=e.getText().toString().trim();if(n.length()<2)return;roomName=n;if(cloudRoom)setRoomValue("name",n);renderParty();}).setNegativeButton("Cancel",null).show();}
     private void changeCategoryDialog(){if(!isOwner())return;String[] cats={"Chat","Date","Music","KTV","Radio","Sing","Game","PK","Pick Me","Family","Multi Video","Event","Birthday","Wedding"};new AlertDialog.Builder(this).setTitle("Room category").setItems(cats,(d,w)->{roomCategory=cats[w];if(cloudRoom)setRoomValue("category",roomCategory);renderParty();}).show();}
     private void changeThemeDialog(){if(!isOwner())return;String[] labels={"Classic Emerald","Ocean KTV","PK Red vs Blue","Rose Love","Game Emerald","Royal Purple","Neon Night","Galaxy Stage","Festival Glow","Ice Crystal"};String[] themes={"Classic","KTV","PK","Love","Game","Royal","Neon","Galaxy","Festival","Ice"};new AlertDialog.Builder(this).setTitle("Room theme").setItems(labels,(d,w)->{roomTheme=themes[w];if(cloudRoom)setRoomValue("theme",roomTheme);else prefs.edit().putString("theme_"+roomName,roomTheme).apply();renderParty();}).show();}
@@ -7706,7 +7772,7 @@ public class PartyActivity extends androidx.fragment.app.FragmentActivity implem
         final DocumentReference room=db.collection("live_rooms").document(roomId);
         final String expectedRoom982=room.getId(),expectedUid982=user.getUid();
         final int visit982=presenceGeneration967,binding982=roomListenerGeneration982;
-        roomListener=room.addSnapshotListener((doc,e)->{
+        roomListener=room.addSnapshotListener(com.google.firebase.firestore.MetadataChanges.INCLUDE,(doc,e)->{
             if(!activeRoomCallback982(expectedRoom982,expectedUid982,visit982,binding982))return;
             if(e!=null||doc==null)return;
             if(doc.getMetadata().isFromCache()||doc.getMetadata().hasPendingWrites()){
@@ -7717,7 +7783,21 @@ public class PartyActivity extends androidx.fragment.app.FragmentActivity implem
             if(Boolean.TRUE.equals(doc.getBoolean("closed"))){
                 toast("Room closed • leaving");leaveRoom();return;
             }
-            announcement=str(doc,"announcement",announcement);roomCategory=str(doc,"category",roomCategory);roomTheme=str(doc,"theme",roomTheme);Long ms=doc.getLong("maxSeats");if(ms!=null){maxSeats=(int)Math.max(8,Math.min(12,ms));}Long mm=doc.getLong("maxMembers");if(mm!=null)maxMembers930=(int)Math.max(10,Math.min(200,mm));hostSeatMode=Boolean.TRUE.equals(doc.getBoolean("hostSeatMode"));loadRoomPersonalSettings();rebuildSeats();roomLocked=Boolean.TRUE.equals(doc.getBoolean("locked"));muteAll=Boolean.TRUE.equals(doc.getBoolean("muteAll"));if(muteAll&&!isModerator()&&micOn){micOn=false;revokeMicConsent9956();if(mySeat>0)muteOwnedSeat9920("moderator-mute-all");refreshMicControl();}roomPrivate=Boolean.TRUE.equals(doc.getBoolean("isPrivate"));roomHasPassword=Boolean.TRUE.equals(doc.getBoolean("hasPassword"));roomEntranceMode9931=str(doc,"entranceMode","legacy");roomEntryEpoch9936=str(doc,"entryEpoch","");if(announcementLabel!=null)announcementLabel.setText((roomLocked?"🔒  ":"📢  ")+announcement);refreshRoomState();});
+            announcement=str(doc,"announcement",announcement);roomCategory=str(doc,"category",roomCategory);roomTheme=str(doc,"theme",roomTheme);Long ms=doc.getLong("maxSeats");if(ms!=null){maxSeats=(int)Math.max(8,Math.min(12,ms));}Long mm=doc.getLong("maxMembers");if(mm!=null)maxMembers930=(int)Math.max(10,Math.min(200,mm));hostSeatMode=Boolean.TRUE.equals(doc.getBoolean("hostSeatMode"));loadRoomPersonalSettings();rebuildSeats();roomLocked=Boolean.TRUE.equals(doc.getBoolean("locked"));muteAll=Boolean.TRUE.equals(doc.getBoolean("muteAll"));if(muteAll&&!isModerator()&&micOn){micOn=false;revokeMicConsent9956();if(mySeat>0)muteOwnedSeat9920("moderator-mute-all");refreshMicControl();}roomPrivate=Boolean.TRUE.equals(doc.getBoolean("isPrivate"));roomHasPassword=Boolean.TRUE.equals(doc.getBoolean("hasPassword"));roomEntranceMode9931=str(doc,"entranceMode","legacy");roomEntryEpoch9936=str(doc,"entryEpoch","");
+            roomVoicePolicyVerified=true;
+            checkCloudflareVoiceConfig10066(expectedRoom982,expectedUid982,visit982,binding982,false);
+            if(!canConnectPartyVoice()&&(inRoomVoiceJoined940||micOn||roomVoiceOptedIn957)){
+                micOn=false;
+                roomVoiceOptedIn957=false;
+                soundOn=false;
+                revokeMicConsent9956();
+                clearVoiceRejoin9957();
+                if(mySeat>0)muteOwnedSeat9920("restricted-voice");
+                stopInRoomVoice940(true);
+                refreshMicControl();
+                showPartyVoiceUnavailable();
+            }
+            if(announcementLabel!=null)announcementLabel.setText((roomLocked?"🔒  ":"📢  ")+announcement);refreshRoomState();});
         roleListener=room.collection("roles").document(expectedUid982)
             .addSnapshotListener(com.google.firebase.firestore.MetadataChanges.INCLUDE,(doc,e)->{
             if(!activeRoomCallback982(expectedRoom982,expectedUid982,visit982,binding982))return;
@@ -7929,9 +8009,79 @@ public class PartyActivity extends androidx.fragment.app.FragmentActivity implem
     private void addEvent(String type,String text){if(cloudRoom&&user!=null&&db!=null&&roomId!=null){LevelSystem.Snapshot p720=LevelSystem.read(this);Map<String,Object>d=new HashMap<>();d.put("actorUid",user.getUid());d.put("actorName",safeName());d.put("actorLevel",p720.level);d.put("actorVip",0);d.put("actorFrame",KingCosmetics.frame(this));d.put("actorEffect",KingCosmetics.effect(this));d.put("type",type);d.put("text",text);d.put("createdAt",FieldValue.serverTimestamp());db.collection("live_rooms").document(roomId).collection("events").add(d);}else addFeed(text);}
 
     private void voiceState10065(String message){if(voiceStatus10065!=null)voiceStatus10065.setText(message);}
+    private void checkCloudflareVoiceConfig10066(String expectedRoom,String expectedUid,
+            int expectedVisit,int expectedBinding,boolean force){
+        String sessionKey=expectedRoom+"/"+presenceSession967;
+        long now=System.currentTimeMillis();
+        if(cloudflareVoiceConfigLoading10066)return;
+        long cacheMillis=force?5_000L:30_000L;
+        if(sessionKey.equals(cloudflareVoiceConfigSession10066)
+                &&now-cloudflareVoiceConfigCheckedAt10066<cacheMillis)return;
+        cloudflareVoiceConfigSession10066=sessionKey;
+        cloudflareVoiceConfigLoading10066=true;
+        int request=++cloudflareVoiceConfigGeneration10066;
+        if((roomPrivate||roomHasPassword)&&!cloudflareVoiceReady10066)
+            voiceState10065("Checking private room voice service…");
+        Map<String,Object> data=new HashMap<>();data.put("action","config");
+        com.google.firebase.functions.FirebaseFunctions.getInstance()
+            .getHttpsCallable("partyVoice").call(data)
+            .addOnSuccessListener(result->{
+                if(request!=cloudflareVoiceConfigGeneration10066||
+                    !activeRoomCallback982(expectedRoom,expectedUid,expectedVisit,expectedBinding))return;
+                cloudflareVoiceConfigLoading10066=false;
+                cloudflareVoiceConfigCheckedAt10066=System.currentTimeMillis();
+                Object raw=result.getData();
+                Map<?,?> response=raw instanceof Map?(Map<?,?>)raw:java.util.Collections.emptyMap();
+                cloudflareVoiceReady10066=Boolean.TRUE.equals(response.get("enabled"));
+                Object message=response.get("message");
+                cloudflareVoiceConfigMessage10066=message instanceof String
+                    ?safe((String)message,"Voice service is not ready"):"Voice service is not ready";
+                if(!cloudflareVoiceReady10066&&cloudflareVoice10066!=null){
+                    micOn=false;revokeMicConsent9956();clearVoiceRejoin9957();
+                    if(mySeat>0)muteOwnedSeat9920("voice-config-disabled");
+                    stopInRoomVoice940(true);
+                }
+                refreshMicControl();
+                if(roomPrivate||roomHasPassword)
+                    voiceState10065(cloudflareVoiceReady10066
+                        ?"Private room voice ready • tap to connect":cloudflareVoiceConfigMessage10066);
+            })
+            .addOnFailureListener(error->{
+                if(request!=cloudflareVoiceConfigGeneration10066||
+                    !activeRoomCallback982(expectedRoom,expectedUid,expectedVisit,expectedBinding))return;
+                cloudflareVoiceConfigLoading10066=false;
+                cloudflareVoiceConfigCheckedAt10066=System.currentTimeMillis();
+                cloudflareVoiceReady10066=false;
+                cloudflareVoiceConfigMessage10066="Could not check voice server setup. Tap retry after reconnecting.";
+                refreshMicControl();
+                if(roomPrivate||roomHasPassword)voiceState10065(cloudflareVoiceConfigMessage10066);
+            });
+    }
+    private boolean canConnectPartyVoice(){
+        return roomVoicePolicyVerified&&(cloudflareVoiceReady10066
+            ||(!roomPrivate&&!roomHasPassword
+                &&("free".equals(roomEntranceMode9931)||"legacy".equals(roomEntranceMode9931))));
+    }
+
+    private void showPartyVoiceUnavailable(){
+        String message=!roomVoicePolicyVerified?"Waiting for room settings • tap to retry"
+            :cloudflareVoiceConfigLoading10066?"Checking private room voice service…"
+            :!cloudflareVoiceConfigMessage10066.isEmpty()?cloudflareVoiceConfigMessage10066
+            :"Private voice requires the configured voice service";
+        voiceState10065(message);
+        toast(message);
+    }
+
     private void showVoiceConnection10065(){
         if(!cloudRoom||!memberSeen||partyShell940==null)return;
-        if(BuildConfig.CLOUDFLARE_VOICE_ENABLED){
+        if(!canConnectPartyVoice()){
+            if(roomVoicePolicyVerified&&(roomPrivate||roomHasPassword)&&user!=null)
+                checkCloudflareVoiceConfig10066(roomId,user.getUid(),presenceGeneration967,
+                    roomListenerGeneration982,true);
+            showPartyVoiceUnavailable();
+            return;
+        }
+        if(cloudflareVoiceReady10066){
             new AlertDialog.Builder(this).setTitle("Cloudflare voice")
                 .setMessage(voiceConferenceConnected10065?"Room voice connected":"Voice is waiting for a room microphone or server connection.")
                 .setPositiveButton("Back to room",null)
@@ -7961,7 +8111,13 @@ public class PartyActivity extends androidx.fragment.app.FragmentActivity implem
     }
     private void attachInRoomVoice940(FrameLayout shell){
         if(!cloudRoom||!memberSeen||!roomVoiceOptedIn957||!soundOn||roomId==null||roomId.trim().isEmpty()||user==null||shell==null)return;
-        if(BuildConfig.CLOUDFLARE_VOICE_ENABLED){
+        if(!canConnectPartyVoice()){
+            roomVoiceOptedIn957=false;
+            soundOn=false;
+            showPartyVoiceUnavailable();
+            return;
+        }
+        if(cloudflareVoiceReady10066){
             if(cloudflareVoice10066!=null)return;
             stopInRoomVoice940(true);
             final String expectedRoom10066=roomId,expectedUid10066=user.getUid();
@@ -8152,61 +8308,29 @@ public class PartyActivity extends androidx.fragment.app.FragmentActivity implem
     private void confirmLeave940(){
         if(roomId==null){renderLobby("Hot");return;}
         new AlertDialog.Builder(this).setTitle("Leave Party?")
-            .setMessage("You can stay, leave to Party lobby, or discover another live room.")
-            .setPositiveButton("Leave",(d,w)->leaveRoom())
-            .setNeutralButton("Find another",(d,w)->{leaveRoom();new android.os.Handler(android.os.Looper.getMainLooper()).postDelayed(()->showLobbySearch("Hot"),120L);})
+            .setMessage("Leave this room and return to Home?")
+            .setPositiveButton("Leave",(d,w)->{leaveRoom();KingNav.openRoot(this,0);finish();})
+            .setNeutralButton("Find another",(d,w)->{leaveRoom();KingNav.openRoot(this,0);finish();})
             .setNegativeButton("Stay",null).show();
     }
     private void leaveRoom(){
         clearVoiceRejoin9957();roomVoiceOptedIn957=false;
         clearPartyVisuals995(); // Cancel floating emojis and stale gift banners immediately.
+        clearRoomReply620();
+        if(composerBox!=null)composerBox.setText("");
         if(chatBox!=null)chatBox.removeAllViews();
         if(feedBox!=null)feedBox.removeAllViews();
         partyShell940=null;stopInRoomVoice940(true);renderLobby("Hot");
     }
     private void addBottomNav(LinearLayout root,int selected){
-        LinearLayout nav=new LinearLayout(this);
-        nav.setGravity(Gravity.CENTER_VERTICAL);
-        nav.setPadding(dp(5),dp(5),dp(5),dp(5));
-        nav.setBackground(new GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM,
-            new int[]{0xff3a1859,0xff110920}));
-        String[] icons={"⌂","♟","◇","✉","●"};
-        String[] names={"Party","Games","Discover","Messages","Me"};
-        for(int i=0;i<5;i++){
-            final int tab=i; boolean active=i==selected;
-            LinearLayout item=new LinearLayout(this);
-            item.setOrientation(LinearLayout.VERTICAL);item.setGravity(Gravity.CENTER);
-            if(active){
-                GradientDrawable bgNav=new GradientDrawable(GradientDrawable.Orientation.TL_BR,
-                    new int[]{0xffb83b9f,0xff6226a5});
-                bgNav.setCornerRadius(dp(16));bgNav.setStroke(dp(1),0xb5ffdc8b);
-                item.setBackground(bgNav);
-            }
-            TextView icon=tv(icons[i],24,active?0xffffdf80:0xffcab9dd,true);
-            icon.setGravity(Gravity.CENTER);
-            item.addView(icon,new LinearLayout.LayoutParams(-1,dp(30)));
-            TextView label=tv(names[i],11,active?Color.WHITE:0xffc7b9d8,true);
-            label.setGravity(Gravity.CENTER);
-            item.addView(label,new LinearLayout.LayoutParams(-1,dp(20)));
-            item.setContentDescription(names[i]+(active?" selected":""));
-            item.setOnClickListener(v->{
-                if(tab==0){if(roomId!=null)confirmLeave940();else renderLobby("Hot");}
-                else {
-                    // Single navigation at a time: rapid taps must never race a second Leave.
-                    if(partyNavigationPending10033)return;
-                    partyNavigationPending10033=true;
-                    for(int k10033=0;k10033<nav.getChildCount();k10033++)
-                        nav.getChildAt(k10033).setEnabled(false);
-                    // This releases mic, membership, and seats before leaving Party.
-                    if(roomId!=null)leaveRoom();
-                    KingNav.openRoot(this,tab);
-                    finish();
-                }
-            });
-            LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(0,dp(58),1);
-            lp.setMargins(dp(2),0,dp(2),0);nav.addView(item,lp);
-        }
-        root.addView(nav,new LinearLayout.LayoutParams(-1,dp(68)));
+        LinearLayout nav=KingNav.bottomBar(this,selected,tab->{
+            if(partyNavigationPending10033)return;
+            partyNavigationPending10033=true;
+            if(roomId!=null)leaveRoom();
+            KingNav.openRoot(this,tab);
+            finish();
+        });
+        root.addView(nav,new LinearLayout.LayoutParams(-1,dp(KingNav.NAV_HEIGHT_DP)));
     }
 
     private void reducePartyMemory969(int level969){

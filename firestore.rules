@@ -112,7 +112,10 @@ service cloud.firestore {
         || (roomCoHost(roomId)
             && request.resource.data.ownerUid == resource.data.ownerUid
             && request.resource.data.diff(resource.data).affectedKeys()
-                 .hasOnly(['locked', 'muteAll', 'announcement', 'updatedAt']))
+                 .hasOnly(['locked', 'muteAll', 'announcement', 'currentSong', 'updatedAt'])
+            && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['currentSong'])
+                || (request.resource.data.currentSong is string
+                    && request.resource.data.currentSong.size() <= 200)))
       );
       allow delete: if activeUser() && resource.data.ownerUid == request.auth.uid;
 

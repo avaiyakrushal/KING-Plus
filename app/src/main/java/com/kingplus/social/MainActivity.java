@@ -917,9 +917,7 @@ public class MainActivity extends Activity {
     }
 
     private void openPartyActivity() {
-        // Party is a distinct destination; never route this action through the Home tab.
-        Intent partyIntent = new Intent(this, PartyActivity.class);
-        KingSafe.run(this, "open-party-room", () -> startActivity(partyIntent));
+        KingNav.openRoot(this,0);
     }
 
     private void home() {
@@ -1320,12 +1318,11 @@ public class MainActivity extends Activity {
     private void messages() {
         screen="messages";
         stopMic();
-        KingNav.openRoot(this,3);
+        KingNav.openRoot(this,4);
     }
 
     private void addBottomNav(LinearLayout root,int selected){
-        LinearLayout nav=new LinearLayout(this); nav.setGravity(Gravity.CENTER); nav.setBackground(KingRoyalTheme10021.bottomNav(this)); String[] ni={"⌂\nHome","🎤\nParty","◇\nDiscover","✉\nMessages","●\nMe"};
-        for(int i=0;i<ni.length;i++){TextView n=new TextView(this);n.setText(ni[i]);n.setTextSize(12);n.setGravity(Gravity.CENTER);n.setTextColor(i==selected?0xffd2b100:0xff777777);final int k=i;n.setOnClickListener(v->{if(k==0)KingNav.openRoot(this,0);else if(k==1)openPartyActivity();else if(k==2)discover();else if(k==3)messages();else profile();});nav.addView(n,new LinearLayout.LayoutParams(0,dp(62),1));} root.addView(nav);
+        root.addView(KingNav.bottomBar(this,selected,tab->KingNav.openRoot(this,tab)),new LinearLayout.LayoutParams(-1,dp(KingNav.NAV_HEIGHT_DP)));
     }
 
     private void games(){
@@ -1400,7 +1397,7 @@ public class MainActivity extends Activity {
                 "ludo".equals(games[i][0])?"Online + solo":"Play now");
         }
         root.addView(scroll,new LinearLayout.LayoutParams(-1,0,1));
-        addBottomNav(root,-1);setSafeContentView(root);
+        addBottomNav(root,2);setSafeContentView(root);
     }
     private void addGameVideoCard940(LinearLayout row,String code,String title,String badge){
         LinearLayout card=new LinearLayout(this);card.setOrientation(LinearLayout.VERTICAL);card.setPadding(dp(4),dp(4),dp(4),dp(6));card.setBackground(KingRoyalTheme10021.card(this,14));card.setOnClickListener(v->openPlayableGame(code));
@@ -1584,12 +1581,13 @@ public class MainActivity extends Activity {
         LinearLayout root=new LinearLayout(this);root.setOrientation(LinearLayout.VERTICAL);root.setBackgroundColor(Color.WHITE);
         LinearLayout head=new LinearLayout(this);head.setGravity(Gravity.CENTER_VERTICAL);head.setPadding(dp(8),dp(4),dp(12),0);TextView back=new TextView(this);back.setText("‹");back.setTextSize(34);back.setTextColor(0xff222222);back.setGravity(Gravity.CENTER);back.setOnClickListener(v->profile());head.addView(back,new LinearLayout.LayoutParams(dp(48),dp(52)));TextView title=new TextView(this);title.setText("Edit Profile");title.setTextSize(20);title.setTypeface(null,Typeface.BOLD);title.setTextColor(0xff222222);head.addView(title,new LinearLayout.LayoutParams(0,dp(52),1));TextView saveTop=new TextView(this);saveTop.setText("Save");saveTop.setTextSize(13);saveTop.setTextColor(0xff7a6500);saveTop.setGravity(Gravity.CENTER);head.addView(saveTop,new LinearLayout.LayoutParams(dp(56),dp(42)));root.addView(head);
         ScrollView sv=new ScrollView(this);LinearLayout body=new LinearLayout(this);body.setOrientation(LinearLayout.VERTICAL);body.setPadding(dp(14),dp(6),dp(14),dp(20));sv.addView(body);root.addView(sv,new LinearLayout.LayoutParams(-1,0,1));
-        TextView warn=new TextView(this);warn.setText("You can restrict other users from downloading/saving your posted images in Settings.");warn.setTextSize(11);warn.setTextColor(0xff725d00);warn.setGravity(Gravity.CENTER_VERTICAL);warn.setPadding(dp(12),dp(8),dp(12),dp(8));warn.setBackground(background(0xfffff3bf,8));body.addView(warn,new LinearLayout.LayoutParams(-1,dp(54)));
+        TextView warn=new TextView(this);warn.setText("Only publish photos you want others to see. Image privacy cannot prevent screenshots.");warn.setTextSize(11);warn.setTextColor(0xff725d00);warn.setGravity(Gravity.CENTER_VERTICAL);warn.setPadding(dp(12),dp(8),dp(12),dp(8));warn.setBackground(background(0xfffff3bf,8));body.addView(warn,new LinearLayout.LayoutParams(-1,dp(54)));
         String photo=profilePhoto10042();LinearLayout album=new LinearLayout(this);album.setGravity(Gravity.CENTER_VERTICAL);album.setPadding(dp(4),dp(10),dp(4),dp(10));TextView albLabel=new TextView(this);albLabel.setText("Album");albLabel.setTextSize(14);albLabel.setTextColor(0xff333333);album.addView(albLabel,new LinearLayout.LayoutParams(dp(88),dp(60)));View av=profileAvatarView931(photo,getPreferences(0).getString("profile_photo_cloud",""));
         av.setOnClickListener(v->chooseProfilePhoto10067());FrameLayout photoSlot10067=new FrameLayout(this);editPhotoSlot10067=photoSlot10067;photoSlot10067.setOnClickListener(v->chooseProfilePhoto10067());
         photoSlot10067.addView(av,new FrameLayout.LayoutParams(-1,-1));album.addView(photoSlot10067,new LinearLayout.LayoutParams(dp(62),dp(62)));body.addView(album,new LinearLayout.LayoutParams(-1,dp(82)));
         photoStatus10067=new TextView(this);photoStatus10067.setText(photoUploadPending10067?"Photo upload in progress…":"Tap your photo to update it online");
         photoStatus10067.setTextSize(12);photoStatus10067.setTextColor(0xff725d00);photoStatus10067.setPadding(dp(4),dp(4),dp(4),dp(8));body.addView(photoStatus10067);
+        TextView galleryLink=new TextView(this);galleryLink.setText("My Gallery / Published Photos  ›");galleryLink.setTextSize(14);galleryLink.setTextColor(0xff725d00);galleryLink.setGravity(Gravity.CENTER_VERTICAL);galleryLink.setPadding(dp(10),0,dp(10),0);galleryLink.setBackground(background(0xfffff3bf,10));body.addView(galleryLink,new LinearLayout.LayoutParams(-1,dp(48)));galleryLink.setOnClickListener(v->new AlertDialog.Builder(this).setTitle("Open Gallery?").setMessage("Unsaved profile text edits will not be saved.").setPositiveButton("Open",(di,which)->galleryPage()).setNegativeButton("Stay",null).show());
         final EditText name=profileInputV600(body,"Nickname",displayName);final EditText bio=profileInputV600(body,"Bio",profileField10043("bio",""));final EditText birthday=profileInputV600(body,"Birthday",profileField10043("birthday",""));final EditText hometown=profileInputV600(body,"Hometown",profileField10043("hometown",""));final EditText tags=profileInputV600(body,"Labels",profileField10043("tags",""));
         TextView gender=new TextView(this);gender.setText("Gender                         Not specified  ›");gender.setTextSize(13);gender.setTextColor(0xff555555);gender.setGravity(Gravity.CENTER_VERTICAL);gender.setPadding(dp(4),0,dp(4),0);body.addView(gender,new LinearLayout.LayoutParams(-1,dp(48)));
         TextView tip=new TextView(this);tip.setText("Tip: a complete profile helps other people discover and follow you.");tip.setTextSize(11);tip.setTextColor(0xff999999);tip.setPadding(dp(4),dp(8),dp(4),dp(10));body.addView(tip,new LinearLayout.LayoutParams(-1,dp(48)));
@@ -1950,7 +1948,7 @@ public class MainActivity extends Activity {
         LinearLayout recordList=new LinearLayout(this);recordList.setOrientation(LinearLayout.VERTICAL);
         meHostedRoomsHost10018=recordList;
         content.addView(recordList,new LinearLayout.LayoutParams(-1,-2));loadPartyRecordsV600(recordList);
-        root.addView(sv,new LinearLayout.LayoutParams(-1,0,1));addBottomNav(root,4);setSafeContentView(root);loadRealProfileData();loadProfileLikesCount10088(currentProfileOwner10031);
+        root.addView(sv,new LinearLayout.LayoutParams(-1,0,1));addBottomNav(root,5);setSafeContentView(root);loadRealProfileData();loadProfileLikesCount10088(currentProfileOwner10031);
     }
 
     // Hosted rooms are real cloud records. Do not hide the 13th room or older pages.

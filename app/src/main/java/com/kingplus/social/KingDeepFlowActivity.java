@@ -85,7 +85,10 @@ public class KingDeepFlowActivity extends Activity {
             case "gift_center":giftCenter();break;case "gift_wall":giftWall();break;case "gift_history":giftHistory();break;case "gift_wish":giftWish();break;case "gift_lucky":giftLucky();break;
             case "game_center":gameCenter();break;case "game_hot":gameHot();break;case "game_party":gameParty();break;case "game_team":gameTeam();break;
             case "music_center":musicCenter();break;case "video_center":videoCenter();break;case "task_center":taskCenter();break;case "event_center":eventCenter();break;case "profile_center":profileCenter();break;case "level_center":levelCenter();break;case "medal_center":medalCenter();break;case "social_center":socialCenter();break;case "discover_center":discoverCenter();break;case "report_history":reportHistory9981();break;
-            case "detail_frames": case "detail_entrance": case "detail_chat_bubble": case "detail_name_badge": startActivity(new Intent(this,KingWardrobeActivity.class));break;
+            case "detail_frames": openWardrobe("Frames",true);break;
+            case "detail_entrance": openWardrobe("Entrances",true);break;
+            case "detail_chat_bubble": openWardrobe("Bubbles",true);break;
+            case "detail_name_badge": openWardrobe("Badges",true);break;
             case "detail_music_library": openPartyPanel940("music");break;
             case "detail_song_request": openPartyPanel940("song");break;
             case "detail_ktv_queue": openPartyPanel940("ktv");break;
@@ -251,17 +254,27 @@ public class KingDeepFlowActivity extends Activity {
         section("Wallet & activity");
         row("🎁","Gift Records","Gift Wall, wish, lucky gift and gift history","gift_center");
         row("💳","Wallet & Recharge","Verified wallet and transaction history","wallet");
-        row("🏠","Party Rooms","Open room activity and saved room records",()->KingNav.openRoot(this,0));
+        row("🏠","Party Rooms","Open room activity and saved room records",()->KingNav.openRoot(this,1));
         row("✅","Level & Achievements","Activity level, XP and medals","level_center");
         row("🏆","Rankings","Contribution, charisma and activity rankings","discover_center");
     }
 
+    private void openWardrobe(String category,boolean obtained){
+        Intent i=new Intent(this,KingWardrobeActivity.class);i.putExtra("category",category);i.putExtra("obtained",obtained);startActivity(i);
+    }
     private void privilegePack(){
-        LevelSystem.Snapshot s=LevelSystem.read(this);hero("🎁 Privilege Pack","Activity Lv."+s.level+" • Paid VIP cosmetics require verified server entitlement");
-        TextView current953=tv("🖼 "+KingCosmetics.frame(this)+"\\n✨ "+KingCosmetics.effect(this)+"\\n💬 "+KingCosmetics.bubble(this),13,INK,true);current953.setPadding(dp(12),dp(8),dp(12),dp(8));current953.setBackground(bg(0xfffff2c8,14));body.addView(current953,new LinearLayout.LayoutParams(-1,dp(82)));
-        section("Identity");row("🖼","ID / Profile Frames","Minimal, Music, Heart, Royal, Galaxy, Crown","detail_frames");row("✨","Entrance Effects","Sparkle, Crown Drop, Rose Shower, Galaxy Portal, Royal Arrival","detail_entrance");row("💬","Chat Bubble","VIP identity styling and message badge","detail_chat_bubble");row("🏷","Name Badge","VIP + Level badges in room and chat","detail_name_badge");
-        section("Room");row("🎨","Room Theme","Green, Royal, Galaxy and event themes","detail_room_theme");row("🪑","VIP Seat Style","Seat frame and identity","detail_vip_seat");
-        section("Manage");row("🛍","Open Privilege Shop","Equip unlocked frames, effects and bubbles","privilege_shop");row("💎","VIP Progress","Review VIP tiers and privileges","vip");
+        hero("👑 My Privilege Pack","Account collection • preview, obtained items and equip");
+        row("🖼","Avatar Frame","View verified free frames",()->openWardrobe("Frames",true));
+        row("✨","Entrance Effects","View eligible entrance effects",()->openWardrobe("Entrances",true));
+        row("💬","Chat Bubble","View eligible chat bubbles",()->openWardrobe("Bubbles",true));
+        row("🏷","Badge","View eligible name badges",()->openWardrobe("Badges",true));
+        row("🏅","Medal Wall","Server-confirmed check-in achievements","medal_center");
+        section("Room tools");
+        row("🎨","Room Background","Change a joined room's theme with permission","detail_room_theme");
+        row("🪑","Seat Layout","Manage seats in a joined room","detail_vip_seat");
+        section("Manage");row("🛍","Privilege Shop","Browse and preview available and locked items",()->openWardrobe("All",false));row("💎","VIP Progress","Review VIP tiers and privileges","vip");
+        section("Not available yet");
+        body.addView(tv("Sound Wave · Couple Entrance Effect · Unique ID · Bowler Hat · Profile Background · Voucher · Dynamic Personal Page · Seat Dynamic Effect · Keepsake · Relationship Card · Room Frame · Emoji Collection · Nickname Effects. No purchases or entitlements are granted by this list.",13,sub(),false));
     }
     private void privilegeShop(){hero("🛍 Privilege Shop","Equip unlocked KING Plus cosmetics. Selection persists on this device and cloud profile.");String[] frames={"Minimal Frame","Music Frame","Heart Frame","Royal Frame","Galaxy Frame","Crown Frame"};section("ID Frames");for(String f:frames)row(KingCosmetics.frameEmoji(f),f,"Required: "+KingCosmetics.requirementFrame(f),()->equipFrame(f));section("Entrance Effects");String[] eff={"Welcome Sparkle","Crown Drop","Rose Shower","Galaxy Portal","Royal Arrival"};for(String e:eff)row(KingCosmetics.effectEmoji(e),e,"Required: "+KingCosmetics.requirementEffect(e),()->equipEffect(e));section("Chat Bubbles");for(String b:KingCosmetics.BUBBLES)row("💬",b,"Required: "+KingCosmetics.requirementBubble(b),()->equipBubble940(b));}
     private LevelSystem.Snapshot freeActivityOnly9988(){
@@ -498,7 +511,7 @@ public class KingDeepFlowActivity extends Activity {
     private void partyPlay(){hero("🎮 Play Center","Bolo-style nested Party activity flow using original KING Plus implementation.");row("▦","Templates","Interaction, game and themed room templates","party_templates");row("🎪","Events","Relationship, game events and privileges","party_events");row("🛠","Tools","Room event, private chat, music, atmosphere and family","party_tools");row("🎮","Realtime Room Games","Ready / Start / result / rematch","game_team");}
     private void partyTemplates(){section("Interaction");row("💬","Chat Room","General conversation template",()->applyTemplate("Chat Room"));row("💘","Pick Me!","Random member interaction",()->applyTemplate("Pick Me!"));row("💞","Coupling","Relationship interaction",()->applyTemplate("Coupling"));row("🎊","Ceremony","Celebration room template",()->applyTemplate("Ceremony"));section("Games");String[] n={"Dominoes Chat Room","Mobile Legends","PUBG Mobile","Free Fire","Ludo Chat Room","SHEEP & PUZZLES","Draw & Guess","Bingo"};String[] i={"🀄","⚔","🔫","🔥","🎲","🐑","🎨","🎯"};for(int x=0;x<n.length;x++){final String q=n[x];row(i[x],q,"Apply template and open playable flow",()->{applyTemplate(q);if(q.contains("Draw"))openGame("draw");else if(q.contains("Bingo"))openGame("bingo");else if(q.contains("SHEEP"))openGame("sheep");else openRoomGame();});}}
     private void partyEvents(){String[][] e={{"💞","Relationship","relationship"},{"🍒","Crazy Fruits","slot"},{"🐔","Chicken Run","reaction"},{"🐯","Animal PK","zoo"},{"🪄","Magic Lamp","wheel"},{"🏎","Forza Motorsport","highlow"},{"🍬","Candy Legend","memory"},{"🎰","Lucky Slot","slot"}};for(String[] x:e)row(x[0],x[1],"Open interactive KING Plus equivalent",()->{if("relationship".equals(x[2]))openCommunity("Relationship");else openGame(x[2]);});section("Privileges");row("💗","Couple","Relationship / CP privileges",()->openCommunity("Relationship"));row("🎁","Gift Wall","Received gift collection","gift_wall");}
-    private void partyTools(){row("📅","Events","Room events and activity","event_center");row("🪑","Room seat","Mic seat and ready status","game_team");row("👥","Enable group","Channel / group tools","detail_group");row("💬","Private chat","Open Messages",()->KingNav.openRoot(this,3));row("🎵","Music","KTV library, queue and audio settings","music_center");row("🎆","Atmosphere","Room effects and entrance display","detail_atmosphere");row("💰","Income","Gift contribution and room data","detail_room_income");row("🏠","Share Family","Family party and members",()->openCommunity("Family"));row("🎨","Theme Room","Theme and scene options","detail_room_theme");row("⚙","Room Management","Privacy, password, notice and admin","party_management");}
+    private void partyTools(){row("📅","Events","Room events and activity","event_center");row("🪑","Room seat","Mic seat and ready status","game_team");row("👥","Enable group","Channel / group tools","detail_group");row("💬","Private chat","Open Messages",()->KingNav.openRoot(this,4));row("🎵","Music","KTV library, queue and audio settings","music_center");row("🎆","Atmosphere","Room effects and entrance display","detail_atmosphere");row("💰","Income","Gift contribution and room data","detail_room_income");row("🏠","Share Family","Family party and members",()->openCommunity("Family"));row("🎨","Theme Room","Theme and scene options","detail_room_theme");row("⚙","Room Management","Privacy, password, notice and admin","party_management");}
     private void partySettings(){row("▣","Billboard","Room notice and pinned message","detail_billboard");row("🎆","Atmosphere","Room visual effects","detail_atmosphere");row("🛡","Administrator","Host / co-host permissions","party_admin");row("🔑","Password settings","Private / password room","detail_room_password");toggle("Invite users to take seats","invite_seats",true);toggle("Show entrance effects","room_entrance_fx",true);toggle("Play entrance voice","room_entrance_voice",true);row("⚙","Room Management","Name, category, seats and close room","party_management");}
     private void partyManagement(){row("✏","Room name","Rename and room identity","detail_room_name");row("🗂","Category","Chat, Games, KTV, Radio, Dating","detail_room_category");row("🎨","Theme","Default, Royal, Galaxy and event themes","detail_room_theme");row("🪑","Mic seats","8 / 10 / 12 seat layouts","detail_room_seats");row("🔐","Privacy","Public / private / password","detail_room_privacy");row("📢","Announcement","Room notice and welcome text","detail_billboard");row("⛔","Close room","Host-only close flow","detail_close_room");}
     private void partyAdmin(){row("👑","Host","Owner room permissions","detail_host_role");row("🛡","Co-hosts","Administrator permissions","detail_cohosts");row("📥","Seat requests","Approve / reject mic requests","game_team");row("🚫","Banned users","Kick / ban management","detail_banned");row("🔇","Mute controls","Mute all / individual seat","detail_mute");}
@@ -671,7 +684,7 @@ public class KingDeepFlowActivity extends Activity {
     private void gameCenter(){hero("🎮 Game","Playable local games + realtime room multiplayer");row("🔥","Hot","Quick playable games","game_hot");row("🎲","LUDO","Ludo and board games",()->openGame("ludo"));row("🎉","Party","Sheep, Werewolf, Spy, Draw, Bingo and more","game_party");row("👥","Team / Live Room","Realtime ready/start/result/rematch","game_team");}
     private void gameHot(){String[][] g={{"🎰","Slot","slot"},{"🪙","Coin Toss","coin"},{"✊","RPS","rps"},{"🎲","Dice","dice"},{"🔢","Guess","guess"},{"🧠","Memory","memory"},{"⚡","Reaction","reaction"},{"🃏","High / Low","highlow"},{"🎡","Lucky Wheel","wheel"},{"💎","Hunt","hunt"},{"⭕","Tic Tac Toe","tic_tac_toe"}};for(String[] x:g)row(x[0],x[1],"Play now",()->openGame(x[2]));}
     private void gameParty(){String[][] g={{"🐑","Sheep Fight","sheep"},{"🐺","Werewolf","werewolf"},{"🕵","Spy Game","spy"},{"🎨","Draw & Guess","draw"},{"🎯","Bingo","bingo"},{"🦁","Crazy Zoo","zoo"},{"🀄","Domino","domino"}};for(String[] x:g)row(x[0],x[1],"Play now",()->openGame(x[2]));}
-    private void gameTeam(){hero("👥 Realtime Room Games","Players join the same Firebase room, tap Ready, host starts a round, results are shared and Rematch starts the next round.");row("✊","Room RPS","Realtime synchronized round",this::openRoomGame);row("🎲","Dice Duel","Realtime synchronized round",this::openRoomGame);row("🔢","Pick Number","Realtime synchronized round",this::openRoomGame);row("🪙","Coin Pick","Realtime synchronized round",this::openRoomGame);row("🎡","Lucky Wheel","Realtime synchronized round",this::openRoomGame);row("🎯","Bingo Pick","Realtime synchronized round",this::openRoomGame);row("🎤","Return to Party","Invite more players",()->KingNav.openRoot(this,0));}
+    private void gameTeam(){hero("👥 Realtime Room Games","Players join the same Firebase room, tap Ready, host starts a round, results are shared and Rematch starts the next round.");row("✊","Room RPS","Realtime synchronized round",this::openRoomGame);row("🎲","Dice Duel","Realtime synchronized round",this::openRoomGame);row("🔢","Pick Number","Realtime synchronized round",this::openRoomGame);row("🪙","Coin Pick","Realtime synchronized round",this::openRoomGame);row("🎡","Lucky Wheel","Realtime synchronized round",this::openRoomGame);row("🎯","Bingo Pick","Realtime synchronized round",this::openRoomGame);row("🎤","Return to Party","Invite more players",()->KingNav.openRoot(this,1));}
     private void openGame(String code){
         if("hunt".equalsIgnoreCase(code)){Intent i=new Intent(this,GamePlayActivity.class);i.putExtra("game","hunt");startActivity(i);return;}
         if("ludo".equalsIgnoreCase(code)){startActivity(new Intent(this,KingLudoLobbyActivity.class));return;}
@@ -680,7 +693,7 @@ public class KingDeepFlowActivity extends Activity {
         }
         Intent i=new Intent(this,PartyActivity.class);i.putExtra("requestedGame",code);i.putExtra("displayName",safe(mainPrefs.getString("name","KING User"),"KING User"));startActivity(i);
     }
-    private void openRoomGame(){if(roomId.isEmpty()){toast("Join a live Party room first");KingNav.openRoot(this,0);return;}Intent i=new Intent(this,RoomGameActivity.class);i.putExtra("roomId",roomId);i.putExtra("roomName",roomName);startActivity(i);}
+    private void openRoomGame(){if(roomId.isEmpty()){toast("Join a live Party room first");KingNav.openRoot(this,1);return;}Intent i=new Intent(this,RoomGameActivity.class);i.putExtra("roomId",roomId);i.putExtra("roomName",roomName);startActivity(i);}
 
     private void musicCenter(){row("🎵","Music Library","Browse room music and songs","detail_music_library");row("🎤","Song Request","KTV request queue","detail_song_request");row("📋","KTV Queue","Requested / playing / completed","detail_ktv_queue");row("📻","Radio Mic Queue","Loop mic and radio queue","detail_radio_queue");row("🎚","Audio Settings","Mic, music and room audio","detail_audio_settings");}
     private void videoCenter(){hero("🎙 Voice & Video","Native Jitsi/WebRTC engine with fallback");row("🎙","Voice Room","Open native voice session",()->openMeet(false));row("📹","Multi Video","Open native video session",()->openMeet(true));row("🎚","Voice Filter","Original KING Plus filter presets","detail_voice_filter");row("✨","Beauty / Camera","Video camera and beauty controls","detail_beauty");row("🎛","Audio Focus & Reconnect","Fallback reconnect and permission recovery","detail_media_recovery");}
@@ -729,8 +742,8 @@ public class KingDeepFlowActivity extends Activity {
             })
             .addOnFailureListener(error->{if(currentCheckinPage(state)){state.setText("Check-in was not confirmed. No Activity XP was added.");claim.setText("Try again");claim.setEnabled(true);}});
     }
-    private void dailyTask(String name,String key){row("›",name,"Open activity • no task reward is claimed yet",()->{if("task_party".equals(key)||"task_game".equals(key)){KingNav.openRoot(this,0);}else if("task_chat".equals(key)){KingNav.openRoot(this,3);}else if("task_gift".equals(key)){openGiftCenter();}else if("task_social".equals(key)){openCommunity("Moments");}});}
-    private void eventCenter(){row("🎪","Room Activity","Templates and live room events","party_events");row("⚔","Audio PK","Party PK / score flow",()->KingNav.openRoot(this,0));row("🏆","Ranking Events","Discover rankings","discover_center");row("🎁","Gift Events","Lucky Gift, Wish and Wall","gift_center");row("💞","Relationship Events","CP and Family activities",()->openCommunity("Relationship"));}
+    private void dailyTask(String name,String key){row("›",name,"Open activity • no task reward is claimed yet",()->{if("task_party".equals(key)){KingNav.openRoot(this,1);}else if("task_game".equals(key)){KingNav.openRoot(this,2);}else if("task_chat".equals(key)){KingNav.openRoot(this,4);}else if("task_gift".equals(key)){openGiftCenter();}else if("task_social".equals(key)){openCommunity("Moments");}});}
+    private void eventCenter(){row("🎪","Room Activity","Templates and live room events","party_events");row("⚔","Audio PK","Party PK / score flow",()->KingNav.openRoot(this,1));row("🏆","Ranking Events","Discover rankings","discover_center");row("🎁","Gift Events","Lucky Gift, Wish and Wall","gift_center");row("💞","Relationship Events","CP and Family activities",()->openCommunity("Relationship"));}
     private void profileCenter(){
         hero("👤 My Profile","Open your real KING account profile, media, social lists and saved activity.");
         section("Profile & media");
@@ -838,7 +851,7 @@ public class KingDeepFlowActivity extends Activity {
         row("✅","Daily Check-in","Claim once per Kolkata day and build account XP","task_center");
         row("🏅","Check-in Medals","Milestones earned only from server-confirmed check-ins","medal_center");
         row("🎮","Game Master","Game results do not grant verified Activity XP yet","game_center");
-        row("🎤","Voice Explorer","Party and voice participation do not grant verified Activity XP yet",()->KingNav.openRoot(this,0));
+        row("🎤","Voice Explorer","Party and voice participation do not grant verified Activity XP yet",()->KingNav.openRoot(this,1));
     }
     private void medalCenter(){
         hero("🏅 Account Medals","Only account-synced, server-confirmed Daily Check-in milestones appear here. Game and paid VIP medals are not granted from device activity.");
@@ -878,11 +891,11 @@ public class KingDeepFlowActivity extends Activity {
             });
     }
     private int number10095(Object value,int fallback){return value instanceof Number?Math.max(0,((Number)value).intValue()):fallback;}
-    private void socialCenter(){row("▣","Square / Moments","Posts and activity",()->openCommunity("Moments"));row("👤","People Search","KING ID and profiles",()->openCommunity("Search"));row("👥","Friends / Followers","Follow and private chat",()->{Intent i=new Intent(this,SocialActivity.class);startActivity(i);});row("🏠","Family","Family square and members",()->openCommunity("Family"));row("💞","Relationship / CP","Pairing and gifts",()->openCommunity("Relationship"));row("💬","Messages","Chats and notifications",()->KingNav.openRoot(this,3));}
+    private void socialCenter(){row("▣","Square / Moments","Posts and activity",()->openCommunity("Moments"));row("👤","People Search","KING ID and profiles",()->openCommunity("Search"));row("👥","Friends / Followers","Follow and private chat",()->{Intent i=new Intent(this,SocialActivity.class);startActivity(i);});row("🏠","Family","Family square and members",()->openCommunity("Family"));row("💞","Relationship / CP","Pairing and gifts",()->openCommunity("Relationship"));row("💬","Messages","Chats and notifications",()->KingNav.openRoot(this,4));}
     private void discoverCenter(){row("🏆","Contribution Ranking","Discover room/user rankings",()->startActivity(new Intent(this,DiscoverActivity.class)));row("✨","Charisma Ranking","Profiles and contribution",()->startActivity(new Intent(this,DiscoverActivity.class)));row("🎪","Activity Recommendation","Rooms and events",()->startActivity(new Intent(this,DiscoverActivity.class)));row("🎮","Game Master","Game discovery","game_center");row("📍","Nearby / Recommended","People and rooms",()->openCommunity("Search"));}
 
     private void openPartyPanel940(String panel){
-        if(roomId==null||roomId.trim().isEmpty()){toast("Join a live Party room first");KingNav.openRoot(this,0);return;}
+        if(roomId==null||roomId.trim().isEmpty()){toast("Join a live Party room first");KingNav.openRoot(this,1);return;}
         Intent i=new Intent(this,PartyActivity.class);i.putExtra("directRoomId",roomId);i.putExtra("directRoomName",roomName);i.putExtra("displayName",safe(mainPrefs.getString("name","KING User"),"KING User"));i.putExtra("requestedPanel",panel);i.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP|Intent.FLAG_ACTIVITY_SINGLE_TOP);startActivity(i);
     }
     private void openGiftCenter(){Intent i=new Intent(this,KingGiftCenterActivity.class);startActivity(i);}
@@ -967,7 +980,7 @@ public class KingDeepFlowActivity extends Activity {
             case "party":
                 hero("🎤 Party Help","Join a live room, sit on a Mic seat and approve microphone permission.");
                 row("🎤","Open live Party","Real host, cohost and mic options",
-                    ()->KingNav.openRoot(this,0));break;
+                    ()->KingNav.openRoot(this,1));break;
             case "gift":
                 hero("🎁 Gift Help","Free Gift catalog and receiver ACK need connected accounts.");
                 row("🎁","Gift Center","Open functional catalog",this::openGiftCenter);break;

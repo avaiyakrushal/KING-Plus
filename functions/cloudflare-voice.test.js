@@ -53,6 +53,14 @@ for (const flag of ['enabled', 'zeroCostVerified']) test(`no billable API call w
 test('configuration never exposes credentials', async () => {
   const f = fixture(); assert(!JSON.stringify(await f.invoke('config')).includes('server-only'));
 });
+for (const field of ['appId', 'secret']) test(`configuration is disabled without ${field}`, async () => {
+  const f = fixture(); f.cfg[field] = '';
+  const result = await f.invoke('config');
+  assert.equal(result.enabled, false);
+  assert(!JSON.stringify(result).includes('server-only'));
+  await assert.rejects(f.join(), {code: 'failed-precondition'});
+  assert.equal(f.calls.length, 0);
+});
 for (const field of ['closed','banned']) test(`reject ${field} room member`, async () => {
   const f = fixture(); f.state[field] = true;
   await assert.rejects(f.join(), {code: 'permission-denied'}); assert.equal(f.calls.length, 0);
