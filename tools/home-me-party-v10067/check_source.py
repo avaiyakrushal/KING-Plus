@@ -144,3 +144,16 @@ assert 'showCompactGiftTools()' in gift_sheet and 'sendPaidPartyGift10064()' in 
 assert 'giftCategory="Activity"' in gift_sheet and 'root.addView(giftSelectionLabel' in gift_sheet
 assert 'giftVipRequired[giftSelectedIndex]>0' in gift_sheet
 print("PASS compact Party emoji and gifting sheets, existing server send and locked-gift guards")
+
+# Party controls and today's bounded server statistics must not overwrite entitlements or stack template sheets.
+assert 'if(sheet[0]!=null)sheet[0].dismiss();activityCenterPanel(tab)' in party
+assert '"Treasure Hunt","Chicken Run"' in party
+assert 'if(name.contains("(external)"))' in party
+assert 'labels.add("⚙ Room management");actions.add(this::moderationPanel)' in party
+assert 'case 1:inviteDialog();break;' in party
+assert 'whereGreaterThanOrEqualTo("createdAt",since)' in party and 'Unique gift senders' in party
+assert 'Latest 200 events only' in party and 'Recorded paid gift value' in party
+wardrobe=(java/'KingWardrobeActivity.java').read_text()
+assert 'm.put("vipLevel"' not in wardrobe and 'm.put("vipPoints"' not in wardrobe
+assert 'Cloud sync failed. Local selection only.' in wardrobe
+print('PASS Party direct controls, bounded current-day room stats and entitlement-safe cosmetic sync')

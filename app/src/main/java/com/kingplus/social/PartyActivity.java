@@ -5114,34 +5114,35 @@ public class PartyActivity extends androidx.fragment.app.FragmentActivity implem
 
     private void activityCenterPanel(String selected){
         LinearLayout root=new LinearLayout(this);root.setOrientation(LinearLayout.VERTICAL);root.setPadding(dp(12),dp(10),dp(12),dp(14));root.setBackgroundColor(0xff242333);
+        final AlertDialog[] sheet={null};
         LinearLayout tabs=new LinearLayout(this);
         String[] tabNames={"Templates","Events"};
-        for(String tab:tabNames){TextView t=tv(tab,17,tab.equals(selected)?0xffffd21c:0xff9f9aa8,true);t.setGravity(Gravity.CENTER);t.setOnClickListener(v->activityCenterPanel(tab));tabs.addView(t,new LinearLayout.LayoutParams(0,dp(48),1));}
+        for(String tab:tabNames){TextView t=tv(tab,17,tab.equals(selected)?0xffffd21c:0xff9f9aa8,true);t.setGravity(Gravity.CENTER);t.setOnClickListener(v->{if(tab.equals(selected))return;if(sheet[0]!=null)sheet[0].dismiss();activityCenterPanel(tab);});tabs.addView(t,new LinearLayout.LayoutParams(0,dp(48),1));}
         root.addView(tabs,new LinearLayout.LayoutParams(-1,dp(50)));
-        ScrollView sc=new ScrollView(this);LinearLayout body=new LinearLayout(this);body.setOrientation(LinearLayout.VERTICAL);sc.addView(body);root.addView(sc,new LinearLayout.LayoutParams(-1,dp(470)));
+        ScrollView sc=new ScrollView(this);LinearLayout body=new LinearLayout(this);body.setOrientation(LinearLayout.VERTICAL);sc.addView(body);root.addView(sc,new LinearLayout.LayoutParams(-1,0,1));
         if("Templates".equals(selected)){
             body.addView(tv("Interaction",15,Color.WHITE,true),new LinearLayout.LayoutParams(-1,dp(40)));
-            addActivityTiles(body,new String[]{"💬","💘","💞","🎊"},new String[]{"Chat room","Pick Me!","Coupling","Ceremony"},true);
+            addActivityTiles(body,new String[]{"💬","💘","💞","🎊"},new String[]{"Chat room","Pick Me!","Coupling","Ceremony"},true,sheet);
             body.addView(tv("Games",15,Color.WHITE,true),new LinearLayout.LayoutParams(-1,dp(42)));
-            addActivityTiles(body,new String[]{"🎲","⚔️","🔫","🔥","🎯","🐑","🎨","🧩"},new String[]{"Dominoes Chat Room","Mobile Legends","PUBG Mobile","Free Fire","Ludo Chat Room","SHEEP & PUZZLES","Draw & Guess","Bingo"},true);
+            addActivityTiles(body,new String[]{"🎲","🎯","🐑","🎨","🧩","⚔️","🔫","🔥"},new String[]{"Dominoes Chat Room","Ludo Chat Room","SHEEP & PUZZLES","Draw & Guess","Bingo","Mobile Legends (external)","PUBG Mobile (external)","Free Fire (external)"},true,sheet);
         }else{
-            addActivityTiles(body,new String[]{"💞","🍒","🐔","🐯","🪄","🏎️","🍬","🎰"},new String[]{"Relationship","Crazy Fruits","Chicken Run","Animal PK","Magic Lamp","KING Tap Sprint","Candy Legend","Lucky Slot"},false);
+            addActivityTiles(body,new String[]{"💞","🍒","🏰","🐔","🐯","🪄","🏎️","🍬","🎰"},new String[]{"Relationship","Crazy Fruits","Treasure Hunt","Chicken Run","Animal PK","Magic Lamp","KING Tap Sprint","Candy Legend","Lucky Slot"},false,sheet);
             body.addView(tv("PRIVILEGES",15,Color.WHITE,true),new LinearLayout.LayoutParams(-1,dp(44)));
-            addActivityTiles(body,new String[]{"💗","🎁"},new String[]{"Couple","Gift Wall"},false);
+            addActivityTiles(body,new String[]{"💗","🎁","👑","🛍"},new String[]{"Couple","Gift Wall","My Privilege Pack","Privilege Shop"},false,sheet);
         }
-        AlertDialog dialog=new AlertDialog.Builder(this).setView(root).create();
+        AlertDialog dialog=new AlertDialog.Builder(this).setView(root).create();sheet[0]=dialog;
         dialog.setOnShowListener(v->{android.view.Window w=dialog.getWindow();if(w!=null){w.setLayout(-1,(int)(getResources().getDisplayMetrics().heightPixels*.52f));w.clearFlags(android.view.WindowManager.LayoutParams.FLAG_DIM_BEHIND);w.setGravity(Gravity.BOTTOM);w.setBackgroundDrawable(bg(0xff242333,24));}});
         dialog.show();
     }
 
-    private void addActivityTiles(LinearLayout body,String[] icons,String[] labels,boolean template){
+    private void addActivityTiles(LinearLayout body,String[] icons,String[] labels,boolean template,AlertDialog[] sheet){
         int index=0;
         while(index<labels.length){
             LinearLayout row=new LinearLayout(this);row.setGravity(Gravity.CENTER);
             for(int c=0;c<4;c++){
                 if(index>=labels.length){row.addView(new View(this),new LinearLayout.LayoutParams(0,dp(108),1));continue;}
                 final String name=labels[index];final String icon=icons[index];
-                TextView tile=toolTile(icon,name,()->{if(template)startRoomTemplate(name);else runRoomEvent(name);});
+                TextView tile=toolTile(icon,name,()->{if(sheet[0]!=null)sheet[0].dismiss();if(template)startRoomTemplate(name);else runRoomEvent(name);});
                 LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(0,dp(108),1);lp.setMargins(dp(3),dp(3),dp(3),dp(3));row.addView(tile,lp);index++;
             }
             body.addView(row,new LinearLayout.LayoutParams(-1,dp(114)));
@@ -5150,6 +5151,11 @@ public class PartyActivity extends androidx.fragment.app.FragmentActivity implem
 
     private void startRoomTemplate(String name){
         if("Pick Me!".equals(name)){pickMePanel940();return;}
+        if(name.contains("(external)")){
+            new AlertDialog.Builder(this).setTitle("External game")
+                .setMessage("This game is not embedded in KING Plus. Open the playable KING room games instead.")
+                .setPositiveButton("KING Games",(d,w)->openRoomGames740()).setNegativeButton("Close",null).show();return;
+        }
         if(cloudRoom&&!isModerator()){toast("Host/co-host selects the room template");return;}
         activeRoomTemplate=name;
         if(cloudRoom&&db!=null&&user!=null){Map<String,Object>t=new HashMap<>();t.put("name",name);t.put("active",true);t.put("actorUid",user.getUid());t.put("actorName",safeName());t.put("updatedAt",FieldValue.serverTimestamp());db.collection("live_rooms").document(roomId).collection("room_templates").document("current").set(t).addOnFailureListener(e->toast("Template save failed: "+msg(e)));}
@@ -5253,7 +5259,9 @@ public class PartyActivity extends androidx.fragment.app.FragmentActivity implem
         if("KING Tap Sprint".equals(name)||"Forza Motorsport".equals(name)){simpleRaceEvent();return;}
         if("Candy Legend".equals(name)){simplePrizeEvent("🍬 Candy Legend",new String[]{"🍬 Sweet win","🍭 Bonus round","⭐ Star candy","🎁 Candy gift challenge"});return;}
         if("Couple".equals(name)){relationshipEvent();return;}
-        if("Gift Wall".equals(name)){giftHistoryDialog();return;}
+        if("Gift Wall".equals(name)){giftWall620();return;}
+        if("My Privilege Pack".equals(name)){openDeepFlow810("privilege_pack");return;}
+        if("Privilege Shop".equals(name)){startActivity(new Intent(this,KingWardrobeActivity.class));return;}
         toast(name);
     }
     private void relationshipEvent(){
@@ -5379,8 +5387,29 @@ public class PartyActivity extends androidx.fragment.app.FragmentActivity implem
     }
 
     private void roomControlCenter(){
-        String[] items={"▣ Billboard","🪑 Room seat layout","🛡 Administrator","🎨 Theme Room","📢 Announcement","⚙ Room settings","👥 Channel / Group","🎯 Templates & Events"};
-        new AlertDialog.Builder(this).setTitle("Edit room").setItems(items,(d,w)->{String x=items[w];if(x.contains("Billboard"))roomBillboardDialog();else if(x.contains("seat"))seatLayoutPanel();else if(x.contains("Administrator"))administratorDialog();else if(x.contains("Theme"))themeRoomPanel();else if(x.contains("Announcement"))editAnnouncement();else if(x.contains("settings"))roomSettingsPanel();else if(x.contains("Channel"))channelPanel();else activityCenterPanel();}).setNegativeButton("Close",null).show();
+        if(roomId==null)return;
+        if(!isModerator()){roomBillboardDialog();return;}
+        List<String> labels=new ArrayList<>();List<Runnable> actions=new ArrayList<>();
+        labels.add("▣ Billboard");actions.add(this::roomBillboardDialog);
+        labels.add("🪑 Mic seat layout");actions.add(this::seatLayoutPanel);
+        labels.add("🛡 Administrator");actions.add(this::administratorDialog);
+        labels.add("🎨 Room background / Atmosphere");actions.add(this::themeRoomPanel);
+        labels.add("📢 Announcement");actions.add(this::editAnnouncement);
+        labels.add("👥 Channel / Group");actions.add(this::channelPanel);
+        labels.add("📊 Party Data");actions.add(this::partyDataPanel);
+        labels.add("🎯 Templates & Events");actions.add(this::activityCenterPanel);
+        labels.add("⚙ Room management");actions.add(this::moderationPanel);
+        if(isOwner()){
+            labels.add("✎ Change room name");actions.add(this::renameRoomDialog);
+            labels.add("🏷 Change room category");actions.add(this::changeCategoryDialog);
+            labels.add("🚪 Entrance settings");actions.add(this::channelEntranceSettings9931);
+            labels.add("🔑 Room password");actions.add(this::setRoomPasswordDialog);
+        }
+        labels.add("⚙ Personal room settings");actions.add(this::roomSettingsPanel);
+        final String expected=roomId;
+        new AlertDialog.Builder(this).setTitle("Edit room").setItems(labels.toArray(new String[0]),(d,w)->{
+            if(!expected.equals(roomId)||!isModerator())return;actions.get(w).run();
+        }).setNegativeButton("Close",null).show();
     }
 
     private void administratorDialog(){
@@ -5454,8 +5483,25 @@ public class PartyActivity extends androidx.fragment.app.FragmentActivity implem
     private void saveRoomPersonalSettings(){prefs.edit().putBoolean("skip_fx_"+roomId,skipEntranceVisuals).putBoolean("skip_sound_"+roomId,skipEntranceSound).putBoolean("skip_vibe_"+roomId,skipEntranceVibration).apply();toast("Room preference saved");}
 
     private void channelPanel(){
-        String[] items={"👥 Members ("+(cloudRoom?liveMemberCount:Math.max(1,seatNames.size()))+")","🟢 Party & Live in the channel","▣ Billboard","🎨 Channel theme","👤 Channel profile","🤖 Robot","🛡 Administrator","⚙ Room settings","⚑ Report the group"};
-        new AlertDialog.Builder(this).setTitle("From the channel • "+roomName).setItems(items,(d,w)->{String x=items[w];if(x.contains("Members"))membersDialog();else if(x.contains("Party & Live"))roomInfoDialog();else if(x.contains("Billboard"))roomBillboardDialog();else if(x.contains("theme"))themeRoomPanel();else if(x.contains("profile"))channelProfile940();else if(x.contains("Robot"))roomRobotDialog();else if(x.contains("Administrator"))administratorDialog();else if(x.contains("settings"))roomSettingsPanel();else reportHost();}).setNegativeButton("Close",null).show();
+        if(roomId==null){toast("Join a room first");return;}
+        String[] items={"👥 Members ("+(cloudRoom?liveMemberCount:Math.max(1,seatNames.size()))+")","＋ Invite members","🟢 Party & Live in the channel","▣ Billboard","🎨 Channel theme","👤 Channel profile","🤖 Robot","🛡 Administrator","⚙ Room settings","📊 Party Data","👑 My Privilege Pack","🛍 Privilege Shop","⚑ Report the group"};
+        new AlertDialog.Builder(this).setTitle("From the channel • "+roomName).setItems(items,(d,w)->{
+            switch(w){
+                case 0:membersDialog();break;
+                case 1:inviteDialog();break;
+                case 2:roomInfoDialog();break;
+                case 3:roomBillboardDialog();break;
+                case 4:themeRoomPanel();break;
+                case 5:channelProfile940();break;
+                case 6:roomRobotDialog();break;
+                case 7:administratorDialog();break;
+                case 8:roomSettingsPanel();break;
+                case 9:partyDataPanel();break;
+                case 10:openDeepFlow810("privilege_pack");break;
+                case 11:startActivity(new Intent(this,KingWardrobeActivity.class));break;
+                default:reportHost();
+            }
+        }).setNegativeButton("Close",null).show();
     }
 
     private void channelProfile940(){
@@ -5992,28 +6038,45 @@ public class PartyActivity extends androidx.fragment.app.FragmentActivity implem
     }
 
     private void partyDataPanel(){
-        if(!cloudRoom||db==null||roomId==null){
-            LinearLayout root954=new LinearLayout(this);root954.setOrientation(LinearLayout.VERTICAL);root954.setPadding(dp(12),dp(8),dp(12),dp(12));
-            addPartyStat954(root954,"👥","Members",String.valueOf(Math.max(1,memberNames.size())));
-            addPartyStat954(root954,"🎙","Occupied seats",seatNames.size()+" / "+maxSeats);
-            addPartyStat954(root954,themeIcon954(),"Theme",roomTheme);
-            addPartyStat954(root954,"🏷","Room type",roomCategory);
-            new AlertDialog.Builder(this).setTitle("📊 Party Data").setView(root954).setPositiveButton("OK",null).show();return;
+        if(!cloudRoom||db==null||roomId==null||user==null||!memberSeen){
+            toast("Join a live Firebase room to view Party Data");return;
         }
-        LinearLayout wait954=new LinearLayout(this);wait954.setGravity(Gravity.CENTER_VERTICAL);wait954.setPadding(dp(18),dp(10),dp(18),dp(10));android.widget.ProgressBar spin954=new android.widget.ProgressBar(this);wait954.addView(spin954,new LinearLayout.LayoutParams(dp(34),dp(34)));TextView loading954=tv("Loading room activity…",13,0xff5c5564,true);wait954.addView(loading954,new LinearLayout.LayoutParams(0,dp(52),1));final AlertDialog waiting954=new AlertDialog.Builder(this).setTitle("📊 Party Data").setView(wait954).setCancelable(false).create();waiting954.show();
-        final long[] giftValue={0};final int[] gifts={0};final int[] events={0};
-        db.collection("live_rooms").document(roomId).collection("events").orderBy("createdAt",Query.Direction.DESCENDING).limit(200).get().addOnSuccessListener(es->{
-            events[0]=es.size();for(DocumentSnapshot e:es.getDocuments())if("gift".equals(e.getString("type"))){gifts[0]++;Long v=e.getLong("giftValue");if(v!=null)giftValue[0]+=Math.max(0,v);}
-            db.collection("live_rooms").document(roomId).collection("messages").orderBy("createdAt",Query.Direction.DESCENDING).limit(200).get().addOnSuccessListener(ms->{
-                if(waiting954.isShowing())waiting954.dismiss();
-                LinearLayout root954=new LinearLayout(this);root954.setOrientation(LinearLayout.VERTICAL);root954.setPadding(dp(12),dp(8),dp(12),dp(12));root954.setBackgroundColor(0xfffaf8fc);
-                TextView live954=tv("● LIVE ROOM  •  "+themeIcon954()+" "+roomTheme,12,0xff198b64,true);live954.setGravity(Gravity.CENTER);live954.setBackground(bg(0xffe5f8f0,14));root954.addView(live954,new LinearLayout.LayoutParams(-1,dp(40)));
-                LinearLayout statsA954=new LinearLayout(this);statsA954.setGravity(Gravity.CENTER);statsA954.addView(partyStatCard954("👥",String.valueOf(liveMemberCount),"Online"),new LinearLayout.LayoutParams(0,dp(84),1));statsA954.addView(partyStatCard954("🎙",seatNames.size()+"/"+maxSeats,"Seats"),new LinearLayout.LayoutParams(0,dp(84),1));root954.addView(statsA954,new LinearLayout.LayoutParams(-1,dp(90)));
-                LinearLayout statsB954=new LinearLayout(this);statsB954.setGravity(Gravity.CENTER);statsB954.addView(partyStatCard954("💬",String.valueOf(ms.size()),"Messages"),new LinearLayout.LayoutParams(0,dp(84),1));statsB954.addView(partyStatCard954("🎁",String.valueOf(gifts[0]),"Gifts"),new LinearLayout.LayoutParams(0,dp(84),1));statsB954.addView(partyStatCard954("💎",compactNumber(giftValue[0]),"Gift value"),new LinearLayout.LayoutParams(0,dp(84),1));root954.addView(statsB954,new LinearLayout.LayoutParams(-1,dp(90)));
-                TextView details954=tv("Category  "+roomCategory+"     •     Recent events  "+events[0],11,0xff77707f,true);details954.setGravity(Gravity.CENTER);root954.addView(details954,new LinearLayout.LayoutParams(-1,dp(40)));
-                new AlertDialog.Builder(this).setTitle("📊 Party Data").setView(root954).setPositiveButton("Ranking",(d,w)->roomRankingDialog()).setNeutralButton("Gift history",(d,w)->giftHistoryDialog()).setNegativeButton("Close",null).show();
-            }).addOnFailureListener(e->{if(waiting954.isShowing())waiting954.dismiss();new AlertDialog.Builder(this).setTitle("Party data unavailable").setMessage(msg(e)).setPositiveButton("Retry",(d,w)->partyDataPanel()).setNegativeButton("Close",null).show();});
-        }).addOnFailureListener(e->{if(waiting954.isShowing())waiting954.dismiss();new AlertDialog.Builder(this).setTitle("Party data unavailable").setMessage(msg(e)).setPositiveButton("Retry",(d,w)->partyDataPanel()).setNegativeButton("Close",null).show();});
+        final String room=roomId,uid=user.getUid();
+        final int visit=presenceGeneration967;
+        final DocumentReference ref=db.collection("live_rooms").document(room);
+        final AlertDialog loading=new AlertDialog.Builder(this).setTitle("Party Data").setMessage("Loading current room activity…").setNegativeButton("Cancel",null).create();
+        loading.show();
+        java.util.Calendar midnight=java.util.Calendar.getInstance();midnight.set(java.util.Calendar.HOUR_OF_DAY,0);midnight.set(java.util.Calendar.MINUTE,0);midnight.set(java.util.Calendar.SECOND,0);midnight.set(java.util.Calendar.MILLISECOND,0);
+        com.google.firebase.Timestamp since=new com.google.firebase.Timestamp(midnight.getTime());
+        // Only the server's current-day event records; bounded reads are explicitly labelled.
+        ref.collection("events").whereGreaterThanOrEqualTo("createdAt",since).orderBy("createdAt",Query.Direction.DESCENDING).limit(200)
+            .get(com.google.firebase.firestore.Source.SERVER).addOnSuccessListener(es->{
+                if(!loading.isShowing()||!isActivePresence967(room,uid,visit)){if(loading.isShowing())loading.dismiss();return;}
+                long value=0;int gifts=0;Set<String> senders=new HashSet<>();
+                for(DocumentSnapshot e:es.getDocuments()){
+                    if(!"gift".equals(e.getString("type"))||!Boolean.FALSE.equals(e.getBoolean("freeGift")))continue;
+                    Long cost=e.getLong("giftValue");String sender=e.getString("actorUid");
+                    if(cost==null||cost<=0||sender==null||sender.isEmpty())continue;
+                    value+=cost;gifts++;senders.add(sender);
+                }
+                loading.dismiss();
+                LinearLayout root=new LinearLayout(this);root.setOrientation(LinearLayout.VERTICAL);root.setPadding(dp(12),dp(8),dp(12),dp(12));
+                TextView heading=tv("Today • "+java.text.DateFormat.getDateInstance().format(midnight.getTime()),14,0xff332344,true);root.addView(heading);
+                addPartyStat954(root,"👥","Online members",String.valueOf(liveMemberCount));
+                addPartyStat954(root,"🎙","Occupied seats",seatNames.size()+" / "+maxSeats);
+                addPartyStat954(root,"🎁","Paid gift events",String.valueOf(gifts));
+                addPartyStat954(root,"👤","Unique gift senders",String.valueOf(senders.size()));
+                addPartyStat954(root,"💎","Recorded paid gift value",compactNumber(value));
+                root.addView(tv(es.size()==200?"Latest 200 events only • totals may be incomplete.":"Current-day room events • device time zone. Not a cash balance.",12,0xff77707f,false));
+                ScrollView sc=new ScrollView(this);sc.addView(root);
+                new AlertDialog.Builder(this).setTitle("Party Data").setView(sc)
+                    .setPositiveButton("Ranking",(d,w)->{if(isActivePresence967(room,uid,visit))roomRankingDialog();})
+                    .setNeutralButton("Gift history",(d,w)->{if(isActivePresence967(room,uid,visit))giftHistoryDialog();})
+                    .setNegativeButton("Close",null).show();
+            }).addOnFailureListener(e->{
+                if(!loading.isShowing())return;loading.dismiss();if(!isActivePresence967(room,uid,visit))return;
+                new AlertDialog.Builder(this).setTitle("Party data unavailable").setMessage("Unable to read today's server events. Check connection.").setPositiveButton("Retry",(d,w)->partyDataPanel()).setNegativeButton("Close",null).show();
+            });
     }
 
     private void ktvQueuePanel(){

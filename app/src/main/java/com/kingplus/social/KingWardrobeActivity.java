@@ -106,15 +106,16 @@ public class KingWardrobeActivity extends Activity {
     }
 
     private void syncCloud(){
-        if(db==null||me==null)return;
+        FirebaseUser current=FirebaseAuth.getInstance().getCurrentUser();
+        if(db==null||me==null||current==null||!me.getUid().equals(current.getUid())){toast("Sign in to sync equipped items");return;}
         Map<String,Object> m=new HashMap<>();
         m.put("uid",me.getUid());
         m.put("equippedFrame",KingCosmetics.frame(this));
         m.put("entranceEffect",KingCosmetics.effect(this));
         m.put("chatBubble",KingCosmetics.bubble(this));
         m.put("nameBadge",KingCosmetics.badge(this));
-        m.put("level",progress.level);m.put("vipLevel",0);m.put("vipPoints",0L);
+        // Never overwrite server-managed VIP/Noble entitlement fields during equip.
         m.put("updatedAt",FieldValue.serverTimestamp());
-        db.collection("public_profiles").document(me.getUid()).set(m,SetOptions.merge()).addOnFailureListener(e->{});
+        db.collection("public_profiles").document(me.getUid()).set(m,SetOptions.merge()).addOnSuccessListener(v->{if(!isFinishing()&&!isDestroyed())toast("Equipped items synced");}).addOnFailureListener(e->{if(!isFinishing()&&!isDestroyed())toast("Cloud sync failed. Local selection only.");});
     }
 }
