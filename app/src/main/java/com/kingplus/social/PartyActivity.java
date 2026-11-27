@@ -2161,7 +2161,7 @@ public class PartyActivity extends androidx.fragment.app.FragmentActivity implem
         composerBox=new EditText(this); composerBox.setHint("Type message..."); composerBox.setTextColor(Color.WHITE); composerBox.setHintTextColor(0xffbfaad6); composerBox.setSingleLine(true); composerBox.setTextSize(14); composerBox.setImeOptions(android.view.inputmethod.EditorInfo.IME_ACTION_SEND); composerBox.setOnEditorActionListener((v, actionId, event)->{ if(actionId==android.view.inputmethod.EditorInfo.IME_ACTION_SEND){sendMessage(composerBox);return true;}return false;}); composerBox.setBackground(royalNeon9924(0xff322053,0xff211438,0x88d2a5ea,20)); composerBox.setPadding(dp(10),0,dp(10),0);
         composerBox.setOnFocusChangeListener((v,focused)->{if(focused){ViewCompat.requestApplyInsets(shell);if(roomChatScroll!=null)roomChatScroll.postDelayed(()->roomChatScroll.fullScroll(View.FOCUS_DOWN),120);}});
         composerBox.setMinWidth(0); composer.addView(composerBox,new LinearLayout.LayoutParams(0,dp(48),1));
-        TextView emoji=pill("🌈",0x00ffffff,this::showLiveEmojiPanelV530); emoji.setTextColor(0xff732eb6); emoji.setTextSize(23); composer.addView(emoji,new LinearLayout.LayoutParams(dp(38),dp(46)));
+        TextView emoji=pill("😊",0x00ffffff,this::showLiveEmojiPanelV530); emoji.setTextColor(0xff732eb6); emoji.setTextSize(23); composer.addView(emoji,new LinearLayout.LayoutParams(dp(38),dp(46)));
         micLabel=pill(micOn?"🎤":"🎙",0x00ffffff,this::toggleMic); micLabel.setTextColor(0xffffd991); micLabel.setTextSize(22); composer.addView(micLabel,new LinearLayout.LayoutParams(dp(38),dp(46)));
         TextView gift=pill("🎁",0x00ffffff,this::giftShopPanel); gift.setTextColor(0xffaf3583); gift.setTextSize(24); gift.setContentDescription("Animated cinematic Gift Shop"); composer.addView(gift,new LinearLayout.LayoutParams(dp(38),dp(46)));
         TextView send=pill("➤",0x00ffffff,()->sendMessage(composerBox)); send.setTextColor(themeAccent954()); send.setTextSize(24); send.setGravity(Gravity.CENTER); composer.addView(send,new LinearLayout.LayoutParams(dp(40),dp(48)));
@@ -2589,53 +2589,54 @@ public class PartyActivity extends androidx.fragment.app.FragmentActivity implem
     private void showLiveEmojiPanelV530() {
         final LinearLayout sheet=new LinearLayout(this);
         sheet.setOrientation(LinearLayout.VERTICAL);
-        sheet.setBackgroundColor(0xff171326);
-        LinearLayout bar=new LinearLayout(this);
-        bar.setGravity(Gravity.CENTER_VERTICAL);bar.setPadding(dp(12),0,dp(8),0);
-        TextView title=tv("KING LIVE • 120 ACTION EMOJI",16,Color.WHITE,true);
-        bar.addView(title,new LinearLayout.LayoutParams(0,dp(48),1));
-        TextView close=tv("×",26,Color.WHITE,true);
-        close.setGravity(Gravity.CENTER);
-        bar.addView(close,new LinearLayout.LayoutParams(dp(48),dp(48)));
-        sheet.addView(bar);
-        TextView subtitle=tv("50 classic • 50 action • 10 level • 10 VIP preview",
-            11,0xffffdc95,true);
-        subtitle.setPadding(dp(12),0,dp(8),dp(5));
-        sheet.addView(subtitle,new LinearLayout.LayoutParams(-1,dp(25)));
-        HorizontalScrollView strip=new HorizontalScrollView(this);
-        strip.setHorizontalScrollBarEnabled(false);
-        LinearLayout tabs=new LinearLayout(this);
-        strip.addView(tabs);
-        sheet.addView(strip,new LinearLayout.LayoutParams(-1,dp(54)));
-        ScrollView scroll=new ScrollView(this);
-        LinearLayout grid=new LinearLayout(this);
-        grid.setOrientation(LinearLayout.VERTICAL);
-        grid.setPadding(dp(7),dp(5),dp(7),dp(7));
-        scroll.addView(grid);sheet.addView(scroll,new LinearLayout.LayoutParams(-1,0,1));
-        final String[] groups={"Action 25","Party 25","Classic A","Classic B",
-            "Level 10","VIP 10","Stickers","Saved"};
+        sheet.setBackgroundColor(0xfffffdf8);
         final AlertDialog dialog=new AlertDialog.Builder(this).setView(sheet).create();
-        close.setOnClickListener(v->dialog.dismiss());
+
+        // Keep the room and seats visible; quick phrases and emoji share a compact bottom sheet.
+        HorizontalScrollView quickScroll=new HorizontalScrollView(this);quickScroll.setHorizontalScrollBarEnabled(false);
+        LinearLayout quick=new LinearLayout(this);
+        for(String phrase:new String[]{"Nice to meet everyone!","😂😂😂","Hi","Nice"}){
+            TextView chip=tv(phrase,12,0xff3b2b45,true);chip.setGravity(Gravity.CENTER);chip.setBackground(bg(0xffffedbc,18));
+            LinearLayout.LayoutParams p=new LinearLayout.LayoutParams(-2,dp(40));p.setMargins(dp(4),dp(3),dp(4),dp(3));quick.addView(chip,p);
+            chip.setOnClickListener(v->{dialog.dismiss();if(composerBox!=null){composerBox.setText(phrase);composerBox.setSelection(composerBox.length());sendMessage(composerBox);}});
+        }
+        quickScroll.addView(quick);sheet.addView(quickScroll,new LinearLayout.LayoutParams(-1,dp(46)));
+
+        LinearLayout bar=new LinearLayout(this);bar.setGravity(Gravity.CENTER_VERTICAL);
+        EditText input=new EditText(this);input.setSingleLine(true);input.setTextSize(14);input.setHint("Send a message...");input.setPadding(dp(12),0,dp(12),0);
+        input.setBackground(bg(0xfff1eff4,18));bar.addView(input,new LinearLayout.LayoutParams(0,dp(44),1));
+        TextView send=tv("➤",22,0xff9c6b00,true);send.setGravity(Gravity.CENTER);
+        bar.addView(send,new LinearLayout.LayoutParams(dp(48),dp(48)));send.setContentDescription("Send chat message");
+        send.setOnClickListener(v->{String text=input.getText().toString().trim();if(text.isEmpty())return;dialog.dismiss();if(composerBox!=null){composerBox.setText(text);sendMessage(composerBox);}});
+        TextView close=tv("×",24,0xff3b2b45,true);close.setGravity(Gravity.CENTER);close.setContentDescription("Close emoji");close.setOnClickListener(v->dialog.dismiss());
+        bar.addView(close,new LinearLayout.LayoutParams(dp(48),dp(48)));sheet.addView(bar,new LinearLayout.LayoutParams(-1,dp(48)));
+
+        ScrollView scroll=new ScrollView(this);
+        LinearLayout grid=new LinearLayout(this);grid.setOrientation(LinearLayout.VERTICAL);grid.setPadding(dp(6),dp(4),dp(6),dp(4));
+        scroll.addView(grid);sheet.addView(scroll,new LinearLayout.LayoutParams(-1,0,1));
+        HorizontalScrollView strip=new HorizontalScrollView(this);strip.setHorizontalScrollBarEnabled(false);
+        LinearLayout tabs=new LinearLayout(this);strip.addView(tabs);sheet.addView(strip,new LinearLayout.LayoutParams(-1,dp(48)));
+        final String[] groups={"😀 Action","🎉 Party","🙂 Classic","😄 Faces","🎲 Stickers","⭐ Level","👑 VIP","♡ Saved"};
         for(int i=0;i<groups.length;i++){
             final int group=i;
-            TextView tab=tv(groups[i],12,Color.WHITE,true);
-            tab.setGravity(Gravity.CENTER);
-            LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(dp(92),dp(44));
-            lp.setMargins(dp(2),dp(2),dp(2),dp(2));tabs.addView(tab,lp);
+            TextView tab=tv(groups[i],12,0xff3b2b45,true);tab.setGravity(Gravity.CENTER);
+            LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(-2,dp(44));lp.setMargins(dp(2),dp(2),dp(2),dp(2));tabs.addView(tab,lp);
             tab.setOnClickListener(v->{
                 String[] pack;
                 if(group==0)pack=emojiSlice993(50,75);
                 else if(group==1)pack=emojiSlice993(75,100);
                 else if(group==2)pack=emojiSlice993(0,25);
                 else if(group==3)pack=emojiSlice993(25,50);
-                else if(group==4)pack=emojiSlice993(100,110);
-                else if(group==5)pack=emojiSlice993(110,120);
-                else if(group==6)pack=stickerPack550(0,67);
+                else if(group==4)pack=stickerPack550(0,67);
+                else if(group==5)pack=emojiSlice993(100,110);
+                else if(group==6)pack=emojiSlice993(110,120);
                 else pack=favouriteEmojiPack610();
-                fillEmojiGrid610(grid,pack,group==6?6:5,group<6);
-                for(int n=0;n<tabs.getChildCount();n++)
-                    tabs.getChildAt(n).setBackground(
-                        bg(n==group?0xfff5b83e:0xff383047,14));
+                fillEmojiGrid610(grid,pack,group==2||group==3?6:4,group!=4&&group!=7);
+                scroll.scrollTo(0,0);
+                for(int n=0;n<tabs.getChildCount();n++){
+                    tabs.getChildAt(n).setSelected(n==group);
+                    tabs.getChildAt(n).setBackground(bg(n==group?0xffffd56b:0xfff2eff5,14));
+                }
             });
         }
         tabs.getChildAt(0).performClick();
@@ -2645,9 +2646,8 @@ public class PartyActivity extends androidx.fragment.app.FragmentActivity implem
                 w.setBackgroundDrawableResource(android.R.color.transparent);
                 w.clearFlags(android.view.WindowManager.LayoutParams.FLAG_DIM_BEHIND);
                 w.setGravity(Gravity.BOTTOM);
-                int h=Math.min(dp(580),Math.max(dp(390),
-                    (int)(getResources().getDisplayMetrics().heightPixels*.64f)));
-                w.setLayout(-1,h);
+                w.setSoftInputMode(android.view.WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE|android.view.WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_HIDDEN);
+                w.setLayout(-1,Math.min(dp(460),(int)(getResources().getDisplayMetrics().heightPixels*.48f)));
             }
         });
         dialog.show();
@@ -2666,8 +2666,8 @@ public class PartyActivity extends androidx.fragment.app.FragmentActivity implem
     private void fillEmojiGrid610(LinearLayout grid,String[] emojis,int columns,boolean livePack){
         grid.removeAllViews();
         if(emojis==null||emojis.length==0){TextView empty=tv("No favourites yet\nLong-press any Face or Expression to add it here.",14,0xff777777,false);empty.setGravity(Gravity.CENTER);grid.addView(empty,new LinearLayout.LayoutParams(-1,dp(150)));return;}
-        final int rowHeight=columns>=6?dp(64):dp(72);
-        final int artSize=columns>=6?dp(46):dp(52);
+        final int rowHeight=columns>=6?dp(48):dp(68);
+        final int artSize=columns>=6?dp(38):dp(54);
         LinearLayout row=null;
         for(int i=0;i<emojis.length;i++){
             if(i%columns==0){row=new LinearLayout(this);row.setGravity(Gravity.CENTER);grid.addView(row,new LinearLayout.LayoutParams(-1,rowHeight));}
@@ -2676,7 +2676,7 @@ public class PartyActivity extends androidx.fragment.app.FragmentActivity implem
             else if(stickerResource550(token)!=0){android.widget.ImageView im=new android.widget.ImageView(this);im.setImageResource(stickerResource550(token));im.setScaleType(android.widget.ImageView.ScaleType.CENTER_INSIDE);im.setAdjustViewBounds(false);im.setContentDescription("Sticker "+token);art=im;}
             else if(live>=0){art=new LiveEmojiView(this,live,-1);art.setContentDescription("Preview "+LiveEmojiView.LABELS[live]+"; tap to animate in the room");}
             else{TextView text=tv(token,columns>=6?30:33,0xff202020,false);text.setGravity(Gravity.CENTER);text.setPadding(0,0,0,0);text.setContentDescription("Send "+token);art=text;}
-            FrameLayout cell=new FrameLayout(this);cell.setForegroundGravity(Gravity.CENTER);cell.setPadding(dp(2),dp(2),dp(2),dp(2));
+            FrameLayout cell=new FrameLayout(this);cell.setForegroundGravity(Gravity.CENTER);cell.setPadding(dp(2),dp(2),dp(2),dp(2));cell.setBackground(bg(0xfffff7e6,10));
             FrameLayout.LayoutParams ap=new FrameLayout.LayoutParams(artSize,artSize,Gravity.CENTER);cell.addView(art,ap);
             LinearLayout.LayoutParams cp=new LinearLayout.LayoutParams(0,rowHeight,1);cp.setMargins(dp(1),dp(1),dp(1),dp(1));row.addView(cell,cp);
             final int emojiId993=live;
@@ -2686,7 +2686,7 @@ public class PartyActivity extends androidx.fragment.app.FragmentActivity implem
                 String badge=KingEmojiAccess993.requiredVip(emojiId993)>0
                     ?"VIP "+KingEmojiAccess993.requiredVip(emojiId993)
                     :"LV "+KingEmojiAccess993.requiredLevel(emojiId993);
-                TextView lock=tv("🔒 "+badge,10,0xffffd889,true);
+                TextView lock=tv("🔒 "+badge,10,0xff885700,true);
                 lock.setGravity(Gravity.BOTTOM|Gravity.CENTER_HORIZONTAL);
                 cell.addView(lock,new FrameLayout.LayoutParams(-1,dp(20),Gravity.BOTTOM));
             }
@@ -2794,7 +2794,8 @@ public class PartyActivity extends androidx.fragment.app.FragmentActivity implem
             boolean match=uid!=null?uid.equals(seatUids.get(entry.getKey())):entry.getKey()==mySeat;
             if(match){int[] seatXY=new int[2],stageXY=new int[2];entry.getValue().getLocationOnScreen(seatXY);stage.getLocationOnScreen(stageXY);lp.leftMargin=Math.max(0,seatXY[0]-stageXY[0]+(entry.getValue().getWidth()-dp(82))/2);lp.topMargin=Math.max(0,seatXY[1]-stageXY[1]-dp(7));break;}
         }
-        if(ReferenceEmojiView.parse(emoji)>=3 || live>=12){lp.width=-1;lp.height=-1;lp.leftMargin=0;lp.topMargin=0;}
+        // Keep ordinary face reactions on the sender’s seat. Special reference effects may use the full stage.
+        if(ReferenceEmojiView.parse(emoji)>=3){lp.width=-1;lp.height=-1;lp.leftMargin=0;lp.topMargin=0;}
         stage.addView(reaction,lp);reaction.setScaleX(.6f);reaction.setScaleY(.6f);reaction.animate().scaleX(1f).scaleY(1f).setDuration(200).start();
         reaction.postDelayed(()->{reaction.animate().alpha(0f).setDuration(250).withEndAction(()->{stage.removeView(reaction);if(activeReactions560.get(key)==reaction)activeReactions560.remove(key);}).start();},3750);
     }
@@ -3616,57 +3617,21 @@ public class PartyActivity extends androidx.fragment.app.FragmentActivity implem
     private void giftShopPanel(){
         if(ownerName==null)ownerName="KING Host";
         if(giftTargetName==null||giftTargetName.isEmpty()){giftTargetName="👑 "+ownerName;giftTargetUid=ownerUid==null?"":ownerUid;}
-        giftQuantity=1; giftCategory="All"; giftSelectedIndex=0;giftHero994=null;
+        giftQuantity=1; giftCategory="Activity"; giftSelectedIndex=0;giftHero994=null;
         LinearLayout root=new LinearLayout(this);root.setOrientation(LinearLayout.VERTICAL);root.setPadding(dp(10),dp(8),dp(10),dp(10));root.setBackgroundColor(0xff181824);
-        LinearLayout banner=new LinearLayout(this);banner.setGravity(Gravity.CENTER_VERTICAL);banner.setPadding(dp(10),dp(4),dp(8),dp(4));banner.setBackground(bg(0xff7d36d6,14));
-        TextView wt=tv("🎟  Weekly Gift Card",16,Color.WHITE,true);banner.addView(wt,new LinearLayout.LayoutParams(0,dp(42),1));TextView arrow=tv("›",28,Color.WHITE,true);arrow.setGravity(Gravity.CENTER);banner.addView(arrow,new LinearLayout.LayoutParams(dp(40),dp(42)));banner.setOnClickListener(v->{if(giftShopDialog!=null)giftShopDialog.dismiss();weeklyGiftCardDialog();});root.addView(banner,new LinearLayout.LayoutParams(-1,dp(40)));
         LinearLayout top=(LinearLayout)getLayoutInflater().inflate(R.layout.king_party_gift_header_10064,root,false);
-        TextView title=top.findViewById(R.id.party_gift_title_10064);title.setText("Gift Shop • "+giftNames.length+" gifts");
+        TextView title=top.findViewById(R.id.party_gift_title_10064);title.setText("Gifts");
         giftBalanceLabel=top.findViewById(R.id.party_gift_balance_10064);giftBalanceLabel.setText("💎 checking…");
+        TextView more=tv("⋯",24,Color.WHITE,true);more.setGravity(Gravity.CENTER);more.setContentDescription("Gift tools");
+        more.setOnClickListener(v->showCompactGiftTools());top.addView(more,new LinearLayout.LayoutParams(dp(48),dp(48)));
         root.addView(top);refreshPartyGiftBalance10064();
-        LinearLayout giftQuick950=new LinearLayout(this);giftQuick950.setGravity(Gravity.CENTER);String[] gq950={"🎁 Wall","🏆 Rank","🎒 Backpack"};for(String q950:gq950){TextView b950=pill(q950,0xff2b2938,()->{if(giftShopDialog!=null)giftShopDialog.dismiss();if(q950.contains("Wall"))giftWall620();else if(q950.contains("Rank"))roomRankingDialog();else backpackGiftDialog700();});b950.setTextSize(11);LinearLayout.LayoutParams qp950=new LinearLayout.LayoutParams(0,dp(38),1);qp950.setMargins(dp(2),0,dp(2),dp(4));giftQuick950.addView(b950,qp950);}root.addView(giftQuick950,new LinearLayout.LayoutParams(-1,dp(42)));
-        TextView soundToggle993=pill(
-            KingGiftSound993.enabled(this)?"🔊 Gift Sound ON":"🔇 Gift Sound OFF",
-            0xff342c55,null);
-        soundToggle993.setTextSize(11);
-        soundToggle993.setOnClickListener(v->{
-            boolean on=!KingGiftSound993.enabled(this);
-            KingGiftSound993.setEnabled(this,on);
-            soundToggle993.setText(on?"🔊 Gift Sound ON":"🔇 Gift Sound OFF");
-        });
-        root.addView(soundToggle993,new LinearLayout.LayoutParams(-1,dp(34)));
-        TextView preview9932=pill("▶ Hear selected gift sound • FREE PREVIEW",0xff36305c,
-            ()->KingGiftSound993.play(this,giftNames[giftSelectedIndex]));
-        preview9932.setTextSize(11);
-        root.addView(preview9932,new LinearLayout.LayoutParams(-1,dp(36)));
-        LinearLayout heroPanel994=new LinearLayout(this);
-        heroPanel994.setGravity(Gravity.CENTER_VERTICAL);
-        heroPanel994.setPadding(dp(6),dp(4),dp(8),dp(4));
-        heroPanel994.setBackground(bg(0xff282038,16));
-        giftHero994=new KingGiftArtView(this,giftSelectedIndex,
-            giftNames[giftSelectedIndex],giftIcons[giftSelectedIndex]);
-        giftHero994.setShowcaseMode(true);
-        heroPanel994.addView(giftHero994,new LinearLayout.LayoutParams(dp(112),dp(104)));
-        LinearLayout heroInfo994=new LinearLayout(this);
-        heroInfo994.setOrientation(LinearLayout.VERTICAL);
-        giftSelectionLabel=tv(giftSelectionText867(),12,0xffffe38a,true);
-        giftSelectionLabel.setGravity(Gravity.CENTER_VERTICAL);
-        giftSelectionLabel.setMaxLines(3);
-        heroInfo994.addView(giftSelectionLabel,
-            new LinearLayout.LayoutParams(-1,dp(75)));
-        TextView hint994=tv("✨ Animated gift preview • choose any gift",10,
-            0xfff5cfee,false);
-        heroInfo994.addView(hint994,new LinearLayout.LayoutParams(-1,dp(22)));
-        heroPanel994.addView(heroInfo994,
-            new LinearLayout.LayoutParams(0,dp(104),1));
-        LinearLayout.LayoutParams heroLp994=new LinearLayout.LayoutParams(-1,dp(110));
-        heroLp994.bottomMargin=dp(4);
-        root.addView(heroPanel994,heroLp994);
+        giftSelectionLabel=tv(giftSelectionText867(),12,0xffffe38a,true);giftSelectionLabel.setMaxLines(2);giftSelectionLabel.setEllipsize(android.text.TextUtils.TruncateAt.END);
         HorizontalScrollView peopleScroll=new HorizontalScrollView(this);peopleScroll.setHorizontalScrollBarEnabled(false);LinearLayout people=new LinearLayout(this);people.setGravity(Gravity.CENTER_VERTICAL);people.setPadding(0,dp(3),0,dp(5));addGiftRecipientChip(people,"🙋 ME • "+safeName(),
             user==null?"":user.getUid());
-        addGiftRecipientChip(people,"👑 "+ownerName,ownerUid==null?"":ownerUid);for(int no=1;no<=maxSeats;no++){String n=seatNames.get(no);if(n==null||n.equals(displayName))continue;addGiftRecipientChip(people,no+" • "+n,seatUids.get(no)==null?"":seatUids.get(no));}peopleScroll.addView(people);root.addView(peopleScroll,new LinearLayout.LayoutParams(-1,dp(50)));
-        HorizontalScrollView catScroll=new HorizontalScrollView(this);catScroll.setHorizontalScrollBarEnabled(false);giftCategoryBar867=new LinearLayout(this);giftCategoryBar867.setGravity(Gravity.CENTER_VERTICAL);catScroll.addView(giftCategoryBar867);root.addView(catScroll,new LinearLayout.LayoutParams(-1,dp(44)));rebuildGiftCategories867();
+        addGiftRecipientChip(people,"👑 "+ownerName,ownerUid==null?"":ownerUid);for(int no=1;no<=maxSeats;no++){String n=seatNames.get(no);if(n==null||n.equals(displayName))continue;addGiftRecipientChip(people,no+" • "+n,seatUids.get(no)==null?"":seatUids.get(no));}peopleScroll.addView(people);root.addView(peopleScroll,new LinearLayout.LayoutParams(-1,dp(48)));
+        HorizontalScrollView catScroll=new HorizontalScrollView(this);catScroll.setHorizontalScrollBarEnabled(false);giftCategoryBar867=new LinearLayout(this);giftCategoryBar867.setGravity(Gravity.CENTER_VERTICAL);catScroll.addView(giftCategoryBar867);root.addView(catScroll,new LinearLayout.LayoutParams(-1,dp(40)));rebuildGiftCategories867();
         ScrollView giftsScroll=new ScrollView(this);giftGridBox=new LinearLayout(this);giftGridBox.setOrientation(LinearLayout.VERTICAL);giftsScroll.addView(giftGridBox);root.addView(giftsScroll,new LinearLayout.LayoutParams(-1,0,1));rebuildGiftGrid();
+        root.addView(giftSelectionLabel,new LinearLayout.LayoutParams(-1,-2));
         LinearLayout qty=new LinearLayout(this);qty.setGravity(Gravity.CENTER);int[] qs={1,3,9};for(int q:qs){TextView b=pill(String.valueOf(q),q==1?0xff776a00:0xff343143,()->{giftQuantity=q;refreshGiftSelection867();});LinearLayout.LayoutParams qp=new LinearLayout.LayoutParams(0,dp(44),1);qp.setMargins(dp(3),0,dp(3),0);qty.addView(b,qp);}TextView send=pill("SEND",0xffffd92e,()->KingSafe.run(this,"gift-send",()->{if(giftSelectedIndex>=64&&giftVipRequired[giftSelectedIndex]>0){
                     toast("VIP gift locked • Payments and verified entitlements are OFF");
                     return;
@@ -3678,11 +3643,20 @@ public class PartyActivity extends androidx.fragment.app.FragmentActivity implem
             giftHero994.setShowcaseMode(false);
             giftHero994=null;
         }});
-        giftShopDialog.setOnShowListener(v->{android.view.Window w=giftShopDialog.getWindow();if(w!=null){w.setBackgroundDrawableResource(android.R.color.transparent);w.clearFlags(android.view.WindowManager.LayoutParams.FLAG_DIM_BEHIND);w.setGravity(Gravity.BOTTOM);int h950=Math.min(dp(650),Math.max(dp(430),(int)(getResources().getDisplayMetrics().heightPixels*.72f)));w.setLayout(-1,h950);root.setTranslationY(dp(42));root.setAlpha(.88f);root.animate().translationY(0).alpha(1f).setDuration(190).start();}});giftShopDialog.show();
+        giftShopDialog.setOnShowListener(v->{android.view.Window w=giftShopDialog.getWindow();if(w!=null){w.setBackgroundDrawableResource(android.R.color.transparent);w.clearFlags(android.view.WindowManager.LayoutParams.FLAG_DIM_BEHIND);w.setGravity(Gravity.BOTTOM);int h950=Math.min(dp(540),(int)(getResources().getDisplayMetrics().heightPixels*.56f));w.setLayout(-1,h950);root.setTranslationY(dp(42));root.setAlpha(.88f);root.animate().translationY(0).alpha(1f).setDuration(190).start();}});giftShopDialog.show();
+    }
+    private void showCompactGiftTools(){
+        new AlertDialog.Builder(this).setTitle("Gift tools")
+            .setItems(new String[]{"Gift Wall","Gift Ranking","Backpack","Weekly Gift Card","Toggle Gift Sound","Preview selected gift sound"},(d,w)->{
+                if(w==4){boolean on=!KingGiftSound993.enabled(this);KingGiftSound993.setEnabled(this,on);toast(on?"Gift sound on":"Gift sound off");return;}
+                if(w==5){KingGiftSound993.play(this,giftNames[giftSelectedIndex]);return;}
+                if(giftShopDialog!=null)giftShopDialog.dismiss();
+                if(w==0)giftWall620();else if(w==1)roomRankingDialog();else if(w==2)backpackGiftDialog700();else weeklyGiftCardDialog();
+            }).setNegativeButton("Close",null).show();
     }
     private void rebuildGiftCategories867(){
-        if(giftCategoryBar867==null)return;giftCategoryBar867.removeAllViews();String[] cs={"All","Voice","VIP Night","Flying","Relationship","Activity","Classic","Fame","Privilege","Filters","Parcel"};
-        for(String c:cs){boolean selected=c.equals(giftCategory);TextView t=tv(c,12,selected?Color.BLACK:0xffd0cad8,true);t.setGravity(Gravity.CENTER);t.setBackground(bg(selected?0xffffd92e:0xff2a2938,12));t.setOnClickListener(v->{giftCategory=c;rebuildGiftCategories867();rebuildGiftGrid();});LinearLayout.LayoutParams cp=new LinearLayout.LayoutParams(dp(88),dp(36));cp.setMargins(dp(2),dp(2),dp(2),dp(2));giftCategoryBar867.addView(t,cp);}
+        if(giftCategoryBar867==null)return;giftCategoryBar867.removeAllViews();String[] cs={"Activity","Classic","Flying","Relationship","Fame","Privilege","Filters","Parcel","All","Voice","VIP Night"};
+        for(String c:cs){boolean selected=c.equals(giftCategory);TextView t=tv(c,12,selected?Color.BLACK:0xffd0cad8,true);t.setGravity(Gravity.CENTER);t.setBackground(bg(selected?0xffffd92e:0xff2a2938,12));t.setOnClickListener(v->{giftCategory=c;rebuildGiftCategories867();rebuildGiftGrid();});LinearLayout.LayoutParams cp=new LinearLayout.LayoutParams(-2,dp(36));cp.setMargins(dp(2),dp(2),dp(2),dp(2));giftCategoryBar867.addView(t,cp);}
     }
     private void addGiftRecipientChip(LinearLayout row,String label,String uid){
         TextView chip=pill(label,0xff343143,()->{giftTargetName=label;giftTargetUid=uid==null?"":uid;refreshGiftSelection867();});
@@ -3695,10 +3669,10 @@ public class PartyActivity extends androidx.fragment.app.FragmentActivity implem
         LinearLayout row=null;int col=0;int myVip=LevelSystem.read(this).vipLevel;
         for(int i=0;i<giftNames.length;i++){
             if(!"All".equals(giftCategory)&&!giftCategory.equals(giftCategories[i]))continue;
-            if(row==null||col==4){row=new LinearLayout(this);row.setGravity(Gravity.CENTER);giftGridBox.addView(row,new LinearLayout.LayoutParams(-1,dp(139)));col=0;}
+            if(row==null||col==4){row=new LinearLayout(this);row.setGravity(Gravity.CENTER);giftGridBox.addView(row,new LinearLayout.LayoutParams(-1,dp(112)));col=0;}
             final int idx=i;final int vipNeed=giftVipRequired[i];
             final boolean unlocked=idx<64||vipNeed==0;final boolean selected=idx==giftSelectedIndex;LinearLayout card=new LinearLayout(this);card.setOrientation(LinearLayout.VERTICAL);card.setGravity(Gravity.CENTER);card.setBackground(bg(selected?0xff47336c:(unlocked?0xff232231:0xff171720),14));card.setPadding(dp(2),dp(3),dp(2),dp(2));card.setAlpha(unlocked?1f:.82f);
-            TextView nw=tv(selected?"✓ SELECTED":unlocked?"":"🔒 VIP "+vipNeed,9,selected?0xffffd92e:(unlocked?0xff68e89d:0xffffb04f),true);nw.setGravity(Gravity.CENTER);card.addView(nw,new LinearLayout.LayoutParams(-1,dp(18)));
+            TextView nw=tv(selected?"✓ SELECTED":unlocked?"":"🔒 VIP "+vipNeed,9,selected?0xffffd92e:(unlocked?0xff68e89d:0xffffb04f),true);nw.setGravity(Gravity.CENTER);card.addView(nw,new LinearLayout.LayoutParams(-1,dp(15)));
             FrameLayout artStage994=new FrameLayout(this);
             KingGiftArtView art994=new KingGiftArtView(this,idx,
                 giftNames[i],giftIcons[i]);
@@ -3709,10 +3683,10 @@ public class PartyActivity extends androidx.fragment.app.FragmentActivity implem
                 artStage994.addView(badge994,
                     new FrameLayout.LayoutParams(-1,dp(22),Gravity.TOP));
             }
-            card.addView(artStage994,new LinearLayout.LayoutParams(-1,dp(61)));
-            TextView name=tv(giftNames[i],11,unlocked?0xfff5f2f7:0xff817b88,true);name.setGravity(Gravity.CENTER);name.setMaxLines(1);card.addView(name,new LinearLayout.LayoutParams(-1,dp(22)));
+            card.addView(artStage994,new LinearLayout.LayoutParams(-1,dp(49)));
+            TextView name=tv(giftNames[i],11,unlocked?0xfff5f2f7:0xff817b88,true);name.setGravity(Gravity.CENTER);name.setMaxLines(1);card.addView(name,new LinearLayout.LayoutParams(-1,dp(19)));
             TextView cost=tv(unlocked?(idx<64?"💎 "+giftCosts[idx]:"FREE"):"PREVIEW",11,
-                selected?0xffffd92e:0xffaaa5b4,true);cost.setGravity(Gravity.CENTER);card.addView(cost,new LinearLayout.LayoutParams(-1,dp(20)));
+                selected?0xffffd92e:0xffaaa5b4,true);cost.setGravity(Gravity.CENTER);card.addView(cost,new LinearLayout.LayoutParams(-1,dp(18)));
             name.setSingleLine(true);name.setEllipsize(android.text.TextUtils.TruncateAt.END);
             card.setOnClickListener(v->{
                 if(!unlocked){
@@ -3721,11 +3695,11 @@ public class PartyActivity extends androidx.fragment.app.FragmentActivity implem
                     return;
                 }
                 giftSelectedIndex=idx;refreshGiftSelection867();rebuildGiftGrid();
-            });LinearLayout.LayoutParams cp=new LinearLayout.LayoutParams(0,dp(133),1);cp.setMargins(dp(3),dp(3),dp(3),dp(3));row.addView(card,cp);col++;
+            });LinearLayout.LayoutParams cp=new LinearLayout.LayoutParams(0,dp(106),1);cp.setMargins(dp(3),dp(3),dp(3),dp(3));row.addView(card,cp);col++;
         }
         // Keep incomplete rows at four equal columns so cards never stretch larger than the others.
         if(row!=null&&col>0&&col<4){
-            for(int i=col;i<4;i++){View spacer=new View(this);LinearLayout.LayoutParams sp=new LinearLayout.LayoutParams(0,dp(133),1);sp.setMargins(dp(3),dp(3),dp(3),dp(3));row.addView(spacer,sp);}
+            for(int i=col;i<4;i++){View spacer=new View(this);LinearLayout.LayoutParams sp=new LinearLayout.LayoutParams(0,dp(106),1);sp.setMargins(dp(3),dp(3),dp(3),dp(3));row.addView(spacer,sp);}
         }
     }
     private boolean paidGiftEvent10064(DocumentSnapshot event){

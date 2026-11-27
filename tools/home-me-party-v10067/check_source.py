@@ -134,3 +134,13 @@ assert 'sectionTabs.setVisibility("home".equals(r)?View.GONE:View.VISIBLE)' in h
 assert 'addSnapshotListener(MetadataChanges.INCLUDE' in hub
 assert 'openHomeRoom(doc.getId())' in hub and 'homeUnorderedRooms=true;homeRoomCursor=null;homeRoomPrevious.clear();' in hub
 print("PASS golden Home grid, saved rooms, direct entry and metadata-aware live room pagination")
+
+# Reference-video-inspired compact Party sheets preserve the existing real send methods.
+emoji_sheet=party.split("private void showLiveEmojiPanelV530()",1)[1].split("private void previewLockedAction993",1)[0]
+gift_sheet=party.split("private void giftShopPanel()",1)[1].split("private void rebuildGiftCategories867()",1)[0]
+assert 'group==2||group==3?6:4' in emoji_sheet and 'sheet.setBackgroundColor(0xfffffdf8)' in emoji_sheet
+assert 'sendMessage(composerBox)' in emoji_sheet and 'fillEmojiGrid610' in emoji_sheet
+assert 'showCompactGiftTools()' in gift_sheet and 'sendPaidPartyGift10064()' in gift_sheet
+assert 'giftCategory="Activity"' in gift_sheet and 'root.addView(giftSelectionLabel' in gift_sheet
+assert 'giftVipRequired[giftSelectedIndex]>0' in gift_sheet
+print("PASS compact Party emoji and gifting sheets, existing server send and locked-gift guards")
