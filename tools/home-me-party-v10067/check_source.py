@@ -155,5 +155,13 @@ assert 'whereGreaterThanOrEqualTo("createdAt",since)' in party and 'Unique gift 
 assert 'Latest 200 events only' in party and 'Recorded paid gift value' in party
 wardrobe=(java/'KingWardrobeActivity.java').read_text()
 assert 'm.put("vipLevel"' not in wardrobe and 'm.put("vipPoints"' not in wardrobe
-assert 'Cloud sync failed. Local selection only.' in wardrobe
+assert 'Cloud sync failed. Previous equipped item retained.' in wardrobe
 print('PASS Party direct controls, bounded current-day room stats and entitlement-safe cosmetic sync')
+
+assert 'getHttpsCallable("getDailyCheckinStatus").call()' in wardrobe
+assert 'm.put(field,name)' in wardrobe and 'obtainedOnly&&!unlocked' in wardrobe
+assert 'progress=new LevelSystem.Snapshot(Math.max(1,Math.min(99,level)),xp,0,0)' in wardrobe
+public=(java/'KingPublicProfileActivity.java').read_text()
+assert 'Public medals and purchase ownership are not verified here.' in public
+assert 'No verified public prestige record' in public
+print('PASS account-backed privilege browsing, guarded equip and truthful public collection')

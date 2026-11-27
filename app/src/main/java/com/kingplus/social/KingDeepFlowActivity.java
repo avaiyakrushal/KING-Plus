@@ -85,7 +85,10 @@ public class KingDeepFlowActivity extends Activity {
             case "gift_center":giftCenter();break;case "gift_wall":giftWall();break;case "gift_history":giftHistory();break;case "gift_wish":giftWish();break;case "gift_lucky":giftLucky();break;
             case "game_center":gameCenter();break;case "game_hot":gameHot();break;case "game_party":gameParty();break;case "game_team":gameTeam();break;
             case "music_center":musicCenter();break;case "video_center":videoCenter();break;case "task_center":taskCenter();break;case "event_center":eventCenter();break;case "profile_center":profileCenter();break;case "level_center":levelCenter();break;case "medal_center":medalCenter();break;case "social_center":socialCenter();break;case "discover_center":discoverCenter();break;case "report_history":reportHistory9981();break;
-            case "detail_frames": case "detail_entrance": case "detail_chat_bubble": case "detail_name_badge": startActivity(new Intent(this,KingWardrobeActivity.class));break;
+            case "detail_frames": openWardrobe("Frames",true);break;
+            case "detail_entrance": openWardrobe("Entrances",true);break;
+            case "detail_chat_bubble": openWardrobe("Bubbles",true);break;
+            case "detail_name_badge": openWardrobe("Badges",true);break;
             case "detail_music_library": openPartyPanel940("music");break;
             case "detail_song_request": openPartyPanel940("song");break;
             case "detail_ktv_queue": openPartyPanel940("ktv");break;
@@ -256,12 +259,22 @@ public class KingDeepFlowActivity extends Activity {
         row("🏆","Rankings","Contribution, charisma and activity rankings","discover_center");
     }
 
+    private void openWardrobe(String category,boolean obtained){
+        Intent i=new Intent(this,KingWardrobeActivity.class);i.putExtra("category",category);i.putExtra("obtained",obtained);startActivity(i);
+    }
     private void privilegePack(){
-        LevelSystem.Snapshot s=LevelSystem.read(this);hero("🎁 Privilege Pack","Activity Lv."+s.level+" • Paid VIP cosmetics require verified server entitlement");
-        TextView current953=tv("🖼 "+KingCosmetics.frame(this)+"\\n✨ "+KingCosmetics.effect(this)+"\\n💬 "+KingCosmetics.bubble(this),13,INK,true);current953.setPadding(dp(12),dp(8),dp(12),dp(8));current953.setBackground(bg(0xfffff2c8,14));body.addView(current953,new LinearLayout.LayoutParams(-1,dp(82)));
-        section("Identity");row("🖼","ID / Profile Frames","Minimal, Music, Heart, Royal, Galaxy, Crown","detail_frames");row("✨","Entrance Effects","Sparkle, Crown Drop, Rose Shower, Galaxy Portal, Royal Arrival","detail_entrance");row("💬","Chat Bubble","VIP identity styling and message badge","detail_chat_bubble");row("🏷","Name Badge","VIP + Level badges in room and chat","detail_name_badge");
-        section("Room");row("🎨","Room Theme","Green, Royal, Galaxy and event themes","detail_room_theme");row("🪑","VIP Seat Style","Seat frame and identity","detail_vip_seat");
-        section("Manage");row("🛍","Open Privilege Shop","Equip unlocked frames, effects and bubbles","privilege_shop");row("💎","VIP Progress","Review VIP tiers and privileges","vip");
+        hero("👑 My Privilege Pack","Account collection • preview, obtained items and equip");
+        row("🖼","Avatar Frame","View verified free frames",()->openWardrobe("Frames",true));
+        row("✨","Entrance Effects","View eligible entrance effects",()->openWardrobe("Entrances",true));
+        row("💬","Chat Bubble","View eligible chat bubbles",()->openWardrobe("Bubbles",true));
+        row("🏷","Badge","View eligible name badges",()->openWardrobe("Badges",true));
+        row("🏅","Medal Wall","Server-confirmed check-in achievements","medal_center");
+        section("Room tools");
+        row("🎨","Room Background","Change a joined room's theme with permission","detail_room_theme");
+        row("🪑","Seat Layout","Manage seats in a joined room","detail_vip_seat");
+        section("Manage");row("🛍","Privilege Shop","Browse and preview available and locked items",()->openWardrobe("All",false));row("💎","VIP Progress","Review VIP tiers and privileges","vip");
+        section("Not available yet");
+        body.addView(tv("Sound Wave · Couple Entrance Effect · Unique ID · Bowler Hat · Profile Background · Voucher · Dynamic Personal Page · Seat Dynamic Effect · Keepsake · Relationship Card · Room Frame · Emoji Collection · Nickname Effects. No purchases or entitlements are granted by this list.",13,sub(),false));
     }
     private void privilegeShop(){hero("🛍 Privilege Shop","Equip unlocked KING Plus cosmetics. Selection persists on this device and cloud profile.");String[] frames={"Minimal Frame","Music Frame","Heart Frame","Royal Frame","Galaxy Frame","Crown Frame"};section("ID Frames");for(String f:frames)row(KingCosmetics.frameEmoji(f),f,"Required: "+KingCosmetics.requirementFrame(f),()->equipFrame(f));section("Entrance Effects");String[] eff={"Welcome Sparkle","Crown Drop","Rose Shower","Galaxy Portal","Royal Arrival"};for(String e:eff)row(KingCosmetics.effectEmoji(e),e,"Required: "+KingCosmetics.requirementEffect(e),()->equipEffect(e));section("Chat Bubbles");for(String b:KingCosmetics.BUBBLES)row("💬",b,"Required: "+KingCosmetics.requirementBubble(b),()->equipBubble940(b));}
     private LevelSystem.Snapshot freeActivityOnly9988(){

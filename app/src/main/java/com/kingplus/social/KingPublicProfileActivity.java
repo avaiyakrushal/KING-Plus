@@ -182,14 +182,32 @@ public class KingPublicProfileActivity extends Activity {
         LinearLayout actions=new LinearLayout(this);actions.setGravity(Gravity.CENTER);followBtn=action("＋ Follow");followBtn.setOnClickListener(v->KingSafe.run(this,"public-profile-follow",this::toggleFollow));actions.addView(followBtn,new LinearLayout.LayoutParams(0,dp(50),1));TextView msg=action("✉ Message");msg.setOnClickListener(v->KingSafe.run(this,"public-profile-chat",this::openChat));actions.addView(msg,new LinearLayout.LayoutParams(0,dp(50),1));TextView gift=action("🎁 Gift");gift.setOnClickListener(v->KingSafe.run(this,"public-profile-gift",this::openGift));actions.addView(gift,new LinearLayout.LayoutParams(0,dp(50),1));body.addView(actions);addPublicCounts940();
 
         section("Profile & Collection");
-        row("⭐ Levels & VIP","Activity XP is TEST • VIP only verified by server",()->openDeep("vip"));
+        row("⭐ Levels & VIP","Only server-confirmed prestige is verified",()->showPublicCollection953(p));
         row("🎭 Collection & cosmetics","Frame, entrance, chat bubble and medals",()->showPublicCollection953(p));
-        row("🎁 Gift history","Secure sent/received gift ledger",this::openGift);
+        row("🎁 Send a gift","Open gifting for this profile",this::openGift);
         row("💞 Relationship","CP / relationship center",()->openCommunity("Relationship"));
         row("🏠 Family","Family square and party",()->openCommunity("Family"));
         section("Safety & Sharing");row("↗ Share KING ID","Share this profile",this::share);row("⚑ Report","Report this user",this::report);row("🚫 Block / Unblock","Keep this user out of your social feed",this::toggleBlock);checkFollow();
     }
-    private void showPublicCollection953(DocumentSnapshot p){Long lv=p.getLong("level"),vip=0L,xp=p.getLong("xp"),vp=0L;String frame=safe(p.getString("equippedFrame"),"Minimal Frame"),effect=safe(p.getString("entranceEffect"),"Welcome Sparkle"),bubble=safe(p.getString("chatBubble"),"Default Bubble"),badge=safe(p.getString("nameBadge"),"None");LinearLayout root=new LinearLayout(this);root.setOrientation(LinearLayout.VERTICAL);root.setPadding(dp(14),dp(8),dp(14),dp(10));TextView title=tv("👑 "+name+" • Collection",17,INK,true);title.setGravity(Gravity.CENTER);root.addView(title,new LinearLayout.LayoutParams(-1,dp(44)));String medals=((lv==null?1:lv)>=10?"🏅 Rising Star  ":"")+((lv==null?1:lv)>=30?"🎖 Elite Voice  ":"")+"";TextView progress=tv("⭐ Lv."+(lv==null?1:lv)+" • "+(xp==null?0:xp)+" XP\n💎 VIP "+(vip==null?0:vip)+" • "+(vp==null?0:vp)+" points",13,INK,true);progress.setBackground(bg(0xfffff1bd,14));progress.setPadding(dp(12),dp(8),dp(12),dp(8));root.addView(progress,new LinearLayout.LayoutParams(-1,dp(66)));TextView cosmetic=tv("🖼 "+frame+"\n✨ "+effect+"\n💬 "+bubble+(badge.equals("None")?"":"\n"+KingCosmetics.badgeEmoji(badge)+" "+badge),12,PURPLE,true);cosmetic.setBackground(bg(0xfff6f2fa,14));cosmetic.setPadding(dp(12),dp(8),dp(12),dp(8));LinearLayout.LayoutParams cp=new LinearLayout.LayoutParams(-1,badge.equals("None")?dp(86):dp(106));cp.setMargins(0,dp(6),0,dp(6));root.addView(cosmetic,cp);TextView medal=tv(medals.isEmpty()?"No public medals unlocked yet":medals,12,MUTED,true);medal.setGravity(Gravity.CENTER);root.addView(medal,new LinearLayout.LayoutParams(-1,dp(48)));new AlertDialog.Builder(this).setTitle("Collection").setView(root).setPositiveButton("Send Gift",(d,w)->openGift()).setNegativeButton("Close",null).show();}
+    private void showPublicCollection953(DocumentSnapshot p){
+        String frame=safe(p.getString("equippedFrame"),"Minimal Frame"),effect=safe(p.getString("entranceEffect"),"None"),bubble=safe(p.getString("chatBubble"),"Classic Purple"),badge=safe(p.getString("nameBadge"),"None");
+        LinearLayout root=new LinearLayout(this);root.setOrientation(LinearLayout.VERTICAL);root.setPadding(dp(14),dp(8),dp(14),dp(10));
+        TextView title=tv("👑 "+name+" • Collection",17,INK,true);title.setGravity(Gravity.CENTER);root.addView(title);
+        TextView progress=tv("Checking verified prestige…",13,INK,true);progress.setBackground(bg(0xfffff1bd,14));root.addView(progress,new LinearLayout.LayoutParams(-1,-2));
+        TextView cosmetic=tv("🖼 "+frame+"\n✨ "+effect+"\n💬 "+bubble+"\n🏷 "+badge,13,PURPLE,true);cosmetic.setBackground(bg(0xfff6f2fa,14));root.addView(cosmetic,new LinearLayout.LayoutParams(-1,-2));
+        root.addView(tv("Public cosmetic selections are profile data. Public medals and purchase ownership are not verified here.",12,MUTED,false));
+        AlertDialog.Builder builder=new AlertDialog.Builder(this).setTitle("Collection").setView(root).setPositiveButton("Send Gift",(di,which)->openGift()).setNegativeButton("Close",null);
+        FirebaseUser viewer=FirebaseAuth.getInstance().getCurrentUser();
+        if(viewer!=null&&uid.equals(viewer.getUid()))builder.setNeutralButton("My Medals",(di,which)->openDeep("medal_center"));
+        AlertDialog dialog=builder.show();
+        final String target=uid;
+        db.collection("king_public_prestige").document(target).get(com.google.firebase.firestore.Source.SERVER).addOnSuccessListener(grant->{
+            if(!dialog.isShowing()||isFinishing()||isDestroyed()||!target.equals(uid))return;
+            Long v=grant.getLong("vipLevel"),n=grant.getLong("nobleLevel"),total=grant.getLong("rechargeTotal");
+            if(v!=null&&n!=null&&total!=null&&KingPrestigeIdentity9988.allowedVerifiedPublic(v.intValue(),n.intValue(),total.longValue()))progress.setText("✓ Verified VIP "+v+" • Noble "+n);
+            else progress.setText("No verified public prestige record");
+        }).addOnFailureListener(e->{if(dialog.isShowing())progress.setText("Verified prestige unavailable");});
+    }
 
     private void loadProfilePhoto940(android.widget.ImageView image,TextView fallback,String url){
         KingProfileImages10068.load(this,image,fallback,url);
